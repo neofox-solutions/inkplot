@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charts</title>
+<style>
+:root { color-scheme: light dark; --bg: #f6f7f9; --card: #fff; --ink: #1d2733; --muted: #5d6b7a; --line: #d9dee5; --accent: #2a6df4; --warn: #9a5b00; }
+@media (prefers-color-scheme: dark) { :root { --bg: #14181d; --card: #1d232b; --ink: #e6ebf1; --muted: #9aa7b5; --line: #323b46; --accent: #7aa7ff; --warn: #f0b45a; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 16px; }
+.top { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin: 8px 0 16px; }
+h1 { font-size: 22px; margin: 0; } h2 { font-size: 17px; margin: 0; }
+.figure { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 16px; margin: 0 0 18px; }
+.figure header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+button { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+button:hover { border-color: var(--accent); color: var(--accent); }
+.plot { width: 100%; background: #fff; border-radius: 6px; }
+.caption { color: var(--muted); margin: 0 0 8px; }
+.hint { color: var(--muted); font-size: 12.5px; margin: 0 0 6px; }
+.stats { margin: 10px 0 0; padding: 10px; background: var(--bg); border-radius: 6px; font-size: 12.5px; overflow: auto; }
+.warning { color: var(--warn); margin: 8px 0 0; }
+.error { color: #b3261e; white-space: pre-wrap; }
+#note { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; }
+#note.on { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><h1 id="title">Charts</h1><div class="buttons"><button id="all-svg" type="button">All SVG ↓</button><button id="all-png" type="button">All PNG ↓</button></div></div>
+  <div id="figures"></div>
+</main>
+<div id="note" role="status" aria-live="polite"></div>
+<script>/*SCRIPT*/</script>
+</body>
+</html>

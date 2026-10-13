@@ -1,0 +1,60 @@
+name: Publish
+
+# Publishes `inkplot` and `inkplot-scratch` to npm when a GitHub release is published.
+# Authentication is npm Trusted Publishing (OIDC): there is no npm token. Each package must have a trusted publisher
+# configured on npmjs.com for this repository, workflow `publish.yml`, and environment `npm`.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: The release tag matches the package versions
+        run: |
+          version=$(node -p "require('./package.json').version")
+          scratch=$(node -p "require('./scratch/package.json').version")
+          [ "v$version" = "$GITHUB_REF_NAME" ] && [ "$scratch" = "$version" ] || { echo "tag $GITHUB_REF_NAME, inkplot $version, inkplot-scratch $scratch"; exit 1; }
+      - run: npm run all
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # npm Trusted Publishing
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted Publishing needs npm 11.5.1 or later.
+      - run: |
+          npm --version
+          [ "$(printf '%s\n' 11.5.1 "$(npm --version)" | sort -V | head -n1)" = 11.5.1 ] || npm install -g npm@latest
+      - run: npm ci
+      - run: node tools/pack-scratch.mjs out/release
+      - name: Publish
+        run: |
+          # A prerelease (1.0.0-beta.1) goes under its own tag, so `npm install inkplot` stays on the last stable release.
+          version=$(node -p "require('./package.json').version")
+          case "$version" in *-*) tag=$(echo "${version#*-}" | cut -d. -f1 | tr -d '0-9') ; tag=${tag:-next} ;; *) tag=latest ;; esac
+          echo "publishing $version with tag $tag"
+          npm publish out/release/inkplot-lib/inkplot/inkplot-*.tgz --tag "$tag" --access public
+          npm publish out/release/inkplot-scratch/inkplot-scratch-*.tgz --tag "$tag" --access public

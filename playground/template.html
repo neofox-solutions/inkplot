@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inkplot Playground</title>
+<style>
+:root {
+  --chart-bg: #fff; --bg: #eef2f4; --surface: #f9fbfc; --ink: #12202b; --muted: #566772; --line: #d3dce1; --grid: #e3eaee;
+  --accent: #0b7a75; --accent-ink: #fff; --warn: #a8480a; --stub: #8a98a1;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --chart-bg: #141c21; --bg: #0e1418; --surface: #141c21; --ink: #e3ebef; --muted: #8b9ea9; --line: #27343c; --grid: #1b262d;
+  --accent: #3fc7bb; --accent-ink: #06201e; --warn: #e8a057; --stub: #5e707a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); padding: 20px 16px 48px; }
+.wrap { max-width: 1280px; margin-inline: auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: baseline; justify-content: space-between; }
+header h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--muted); }
+.build { font: 12px var(--mono); color: var(--muted); }
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 880px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; min-width: 0; }
+.side { display: grid; gap: 16px; }
+nav.demos { display: grid; gap: 4px; }
+nav.demos button { text-align: left; background: none; border: 1px solid transparent; border-radius: 4px; padding: 6px 8px; color: var(--ink); font: inherit; cursor: pointer; }
+nav.demos button small { display: block; color: var(--muted); font-size: 12px; line-height: 1.3; }
+nav.demos button:hover { border-color: var(--line); }
+nav.demos button[aria-current="true"] { background: var(--accent); color: var(--accent-ink); }
+nav.demos button[aria-current="true"] small { color: inherit; opacity: .85; }
+h2 { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.controls { display: grid; gap: 12px; }
+.field { display: grid; gap: 4px; }
+.field > label, .field > .lab { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.field output { font-family: var(--mono); color: var(--ink); }
+input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+input[type=text], input[type=number], select { font: inherit; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; width: 100%; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { background: none; border: 0; border-left: 1px solid var(--line); padding: 4px 6px; font: 12px var(--sans); color: var(--ink); cursor: pointer; }
+.seg button:first-child { border-left: 0; }
+.seg.wrap { grid-auto-flow: row; }
+.seg.wrap button { border-top: 1px solid var(--line); }
+.seg.wrap button:nth-child(-n+3) { border-top: 0; }
+.seg.wrap button:nth-child(3n+1) { border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.switch { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.switch input { accent-color: var(--accent); }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+button.btn { font: 12px var(--sans); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+button.btn:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+.note.warn { color: var(--warn); }
+.readout { font: 12px var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+
+.stage { display: grid; gap: 16px; min-width: 0; }
+.hostbox { background: var(--chart-bg); color: #222; border: 1px solid var(--line); border-radius: 6px; padding: 0; overflow: hidden; resize: both; width: 100%; height: 400px; min-height: 160px; min-width: 240px; max-width: 100%; position: relative; }
+.hostbox .size { position: absolute; right: 18px; bottom: 4px; font: 11px var(--mono); color: #888; pointer-events: none; }
+.stats { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; }
+@media (max-width: 700px) { .stats { grid-template-columns: minmax(0, 1fr); } }
+.big { font: 600 2rem/1 var(--mono); letter-spacing: -0.02em; }
+.big small { font-size: .9rem; font-weight: 400; color: var(--muted); }
+.sub { font: 12px var(--mono); color: var(--muted); }
+.bars { display: grid; gap: 3px; font: 12px var(--mono); }
+.bar { display: grid; grid-template-columns: 78px minmax(0, 1fr) 64px; gap: 8px; align-items: center; }
+.bar i { display: block; height: 8px; background: var(--accent); border-radius: 2px; min-width: 1px; }
+.bar span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 16px; font: 12px var(--mono); margin-top: 10px; }
+.kv div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dotted var(--line); }
+.kv b { font-weight: 500; }
+.tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.tabs button { background: none; border: 1px solid var(--line); border-radius: 4px; padding: 3px 10px; font: 12px var(--sans); color: var(--ink); cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+textarea.json { width: 100%; box-sizing: border-box; min-height: 260px; max-height: 70vh; resize: vertical; font: 12px/1.45 var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; white-space: pre; tab-size: 2; }
+textarea.json:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.jsonbar { display: flex; gap: 10px; align-items: center; margin: 8px 0 0; font: 12px var(--mono); flex-wrap: wrap; }
+.jsonbar .ok { color: var(--accent); }
+.jsonbar .bad { color: #c0392b; }
+.copyhost { position: relative; margin-top: 10px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; height: 300px; }
+pre.view { font: 12px/1.45 var(--mono); margin: 0; max-height: 340px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; white-space: pre; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 12px var(--mono); border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 1px 9px; }
+.chip.stub { border-style: dashed; border-color: var(--stub); color: var(--stub); }
+.group { margin-bottom: 10px; }
+.group > .lab { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Inkplot Playground</h1>
+      <p>Every feature and component, live. The library is inlined below as plain JavaScript (types stripped), loaded as a module through an import map.</p>
+    </div>
+    <div class="build"><span id="build-info"></span> <button class="btn" id="theme" type="button">Theme</button></div>
+  </header>
+  <div class="layout">
+    <aside class="side">
+      <div class="card"><h2>Demos</h2><nav class="demos" id="demos"></nav></div>
+      <div class="card"><h2>Controls</h2><div class="controls" id="controls"></div></div>
+    </aside>
+    <main class="stage">
+      <div class="hostbox" id="host"><span class="size" id="host-size"></span></div>
+      <div class="card stats" id="stats"></div>
+      <div class="card">
+        <div class="tabs" id="tabs"></div>
+        <div id="panel"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- The library, one script per module, as source text. Not executed here: the next script turns each into a module URL. -->
+/*LIBRARY*/
+<script>
+  // Make `import ... from 'inkplot'` (and the library's own imports between modules) work with no server and
+  // no bundler. The import map has to exist before the first module is fetched, so this runs first.
+  (() => {
+    const imports = {};
+    for (const el of document.querySelectorAll('script[data-module]')) {
+      const name = el.dataset.module;
+      const source = el.textContent + '\n//# sourceURL=' + name + '.ts';
+      imports[name] = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+    }
+    const map = document.createElement('script');
+    map.type = 'importmap';
+    map.textContent = JSON.stringify({ imports });
+    document.currentScript.after(map);
+  })();
+</script>
+<script type="module">
+/*APP*/
+</script>
+</body>
+</html>

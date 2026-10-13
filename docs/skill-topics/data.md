@@ -1,0 +1,121 @@
+# inkplot topic: data sources and big data
+
+For: a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table.
+
+Read `SKILL.md` first (rules, template, and the attributes of `Chart`, `CartesianPlane`, `Axis`, `LinearScale`, `DomainSeries`, `FlatDataSource`, `ObjectDataSource`, `LinePath`, `LinearCurve`). This file has the rest of what this topic needs: examples, notes, and the attributes of its elements. Everything here is exported from `'inkplot'`.
+
+## Large data, and a live update
+
+
+`Decimator` takes a **kernel first, then the source**, and goes where the source would. It cannot carry channels or sit on an `XYSeries`.
+
+```tsx check title="A million points, then updates"
+/** @jsxImportSource inkplot */
+import { Axis, CartesianPlane, Chart, Decimator, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, MinMaxKernel, PanZoom, lightTheme } from 'inkplot';
+
+const values = new Float64Array(1_000_000);
+for (let i = 0; i < values.length; i++) values[i] = Math.sin(i / 5000) + Math.sin(i / 37) * 0.1;
+const source = new FlatDataSource({ data: values, regularDomain: { start: 0, step: 1 }, isSorted: true });
+
+export const chart = (
+  <Chart theme={lightTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom"><LinearScale /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <DomainSeries name="Signal">
+        <Decimator><MinMaxKernel />{source}</Decimator>
+        <LinePath><LinearCurve /></LinePath>
+      </DomainSeries>
+      <PanZoom />
+    </CartesianPlane>
+  </Chart>
+) as Chart;
+
+// New data: set the attribute. Edited in place: tell the source.
+export function replace(next: Float64Array) { source.setAttribute('data', next); }
+export function bump(i: number, v: number) { values[i] = v; source.invalidate(); }
+```
+
+## Notes
+
+| To… | Use |
+|---|---|
+| Chart data as a table | `readTable(node)` (a source, transform, trendline or `series.data`): typed-array columns and `rows()` |
+
+## Attributes of this topic's elements
+
+An attribute followed by `(required)` must be given. Every element also takes `id`, `meta`, `visible` and `style`.
+
+<!-- api:start -->
+### CompositeDataSource
+
+Separate columns.
+
+**In** a series · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `count` (required) | `number` |  |
+| `domain` (required) | `Column` | Where each row is along the domain: for a made-up domain, `(i) => start + step * i`. |
+| `value` (required) | `Column` |  |
+| `channels` | `Readonly<Record<Channel, Column>>` | Extra columns that bindings and tooltips can address by name. |
+| `isSorted` | `boolean` | The stored points already ascend in the domain. Default false. |
+| `wrap` | `number` | The domain repeats with this period, and the source delivers one more point: the first, again, one period on. |
+
+### SyntheticDataSource
+
+A function sampled when drawn.
+
+**In** a series · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `fn` (required) | `(x: number) => number` | Value at a domain position. |
+| `domain` (required) | `Extent` | The span the function is defined over: the data's whole domain. |
+| `count` | `number` | Number of samples, evenly spaced across the domain, always. |
+| `isSorted` | `boolean` | The stored points already ascend in the domain. Default false. |
+| `wrap` | `number` | The domain repeats with this period, and the source delivers one more point: the first, again, one period on. |
+
+### Decimator
+
+Reduces large data to what the plot can show.
+
+**In** a series · **Holds** 1 kernel, then 1 source
+
+| Attribute | Type | |
+|---|---|---|
+| `resolution` | `number` | Pixel columns reduced to per pixel of plot width. Default 1; raise it for high-DPI output. |
+| `enabled` | `boolean` | Turn it off without removing it. Default true. |
+
+### MinMaxKernel
+
+Keeps the lowest and highest of each pixel column.
+
+**In** Decimator · **Holds** none
+
+No attributes of its own.
+
+### M4Kernel
+
+First, last, lowest and highest of each column.
+
+**In** Decimator · **Holds** none
+
+No attributes of its own.
+
+### LttbKernel
+
+Largest-triangle-three-buckets: keeps the shape.
+
+**In** Decimator · **Holds** none
+
+No attributes of its own.
+
+### StrideKernel
+
+Every nth point.
+
+**In** Decimator · **Holds** none
+
+No attributes of its own.
+<!-- api:end -->

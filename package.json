@@ -1,0 +1,82 @@
+{
+  "name": "inkplot-dev",
+  "version": "1.0.0-beta.1",
+  "description": "A small, tree-shakeable chart library for the web and servers: a tree of elements you keep, drawn as SVG.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neofox-solutions/inkplot.git"
+  },
+  "homepage": "https://github.com/neofox-solutions/inkplot#readme",
+  "bugs": {
+    "url": "https://github.com/neofox-solutions/inkplot/issues"
+  },
+  "keywords": [
+    "chart",
+    "charts",
+    "svg",
+    "visualization",
+    "plot",
+    "tree-shakeable",
+    "ssr"
+  ],
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "check": "tsc -p .",
+    "lint": "oxlint --deny-warnings src scratch/src tools *.mjs *.ts && node tools/lint-audit.mjs",
+    "test": "for t in src/*.test.ts; do timeout 120 node --max-old-space-size=768 $t || { echo \"FAILED: $t (exit $?; 124 is the 120s timeout, 134 is out of memory)\"; exit 1; }; done",
+    "types": "rm -rf types && tsc -p tsconfig.types.json",
+    "playground": "node build-playground.ts",
+    "playground:test": "node playground.test.mjs",
+    "all": "npm run check && npm run lint && npm test && npm run deps && npm run docs && npm run types && npm run playground && npm run playground:test && npm run react:test && npm run wc:test && npm run touch:test && npm run png:test && npm run png-server:test && npm run scratch:test && npm run pack:test",
+    "deps": "node tools/deps.test.ts",
+    "docs": "node tools/docs.test.ts && node tools/skill-ts.test.mjs",
+    "size": "node tools/size.mjs --modules",
+    "react:test": "node react.test.mjs",
+    "wc:test": "node webcomponents.test.mjs",
+    "touch:test": "node touch.test.mjs",
+    "png:test": "node png.test.mjs",
+    "png-server:test": "node tools/png-server.test.mjs",
+    "scratch:test": "node tools/scratch.test.mjs",
+    "pack:test": "node tools/pack.test.mjs"
+  },
+  "devDependencies": {
+    "@babel/generator": "^8.0.6",
+    "@babel/parser": "^8.0.7",
+    "@babel/traverse": "^8.0.7",
+    "@babel/types": "^8.0.6",
+    "@resvg/resvg-wasm": "^2.6.2",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "jsdom": "^30.1.2",
+    "oxlint": "^1.88.0",
+    "playwright": "^1.64.0",
+    "prettier": "^3.9.10",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./jsx-runtime": "./src/jsx-runtime.ts",
+    "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
+    "./react": "./src/react.ts",
+    "./web-components": "./src/web-components.ts"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}
