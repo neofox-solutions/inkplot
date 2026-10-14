@@ -493,13 +493,15 @@ export class SinusoidalTrend extends Trendline<SinusoidalTrendAttributes> {
 // ─── Loess ───
 
 export interface LoessTrendAttributes extends TrendlineAttributes {
-  /** 0 to 1: 0 joins the points, 1 is the least-squares line, and between them the line is smoother the larger it is. Default 0.5. */
+  /** 0 to 1: 0 joins the points, 1 is the least-squares line, and between them the line is smoother the larger it is. Default 0.5. Under about 0.2, with unevenly spaced points, the curve follows single points and can swing between close ones. */
   smoothness?: number;
   /** How a point's weight falls with its distance. Default 'tricube'. */
   kernel?: 'tricube' | 'gaussian';
 }
 /** A window holds at least this many points, so a small bandwidth between sparse points still has a line to fit. */
 const MIN_WINDOW = 3;
+/** How far past the farthest of those points the window reaches, as a multiple of its distance. */
+const WIDEN = 1.25;
 /** The reach at smoothness 0.5, as a fraction of the span; `smoothness / (1 - smoothness)` times this is the reach in general. */
 const REACH_AT_HALF = 0.3;
 
@@ -554,7 +556,8 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
             r++;
           }
         }
-        h = Math.max(h, d * (1 + 1e-9));
+        // A little past the third point, so that it still counts for something.
+        h = Math.max(h, d * WIDEN);
         lo = lowerBound(xs, x0 - h);
         hi = lowerBound(xs, x0 + h, true);
       }
@@ -573,6 +576,9 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
         t1 += w * dx * ys[j]!;
       }
       if (!(s0 > 0)) return null;
+      // Points bunched in a corner of the window say little about the slope (and a line through two near neighbours, read off
+      // anywhere else, flies away): where the weighted spread of the points is under 1/8 of the reach, add the missing spread.
+      s2 += Math.max(0, s0 * (Math.min(h, span) / 8) ** 2 - (s2 - (s1 * s1) / s0));
       const det = s0 * s2 - s1 * s1;
       return det > 1e-12 * s0 * s2 ? { a: (t0 * s2 - t1 * s1) / det, b: (s0 * t1 - s1 * t0) / det } : { a: t0 / s0, b: 0 };
     };

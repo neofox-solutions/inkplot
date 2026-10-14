@@ -167,8 +167,21 @@ function onFlush(stats) {
   if (history.length > 60) history.shift();
   renderStats(stats);
   if (tab === 'json') jsonPanel.refresh();
-  else if (tab !== 'svg') renderPanel();
+  else if (tab === 'svg') svgPanel.soon();
+  else renderPanel();
 }
+
+/** The SVG tab follows the chart, a moment after the last flush (an animation or a drag flushes every frame, and serialising the DOM is not free). */
+const svgPanel = {
+  timer: 0,
+  soon() {
+    if (this.timer) return;
+    this.timer = setTimeout(() => {
+      this.timer = 0;
+      if (tab === 'svg') renderPanel();
+    }, 150);
+  },
+};
 
 function renderStats(s) {
   const sorted = [...history].sort((a, b) => a - b);
@@ -256,7 +269,7 @@ new ResizeObserver(() => {
 
 /** The classes of the library, and the ones this page defines, by the names JSON uses for them. */
 const pageRegistry = () => ({ ...L.registry, Watermark, SignedPowerScale, EventProbe });
-const JSON_LIMIT = 200; // longer arrays are data, and go by reference, so that the text stays readable
+const JSON_LIMIT = 24; // longer arrays are data (rows, samples), and go by reference, so that the text stays readable
 
 const jsonPanel = {
   area: null,
@@ -2836,11 +2849,11 @@ demos.push({
           h(
             'button',
             {
-              class: 'chip' + (s.attrs.visible === false ? ' stub' : ''),
+              class: 'chip',
               type: 'button',
-              title: 'click to show or hide',
+              title: 'click to delete',
               onclick: () => {
-                s.setAttribute('visible', s.attrs.visible === false);
+                plane.remove(s);
                 refresh();
               },
             },
@@ -2931,7 +2944,7 @@ demos.push({
           if (y.child(0) instanceof SignedPowerScale) y.child(0).setAttribute('exponent', v);
         },
       }),
-      h('div', { class: 'field' }, h('div', { class: 'lab' }, 'series (click to hide)'), list),
+      h('div', { class: 'field' }, h('div', { class: 'lab' }, 'series (click to delete)'), list),
       ui.note(
         'Order in the tree is drawing order. Nodes are created where they belong, so reordering never leaves a series under the gridlines or over the frame. Open the element tree and SVG tabs to watch it.',
       ),

@@ -511,7 +511,7 @@ A trendline is a data transform that **fits a curve** to its source and gives sa
 | `SinusoidalTrend` | a constant plus a sine wave | `period`; left out, the best period is found (a periodogram that copes with uneven spacing, refined on every point) |
 | `LoessTrend` | local linear regression, centred on each place | `smoothness` 0 to 1, default 0.5; `kernel` `'tricube'` (default) or `'gaussian'` |
 
-`smoothness` on a `LoessTrend` is the one control: **0 joins the points** (straight between neighbours), **1 is exactly the least-squares line**, and between them the curve is smoother the larger it is. Where the points are sparse the reach widens so that at least three are in it.
+`smoothness` on a `LoessTrend` is the one control (**use 0.2 or more** for points that are unevenly spaced or noisy: below that the line follows individual points, and where a few lie close together the curve can swing between them; past the ends of the data it continues in the direction of the broader trend, which is a guess that grows worse the further out you look): **0 joins the points** (straight between neighbours), **1 is exactly the least-squares line**, and between them the curve is smoother the larger it is. Where the points are sparse the reach widens so that at least three are in it.
 
 ```tsx live title="Four trendlines" height=320
 import { Axis, CartesianPlane, Chart, DomainSeries, DotMarker, LinePath, LinearCurve, LinearScale, LinearTrend, LoessTrend, ObjectDataSource, PolynomialTrend, lightTheme } from 'inkplot';

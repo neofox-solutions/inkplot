@@ -172,10 +172,20 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
     const v: MarkerStyle = { ...base };
     // The style handed to `style()` starts from the constants each time, then has the bound values written over it.
     const reset = () => Object.assign(v, base);
+    // Beside bars (a lollipop: a stem and a marker), a marker stands on the end of its bar, which is not at the point when bars share a band.
+    let ends: Float64Array | null = null;
+    for (const r of series) {
+      const set = r !== this && r instanceof SeriesRenderer ? (r.anchors?.() ?? null) : null;
+      if (set && set.count === count) ends = set.data;
+    }
     for (let i = 0; i < count; i++) {
-      const x = data[i * stride]!,
+      let x = data[i * stride]!,
         y = data[i * stride + 1]!;
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      if (ends && Number.isFinite(ends[i * 4]!) && Number.isFinite(ends[i * 4 + 1]!)) {
+        x = ends[i * 4]!;
+        y = ends[i * 4 + 1]!;
+      }
       const r = geometric ? (geometric.b.axis.valueAt(geometric.f[i]!) as number) : base.size;
       if (!(r >= 0)) continue;
       const reach = geometric || !styled.length ? r : CULL_MARGIN + r;

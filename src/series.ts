@@ -91,6 +91,14 @@ export function seriesOf(child: unknown): readonly Series[] {
 /** One data source, then any number of renderers. */
 export type SeriesChildren<Channel extends string = string> = [data: DataNode<Channel>, ...renderers: AnySeriesRenderer[]];
 
+/** A number for each data node that has been asked, so that a series whose data is swapped for another node (of the same version) refills. */
+const nodeIds = new WeakMap<object, number>();
+let lastNodeId = 0;
+function nodeId(node: object): number {
+  let id = nodeIds.get(node);
+  if (id === undefined) nodeIds.set(node, (id = ++lastNodeId));
+  return id;
+}
 /** What `points` is before the first projection, so renderers never need a null check. */
 const NO_DRAWN_POINTS: Readonly<PointBuffer> = { data: new Float64Array(0), stride: 2, count: 0 };
 /** The contribution of a column the fill did not report (never happens for a valid source); NaN is ignored by axes. */
@@ -335,7 +343,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     const data = this.data,
       counters = this.counters;
     const stride = 2 + ctx.channels.length;
-    const key = `${data.version}|${ctx.domainRange.min}|${ctx.domainRange.max}|${ctx.width}|${ctx.channels.join()}`;
+    const key = `${nodeId(data)}.${data.version}|${ctx.domainRange.min}|${ctx.domainRange.max}|${ctx.width}|${ctx.channels.join()}`;
     if (key === this.#key) {
       counters.cached++;
     } else {
@@ -361,12 +369,23 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    * are settled. It is pixels, which an axis turns into data by its length.
    */
   protected contributeReach(): void {
-    let px = 0;
-    for (const r of this) if (r instanceof SeriesRenderer && r.reach > px) px = r.reach;
+    const px = this.reachPx;
     if (px > 0) {
       this.firstAxis.reach(px);
-      this.secondAxis.reach(px);
+      // Markers on the ends of bars stand beyond the far ends only: the value axis is given that room once the data is read (`load`), not at the baseline.
+      if (!this.onBars) this.secondAxis.reach(px);
     }
+  }
+  /** The most any renderer draws beyond a point, in pixels. */
+  protected get reachPx(): number {
+    let px = 0;
+    for (const r of this) if (r instanceof SeriesRenderer && r.reach > px) px = r.reach;
+    return px;
+  }
+  /** Whether bars (anything with a baseline to grow from) are drawn here, which markers then stand on the ends of. */
+  protected get onBars(): boolean {
+    for (const r of this) if (r instanceof SeriesRenderer && r.includes.length > 0) return true;
+    return false;
   }
   /** The largest `spans` of the renderers: how far they draw beyond a point along the domain, as a fraction of the gap between points. */
   protected get spans(): number {
@@ -597,7 +616,17 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   load(estimate: Size): void {
     const ext = this.fill({ ...estimate, domainRange: this.domainAxis.range, channels: this.channels })[1] ?? NO_EXTENT;
     this.valueAxis.contribute(ext.min, ext.max);
+    this.reachBeyondBars(ext);
     this.contributeChannels();
+  }
+
+  /** Room on the value axis for markers on the far ends of bars: above the baseline for bars that rise, below it for bars that fall. */
+  private reachBeyondBars(ext: Extent): void {
+    if (!this.onBars || this.reachPx <= 0) return;
+    let base = 0;
+    for (const r of this) if (r instanceof SeriesRenderer && r.includes.length > 0) base = r.includes[0] ?? 0;
+    if (ext.max > base) this.valueAxis.reach(this.reachPx, 'hi');
+    if (ext.min < base) this.valueAxis.reach(this.reachPx, 'lo');
   }
 
   /** Engine protocol for a `Stack`: read the data (the first half of `load`) and give the rows, leaving the extents to the stack. */
@@ -607,7 +636,10 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   }
   /** Engine protocol for a `Stack`: the rest of `load`, with the value extent the stack worked out for its stacked values. */
   settle(extent: Extent | null): void {
-    if (extent) this.valueAxis.contribute(extent.min, extent.max);
+    if (extent) {
+      this.valueAxis.contribute(extent.min, extent.max);
+      this.reachBeyondBars(extent);
+    }
     this.contributeChannels();
   }
 

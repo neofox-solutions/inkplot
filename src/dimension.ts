@@ -82,7 +82,8 @@ export abstract class Dimension<
   private resolved = false;
   private view: Extent | null = null;
   // The most room in pixels any series asks beyond the ends of its data (a marker's radius), and the axis' length to turn it into data.
-  private reachPx = 0;
+  private reachLo = 0;
+  private reachHi = 0;
   private lengthPx = 0;
   /** Scratch for `fractionOf`, so a single-value lookup (called per tick) allocates nothing. */
   private readonly tmp = new Float64Array(1);
@@ -114,12 +115,14 @@ export abstract class Dimension<
     this.lo = Infinity;
     this.hi = -Infinity;
     this.resolved = false;
-    this.reachPx = 0;
+    this.reachLo = this.reachHi = 0;
     this.lengthPx = lengthInPixels;
   }
   /** A series asks for room of `pixels` past the ends of its data, so that marks centred on them are not cut by the plot. Ignored once resolved. */
-  reach(pixels: number): void {
-    if (!this.resolved && pixels > this.reachPx) this.reachPx = pixels;
+  reach(pixels: number, ends: 'both' | 'lo' | 'hi' = 'both'): void {
+    if (this.resolved) return;
+    if (ends !== 'hi' && pixels > this.reachLo) this.reachLo = pixels;
+    if (ends !== 'lo' && pixels > this.reachHi) this.reachHi = pixels;
   }
   /** A series reports the extent it will draw. Ignored once the range is resolved. */
   contribute(min: number, max: number): void {
@@ -164,12 +167,13 @@ export abstract class Dimension<
     r = scale.constrain(r);
     // Room for what reaches past the ends of the data: the same number of pixels at each end, in the scale's own terms.
     // An end the attributes fixed is left where it was put.
-    const m = this.reachPx,
+    const mLo = this.reachLo,
+      mHi = this.reachHi,
       L = this.lengthPx;
-    if (m > 0 && L > 2 * m + 1 && (a.min === undefined || a.max === undefined)) {
-      const f = m / (L - 2 * m),
-        lo2 = scale.denormalize(-f, r),
-        hi2 = scale.denormalize(1 + f, r);
+    if (mLo + mHi > 0 && L > mLo + mHi + 1 && (a.min === undefined || a.max === undefined)) {
+      const room = L - mLo - mHi,
+        lo2 = scale.denormalize(-mLo / room, r),
+        hi2 = scale.denormalize(1 + mHi / room, r);
       r = scale.constrain({ min: a.min ?? (Number.isFinite(lo2) ? lo2 : r.min), max: a.max ?? (Number.isFinite(hi2) ? hi2 : r.max) });
     }
     if (a.nice) {

@@ -605,6 +605,50 @@ test('playground', async () => {
   assert.equal((await lines()).length, 2, 'a series made by a function tag joins the running chart');
   await page.screenshot({ path: `${out}/jsx.png` });
 
+  // ── Box plot: the options that change the numbers change the boxes (a swapped data node must refill the series).
+  await page.evaluate(() => window.playground.select('box'));
+  await settle();
+  const boxes = () => page.evaluate(() => [...document.querySelectorAll('#host svg path')].map((p) => p.getAttribute('d') ?? '').join('|'));
+  const boxBefore = await boxes();
+  await page.getByRole('button', { name: 'mean', exact: true }).click();
+  await settle();
+  assert.notEqual(await boxes(), boxBefore, 'box plot: the middle line is now the mean, and the drawing changed');
+  await page.getByRole('button', { name: 'New data' }).click();
+  await settle();
+
+  // ── Lollipops side by side: each marker stands on its stem, and the value axis starts at the baseline.
+  await page.evaluate(() => window.playground.select('stack'));
+  await settle();
+  await page.getByRole('button', { name: 'lollipops', exact: true }).click();
+  await page.getByRole('button', { name: 'side by side', exact: true }).click();
+  await settle();
+  const lollipop = await page.evaluate(() => {
+    const L = window.inkplot;
+    const plane = L.firstDescendantOfType(window.playground.current.chart, L.CartesianPlane);
+    const svg = document.querySelector('#host svg');
+    const stems = [...svg.querySelectorAll('path')].flatMap((p) =>
+      [...(p.getAttribute('d') ?? '').matchAll(/M([\d.]+) [\d.-]+L\1 /g)].map((m) => +m[1]),
+    );
+    const dots = [...svg.querySelectorAll('path')].flatMap((p) =>
+      [...(p.getAttribute('d') ?? '').matchAll(/M([\d.]+) [\d.]+a5 5 /g)].map((m) => +m[1] + 5),
+    );
+    return { stems, dots, min: plane.axes.find((a) => a.attrs.id === 'v').range.min };
+  });
+  assert(
+    lollipop.dots.length > 3 && lollipop.dots.every((x) => lollipop.stems.some((s) => Math.abs(s - x) < 1.1)),
+    `lollipops: markers on stems ${JSON.stringify(lollipop)}`,
+  );
+  assert(lollipop.min >= 0, `lollipops: the value axis starts at the baseline (${lollipop.min})`);
+
+  // ── The SVG tab follows the chart.
+  await page.getByRole('button', { name: 'SVG output' }).click();
+  const svgText = () => page.locator('#panel pre').textContent();
+  const svgBefore = await svgText();
+  await page.getByRole('button', { name: 'stems', exact: true }).click();
+  await page.waitForTimeout(400);
+  assert.notEqual(await svgText(), svgBefore, 'the SVG tab shows the chart as it is now');
+  await page.getByRole('button', { name: 'Element tree' }).click();
+
   // ── Tabs render.
   for (const name of ['SVG output', 'JSON', 'Coverage', 'Element tree']) {
     await page.getByRole('button', { name }).click();
