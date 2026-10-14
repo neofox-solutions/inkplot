@@ -3855,7 +3855,7 @@ demos.push({
   title: 'Histogram (Density)',
   blurb: 'A Density transform in front of BarPath: bin by width, count or rule; count, fraction or density',
   setup(ctx) {
-    const S = { n: 2000, mode: 'width', width: 0.5, bins: 20, stat: 'count', weighted: false, bar: 0.95, seed: 1 };
+    const S = { n: 2000, mode: 'width', width: 0.5, bins: 20, stat: 'auto', weighted: false, bar: 0.95, seed: 1 };
     const rows = () => {
       const r = rng(S.seed);
       return Array.from({ length: S.n }, () => {
@@ -3869,8 +3869,9 @@ demos.push({
     const attrs = () => ({
       ...(S.mode === 'width' ? { width: S.width } : S.mode === 'bins' ? { bins: S.bins } : {}),
       ...(S.weighted ? { weight: 'w' } : {}),
-      stat: S.stat,
+      ...(S.stat === 'auto' ? {} : { stat: S.stat }),
     });
+    const statName = () => (S.stat === 'auto' ? (S.weighted ? 'sum' : 'count') : S.stat);
     let density = new L.Density(attrs(), source());
     const bars = new L.BarPath({ width: S.bar });
     const series = new L.DomainSeries({ name: 'Samples' }, density, bars);
@@ -3894,7 +3895,7 @@ demos.push({
     const redo = () => {
       density = new L.Density(attrs(), source());
       series.setChild(0, density);
-      y.setAttribute('title', S.stat);
+      y.setAttribute('title', statName());
     };
     ctx.add(
       ui.slider({
@@ -3946,16 +3947,18 @@ demos.push({
       ui.seg({
         label: 'value of a bar',
         options: [
+          ['auto', 'count (sum if weighted)'],
           ['count', 'count'],
+          ['sum', 'sum of w'],
           ['fraction', 'fraction'],
           ['density', 'density'],
-          ['mean', 'mean'],
+          ['mean', 'mean of w'],
         ],
         value: S.stat,
         onChange: (v) => {
           S.stat = v;
-          density.setAttribute('stat', v);
-          y.setAttribute('title', v);
+          density.setAttribute('stat', v === 'auto' ? undefined : v);
+          y.setAttribute('title', statName());
         },
       }),
       ui.toggle({

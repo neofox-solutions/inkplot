@@ -640,7 +640,29 @@ test('playground', async () => {
   );
   assert(lollipop.min >= 0, `lollipops: the value axis starts at the baseline (${lollipop.min})`);
 
+  // ── Histogram: weighting the points changes the bars, and clearing it puts them back.
+  await page.evaluate(() => window.playground.select('histogram'));
+  await settle();
+  // The bars' heights (a resize of a fraction of a pixel moves them sideways, not up).
+  const bars = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('#host svg path')]
+        .map((p) => p.getAttribute('d') ?? '')
+        .filter((d) => d.includes('Z'))
+        .flatMap((d) => d.split('Z').map((b) => /L[\d.]+ ([\d.]+) [\d.]+ ([\d.]+)/.exec(b)?.[2] ?? ''))
+        .join(','),
+    );
+  const unweighted = await bars();
+  await page.getByLabel('weight each point by w').check();
+  await settle();
+  assert.notEqual(await bars(), unweighted, 'histogram: weights change the bars');
+  await page.getByLabel('weight each point by w').uncheck();
+  await settle();
+  assert.equal(await bars(), unweighted, 'histogram: clearing the weights restores them');
+
   // ── The SVG tab follows the chart.
+  await page.evaluate(() => window.playground.select('stack'));
+  await settle();
   await page.getByRole('button', { name: 'SVG output' }).click();
   const svgText = () => page.locator('#panel pre').textContent();
   const svgBefore = await svgText();
