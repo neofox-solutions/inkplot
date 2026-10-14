@@ -2,13 +2,13 @@
 // out/runtime-tests/<name>.mjs, which runs itself:
 //   node tools/runtime-tests.ts           build them
 //   for f in out/runtime-tests/*.mjs; do node "$f" || exit 1; done        run them (or `deno run -A`, or `bun`)
-// The three that need a bundler, React's DOM or jsdom (jsx, react, web-components) are left to Vitest, which the whole suite runs under anyway.
+// The three that need a bundler, React's DOM or jsdom (jsx, react, react-ssr, web-components) are left to Vitest, which the whole suite runs under anyway.
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { bundle } from './bundle.ts';
 
 const root = new URL('../', import.meta.url).pathname;
 const out = root + 'out/runtime-tests/';
-const SKIP = new Set(['jsx.test.ts', 'react.test.ts', 'web-components.test.ts']);
+const SKIP = new Set(['jsx.test.ts', 'react.test.ts', 'react-ssr.test.ts', 'web-components.test.ts']);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const files = readdirSync(root + 'src').filter((f) => f.endsWith('.test.ts') && !SKIP.has(f));
