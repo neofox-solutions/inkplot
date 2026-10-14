@@ -1,8 +1,7 @@
-// The headless Chromium the browser tests drive. `playwright` is a dev dependency (CI installs it and the browser with
-// `npx playwright install chromium`); where it is not installed in the repository, a copy kept beside the tools is used.
-import { createRequire } from 'node:module';
-const here = createRequire(import.meta.url);
-const shared = createRequire('/opt/node-tools/node_modules/');
-let playwright;
-try { playwright = here('playwright'); } catch { playwright = shared('playwright'); }
-export const { chromium } = playwright;
+// The headless Chromium the browser tests drive: `playwright` is a dev dependency, and CI installs the browser with
+// `pnpm exec playwright install --with-deps chromium`. Where a matching browser cannot be installed, point INKPLOT_CHROMIUM at
+// any Chromium executable and it is used instead.
+import { chromium as playwrightChromium } from 'playwright';
+
+const executablePath = process.env.INKPLOT_CHROMIUM || undefined;
+export const chromium = { launch: (options = {}) => playwrightChromium.launch({ ...options, ...(executablePath ? { executablePath } : {}) }) };

@@ -2,7 +2,7 @@
 // packages agree on a version. Run on its own: node tools/pack.test.mjs
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +27,11 @@ try {
   assert.ok(![...have].some((f) => /\.test\.|fake-platform/.test(f)), 'inkplot: test files are in the tarball');
 
   const tool = manifest(scratchTgz), toolFiles = files(scratchTgz);
+  // inkplot-scratch's manifest is published as written (npm resolves no `catalog:`), so its ranges must be the catalog's.
+  const catalog = Object.fromEntries([...readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8').matchAll(/^ {2}'?([^':\s]+)'?: (\S+)$/gm)].map((m) => [m[1], m[2]]));
+  for (const group of [tool.dependencies, tool.optionalDependencies])
+    for (const [name, range] of Object.entries(group ?? {})) if (name in catalog) assert.equal(range, catalog[name], `inkplot-scratch asks for ${name}@${range}; the catalog says ${catalog[name]}`);
+  assert.ok('typescript' in catalog && tool.dependencies.typescript === catalog.typescript, 'the catalog is read');
   assert.equal(tool.version, lib.version);
   assert.equal(tool.dependencies.inkplot, lib.version);
   assert.ok(toolFiles.has('bin.mjs') && toolFiles.has('LICENSE'));

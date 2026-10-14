@@ -18,14 +18,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6 # the version comes from `packageManager` in package.json
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
       # Type check, lint, unit tests, docs, types, and the browser, PNG and packaging tests.
-      - run: npm run all
+      - run: pnpm run all
       # The tarballs a release would publish, so a packaging problem shows up on the pull request.
       - run: node tools/pack-scratch.mjs out/release
       - run: node tools/pack-skill-zip.mjs out/release/skill
