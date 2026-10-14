@@ -26,6 +26,7 @@ The element classes (with every attribute) are in the [attribute reference](api.
 | Export | Is |
 |---|---|
 | `lineSeries(source, options?)` | A `DomainSeries` with a `LinePath` (and optionally a marker, a decimator and a curve) in one call. |
+| `pie(slices, options?)` | A `PolarPlane` for a pie or doughnut, built from the plane, axes, a normalized `Stack` and `PointAnnotations` (a [convenience](../start/recipes.md#the-pie-shortcut)). |
 | `DataSource`, `DataTransform` | Bases for [a source and a transform of your own](../extending/custom-data-and-scales.md). |
 | `PointBuffer`, `PlanContext`, `FillPlan`, `FillResult` | Types of the data contract. |
 

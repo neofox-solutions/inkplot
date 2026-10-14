@@ -57,6 +57,7 @@ export const FEATURE_USES: Record<string, string[]> = {
   annotation: ['callout'],
   furniture: ['callout'],
   pointannotations: ['callout', 'hit'],
+  pie: ['bars', 'sources', 'pointannotations', 'radial', 'scales', 'stack'],
   cursor: ['hit', 'input'],
   legend: ['input'],
   panzoom: ['input'],

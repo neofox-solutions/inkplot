@@ -57,6 +57,11 @@ const SCENARIOS = [
   { name: 'Screen-reader summary', imports: ['ChartSummary'], chartKids: ['new ChartSummary({})'] },
   { name: 'Line annotation', imports: ['LineAnnotation'], planeKids: ['new LineAnnotation({ value: 1 })'] },
   { name: 'Callout annotation', imports: ['CalloutAnnotation'], planeKids: [`new CalloutAnnotation({ domain: 1, value: 1, text: 't' })`] },
+  {
+    name: 'Point annotations',
+    imports: ['PointAnnotations'],
+    planeKids: [`new PointAnnotations({ text: (hit) => String(hit.second) })`],
+  },
   { name: 'Circle markers', imports: ['CircleMarker'], renderers: ['new CircleMarker({})'] },
   { name: 'Area path', imports: ['AreaPath'], renderers: ['new AreaPath({}, new LinearCurve())'] },
   { name: 'Stepped line (StepCurve)', imports: ['StepCurve'], series: `new DomainSeries(${FLAT}, new LinePath({}, new StepCurve({})))` },
@@ -120,6 +125,11 @@ const SCENARIOS = [
     setup: 'const c = new ColorAxis({}, new LinearScale());',
     renderers: [`new CircleMarker({ bind: { fill: { axis: c, channel: 'v' } } })`],
     chartKids: ['c', 'new ColorKey({ dimension: c })'],
+  },
+  {
+    name: 'The `pie` shortcut (a doughnut with labels; replaces the whole chart)',
+    imports: ['pie'],
+    out: `return toSvgString(new Chart({ theme: lightTheme }, pie([{ name: 'a', value: 1 }, { name: 'b', value: 2 }], { label: (s) => s.name })));`,
   },
   { name: 'The `lineSeries` shortcut (replaces DomainSeries + LinePath)', imports: ['lineSeries'], series: `lineSeries(${FLAT})` },
   {

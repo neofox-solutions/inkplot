@@ -326,6 +326,7 @@ export { LINE_HEIGHT, measureBlock, paintLines } from './text.ts';
 export { type ElementJSON, type ElementRegistry, Refs, type SerializeOptions, applyJSON, fromJSON, toJSON } from './serialize.ts';
 export { registry } from './registry.ts';
 export { type LineSeriesOptions, lineSeries } from './simple.ts';
+export { type PieOptions, type Slice, pie } from './pie.ts';
 export {
   AUTO,
   BOOLEAN,

@@ -640,6 +640,32 @@ export default () => (
 
 Both axes are hidden (the share is read off the legend and the rings off their order), and `gridlines={false}` leaves only the segments. With one point per series the result is a pie. To show each segment's value on it, add a [`PointAnnotations`](../guide/labels.md#pointannotations-notes-on-chosen-points) for each series (it is a plane child after the stack, anchored to the segment's bars), as in the example there.
 
+### The `pie` shortcut
+
+For a plain pie or doughnut there is a shortcut, `pie(slices, options)`, which builds exactly the elements above (the polar plane, the two hidden axes, the normalized stack of one series per slice, and a `PointAnnotations` for each slice that has a label). It is **a convenience, not a capability**: it only composes the classes you have seen, so anything it does not offer (several rings, a second axis, your own renderer, a different kind of label) you get by writing those elements, and a bundle that never calls it carries none of it. It is used in JSX and in `new` code; the React adapter takes the elements themselves.
+
+```tsx live title="A doughnut from pie()" height=340
+import { Chart, Legend, lightTheme, pie } from 'inkplot';
+
+const share = new Intl.NumberFormat('en', { style: 'percent' });
+
+export default () => (
+  <Chart theme={lightTheme} padding={70}>
+    {pie(
+      [
+        { name: 'Mobile', value: 60 },
+        { name: 'Desktop', value: 28 },
+        { name: 'Other', value: 12 },
+      ],
+      { innerRadius: 0.5, label: (slice, fraction) => `${slice.name} ${share.format(fraction)}` },
+    )}
+    <Legend side="bottom" />
+  </Chart>
+);
+```
+
+`label` gets the slice and its share of the whole (0 to 1) and writes the words, so the number format and the language are yours; return `null` for a slice that gets none. Slices are drawn in the order given, starting at `startAngle` (radians clockwise from twelve o'clock). A slice may give its own `color`. The labels sit just outside the circle, so give the chart `padding` for them.
+
 ## Use a polar or radar chart
 
 Planes are interchangeable: a `PolarPlane` or `RadarPlane` takes an `angle` axis and a `radius` axis, and the series and renderers are the same ones. On a radar there is a spoke at each tick of the angle axis; `wrap` repeats the first point at the end so the shape closes.
