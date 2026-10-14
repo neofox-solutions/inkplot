@@ -33,7 +33,9 @@ export abstract class Curve<A extends CurveAttributes = CurveAttributes> extends
    * What `line` (with a null `baseline`) or `area` draws, as the vertices a pointer is measured against and the point each
    * belongs to, or null when it is straight lines through the points, which hits measure by themselves. Default null.
    */
-  trace(_series: Series, _baseline: number | null): Trace | null { return null; }
+  trace(_series: Series, _baseline: number | null): Trace | null {
+    return null;
+  }
 }
 
 /**
@@ -43,15 +45,27 @@ export abstract class Curve<A extends CurveAttributes = CurveAttributes> extends
 export function polyline(points: Readonly<PointBuffer>, connect: boolean): string {
   const { data, count, stride } = points;
   // Pen state: 0 up, 1 just moved, 2 drawing (implicit lineto pairs). A gap puts the pen up.
-  let d = '', pen = 0;
+  let d = '',
+    pen = 0;
   for (let i = 0; i < count; i++) {
-    const x = data[stride * i]!, y = data[stride * i + 1]!;
-    if (!Number.isFinite(x) || !Number.isFinite(y)) { if (!connect) pen = 0; continue; }
+    const x = data[stride * i]!,
+      y = data[stride * i + 1]!;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      if (!connect) pen = 0;
+      continue;
+    }
     const xy = f2(x) + ' ' + f2(y);
     switch (pen) {
-      case 0: d += 'M' + xy; pen = 1; break;
-      case 1: d += 'L' + xy; pen = 2; break;
-      default: d += ' ' + xy;
+      case 0:
+        d += 'M' + xy;
+        pen = 1;
+        break;
+      case 1:
+        d += 'L' + xy;
+        pen = 2;
+        break;
+      default:
+        d += ' ' + xy;
     }
   }
   return d;
@@ -63,17 +77,26 @@ export function polyline(points: Readonly<PointBuffer>, connect: boolean): strin
  * in the same order, so row `i` of one is the foot of row `i` of the other.
  */
 export function areaOutline(top: Readonly<PointBuffer>, base: Readonly<PointBuffer>, connect: boolean): string {
-  const { data, count, stride } = top, b = base.data, bs = base.stride;
+  const { data, count, stride } = top,
+    b = base.data,
+    bs = base.stride;
   const ok = (i: number) => {
-    const x = data[i * stride]!, y = data[i * stride + 1]!, bx = b[bs * i]!, by = b[bs * i + 1]!;
+    const x = data[i * stride]!,
+      y = data[i * stride + 1]!,
+      bx = b[bs * i]!,
+      by = b[bs * i + 1]!;
     return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(bx) && Number.isFinite(by);
   };
   let d = '';
   for (let i = 0; i < count;) {
-    if (!ok(i)) { i++; continue; }
+    if (!ok(i)) {
+      i++;
+      continue;
+    }
     let end = i;
-    if (connect) { for (let k = i + 1; k < count; k++) if (ok(k)) end = k; }
-    else while (end + 1 < count && ok(end + 1)) end++;
+    if (connect) {
+      for (let k = i + 1; k < count; k++) if (ok(k)) end = k;
+    } else while (end + 1 < count && ok(end + 1)) end++;
     d += `M${f2(data[i * stride]!)} ${f2(data[i * stride + 1]!)}L`;
     let first = true;
     for (let k = i + 1; k <= end; k++) {
@@ -90,6 +113,10 @@ export function areaOutline(top: Readonly<PointBuffer>, base: Readonly<PointBuff
 
 /** Straight lines from point to point: what a line chart is. A gap lifts the pen, or is crossed if the series says its `gaps` are 'connect'. */
 export class LinearCurve extends Curve {
-  line(series: Series): string { return polyline(series.points, series.attrs.gaps === 'connect'); }
-  area(series: Series, baseline: number): string { return areaOutline(series.points, series.baseline(baseline), series.attrs.gaps === 'connect'); }
+  line(series: Series): string {
+    return polyline(series.points, series.attrs.gaps === 'connect');
+  }
+  area(series: Series, baseline: number): string {
+    return areaOutline(series.points, series.baseline(baseline), series.attrs.gaps === 'connect');
+  }
 }

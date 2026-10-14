@@ -5,7 +5,11 @@ import { type JsxType, jsx } from './jsx-runtime.ts';
 
 export { Fragment, type JSX, type JsxType, jsxs } from './jsx-runtime.ts';
 
-export interface JsxSource { fileName?: string; lineNumber?: number; columnNumber?: number }
+export interface JsxSource {
+  fileName?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+}
 
 export function jsxDEV(type: JsxType, props: Record<string, unknown>, key?: unknown, _isStatic?: boolean, source?: JsxSource): AnyElement {
   try {

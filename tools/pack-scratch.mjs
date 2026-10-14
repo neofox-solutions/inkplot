@@ -9,15 +9,30 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const out = process.argv[2] ? process.argv[2].replace(/\/?$/, '/') : root + 'out/scratch/';
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-const inkplot = execFileSync(process.execPath, [root + 'tools/pack-consumer.mjs', out + 'inkplot-lib'], { cwd: root }).toString().trim();
+const inkplot = execFileSync(process.execPath, [root + 'tools/pack-consumer.mjs', out + 'inkplot-lib'], { cwd: root })
+  .toString()
+  .trim();
 
-const pkg = out + 'inkplot-scratch/', src = root + 'scratch/';
+const pkg = out + 'inkplot-scratch/',
+  src = root + 'scratch/';
 mkdirSync(pkg + 'src', { recursive: true });
-const manifest = JSON.parse(readFileSync(src + 'package.json', 'utf8')), version = manifest.version;
+const manifest = JSON.parse(readFileSync(src + 'package.json', 'utf8')),
+  version = manifest.version;
 const dev = JSON.parse(readFileSync(root + 'package.json', 'utf8'));
 // The two packages release together: the scratch tool depends on exactly the library it was tested with.
-if (version !== dev.version || manifest.dependencies.inkplot !== dev.version) throw new Error(`versions differ: inkplot ${dev.version}, inkplot-scratch ${version} (needs inkplot ${manifest.dependencies.inkplot})`);
-await build({ entryPoints: [src + 'src/cli.ts'], outfile: pkg + 'bin.mjs', bundle: true, format: 'esm', platform: 'node', target: 'node22', external: ['esbuild', '@resvg/resvg-wasm', 'inkplot'], legalComments: 'none', minify: false });
+if (version !== dev.version || manifest.dependencies.inkplot !== dev.version)
+  throw new Error(`versions differ: inkplot ${dev.version}, inkplot-scratch ${version} (needs inkplot ${manifest.dependencies.inkplot})`);
+await build({
+  entryPoints: [src + 'src/cli.ts'],
+  outfile: pkg + 'bin.mjs',
+  bundle: true,
+  format: 'esm',
+  platform: 'node',
+  target: 'node22',
+  external: ['esbuild', '@resvg/resvg-wasm', 'inkplot'],
+  legalComments: 'none',
+  minify: false,
+});
 // The sources the page and the figures are built from at run time, against the workspace's own copy of inkplot.
 for (const f of ['figures.ts', 'app.ts', 'interact.ts', 'template.html']) cpSync(src + 'src/' + f, pkg + 'src/' + f);
 cpSync(src + 'fonts', pkg + 'fonts', { recursive: true });

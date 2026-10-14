@@ -33,12 +33,17 @@ export interface LineSeriesOptions {
 /** A series with a line renderer: the common case in one call. */
 export function lineSeries(source: DataNode, options: LineSeriesOptions = {}): DomainSeries {
   const { stroke, strokeWidth, domainAxis, valueAxis, marker, markerStroke, decimate, curve } = options;
-  const line = new LinePath({ ...(stroke !== undefined && { stroke }), ...(strokeWidth !== undefined && { strokeWidth }) }, curve ?? new LinearCurve());
+  const line = new LinePath(
+    { ...(stroke !== undefined && { stroke }), ...(strokeWidth !== undefined && { strokeWidth }) },
+    curve ?? new LinearCurve(),
+  );
   const attrs: DomainSeriesAttributes = {
     ...(domainAxis !== undefined && { domainAxis }),
     ...(valueAxis !== undefined && { valueAxis }),
   };
   const data = decimate ? new Decimator({}, new decimate(), source) : source;
   const mark = markerStroke ?? stroke;
-  return marker ? new DomainSeries(attrs, data, line, new marker(mark === undefined ? {} : { stroke: mark })) : new DomainSeries(attrs, data, line);
+  return marker
+    ? new DomainSeries(attrs, data, line, new marker(mark === undefined ? {} : { stroke: mark }))
+    : new DomainSeries(attrs, data, line);
 }

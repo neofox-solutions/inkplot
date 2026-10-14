@@ -41,9 +41,15 @@ export class ChartTitle extends ChartElement<Chart, [], ChartTitleAttributes> {
   #rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
   #lines = 0;
 
-  private get role(): TitleRole { return this.attrs.role ?? 'title'; }
-  private get side(): 'top' | 'bottom' { return this.attrs.side ?? (this.role === 'caption' ? 'bottom' : 'top'); }
-  private get look(): TextProps { return this.styleFor([ROLE_SELECTOR[this.role], 'text']); }
+  private get role(): TitleRole {
+    return this.attrs.role ?? 'title';
+  }
+  private get side(): 'top' | 'bottom' {
+    return this.attrs.side ?? (this.role === 'caption' ? 'bottom' : 'top');
+  }
+  private get look(): TextProps {
+    return this.styleFor([ROLE_SELECTOR[this.role], 'text']);
+  }
 
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
@@ -60,7 +66,9 @@ export class ChartTitle extends ChartElement<Chart, [], ChartTitleAttributes> {
         this.#rect = ev.rect;
         break;
       case EVENT_PAINT: {
-        const s = this.surface, r = this.#rect, look = this.look;
+        const s = this.surface,
+          r = this.#rect,
+          look = this.look;
         s.set(s.wrapper(), 'transform', `translate(${f2(r.x)} ${f2(r.y)})`);
         applyText(s, s.wrapper(), look);
         // The anchor is the text's own: start, middle or end of the band.
@@ -92,14 +100,21 @@ export interface ChartTooltipAttributes extends BaseAttributes {
 /** The gap between the pointer or point and the box of a tooltip that follows. */
 const FOLLOW_OFFSET = 14;
 /** Which way the box sits from what it points at, in the order tried: up and right, then the other corners. */
-const CORNERS = [[1, -1], [-1, -1], [1, 1], [-1, 1]] as const;
+const CORNERS = [
+  [1, -1],
+  [-1, -1],
+  [1, 1],
+  [-1, 1],
+] as const;
 
 /** The default words for one hit. */
 function describe(hit: Hit): string {
-  const { series } = hit, lines: string[] = [];
+  const { series } = hit,
+    lines: string[] = [];
   const name = series.attrs.name;
   if (name) lines.push(name);
-  const part = (axis: typeof series.firstAxis, value: number) => `${axis.attrs.title ? axis.attrs.title + ': ' : ''}${axis.formatValue(value)}`;
+  const part = (axis: typeof series.firstAxis, value: number) =>
+    `${axis.attrs.title ? axis.attrs.title + ': ' : ''}${axis.formatValue(value)}`;
   lines.push(part(series.firstAxis, hit.first), part(series.secondAxis, hit.second));
   for (const [channel, value] of Object.entries(hit.channels)) lines.push(`${channel}: ${String(+value.toPrecision(5))}`);
   return lines.join('\n');
@@ -120,8 +135,12 @@ export class ChartTooltip extends ChartElement<Cursor, [], ChartTooltipAttribute
   readonly #samples: SampleCache = new Map();
 
   /** Moves with the cursor when it has no arm. */
-  get follows(): boolean { return this.#follow(this.requireParent().attrs.mode === 'shared'); }
-  #follow(shared: boolean): boolean { return this.attrs.follow ?? shared; }
+  get follows(): boolean {
+    return this.#follow(this.requireParent().attrs.mode === 'shared');
+  }
+  #follow(shared: boolean): boolean {
+    return this.attrs.follow ?? shared;
+  }
 
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
@@ -136,13 +155,19 @@ export class ChartTooltip extends ChartElement<Cursor, [], ChartTooltipAttribute
 
   private look(): CalloutLook {
     return {
-      metrics: this.styleFor(['tooltip', 'callout']), text: this.styleFor(['tooltipText', 'calloutText', 'text']),
-      box: this.styleFor(['tooltipBox', 'calloutBox', 'shape']), arm: this.styleFor(['calloutArm', 'line']),
+      metrics: this.styleFor(['tooltip', 'callout']),
+      text: this.styleFor(['tooltipText', 'calloutText', 'text']),
+      box: this.styleFor(['tooltipBox', 'calloutBox', 'shape']),
+      arm: this.styleFor(['calloutArm', 'line']),
     };
   }
 
   private paint(): void {
-    const s = this.surface, cursor = this.requireParent(), state = cursor.state, a = this.attrs, chart = cursor.requireParent();
+    const s = this.surface,
+      cursor = this.requireParent(),
+      state = cursor.state,
+      a = this.attrs,
+      chart = cursor.requireParent();
     s.wrapper();
     if (!state || state.hits.length === 0) {
       clearCallout(s, this.#lines, this.#samples);
@@ -150,15 +175,22 @@ export class ChartTooltip extends ChartElement<Cursor, [], ChartTooltipAttribute
       this.#announced = '';
       return;
     }
-    const { plane, hits } = state, shared = cursor.attrs.mode === 'shared', follow = this.#follow(shared);
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-    const look = this.look(), r = plane.rect, first = hits[0]!;
+    const { plane, hits } = state,
+      shared = cursor.attrs.mode === 'shared',
+      follow = this.#follow(shared);
+    const look = this.look(),
+      r = plane.rect,
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
+      first = hits[0]!;
     const format = a.format ?? describe;
     // The words in blocks: a heading in shared mode, then one block for each hit. A hit's colour dots its block's first line.
     const blocks: { text: string; series: Series | null }[] = [];
     if (shared && !a.format) {
       // The heading says where the reading is: the point the series are read at, or, reading the line between points, the cursor's own place.
-      const at = cursor.attrs.interpolate === true ? plane.unplace(state.x, state.y, first.series.firstAxis, first.series.secondAxis)[0] : first.first;
+      const at =
+        cursor.attrs.interpolate === true
+          ? plane.unplace(state.x, state.y, first.series.firstAxis, first.series.secondAxis)[0]
+          : first.first;
       blocks.push({ text: first.series.firstAxis.formatValue(at), series: null });
       for (const h of hits) {
         const name = h.series.attrs.name;
@@ -176,23 +208,34 @@ export class ChartTooltip extends ChartElement<Cursor, [], ChartTooltipAttribute
     const near: [number, number] = follow ? [r.x + state.x, r.y + state.y] : point;
     const gap = follow ? FOLLOW_OFFSET : look.metrics.offset;
     const size = chart.platform?.size() ?? { width: Infinity, height: Infinity };
-    const W = chart.attrs.width ?? size.width, H = chart.attrs.height ?? size.height;
+    const W = chart.attrs.width ?? size.width,
+      H = chart.attrs.height ?? size.height;
     let box: Rect | null = null;
     for (const [ux, uy] of CORNERS) {
-      const cx = near[0] + ux * (w / 2 + gap * 0.6), cy = near[1] + uy * (h / 2 + gap * 0.6);
+      const cx = near[0] + ux * (w / 2 + gap * 0.6),
+        cy = near[1] + uy * (h / 2 + gap * 0.6);
       const candidate = { x: cx - w / 2, y: cy - h / 2, width: w, height: h };
-      if (candidate.x >= 0 && candidate.y >= 0 && candidate.x + w <= W && candidate.y + h <= H) { box = candidate; break; }
+      if (candidate.x >= 0 && candidate.y >= 0 && candidate.x + w <= W && candidate.y + h <= H) {
+        box = candidate;
+        break;
+      }
     }
     // Nowhere fits whole (a small chart): the first corner, pushed back inside as far as it will go.
     box ??= {
-      x: Math.max(0, Math.min(near[0] + gap * 0.6, W - w)), y: Math.max(0, Math.min(near[1] - h - gap * 0.6, H - h)), width: w, height: h,
+      x: Math.max(0, Math.min(near[0] + gap * 0.6, W - w)),
+      y: Math.max(0, Math.min(near[1] - h - gap * 0.6, H - h)),
+      width: w,
+      height: h,
     };
     this.#lines = paintCallout(s, text, box, follow ? null : point, look, this.#lines, swatches, this.#samples);
 
     // Someone at the keyboard cannot see the box: say what it says, once for each thing it says.
     if (state.source === 'keyboard' && a.announce !== false) {
       const said = text.split('\n').join('. ');
-      if (said !== this.#announced) { this.#announced = said; chart.input?.speak(said); }
+      if (said !== this.#announced) {
+        this.#announced = said;
+        chart.input?.speak(said);
+      }
     } else {
       this.#announced = '';
     }

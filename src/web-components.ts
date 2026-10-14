@@ -87,25 +87,46 @@ export interface DefineOptions {
 }
 
 /** The attributes every HTML element has, or has for the page; none is a chart attribute. */
-const PAGE_ATTRIBUTES = new Set(['class', 'style', 'slot', 'part', 'is', 'hidden', 'lang', 'dir', 'tabindex', 'contenteditable', 'draggable', 'translate', 'inert', 'nonce']);
+const PAGE_ATTRIBUTES = new Set([
+  'class',
+  'style',
+  'slot',
+  'part',
+  'is',
+  'hidden',
+  'lang',
+  'dir',
+  'tabindex',
+  'contenteditable',
+  'draggable',
+  'translate',
+  'inert',
+  'nonce',
+]);
 
 const NUMERIC = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 /** A value from attribute text. `kind` says how; AUTO guesses, and is safe because every attribute that is only text is STRING. */
 function convert(text: string, kind: Coerce, name: string): unknown {
   switch (kind) {
-    case STRING: return text;
+    case STRING:
+      return text;
     case NUMBER: {
       const n = Number(text);
       if (text.trim() === '' || Number.isNaN(n)) throw new TypeError(`attribute '${name}': '${text}' is not a number`);
       return n;
     }
-    case BOOLEAN: return text !== 'false';
+    case BOOLEAN:
+      return text !== 'false';
     default: {
       if (text === '' || text === 'true') return true;
       if (text === 'false') return false;
       if (NUMERIC.test(text.trim())) return Number(text);
       if (/^\s*[[{]/.test(text)) {
-        try { return JSON.parse(text); } catch (cause) { throw new TypeError(`attribute '${name}': '${text}' is not valid JSON`, { cause }); }
+        try {
+          return JSON.parse(text);
+        } catch (cause) {
+          throw new TypeError(`attribute '${name}': '${text}' is not valid JSON`, { cause });
+        }
       }
       return text;
     }
@@ -124,7 +145,7 @@ function makeBase() {
   return class Wrapper extends HTMLElement {
     // Set by defineElements on each defined subclass.
     static cls: ElementConstructor;
-        static types: AttrTypes;
+    static types: AttrTypes;
     static styleNames: Map<string, string>;
 
     #element: AnyElement | null = null;
@@ -136,18 +157,37 @@ function makeBase() {
     #platform: DOMPlatform | null = null;
     platformOptions?: DOMPlatformOptions;
 
-    override addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void {
+    override addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | AddEventListenerOptions,
+    ): void {
       super.addEventListener(type, listener as EventListenerOrEventListenerObject, options);
-      if (!this.#listening.has(type)) { this.#listening.add(type); this.sync(); }
+      if (!this.#listening.has(type)) {
+        this.#listening.add(type);
+        this.sync();
+      }
     }
-    get element(): AnyElement | null { return this.#element; }
-    get props(): Plain { return this.#props; }
-    set props(value: Plain) { this.#props = { ...value }; this.sync(); }
+    get element(): AnyElement | null {
+      return this.#element;
+    }
+    get props(): Plain {
+      return this.#props;
+    }
+    set props(value: Plain) {
+      this.#props = { ...value };
+      this.sync();
+    }
 
     /** Read the attributes (and props) and write what differs to the element, making it the first time. */
     sync(): AnyElement | null {
       if (!this.isConnected) return this.#element;
-      const ctor = this.constructor as typeof Base & { types: AttrTypes; names: Map<string, string>; styleNames: Map<string, string>; cls: ElementConstructor };
+      const ctor = this.constructor as typeof Base & {
+        types: AttrTypes;
+        names: Map<string, string>;
+        styleNames: Map<string, string>;
+        cls: ElementConstructor;
+      };
       const flat: Plain = {};
       for (const a of Array.from(this.attributes)) {
         const lower = a.name;
@@ -171,10 +211,18 @@ function makeBase() {
         const type = name.slice(2).toLowerCase();
         if (!this.#listening.has(type) && !this.hasAttribute('on' + type)) continue;
         let handler = this.#handlers.get(name);
-        if (!handler) this.#handlers.set(name, handler = (detail) => { this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true })); });
+        if (!handler)
+          this.#handlers.set(
+            name,
+            (handler = (detail) => {
+              this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
+            }),
+          );
         attrs[name] = handler;
       }
-      for (const k of Object.keys(this.#props)) if (this.#props[k] === undefined) delete attrs[k]; else attrs[k] = this.#props[k];
+      for (const k of Object.keys(this.#props))
+        if (this.#props[k] === undefined) delete attrs[k];
+        else attrs[k] = this.#props[k];
       if (!this.#element) {
         this.#element = new ctor.cls(attrs);
         this.#applied = attrs;
@@ -188,7 +236,7 @@ function makeBase() {
 
     connectedCallback(): void {
       const element = this.sync();
-      if (!element) return;   // only when disconnected, and this is the callback for connecting
+      if (!element) return; // only when disconnected, and this is the callback for connecting
       let ancestor = this.parentElement;
       while (ancestor && !(ancestor instanceof Wrapper)) ancestor = ancestor.parentElement;
       this.#parent = ancestor;
@@ -199,7 +247,10 @@ function makeBase() {
         let before: AnyElement | null = null;
         for (let s = this.nextElementSibling; s; s = s.nextElementSibling) {
           const other = s instanceof Wrapper ? (s as InkplotElement).element : null;
-          if (other && other.parent === host) { before = other; break; }
+          if (other && other.parent === host) {
+            before = other;
+            break;
+          }
         }
         host.insertBefore(element, before);
         observer.observe(this, { attributes: true });
@@ -239,7 +290,7 @@ export function defineElements(classes: Readonly<Record<string, ElementConstruct
   const registry = options.registry ?? customElements;
   const base = (Base ??= makeBase() as unknown as NonNullable<typeof Base>) as unknown as typeof HTMLElement;
   const styleNames = new Map<string, string>();
-  for (const n of [...STYLE_NAMES, ...options.names ?? []]) styleNames.set(n.toLowerCase(), n);
+  for (const n of [...STYLE_NAMES, ...(options.names ?? [])]) styleNames.set(n.toLowerCase(), n);
   const tags: Record<string, string> = {};
   for (const [key, cls] of Object.entries(classes)) {
     const tag = `${options.prefix}-${kebab(key)}`;

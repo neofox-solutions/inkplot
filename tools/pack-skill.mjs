@@ -4,7 +4,8 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path';
 import { jsxFlavour, typeScriptFlavour } from './jsx-to-new.mjs';
 
-const args = process.argv.slice(2), ts = args.includes('--ts');
+const args = process.argv.slice(2),
+  ts = args.includes('--ts');
 const root = new URL('../docs/', import.meta.url).pathname;
 const out = args.find((a) => !a.startsWith('--')) ?? new URL('../out/skill/', import.meta.url).pathname;
 const strip = (text) => text.replace(/\[([^\]]+)\]\((?:\.\.\/|\.\/)?(?:guide|extending|start|authoring|README|api\.md)[^)]*\)/g, '$1');

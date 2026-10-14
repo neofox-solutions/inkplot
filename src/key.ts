@@ -53,7 +53,11 @@ const LABEL_OVERHANG = 14;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** A tick of a key: its label, how far along the dimension it is, and where that is on the scale. */
-interface Tick { text: string; fraction: number; at: number }
+interface Tick {
+  text: string;
+  fraction: number;
+  at: number;
+}
 
 /**
  * The shared frame of a key: reserves a strip along a chart edge, draws the title, and offers the scale-drawing helpers
@@ -62,34 +66,53 @@ interface Tick { text: string; fraction: number; at: number }
  * Layout: the chart asks the key how big it wants to be (MEASURE answers with `side`), carves a strip for it, and then
  * arranges it into that strip. The key is a *chart* child rather than a plane's so one key can sit beside several planes.
  */
-export abstract class Key<Dimension extends MappedDimension<unknown>, A extends KeyAttributes<Dimension> = KeyAttributes<Dimension>>
-  extends ChartElement<Chart, [], A> {
-  static override attrTypes = { ...ChartElement.attrTypes, title: STRING } satisfies Partial<AttrTypesFor<KeyAttributes<MappedDimension<unknown>>>>;
+export abstract class Key<
+  Dimension extends MappedDimension<unknown>,
+  A extends KeyAttributes<Dimension> = KeyAttributes<Dimension>,
+> extends ChartElement<Chart, [], A> {
+  static override attrTypes = { ...ChartElement.attrTypes, title: STRING } satisfies Partial<
+    AttrTypesFor<KeyAttributes<MappedDimension<unknown>>>
+  >;
   /** Room the scale needs past its ends. */
-  protected get inset(): number { return 0; }
+  protected get inset(): number {
+    return 0;
+  }
   /** How thick the drawing is, across the scale: a colour bar, the biggest circle. */
   protected abstract get thickness(): number;
   /** How many ticks suit a scale this long, or undefined to leave it to the dimension. */
-  protected ticksFor(_length: number, _vertical: boolean): number | undefined { return undefined; }
+  protected ticksFor(_length: number, _vertical: boolean): number | undefined {
+    return undefined;
+  }
   /** Draw the scale, its ticks and labels. */
   protected abstract paintScale(layout: Layout): void;
 
   #rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
   #labels = 0;
 
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- `resolveRef` returns an element; the attribute type says it is a dimension
-  get dimension(): Dimension { return resolveRef(this.attrs.dimension, this) as Dimension; }
-  get side(): Side { return this.attrs.side ?? 'right'; }
+  get dimension(): Dimension {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- `resolveRef` returns an element; the attribute type says it is a dimension
+    return resolveRef(this.attrs.dimension, this) as Dimension;
+  }
+  get side(): Side {
+    return this.attrs.side ?? 'right';
+  }
   get vertical(): boolean {
     return (this.attrs.orientation ?? (this.side === 'left' || this.side === 'right' ? 'vertical' : 'horizontal')) === 'vertical';
   }
-  private get title(): string | undefined { return this.attrs.title ?? this.dimension.attrs.title; }
-  protected get length(): number { return this.attrs.length ?? 140; }
+  private get title(): string | undefined {
+    return this.attrs.title ?? this.dimension.attrs.title;
+  }
+  protected get length(): number {
+    return this.attrs.length ?? 140;
+  }
   /** The size of the labels, which the layout is built on. */
-  protected get fontSize(): number { return this.styleFor(['keyLabel', 'key', 'text']).size; }
+  protected get fontSize(): number {
+    return this.styleFor(['keyLabel', 'key', 'text']).size;
+  }
   /** Put the key's line look (ticks, circles) on a node. */
   protected strokeLine(node: PlatformNode): void {
-    const look = this.styleFor(['keyLine', 'key', 'line']), s = this.surface;
+    const look = this.styleFor(['keyLine', 'key', 'line']),
+      s = this.surface;
     s.set(node, 'stroke', look.color);
     s.set(node, 'stroke-width', look.width);
     s.set(node, 'opacity', look.opacity);
@@ -101,7 +124,9 @@ export abstract class Key<Dimension extends MappedDimension<unknown>, A extends 
         this.surface.wrapper();
         break;
       case EVENT_MEASURE: {
-        const title = this.title ? TITLE_BLOCK : 0, length = this.length, inset = this.inset;
+        const title = this.title ? TITLE_BLOCK : 0,
+          length = this.length,
+          inset = this.inset;
         const size = this.vertical
           ? { width: this.attrs.breadth ?? 72, height: title + 2 * inset + length + 12 }
           : { width: LABEL_OVERHANG + 2 * inset + length + LABEL_OVERHANG, height: title + this.thickness + 4 + this.fontSize * 1.4 };
@@ -112,7 +137,10 @@ export abstract class Key<Dimension extends MappedDimension<unknown>, A extends 
         this.#rect = ev.rect;
         break;
       case EVENT_PAINT: {
-        const s = this.surface, root = s.wrapper(), vertical = this.vertical, title = this.title;
+        const s = this.surface,
+          root = s.wrapper(),
+          vertical = this.vertical,
+          title = this.title;
         s.set(root, 'transform', `translate(${f2(this.#rect.x)} ${f2(this.#rect.y)})`);
         applyText(s, root, this.styleFor(['keyLabel', 'key', 'text']), vertical ? 'start' : 'middle');
         if (title) {
@@ -136,7 +164,8 @@ export abstract class Key<Dimension extends MappedDimension<unknown>, A extends 
 
   /** The dimension's ticks, each with its fraction of the dimension and its place along the scale. Ticks outside the range are left out. */
   protected ticks(l: Layout): Tick[] {
-    const dim = this.dimension, out: Tick[] = [];
+    const dim = this.dimension,
+      out: Tick[] = [];
     for (const t of dim.getTicks(l.length, this.ticksFor(l.length, l.vertical))) {
       const fraction = dim.fractionOf(t.value);
       if (fraction >= -1e-9 && fraction <= 1 + 1e-9) out.push({ text: t.label, fraction, at: round2(this.along(l, fraction)) });
@@ -185,20 +214,30 @@ export class ColorKey extends Key<ColorAxis, ColorKeyAttributes> {
   private readonly gradientId = `grad${++gradientCounter}`;
   #stops = 0;
 
-  protected get thickness(): number { return this.attrs.thickness ?? 14; }
+  protected get thickness(): number {
+    return this.attrs.thickness ?? 14;
+  }
 
   protected paintScale(l: Layout): void {
-    const s = this.surface, dim = this.dimension, thickness = this.thickness;
+    const s = this.surface,
+      dim = this.dimension,
+      thickness = this.thickness;
 
     // One rect filled by a gradient. A stepped dimension gets hard stops, so the bands stay bands.
     const grad = s.node('gradient', 'linearGradient', { parent: s.node('defs', 'defs') });
     s.set(grad, 'id', this.gradientId);
-    s.set(grad, 'x1', 0); s.set(grad, 'y1', l.vertical ? 1 : 0); s.set(grad, 'x2', l.vertical ? 0 : 1); s.set(grad, 'y2', 0);
+    s.set(grad, 'x1', 0);
+    s.set(grad, 'y1', l.vertical ? 1 : 0);
+    s.set(grad, 'x2', l.vertical ? 0 : 1);
+    s.set(grad, 'y2', 0);
     const stops: [number, string][] = [];
     if (dim.attrs.interpolation === 'step') {
       const n = dim.stops.length;
-      // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-      for (let i = 0; i < n; i++) { const c = dim.stops[i]!; stops.push([i / n, c], [(i + 1) / n, c]); }
+      for (let i = 0; i < n; i++) {
+        // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
+        const c = dim.stops[i]!;
+        stops.push([i / n, c], [(i + 1) / n, c]);
+      }
     } else {
       const n = Math.max(2, Math.min(24, dim.stops.length * 2));
       for (let i = 0; i < n; i++) stops.push([i / (n - 1), dim.valueAt(i / (n - 1))]);
@@ -218,7 +257,13 @@ export class ColorKey extends Key<ColorAxis, ColorKeyAttributes> {
     s.set(bar, 'height', l.vertical ? l.length : thickness);
     s.set(bar, 'fill', `url(#${this.gradientId})`);
 
-    this.paintTicks(l, this.ticks(l), l.vertical ? thickness : l.top + thickness, l.vertical ? thickness + 6 : l.top + thickness + 3 + this.fontSize, true);
+    this.paintTicks(
+      l,
+      this.ticks(l),
+      l.vertical ? thickness : l.top + thickness,
+      l.vertical ? thickness + 6 : l.top + thickness + 3 + this.fontSize,
+      true,
+    );
   }
 }
 
@@ -229,15 +274,21 @@ export interface SizeKeyAttributes extends KeyAttributes<SizeAxis> {}
 
 /** Circles at the dimension's tick values, each as big as the size it stands for. */
 export class SizeKey extends Key<SizeAxis, SizeKeyAttributes> {
-  protected override get inset(): number { return this.dimension.output[1]; }
-  protected get thickness(): number { return 2 * this.dimension.output[1]; }
+  protected override get inset(): number {
+    return this.dimension.output[1];
+  }
+  protected get thickness(): number {
+    return 2 * this.dimension.output[1];
+  }
   /** Circles as big as the biggest need room: no more ticks than fit without piling up. */
   protected override ticksFor(length: number): number {
     return Math.max(2, Math.floor(length / (2 * this.dimension.output[1] + 4)));
   }
 
   protected paintScale(l: Layout): void {
-    const s = this.surface, dim = this.dimension, hi = dim.output[1];
+    const s = this.surface,
+      dim = this.dimension,
+      hi = dim.output[1];
     const ticks = this.ticks(l);
     // The circles sit on a line through their centres: down the key, or along it.
     const centre = hi + 1;

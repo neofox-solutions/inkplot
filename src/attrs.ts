@@ -29,21 +29,32 @@ export type Coerce = typeof AUTO | typeof STRING | typeof NUMBER | typeof BOOLEA
 /** How one attribute's text becomes a value, or, for an attribute that holds an object, the same for each part of it. */
 export type AttrType = Coerce | AttrTypes;
 /** An element class' attribute types by name, as in `{ strokeWidth: NUMBER, padding: { topSide: NUMBER } }`. Inherited ones are repeated by spreading the parent's. */
-export interface AttrTypes { readonly [name: string]: AttrType }
+export interface AttrTypes {
+  readonly [name: string]: AttrType;
+}
 
 declare const opaque: unique symbol;
 /** Marks an attribute that holds an object which only code can supply (a library namespace), so it has no nested spec. */
 export type Opaque<T> = T & { readonly [opaque]?: never };
 
 /** The plain object an attribute type holds (what a nested spec describes), or never: not functions, arrays, data, elements, dates or the style theme. */
-type Inner<T> = NonNullable<T> extends infer N
-  ? N extends (...args: never[]) => unknown ? never
-    : typeof opaque extends keyof N ? never
-    : N extends readonly unknown[] | ArrayLike<unknown> | AnyElement | Date | Theme | string | number | boolean ? never
-    : N extends object ? (string extends keyof N ? never : N) : never
-  : never;
+type Inner<T> =
+  NonNullable<T> extends infer N
+    ? N extends (...args: never[]) => unknown
+      ? never
+      : typeof opaque extends keyof N
+        ? never
+        : N extends readonly unknown[] | ArrayLike<unknown> | AnyElement | Date | Theme | string | number | boolean
+          ? never
+          : N extends object
+            ? string extends keyof N
+              ? never
+              : N
+            : never
+    : never;
 /** A text-only type: the AUTO guess could turn its text into a number or a boolean. */
-type TextOnly<T> = string extends NonNullable<T> ? number extends NonNullable<T> ? never : boolean extends NonNullable<T> ? never : true : never;
+type TextOnly<T> =
+  string extends NonNullable<T> ? (number extends NonNullable<T> ? never : boolean extends NonNullable<T> ? never : true) : never;
 
 /**
  * The attributes of `A` that must be listed in `attrTypes`: those with a capital in the name; those that are text and
@@ -52,10 +63,22 @@ type TextOnly<T> = string extends NonNullable<T> ? number extends NonNullable<T>
  */
 export type NeededAttrs<A> = {
   [K in keyof A & string]-?: [Inner<A[K]>] extends [never]
-    ? (K extends Lowercase<K> ? ([TextOnly<A[K]>] extends [never] ? never : K) : K)
-    : (K extends Lowercase<K> ? ([NeededAttrs<Inner<A[K]>>] extends [never] ? never : K) : K);
+    ? K extends Lowercase<K>
+      ? [TextOnly<A[K]>] extends [never]
+        ? never
+        : K
+      : K
+    : K extends Lowercase<K>
+      ? [NeededAttrs<Inner<A[K]>>] extends [never]
+        ? never
+        : K
+      : K;
 }[keyof A & string];
-type SpecFor<T> = [Inner<T>] extends [never] ? Coerce : [NeededAttrs<Inner<T>>] extends [never] ? Coerce | AttrTypes : AttrTypesFor<Inner<T>>;
+type SpecFor<T> = [Inner<T>] extends [never]
+  ? Coerce
+  : [NeededAttrs<Inner<T>>] extends [never]
+    ? Coerce | AttrTypes
+    : AttrTypesFor<Inner<T>>;
 /** What `static attrTypes` must satisfy for an element whose attributes are `A`: every needed name, each with a type (or a nested spec). */
 export type AttrTypesFor<A> = { readonly [K in NeededAttrs<A>]: SpecFor<A[K]> } & AttrTypes;
 
@@ -113,10 +136,15 @@ export function expandAttributes(flat: Readonly<Obj>, options: ExpandOptions = {
       // An attribute given as `undefined` means "not set", so it never conflicts with the same key given nested.
       if (value === undefined) continue;
       const have = at[last];
-      if (have === undefined) { at[last] = value; continue; }
-      throw new Error(typeof have === 'object' && have !== null && made.has(have)
-        ? `attribute '${key}' conflicts with '${key}-…', which are nested values`
-        : `attribute '${key}' is given twice`);
+      if (have === undefined) {
+        at[last] = value;
+        continue;
+      }
+      throw new Error(
+        typeof have === 'object' && have !== null && made.has(have)
+          ? `attribute '${key}' conflicts with '${key}-…', which are nested values`
+          : `attribute '${key}' is given twice`,
+      );
     }
     at[last] = value;
   }

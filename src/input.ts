@@ -31,7 +31,9 @@ export class InputHost {
   // Which element owns each focusable node, so keys and focus changes reach the right one.
   readonly #focusOwners = new WeakMap<PlatformNode, AnyElement>();
 
-  constructor(chart: Chart) { this.#chart = chart; }
+  constructor(chart: Chart) {
+    this.#chart = chart;
+  }
 
   /** Listen to the chart's platform. Called by `inputOf`; a platform with no input of a kind simply gives none. */
   start(): void {
@@ -41,7 +43,8 @@ export class InputHost {
       platform.onPointer?.((p) => this.route(p)),
       platform.onKey?.((k, node) => this.routeKey(k, node)),
       platform.onFocus?.((f) => this.routeFocus(f)),
-    ]) if (u) this.#subscriptions.push(u);
+    ])
+      if (u) this.#subscriptions.push(u);
   }
   /** Stop listening and forget everything held: `Chart.detach()` calls it. */
   stop(): void {
@@ -57,7 +60,9 @@ export class InputHost {
    */
   watchPointer(element: AnyElement): Unsubscribe {
     this.#pointerWatchers.add(element);
-    return () => { this.#pointerWatchers.delete(element); };
+    return () => {
+      this.#pointerWatchers.delete(element);
+    };
   }
 
   /**
@@ -67,7 +72,9 @@ export class InputHost {
    */
   watchInput(element: AnyElement): Unsubscribe {
     this.#inputWatchers.add(element);
-    return () => { this.#inputWatchers.delete(element); };
+    return () => {
+      this.#inputWatchers.delete(element);
+    };
   }
 
   /**
@@ -79,9 +86,13 @@ export class InputHost {
     this.#focusOwners.set(node, element);
   }
   /** Say something to a screen reader, if the platform has one to tell. */
-  speak(text: string): void { this.#chart.platform?.announce?.(text); }
+  speak(text: string): void {
+    this.#chart.platform?.announce?.(text);
+  }
   /** Move keyboard focus to a node an element made `focusable`. Does nothing on a platform without focus. */
-  focus(node: PlatformNode): void { this.#chart.platform?.focus?.(node); }
+  focus(node: PlatformNode): void {
+    this.#chart.platform?.focus?.(node);
+  }
 
   /** One raw pointer: to what listens outside planes first, then to the plane it is over. True when something used it. */
   route(p: RawPointer): boolean {
@@ -90,12 +101,31 @@ export class InputHost {
     // Whatever outside a plane listens (a legend) is told first, in the chart's own pixels; an element that uses the input keeps it from the planes.
     let taken = false;
     for (const w of this.#inputWatchers) {
-      if (w.chart !== chart) { this.#inputWatchers.delete(w); continue; }
+      if (w.chart !== chart) {
+        this.#inputWatchers.delete(w);
+        continue;
+      }
       // oxlint-disable-next-line typescript/consistent-type-assertions -- `deliver` returns the event union; a pointer event comes back as one
-      const ev = chart.deliver({
-        type: EVENT_POINTER, kind: p.kind, x: p.x, y: p.y, buttons: p.buttons, deltaY: p.deltaY, deltaX: p.deltaX ?? 0, scale: p.scale ?? 1,
-        id: p.id ?? 0, pointerType: p.pointerType ?? 'mouse', axis: null, outside: false, shift: p.shift, ctrl: p.ctrl, handled: false,
-      }, w) as ChartPointerEvent;
+      const ev = chart.deliver(
+        {
+          type: EVENT_POINTER,
+          kind: p.kind,
+          x: p.x,
+          y: p.y,
+          buttons: p.buttons,
+          deltaY: p.deltaY,
+          deltaX: p.deltaX ?? 0,
+          scale: p.scale ?? 1,
+          id: p.id ?? 0,
+          pointerType: p.pointerType ?? 'mouse',
+          axis: null,
+          outside: false,
+          shift: p.shift,
+          ctrl: p.ctrl,
+          handled: false,
+        },
+        w,
+      ) as ChartPointerEvent;
       if (ev.handled) taken = true;
     }
     if (taken) return true;
@@ -104,19 +134,43 @@ export class InputHost {
     if (!at && p.kind !== 'leave') {
       for (const c of chart) {
         if (!(c instanceof Plane)) continue;
-        if (contains(c.rect, p.x, p.y) || c.axisAt(p.x - c.rect.x, p.y - c.rect.y)) { at = c; break; }
+        if (contains(c.rect, p.x, p.y) || c.axisAt(p.x - c.rect.x, p.y - c.rect.y)) {
+          at = c;
+          break;
+        }
       }
     }
     const send = (plane: Plane, kind: RawPointer['kind']) => {
-      const r = plane.rect, x = p.x - r.x, y = p.y - r.y;
+      const r = plane.rect,
+        x = p.x - r.x,
+        y = p.y - r.y;
       // oxlint-disable-next-line typescript/consistent-type-assertions -- `deliver` returns the event union; a pointer event comes back as one
-      return (chart.deliver({
-        type: EVENT_POINTER, kind, x, y, buttons: p.buttons, deltaY: p.deltaY, deltaX: p.deltaX ?? 0, scale: p.scale ?? 1,
-        id: p.id ?? 0, pointerType: p.pointerType ?? 'mouse', axis: kind === 'leave' ? null : plane.axisAt(x, y), outside: kind !== 'leave' && !contains(r, p.x, p.y),
-        shift: p.shift, ctrl: p.ctrl, handled: false,
-      }, plane) as ChartPointerEvent).handled;
+      const event = chart.deliver(
+        {
+          type: EVENT_POINTER,
+          kind,
+          x,
+          y,
+          buttons: p.buttons,
+          deltaY: p.deltaY,
+          deltaX: p.deltaX ?? 0,
+          scale: p.scale ?? 1,
+          id: p.id ?? 0,
+          pointerType: p.pointerType ?? 'mouse',
+          axis: kind === 'leave' ? null : plane.axisAt(x, y),
+          outside: kind !== 'leave' && !contains(r, p.x, p.y),
+          shift: p.shift,
+          ctrl: p.ctrl,
+          handled: false,
+        },
+        plane,
+      ) as ChartPointerEvent;
+      return event.handled;
     };
-    if (this.#hovered && this.#hovered !== at) { send(this.#hovered, 'leave'); this.#announce(this.#hovered, NaN, NaN, 0); }
+    if (this.#hovered && this.#hovered !== at) {
+      send(this.#hovered, 'leave');
+      this.#announce(this.#hovered, NaN, NaN, 0);
+    }
     this.#hovered = p.kind === 'leave' ? null : at;
     if (!at) return false;
     if (p.kind === 'down') this.#pressed = at;
@@ -135,9 +189,21 @@ export class InputHost {
     const owner = this.#focusOwners.get(node);
     if (!owner || owner.chart !== this.#chart) return false;
     // oxlint-disable-next-line typescript/consistent-type-assertions -- `deliver` returns the event union; a key event comes back as one
-    return (this.#chart.deliver({
-      type: EVENT_KEY, kind: k.kind, key: k.key, shift: k.shift, ctrl: k.ctrl, alt: k.alt, repeat: k.repeat, node, handled: false,
-    }, owner) as ChartKeyEvent).handled;
+    const event = this.#chart.deliver(
+      {
+        type: EVENT_KEY,
+        kind: k.kind,
+        key: k.key,
+        shift: k.shift,
+        ctrl: k.ctrl,
+        alt: k.alt,
+        repeat: k.repeat,
+        node,
+        handled: false,
+      },
+      owner,
+    ) as ChartKeyEvent;
+    return event.handled;
   }
   /** Focus entering or leaving a node, to its owner. */
   routeFocus(f: RawFocus): void {
@@ -148,7 +214,7 @@ export class InputHost {
 
   /** Tell every element where the pointer is in `plane` (NaN: it has gone). */
   #announce(plane: Plane, x: number, y: number, buttons: number): void {
-    for (const w of this.#pointerWatchers) if (w.chart !== this.#chart) this.#pointerWatchers.delete(w);   // taken out of the tree
+    for (const w of this.#pointerWatchers) if (w.chart !== this.#chart) this.#pointerWatchers.delete(w); // taken out of the tree
     if (this.#pointerWatchers.size === 0) return;
     this.#chart.deliver({ type: EVENT_HOVER, plane, x, y, buttons });
   }
@@ -157,6 +223,9 @@ export class InputHost {
 /** The chart's input host, made and started on the first ask. Elements that take input call this as they attach. */
 export function inputOf(chart: Chart): InputHost {
   let host = chart.input;
-  if (!host) { host = chart.input = new InputHost(chart); host.start(); }
+  if (!host) {
+    host = chart.input = new InputHost(chart);
+    host.start();
+  }
   return host;
 }

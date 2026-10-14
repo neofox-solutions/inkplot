@@ -5,7 +5,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // The package may be CommonJS or ESM depending on how it resolves, so take the namespace or its default.
-const load = async (path: string): Promise<typeof import('@resvg/resvg-wasm')> => { const m = await import(pathToFileURL(path).href); return 'initWasm' in m ? m : m.default; };
+const load = async (path: string): Promise<typeof import('@resvg/resvg-wasm')> => {
+  const m = await import(pathToFileURL(path).href);
+  return 'initWasm' in m ? m : m.default;
+};
 
 export async function renderer(workspace: string, background: string | undefined, scale: number): Promise<(svg: string) => Uint8Array> {
   let resvg: typeof import('@resvg/resvg-wasm'), wasm: string;
@@ -24,11 +27,22 @@ export async function renderer(workspace: string, background: string | undefined
     }
   }
   await resvg.initWasm(readFileSync(wasm));
-  const here = dirname(fileURLToPath(import.meta.url)), fonts = [join(here, '../fonts'), join(here, 'fonts')].find((d) => { try { readFileSync(join(d, 'Inter-Regular.otf')); return true; } catch { return false; } });
+  const here = dirname(fileURLToPath(import.meta.url)),
+    fonts = [join(here, '../fonts'), join(here, 'fonts')].find((d) => {
+      try {
+        readFileSync(join(d, 'Inter-Regular.otf'));
+        return true;
+      } catch {
+        return false;
+      }
+    });
   const fontBuffers = fonts ? ['Inter-Regular.otf', 'Inter-Bold.otf'].map((f) => new Uint8Array(readFileSync(join(fonts, f)))) : [];
-  return (svg) => new resvg.Resvg(svg, {
-    ...(background !== 'none' && { background: background ?? '#ffffff' }),
-    fitTo: { mode: 'zoom', value: scale },
-    font: { fontBuffers, defaultFontFamily: 'Inter', loadSystemFonts: false },
-  }).render().asPng();
+  return (svg) =>
+    new resvg.Resvg(svg, {
+      ...(background !== 'none' && { background: background ?? '#ffffff' }),
+      fitTo: { mode: 'zoom', value: scale },
+      font: { fontBuffers, defaultFontFamily: 'Inter', loadSystemFonts: false },
+    })
+      .render()
+      .asPng();
 }

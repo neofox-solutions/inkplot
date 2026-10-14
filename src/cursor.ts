@@ -47,8 +47,15 @@ export type CursorAction = 'next' | 'previous' | 'nextSeries' | 'previousSeries'
 /** Keys, by `KeyboardEvent.key`, for each action. An action left out has the default keys; an empty list turns it off. */
 export type CursorKeys = Partial<Record<CursorAction, readonly string[]>>;
 export const DEFAULT_CURSOR_KEYS: Readonly<Record<CursorAction, readonly string[]>> = {
-  next: ['ArrowRight'], previous: ['ArrowLeft'], nextSeries: ['ArrowDown'], previousSeries: ['ArrowUp'],
-  first: ['Home'], last: ['End'], jumpNext: ['PageDown'], jumpPrevious: ['PageUp'], clear: ['Escape'],
+  next: ['ArrowRight'],
+  previous: ['ArrowLeft'],
+  nextSeries: ['ArrowDown'],
+  previousSeries: ['ArrowUp'],
+  first: ['Home'],
+  last: ['End'],
+  jumpNext: ['PageDown'],
+  jumpPrevious: ['PageUp'],
+  clear: ['Escape'],
 };
 
 export interface CursorAttributes extends BaseAttributes {
@@ -90,7 +97,11 @@ const JUMP = 0.1;
 
 export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes> {
   static override takesInput = inputOf;
-  static override attrTypes = { ...ChartElement.attrTypes, plane: STRING, keys: { nextSeries: AUTO, previousSeries: AUTO, jumpNext: AUTO, jumpPrevious: AUTO } } satisfies AttrTypesFor<CursorAttributes>;
+  static override attrTypes = {
+    ...ChartElement.attrTypes,
+    plane: STRING,
+    keys: { nextSeries: AUTO, previousSeries: AUTO, jumpNext: AUTO, jumpPrevious: AUTO },
+  } satisfies AttrTypesFor<CursorAttributes>;
   #pointer: { plane: Plane; x: number; y: number; buttons: number } | null = null;
   #by: 'pointer' | 'keyboard' = 'pointer';
   #focused = false;
@@ -115,7 +126,8 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
    * the data may have been edited, or the view panned, under a pointer that has not moved.
    */
   get state(): CursorState | null {
-    const flush = this.chart?.flushCount ?? 0, cache = this.#cache;
+    const flush = this.chart?.flushCount ?? 0,
+      cache = this.#cache;
     if (cache && cache.version === this.#version && cache.flush === flush) return cache.state;
     const state = this.#compute();
     this.#cache = { version: this.#version, flush, state };
@@ -158,7 +170,10 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
         if (ev.node !== this.#node) break;
         this.#focused = ev.focused;
         this.#ring = ev.focused && ev.visible;
-        if (ev.focused) { this.#by = 'keyboard'; this.#begin(); } else if (this.#by === 'keyboard') this.#by = 'pointer';
+        if (ev.focused) {
+          this.#by = 'keyboard';
+          this.#begin();
+        } else if (this.#by === 'keyboard') this.#by = 'pointer';
         this.#changed(true);
         break;
       case EVENT_PAINT:
@@ -175,7 +190,10 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
     if (!plane) return;
     for (const series of this.#steppable(plane)) {
       const index = this.#step(series, -1, 1);
-      if (index >= 0) { this.#at = { series, index }; return; }
+      if (index >= 0) {
+        this.#at = { series, index };
+        return;
+      }
     }
   }
 
@@ -184,7 +202,8 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
     return plane.series.filter((s) => s.attrs.hit !== false && (s.drawn?.points.count ?? 0) > 0);
   }
   #valid(at: { series: Series; index: number }): boolean {
-    const plane = this.plane, d = at.series.drawn;
+    const plane = this.plane,
+      d = at.series.drawn;
     return !!plane && at.series.shown && at.series.plane === plane && !!d && at.index < d.points.count && this.#real(at.series, at.index);
   }
   /** Whether drawn point `index` is a point and not a gap. */
@@ -204,33 +223,60 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
     const map = this.keyMap;
     if (!map || ev.kind !== 'down' || ev.node !== this.#node || ev.ctrl || ev.alt || ev.shift) return;
     let action: CursorAction | undefined;
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- `for…in` gives `string`; the keys of `map` are `CursorAction`s
-    for (const name in map) if (map[name as CursorAction]!.includes(ev.key)) { action = name as CursorAction; break; }
+    for (const name in map)
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- `for…in` gives `string`; the keys of `map` are `CursorAction`s
+      if (map[name as CursorAction]!.includes(ev.key)) {
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- as above: the keys of `map` are `CursorAction`s
+        action = name as CursorAction;
+        break;
+      }
     if (!action) return;
     const plane = this.plane;
     if (!plane) return;
     if (action === 'clear') {
-      if (this.state) { ev.handled = true; this.#at = null; this.#by = 'keyboard'; this.#changed(true); }
+      if (this.state) {
+        ev.handled = true;
+        this.#at = null;
+        this.#by = 'keyboard';
+        this.#changed(true);
+      }
       return;
     }
     ev.handled = true;
     this.#by = 'keyboard';
     if (!this.#at || !this.#valid(this.#at)) this.#begin();
     const at = this.#at;
-    if (!at) { this.#changed(true); return; }
+    if (!at) {
+      this.#changed(true);
+      return;
+    }
     const n = at.series.drawn?.points.count ?? 0;
     const jump = Math.max(1, Math.round(n * JUMP));
     let index = -1;
     switch (action) {
-      case 'next': index = this.#step(at.series, at.index, 1); break;
-      case 'previous': index = this.#step(at.series, at.index, -1); break;
-      case 'jumpNext': index = this.#reach(at, jump, 1); break;
-      case 'jumpPrevious': index = this.#reach(at, jump, -1); break;
-      case 'first': index = this.#step(at.series, -1, 1); break;
-      case 'last': index = this.#step(at.series, n, -1); break;
+      case 'next':
+        index = this.#step(at.series, at.index, 1);
+        break;
+      case 'previous':
+        index = this.#step(at.series, at.index, -1);
+        break;
+      case 'jumpNext':
+        index = this.#reach(at, jump, 1);
+        break;
+      case 'jumpPrevious':
+        index = this.#reach(at, jump, -1);
+        break;
+      case 'first':
+        index = this.#step(at.series, -1, 1);
+        break;
+      case 'last':
+        index = this.#step(at.series, n, -1);
+        break;
       case 'nextSeries':
       case 'previousSeries': {
-        const list = this.#steppable(plane), at0 = list.indexOf(at.series), other = list[at0 + (action === 'nextSeries' ? 1 : -1)];
+        const list = this.#steppable(plane),
+          at0 = list.indexOf(at.series),
+          other = list[at0 + (action === 'nextSeries' ? 1 : -1)];
         if (other) this.#at = { series: other, index: this.#alongTo(at, other) };
         this.#changed(true);
         return;
@@ -243,28 +289,39 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
   /** `count` real points on from a point, or the last one reached before running out. */
   #reach(at: { series: Series; index: number }, count: number, by: number): number {
     let index = at.index;
-    for (let k = 0; k < count; k++) { const next = this.#step(at.series, index, by); if (next < 0) break; index = next; }
+    for (let k = 0; k < count; k++) {
+      const next = this.#step(at.series, index, by);
+      if (next < 0) break;
+      index = next;
+    }
     return index === at.index ? -1 : index;
   }
 
   /** The point of `to` nearest the point `from` is on, along the first axis, so moving to another series keeps one's place in the domain. */
   #alongTo(from: { series: Series; index: number }, to: Series): number {
-    const a = from.series.drawn, b = to.drawn;
+    const a = from.series.drawn,
+      b = to.drawn;
     if (!a || !b) return this.#step(to, -1, 1);
     const at = from.index * a.stride + a.firstColumn;
-    const axis = to.firstAxis, target = axis.fractionOf(a.raw[at]!);
-    let best = this.#step(to, -1, 1), bestD = Infinity;
+    const axis = to.firstAxis,
+      target = axis.fractionOf(a.raw[at]!);
+    let best = this.#step(to, -1, 1),
+      bestD = Infinity;
     for (let k = 0; k < b.points.count; k++) {
       if (!this.#real(to, k)) continue;
       const d = Math.abs(axis.fractionOf(b.raw[k * b.stride + b.firstColumn]!) - target);
-      if (d < bestD) { bestD = d; best = k; }
+      if (d < bestD) {
+        bestD = d;
+        best = k;
+      }
     }
     return best;
   }
 
   /** The state for the input as it stands. */
   #compute(): CursorState | null {
-    const a = this.attrs, shared = a.mode === 'shared';
+    const a = this.attrs,
+      shared = a.mode === 'shared';
     if (this.#by === 'keyboard') {
       const at = this.#at;
       if (!at || !this.#focused || !this.#valid(at)) return null;
@@ -275,19 +332,25 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
       return { plane, x: hit.px, y: hit.py, source: 'keyboard', hits };
     }
     const p = this.#pointer;
-    if (!p || p.plane.chart !== this.chart || (p.buttons & 1) || !p.plane.covers(p.x, p.y)) return null;
+    if (!p || p.plane.chart !== this.chart || p.buttons & 1 || !p.plane.covers(p.x, p.y)) return null;
     const { plane, x, y } = p;
     if (shared) return { plane, x, y, source: 'pointer', hits: this.#shared(plane, x, y, null) };
     const hit = hitPlane(plane, x, y);
     // Reading the line under the pointer; the nearest point was only what said it was near.
-    const read = hit && a.interpolate === true ? interpolate(hit.series, plane.unplace(x, y, hit.series.firstAxis, hit.series.secondAxis)[0]) ?? hit : hit;
+    const read =
+      hit && a.interpolate === true
+        ? (interpolate(hit.series, plane.unplace(x, y, hit.series.firstAxis, hit.series.secondAxis)[0]) ?? hit)
+        : hit;
     return { plane, x, y, source: 'pointer', hits: read ? [read] : [] };
   }
 
   /** Every series at a place: the line read there, or the point nearest in the first axis. The keyboard's own point leads for a series it is on. */
   #shared(plane: Plane, x: number, y: number, own: Hit | null): Hit[] {
     const hits = this.attrs.interpolate === true ? interpolateAll(plane, x, y) : hitAcross(plane, x, y);
-    if (own) { const i = hits.findIndex((h) => h.series === own.series); if (i >= 0) hits[i] = own; }
+    if (own) {
+      const i = hits.findIndex((h) => h.series === own.series);
+      if (i >= 0) hits[i] = own;
+    }
     return hits;
   }
 
@@ -297,18 +360,32 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
     const state = this.state;
     // oxlint-disable-next-line typescript/consistent-type-assertions -- a type guard in effect: probing a child for the optional `follows`
     const moves = [...this].some((c) => c.attrs.visible !== false && (c as Partial<CursorChild>).follows === true);
-    const sig = !state ? '' : [
-      state.source, state.hits.map((h) => `${h.series.attrs.name ?? ''}:${h.row ?? h.index}:${h.first}:${h.second}`).join('|'),
-      moves || state.hits.length === 0 ? `@${state.x},${state.y}` : '',
-    ].join('#');
-    if (force || sig !== this.#signature) { this.#signature = sig; this.invalidate(); }
+    const sig = !state
+      ? ''
+      : [
+          state.source,
+          state.hits.map((h) => `${h.series.attrs.name ?? ''}:${h.row ?? h.index}:${h.first}:${h.second}`).join('|'),
+          moves || state.hits.length === 0 ? `@${state.x},${state.y}` : '',
+        ].join('#');
+    if (force || sig !== this.#signature) {
+      this.#signature = sig;
+      this.invalidate();
+    }
   }
 
   /** The plot as a tab stop, in the chart's pixels, with the ring when keyboard focus is on it. */
   #paintFocus(): void {
-    const s = this.surface, plane = this.plane, map = this.keyMap;
-    if (!map || !plane) { s.remove('focus'); s.remove('ring'); this.#node = null; return; }
-    const r = plane.rect, node = s.node('focus', 'rect');
+    const s = this.surface,
+      plane = this.plane,
+      map = this.keyMap;
+    if (!map || !plane) {
+      s.remove('focus');
+      s.remove('ring');
+      this.#node = null;
+      return;
+    }
+    const r = plane.rect,
+      node = s.node('focus', 'rect');
     s.set(node, 'x', r.x);
     s.set(node, 'y', r.y);
     s.set(node, 'width', r.width);
@@ -316,11 +393,21 @@ export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes
     s.set(node, 'fill', 'none');
     s.set(node, 'pointer-events', 'none');
     makeTabStop(s, node);
-    writeAria(s, node, this.attrs.meta ?? (plane.attrs.meta?.title !== undefined ? { title: plane.attrs.meta.title } : undefined), { role: 'application' });
+    writeAria(s, node, this.attrs.meta ?? (plane.attrs.meta?.title !== undefined ? { title: plane.attrs.meta.title } : undefined), {
+      role: 'application',
+    });
     const shortcuts = [...new Set(Object.values(map).flat())].join(' ');
-    if (shortcuts !== this.#lastKeys) { this.#lastKeys = shortcuts; s.set(node, 'aria-keyshortcuts', shortcuts); }
+    if (shortcuts !== this.#lastKeys) {
+      this.#lastKeys = shortcuts;
+      s.set(node, 'aria-keyshortcuts', shortcuts);
+    }
     inputOf(this.requireParent()).focusable(this, node);
     this.#node = node;
-    drawFocusRing(s, 'ring', this.styleFor(['focusRing', 'line']), this.#ring ? { x: r.x + 3, y: r.y + 3, width: Math.max(0, r.width - 6), height: Math.max(0, r.height - 6) } : null);
+    drawFocusRing(
+      s,
+      'ring',
+      this.styleFor(['focusRing', 'line']),
+      this.#ring ? { x: r.x + 3, y: r.y + 3, width: Math.max(0, r.width - 6), height: Math.max(0, r.height - 6) } : null,
+    );
   }
 }

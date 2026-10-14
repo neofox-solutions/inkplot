@@ -46,7 +46,7 @@ export interface ElementJSON {
 }
 /** Maps `type` names to classes, and back: an element is written under the name its class is registered by. */
 /** The text of anything thrown: a constructor or a refs lookup may throw a value that is not an Error. */
-const messageOf = (e: unknown): string => e instanceof Error ? e.message : String(e);
+const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 export type ElementRegistry = Readonly<Record<string, new (...args: AnyArgs) => AnyElement>>;
 
@@ -63,29 +63,41 @@ export class Refs {
   }
   /** Name a value. The name must be free; a value that already has a name keeps it first and answers to both on reading. */
   set(name: string, value: unknown): this {
-    if (value === null || (typeof value !== 'object' && typeof value !== 'function')) fail(`ref "${name}": only objects and functions can be named`);
+    if (value === null || (typeof value !== 'object' && typeof value !== 'function'))
+      fail(`ref "${name}": only objects and functions can be named`);
     if (this.#byName.has(name) && this.#byName.get(name) !== value) fail(`ref "${name}" already names something else`);
     this.#byName.set(name, value);
     if (!this.#byValue.has(value)) this.#byValue.set(value, name);
     return this;
   }
-  has(name: string): boolean { return this.#byName.has(name); }
+  has(name: string): boolean {
+    return this.#byName.has(name);
+  }
   get(name: string): unknown {
-    if (!this.#byName.has(name)) fail(`no ref named "${name}"` + (this.#byName.size ? ` (known: ${[...this.#byName.keys()].slice(0, 12).join(', ')})` : ' (there are none)'));
+    if (!this.#byName.has(name))
+      fail(
+        `no ref named "${name}"` +
+          (this.#byName.size ? ` (known: ${[...this.#byName.keys()].slice(0, 12).join(', ')})` : ' (there are none)'),
+      );
     return this.#byName.get(name);
   }
   /** The name a value goes by, if it has one. */
-  nameOf(value: unknown): string | undefined { return this.#byValue.get(value); }
+  nameOf(value: unknown): string | undefined {
+    return this.#byValue.get(value);
+  }
   /** Give a value a name of its own, built on `hint` and made unique. Returns the one it has already, if so. */
   adopt(value: unknown, hint = 'ref'): string {
     const known = this.nameOf(value);
     if (known !== undefined) return known;
-    let name = hint, n = 1;
+    let name = hint,
+      n = 1;
     while (this.#byName.has(name)) name = hint + ++n;
     this.set(name, value);
     return name;
   }
-  get names(): readonly string[] { return [...this.#byName.keys()]; }
+  get names(): readonly string[] {
+    return [...this.#byName.keys()];
+  }
 }
 
 export interface SerializeOptions {
@@ -100,17 +112,38 @@ export interface SerializeOptions {
 const names = new WeakMap<ElementRegistry, Map<unknown, string>>();
 function nameOf(ctor: unknown, registry: ElementRegistry, path: string): string {
   let map = names.get(registry);
-  if (!map) { map = new Map(); for (const [name, c] of Object.entries(registry)) if (!map.has(c)) map.set(c, name); names.set(registry, map); }
+  if (!map) {
+    map = new Map();
+    for (const [name, c] of Object.entries(registry)) if (!map.has(c)) map.set(c, name);
+    names.set(registry, map);
+  }
   const name = map.get(ctor);
-  if (name === undefined) fail(`${at(path)}${(ctor as { name?: string }).name || 'an anonymous class'} is not in the registry: add it, as in { ...registry, ${(ctor as { name?: string }).name || 'Mine'} }`);
+  if (name === undefined)
+    fail(
+      `${at(path)}${(ctor as { name?: string }).name || 'an anonymous class'} is not in the registry: add it, as in { ...registry, ${(ctor as { name?: string }).name || 'Mine'} }`,
+    );
   return name;
 }
 const at = (path: string) => (path ? `${path}: ` : '');
 
 // ─── Writing ───
 
-const TYPED = ['Float64Array', 'Float32Array', 'Int8Array', 'Int16Array', 'Int32Array', 'Uint8Array', 'Uint16Array', 'Uint32Array', 'Uint8ClampedArray'] as const;
-interface Writing { readonly registry: ElementRegistry; readonly refs: Refs | undefined; readonly limit: number }
+const TYPED = [
+  'Float64Array',
+  'Float32Array',
+  'Int8Array',
+  'Int16Array',
+  'Int32Array',
+  'Uint8Array',
+  'Uint16Array',
+  'Uint32Array',
+  'Uint8ClampedArray',
+] as const;
+interface Writing {
+  readonly registry: ElementRegistry;
+  readonly refs: Refs | undefined;
+  readonly limit: number;
+}
 
 /** What a value is called when it is the attribute `path` names, for a ref that has to be made up. */
 const hintOf = (path: string) => /([A-Za-z_]\w*)(?:\[\d+\])*$/.exec(path)?.[1] ?? 'ref';
@@ -126,11 +159,18 @@ function encode(v: unknown, path: string, w: Writing): unknown {
     if (named !== undefined) return { $ref: named };
   }
   switch (typeof v) {
-    case 'string': case 'boolean': return v;
-    case 'number': return Number.isFinite(v) ? v : { $number: String(v) };
-    case 'undefined': return null;
-    case 'function': return byReference(v, path, w, 'a function');
-    case 'bigint': case 'symbol': return fail(`${at(path)}a ${typeof v} cannot be written as JSON`);
+    case 'string':
+    case 'boolean':
+      return v;
+    case 'number':
+      return Number.isFinite(v) ? v : { $number: String(v) };
+    case 'undefined':
+      return null;
+    case 'function':
+      return byReference(v, path, w, 'a function');
+    case 'bigint':
+    case 'symbol':
+      return fail(`${at(path)}a ${typeof v} cannot be written as JSON`);
   }
   if (v === null) return null;
   if (v instanceof ChartElement) {
@@ -139,7 +179,8 @@ function encode(v: unknown, path: string, w: Writing): unknown {
     return id;
   }
   if (ArrayBuffer.isView(v)) {
-    const type = v.constructor.name, a = v as unknown as ArrayLike<number>;
+    const type = v.constructor.name,
+      a = v as unknown as ArrayLike<number>;
     if (!(TYPED as readonly string[]).includes(type)) return byReference(v, path, w, `a ${type}`);
     if (a.length > w.limit) return byReference(v, path, w, `${type} of ${a.length} numbers (the inline limit is ${w.limit})`);
     return { $typed: type, data: Array.from(a, (n) => (Number.isFinite(n) ? n : n !== n ? null : String(n))) };
@@ -148,7 +189,8 @@ function encode(v: unknown, path: string, w: Writing): unknown {
     if (v.length > w.limit) return byReference(v, path, w, `an array of ${v.length} values (the inline limit is ${w.limit})`);
     return v.map((x, i) => encode(x, `${path}[${i}]`, w));
   }
-  const object = v as Record<string, unknown>, proto = Object.getPrototypeOf(object);
+  const object = v as Record<string, unknown>,
+    proto = Object.getPrototypeOf(object);
   if (proto === Object.prototype || proto === null) {
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(object)) {
@@ -189,7 +231,11 @@ function decode(v: unknown, path: string, refs: Refs | undefined): unknown {
   if ('$ref' in o) {
     if (typeof o.$ref !== 'string') fail(`${at(path)}a $ref has to be the name of a ref`);
     if (!refs) fail(`${at(path)}refers to "${o.$ref}", and no refs were given to look it up in`);
-    try { return refs.get(o.$ref); } catch (e) { return fail(`${at(path)}${messageOf(e)}`); }
+    try {
+      return refs.get(o.$ref);
+    } catch (e) {
+      return fail(`${at(path)}${messageOf(e)}`);
+    }
   }
   if ('$number' in o) {
     const n = { NaN, Infinity, '-Infinity': -Infinity }[String(o.$number)];
@@ -198,10 +244,13 @@ function decode(v: unknown, path: string, refs: Refs | undefined): unknown {
   }
   if ('$typed' in o) {
     const type = String(o.$typed);
-    if (!(TYPED as readonly string[]).includes(type) || !Array.isArray(o.data)) fail(`${at(path)}a $typed value is { "$typed": one of ${TYPED.join(', ')}, "data": [numbers] }`);
+    if (!(TYPED as readonly string[]).includes(type) || !Array.isArray(o.data))
+      fail(`${at(path)}a $typed value is { "$typed": one of ${TYPED.join(', ')}, "data": [numbers] }`);
     // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
     const Ctor = (globalThis as unknown as Record<string, new (a: number[]) => unknown>)[type]!;
-    return new Ctor((o.data as unknown[]).map((n) => (n === null ? NaN : n === 'Infinity' ? Infinity : n === '-Infinity' ? -Infinity : (n as number))));
+    return new Ctor(
+      (o.data as unknown[]).map((n) => (n === null ? NaN : n === 'Infinity' ? Infinity : n === '-Infinity' ? -Infinity : (n as number))),
+    );
   }
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(o)) {
@@ -214,8 +263,13 @@ function decode(v: unknown, path: string, refs: Refs | undefined): unknown {
 function lookup(type: unknown, registry: ElementRegistry, path: string): new (...args: AnyArgs) => AnyElement {
   if (typeof type !== 'string') fail(`${at(path)}every element needs a "type", the name of a class`);
   if (!Object.hasOwn(registry, type)) {
-    const near = Object.keys(registry).filter((n) => n.toLowerCase().includes(type.toLowerCase()) || type.toLowerCase().includes(n.toLowerCase()));
-    fail(`${at(path)}unknown type "${type}"` + (near.length ? ` (did you mean ${near.slice(0, 4).join(', ')}?)` : ` (the registry has ${Object.keys(registry).length} types)`));
+    const near = Object.keys(registry).filter(
+      (n) => n.toLowerCase().includes(type.toLowerCase()) || type.toLowerCase().includes(n.toLowerCase()),
+    );
+    fail(
+      `${at(path)}unknown type "${type}"` +
+        (near.length ? ` (did you mean ${near.slice(0, 4).join(', ')}?)` : ` (the registry has ${Object.keys(registry).length} types)`),
+    );
   }
   // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
   return registry[type]!;
@@ -236,7 +290,11 @@ function build(json: ElementJSON, registry: ElementRegistry, refs: Refs | undefi
 }
 
 /** A new, unattached element tree from JSON. `refs` is where the `$ref`s are found. */
-export function fromJSON<T extends AnyElement = AnyElement>(json: ElementJSON, registry: ElementRegistry, options: SerializeOptions = {}): T {
+export function fromJSON<T extends AnyElement = AnyElement>(
+  json: ElementJSON,
+  registry: ElementRegistry,
+  options: SerializeOptions = {},
+): T {
   return build(json, registry, options.refs, '') as T;
 }
 
@@ -247,7 +305,8 @@ function same(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
   if (Array.isArray(a) !== Array.isArray(b)) return false;
-  const ka = Object.keys(a), kb = Object.keys(b);
+  const ka = Object.keys(a),
+    kb = Object.keys(b);
   if (ka.length !== kb.length) return false;
   return ka.every((k) => Object.hasOwn(b, k) && same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
 }
@@ -255,7 +314,9 @@ function same(a: unknown, b: unknown): boolean {
 function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: (() => void)[]): void {
   const here = path ? path + '.' : '';
   const want = json.attrs === undefined ? {} : (decode(json.attrs, `${here}attrs`, w.refs) as Record<string, unknown>);
-  const wantJson = json.attrs ?? {}, have = el.attrs as Record<string, unknown>, patch: Record<string, unknown> = {};
+  const wantJson = json.attrs ?? {},
+    have = el.attrs as Record<string, unknown>,
+    patch: Record<string, unknown> = {};
   let changed = false;
   for (const key of Object.keys(wantJson)) {
     // Compare in JSON form, so an inline value that is unchanged is not replaced by a fresh copy of itself.
@@ -264,20 +325,36 @@ function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: 
     patch[key] = want[key];
     changed = true;
   }
-  for (const key of Object.keys(have)) if (have[key] !== undefined && !Object.hasOwn(wantJson, key)) { patch[key] = undefined; changed = true; }
+  for (const key of Object.keys(have))
+    if (have[key] !== undefined && !Object.hasOwn(wantJson, key)) {
+      patch[key] = undefined;
+      changed = true;
+    }
   if (changed) ops.push(() => el.setAttributes(patch));
 
-  const kids = [...el], wanted = json.children ?? [];
+  const kids = [...el],
+    wanted = json.children ?? [];
   if (!Array.isArray(wanted)) fail(`${at(path)}"children" has to be an array`);
   wanted.forEach((child, i) => {
-    const at = `${here}children[${i}]`, existing = kids[i];
-    if (existing && typeof child === 'object' && child && nameOf(existing.constructor, w.registry, at) === child.type) { plan(existing, child, at, w, ops); return; }
+    const at = `${here}children[${i}]`,
+      existing = kids[i];
+    if (existing && typeof child === 'object' && child && nameOf(existing.constructor, w.registry, at) === child.type) {
+      plan(existing, child, at, w, ops);
+      return;
+    }
     const fresh = build(child, w.registry, w.refs, at);
-    if (existing) ops.push(() => { el.insertBefore(fresh, existing); el.remove(existing); });
+    if (existing)
+      ops.push(() => {
+        el.insertBefore(fresh, existing);
+        el.remove(existing);
+      });
     else ops.push(() => el.insertBefore(fresh, null));
   });
-  // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-  for (let i = wanted.length; i < kids.length; i++) { const gone = kids[i]!; ops.push(() => el.remove(gone)); }
+  for (let i = wanted.length; i < kids.length; i++) {
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
+    const gone = kids[i]!;
+    ops.push(() => el.remove(gone));
+  }
 }
 
 /**
@@ -287,7 +364,8 @@ function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: 
 export function applyJSON(element: AnyElement, json: ElementJSON, registry: ElementRegistry, options: SerializeOptions = {}): void {
   const w: Writing = { registry, refs: options.refs, limit: options.inlineLimit ?? 1000 };
   if (json === null || typeof json !== 'object') fail('an element is an object { type, attrs?, children? }');
-  if (nameOf(element.constructor, registry, '') !== json.type) fail(`the root is a ${element.constructor.name}: JSON for a "${json.type}" cannot be applied to it`);
+  if (nameOf(element.constructor, registry, '') !== json.type)
+    fail(`the root is a ${element.constructor.name}: JSON for a "${json.type}" cannot be applied to it`);
   const ops: (() => void)[] = [];
   plan(element, json, '', w, ops);
   for (const op of ops) op();

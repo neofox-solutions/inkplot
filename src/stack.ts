@@ -66,7 +66,8 @@ export function alignRows(tables: readonly Rows[], how: 'gaps' | 'interpolate'):
   for (let i = 0; i < all.length; i++) if (i === 0 || all[i] !== all[i - 1]) all[size++] = all[i]!;
   return tables.map((t): Rows => {
     const { raw, count: n, stride: s } = t;
-    const out = new Float64Array(size * s).fill(NaN), rows = new Int32Array(size).fill(-1);
+    const out = new Float64Array(size * s).fill(NaN),
+      rows = new Int32Array(size).fill(-1);
     for (let u = 0, j = 0; u < size; u++) {
       const x = all[u]!;
       while (j < n && raw[j * s]! < x) j++;
@@ -76,7 +77,10 @@ export function alignRows(tables: readonly Rows[], how: 'gaps' | 'interpolate'):
         rows[u] = t.rowOf ? t.rowOf(j) : -1;
         while (j < n && raw[j * s] === x) j++;
       } else if (how === 'interpolate' && j > 0 && j < n) {
-        const x0 = raw[(j - 1) * s]!, x1 = raw[j * s]!, v0 = raw[(j - 1) * s + 1]!, v1 = raw[j * s + 1]!;
+        const x0 = raw[(j - 1) * s]!,
+          x1 = raw[j * s]!,
+          v0 = raw[(j - 1) * s + 1]!,
+          v1 = raw[j * s + 1]!;
         if (Number.isFinite(v0) && Number.isFinite(v1)) out[u * s + 1] = v0 + ((x - x0) / (x1 - x0)) * (v1 - v0);
       }
     }
@@ -85,30 +89,66 @@ export function alignRows(tables: readonly Rows[], how: 'gaps' | 'interpolate'):
 }
 
 /** Where every row of every member starts and is plotted, and the extent of it all. */
-export interface Layout { readonly base: Float64Array[]; readonly top: Float64Array[]; readonly extent: Extent | null }
+export interface Layout {
+  readonly base: Float64Array[];
+  readonly top: Float64Array[];
+  readonly extent: Extent | null;
+}
 
 /** Lay the values of the (already lined-up) tables out by `mode`. */
 export function layOut(tables: readonly Rows[], mode: StackMode): Layout {
-  const members = tables.length, n = tables[0]?.count ?? 0;
-  const base = tables.map(() => new Float64Array(n)), top = tables.map(() => new Float64Array(n));
-  let min = Infinity, max = -Infinity;
-  const note = (v: number) => { if (v < min) min = v; if (v > max) max = v; };
+  const members = tables.length,
+    n = tables[0]?.count ?? 0;
+  const base = tables.map(() => new Float64Array(n)),
+    top = tables.map(() => new Float64Array(n));
+  let min = Infinity,
+    max = -Infinity;
+  const note = (v: number) => {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  };
   for (let i = 0; i < n; i++) {
-    let total = 0, sum = 0;
+    let total = 0,
+      sum = 0;
     if (mode === 'normalize' || mode === 'center') {
-      for (let m = 0; m < members; m++) { const t = tables[m]!, v = t.raw[i * t.stride + 1]!; if (Number.isFinite(v)) { total += Math.abs(v); sum += v; } }
+      for (let m = 0; m < members; m++) {
+        const t = tables[m]!,
+          v = t.raw[i * t.stride + 1]!;
+        if (Number.isFinite(v)) {
+          total += Math.abs(v);
+          sum += v;
+        }
+      }
     }
     const scale = mode === 'normalize' ? (total > 0 ? 1 / total : 0) : 1;
-    let pos = 0, neg = 0, run = mode === 'center' ? (-sum * scale) / 2 : 0;
+    let pos = 0,
+      neg = 0,
+      run = mode === 'center' ? (-sum * scale) / 2 : 0;
     for (let m = 0; m < members; m++) {
-      const t = tables[m]!, v = t.raw[i * t.stride + 1]!;
-      if (!Number.isFinite(v)) { base[m]![i] = top[m]![i] = NaN; continue; }
+      const t = tables[m]!,
+        v = t.raw[i * t.stride + 1]!;
+      if (!Number.isFinite(v)) {
+        base[m]![i] = top[m]![i] = NaN;
+        continue;
+      }
       const w = v * scale;
       let from: number, to: number;
-      if (mode === 'group') { from = 0; to = v; }
-      else if (mode === 'center') { from = run; to = run + w; run = to; }
-      else if (w >= 0) { from = pos; to = pos + w; pos = to; }
-      else { from = neg; to = neg + w; neg = to; }
+      if (mode === 'group') {
+        from = 0;
+        to = v;
+      } else if (mode === 'center') {
+        from = run;
+        to = run + w;
+        run = to;
+      } else if (w >= 0) {
+        from = pos;
+        to = pos + w;
+        pos = to;
+      } else {
+        from = neg;
+        to = neg + w;
+        neg = to;
+      }
       base[m]![i] = from;
       top[m]![i] = to;
       note(from);
@@ -126,23 +166,36 @@ export class Stack extends ChartElement<Plane, DomainSeries[], StackAttributes> 
 
   /** Engine protocol, called by the plane in place of each member's own `load`: read them all, lay them out, report the extents. */
   load(estimate: Size): void {
-    const members = this.members.filter((m) => m.shown);   // a member that is not shown leaves the stack: the rest close up
+    const members = this.members.filter((m) => m.shown); // a member that is not shown leaves the stack: the rest close up
     if (members.length === 0) return;
     const { domainAxis, valueAxis } = members[0]!;
-    for (const m of members) if (m.domainAxis !== domainAxis || m.valueAxis !== valueAxis) fail('the series of a stack have to share their domain axis and their value axis');
+    for (const m of members)
+      if (m.domainAxis !== domainAxis || m.valueAxis !== valueAxis)
+        fail('the series of a stack have to share their domain axis and their value axis');
     const own = members.map((m) => m.prepare(estimate));
     const how = this.attrs.align ?? 'strict';
-    let tables: readonly Rows[] = own, made: Rows[] | null = null;
+    let tables: readonly Rows[] = own,
+      made: Rows[] | null = null;
     if (!own.every((t) => sameDomain(own[0]!, t))) {
-      if (how === 'strict') fail("the series of a stack have to share their domain values: give the stack `align: 'gaps'` (bars) or `align: 'interpolate'` (lines, areas) to merge them");
+      if (how === 'strict')
+        fail(
+          "the series of a stack have to share their domain values: give the stack `align: 'gaps'` (bars) or `align: 'interpolate'` (lines, areas) to merge them",
+        );
       tables = made = alignRows(own, how);
     }
-    const mode = this.attrs.mode ?? 'stack', layout = layOut(tables, mode);
+    const mode = this.attrs.mode ?? 'stack',
+      layout = layOut(tables, mode);
     members.forEach((m, index) => {
-      m.join({
-        base: layout.base[index]!, top: layout.top[index]!, additive: mode !== 'normalize', extent: layout.extent,
-        slot: mode === 'group' ? { index, count: members.length } : { index: 0, count: 1 },
-      }, made ? made[index]! : null);
+      m.join(
+        {
+          base: layout.base[index]!,
+          top: layout.top[index]!,
+          additive: mode !== 'normalize',
+          extent: layout.extent,
+          slot: mode === 'group' ? { index, count: members.length } : { index: 0, count: 1 },
+        },
+        made ? made[index]! : null,
+      );
       m.settle(layout.extent);
     });
   }

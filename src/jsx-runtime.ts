@@ -37,7 +37,9 @@ function flatten(children: unknown, into: AnyElement[], tag: string): AnyElement
   } else if (children instanceof ChartElement) {
     into.push(children);
   } else {
-    throw new TypeError(`<${tag}>: a child must be a chart element, not ${typeof children === 'object' ? 'an object' : `${typeof children} ${JSON.stringify(children)}`}`);
+    throw new TypeError(
+      `<${tag}>: a child must be a chart element, not ${typeof children === 'object' ? 'an object' : `${typeof children} ${JSON.stringify(children)}`}`,
+    );
   }
   return into;
 }
@@ -84,9 +86,17 @@ export function Fragment(props: { children?: unknown }): AnyElement[] {
 export declare namespace JSX {
   type Element = AnyElement;
   interface ElementClass extends AnyElement {}
-  interface ElementAttributesProperty { $props: {} }
-  interface ElementChildrenAttribute { children: {} }
+  interface ElementAttributesProperty {
+    $props: {};
+  }
+  interface ElementChildrenAttribute {
+    children: {};
+  }
   interface IntrinsicElements {}
-  interface IntrinsicAttributes { key?: string | number | null }
-  interface IntrinsicClassAttributes<T> { ref?: JsxRef<T> }
+  interface IntrinsicAttributes {
+    key?: string | number | null;
+  }
+  interface IntrinsicClassAttributes<T> {
+    ref?: JsxRef<T>;
+  }
 }

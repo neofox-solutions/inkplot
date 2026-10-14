@@ -35,7 +35,10 @@ const MOST = 64;
  * point. `owner` says, for each vertex, which of the series' own points the value there is (a level is its point's, and a
  * jump is shared by the two it joins), which is a `Trace`.
  */
-export interface Stepped extends Trace { readonly top: PointBuffer; readonly base: PointBuffer | null }
+export interface Stepped extends Trace {
+  readonly top: PointBuffer;
+  readonly base: PointBuffer | null;
+}
 
 /**
  * The steps of a series in plot pixels. `baseline` is the value a step area is filled from (null for a line, which needs
@@ -45,9 +48,15 @@ export interface Stepped extends Trace { readonly top: PointBuffer; readonly bas
 export function stepLines(series: Series, mode: StepMode, baseline: number | null): Stepped | null {
   const d = series.drawn;
   if (!d) return null;
-  const plane = d.plane, first = series.firstAxis, second = series.secondAxis;
-  const n = d.points.count, rs = d.stride, raw = d.raw, wantBase = baseline !== null;
-  const zero = series.attrs.gaps === 'zero' && !d.top, connect = series.attrs.gaps === 'connect';
+  const plane = d.plane,
+    first = series.firstAxis,
+    second = series.secondAxis;
+  const n = d.points.count,
+    rs = d.stride,
+    raw = d.raw,
+    wantBase = baseline !== null;
+  const zero = series.attrs.gaps === 'zero' && !d.top,
+    connect = series.attrs.gaps === 'connect';
   const norm = new Float64Array(n * 3);
   for (let i = 0; i < n; i++) {
     const x = raw[i * rs + d.firstColumn]!;
@@ -56,21 +65,30 @@ export function stepLines(series: Series, mode: StepMode, baseline: number | nul
     const ok = Number.isFinite(v);
     norm[3 * i] = x;
     norm[3 * i + 1] = ok ? (d.top ? d.top[i]! : v) : NaN;
-    norm[3 * i + 2] = ok ? (d.base ? d.base[i]! : baseline ?? 0) : NaN;
+    norm[3 * i + 2] = ok ? (d.base ? d.base[i]! : (baseline ?? 0)) : NaN;
   }
   first.normalize(norm, n, 3, 0);
   second.normalize(norm, n, 3, 1);
   second.normalize(norm, n, 3, 2);
   // The foot stays on the axis, as `Series.baseline` keeps it.
-  for (let i = 0; i < n; i++) { const b = norm[3 * i + 2]!; if (b < 0) norm[3 * i + 2] = 0; else if (b > 1) norm[3 * i + 2] = 1; }
+  for (let i = 0; i < n; i++) {
+    const b = norm[3 * i + 2]!;
+    if (b < 0) norm[3 * i + 2] = 0;
+    else if (b > 1) norm[3 * i + 2] = 1;
+  }
 
   const real = (i: number) => {
-    const x = norm[3 * i]!, t = norm[3 * i + 1]!, b = norm[3 * i + 2]!;
+    const x = norm[3 * i]!,
+      t = norm[3 * i + 1]!,
+      b = norm[3 * i + 2]!;
     return Number.isFinite(x) && Number.isFinite(t) && (!wantBase || Number.isFinite(b));
   };
   const corners = plane.curved ? plane.breaks(first) : [];
 
-  let top = new Float64Array(Math.max(16, 4 * n)), foot = wantBase ? new Float64Array(top.length) : null, owner = new Int32Array(top.length / 2), k = 0;
+  let top = new Float64Array(Math.max(16, 4 * n)),
+    foot = wantBase ? new Float64Array(top.length) : null,
+    owner = new Int32Array(top.length / 2),
+    k = 0;
   const put = (x: number, t: number, b: number, by: number) => {
     if (2 * k + 2 > top.length) {
       const bigger = new Float64Array(top.length * 2);
@@ -79,18 +97,33 @@ export function stepLines(series: Series, mode: StepMode, baseline: number | nul
       const o2 = new Int32Array(top.length / 2);
       o2.set(owner);
       owner = o2;
-      if (foot) { const f2 = new Float64Array(top.length); f2.set(foot); foot = f2; }
+      if (foot) {
+        const f2 = new Float64Array(top.length);
+        f2.set(foot);
+        foot = f2;
+      }
     }
-    top[2 * k] = x; top[2 * k + 1] = t; owner[k] = by;
-    if (foot) { foot[2 * k] = x; foot[2 * k + 1] = b; }
+    top[2 * k] = x;
+    top[2 * k + 1] = t;
+    owner[k] = by;
+    if (foot) {
+      foot[2 * k] = x;
+      foot[2 * k + 1] = b;
+    }
     k++;
   };
   /** A level from `a` to `b` along the first axis at one pair of values, all belonging to point `by`: the pieces between, then the end. */
   const level = (a: number, b: number, t: number, bs: number, by: number) => {
     if (plane.curved && a !== b) {
-      const lo = Math.min(a, b), hi = Math.max(a, b), cuts: number[] = [];
-      if (corners.length > 0) { for (const c of corners) if (c > lo + 1e-9 && c < hi - 1e-9) cuts.push(c); }
-      else { const pieces = Math.min(MOST, Math.ceil((hi - lo) * PIECES)); for (let j = 1; j < pieces; j++) cuts.push(lo + ((hi - lo) * j) / pieces); }
+      const lo = Math.min(a, b),
+        hi = Math.max(a, b),
+        cuts: number[] = [];
+      if (corners.length > 0) {
+        for (const c of corners) if (c > lo + 1e-9 && c < hi - 1e-9) cuts.push(c);
+      } else {
+        const pieces = Math.min(MOST, Math.ceil((hi - lo) * PIECES));
+        for (let j = 1; j < pieces; j++) cuts.push(lo + ((hi - lo) * j) / pieces);
+      }
       if (a > b) cuts.reverse();
       for (const c of cuts) put(c, t, bs, by);
     }
@@ -103,10 +136,25 @@ export function stepLines(series: Series, mode: StepMode, baseline: number | nul
     let p = run[0]!;
     put(norm[3 * p]!, norm[3 * p + 1]!, norm[3 * p + 2]!, p);
     for (let j = 1; j < run.length; j++) {
-      const c = run[j]!, xp = norm[3 * p]!, xc = norm[3 * c]!, tp = norm[3 * p + 1]!, tc = norm[3 * c + 1]!, bp = norm[3 * p + 2]!, bc = norm[3 * c + 2]!;
-      if (mode === 'after') { level(xp, xc, tp, bp, p); put(xc, tc, bc, c); }
-      else if (mode === 'before') { put(xp, tc, bc, c); level(xp, xc, tc, bc, c); }
-      else { const m = (xp + xc) / 2; level(xp, m, tp, bp, p); put(m, tc, bc, c); level(m, xc, tc, bc, c); }
+      const c = run[j]!,
+        xp = norm[3 * p]!,
+        xc = norm[3 * c]!,
+        tp = norm[3 * p + 1]!,
+        tc = norm[3 * c + 1]!,
+        bp = norm[3 * p + 2]!,
+        bc = norm[3 * c + 2]!;
+      if (mode === 'after') {
+        level(xp, xc, tp, bp, p);
+        put(xc, tc, bc, c);
+      } else if (mode === 'before') {
+        put(xp, tc, bc, c);
+        level(xp, xc, tc, bc, c);
+      } else {
+        const m = (xp + xc) / 2;
+        level(xp, m, tp, bp, p);
+        put(m, tc, bc, c);
+        level(m, xc, tc, bc, c);
+      }
       p = c;
     }
     put(NaN, NaN, NaN, -1);
@@ -138,8 +186,12 @@ export class StepCurve extends Curve<StepCurveAttributes> {
   #value: Stepped | null = null;
   /** The steps of a series, kept until it is projected again or they are asked for differently. */
   #steps(series: Series, baseline: number | null): Stepped | null {
-    const mode = this.attrs.mode ?? 'after', key = `${series.projection}|${mode}|${baseline}|${series.attrs.gaps}`;
-    if (key !== this.#key) { this.#value = stepLines(series, mode, baseline); this.#key = key; }
+    const mode = this.attrs.mode ?? 'after',
+      key = `${series.projection}|${mode}|${baseline}|${series.attrs.gaps}`;
+    if (key !== this.#key) {
+      this.#value = stepLines(series, mode, baseline);
+      this.#key = key;
+    }
     return this.#value;
   }
   line(series: Series): string {
@@ -150,5 +202,7 @@ export class StepCurve extends Curve<StepCurveAttributes> {
     const steps = this.#steps(series, baseline);
     return steps?.base ? areaOutline(steps.top, steps.base, false) : '';
   }
-  override trace(series: Series, baseline: number | null): Trace | null { return this.#steps(series, baseline); }
+  override trace(series: Series, baseline: number | null): Trace | null {
+    return this.#steps(series, baseline);
+  }
 }

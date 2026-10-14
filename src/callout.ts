@@ -11,7 +11,12 @@ import { LINE_HEIGHT, applyText, measureBlock, paintLines } from './text.ts';
 import type { CalloutMetrics, LineProps, ShapeProps, TextProps } from './theme.ts';
 
 /** Everything a callout's look takes from the theme, resolved by the element that draws it (whose chains differ). */
-export interface CalloutLook { metrics: CalloutMetrics; text: TextProps; box: ShapeProps; arm: LineProps }
+export interface CalloutLook {
+  metrics: CalloutMetrics;
+  text: TextProps;
+  box: ShapeProps;
+  arm: LineProps;
+}
 
 /** A sample of a series before a line of text: as wide as a short line, and as tall as the lowercase letters. */
 const sampleWidth = (look: CalloutLook) => Math.round(look.text.size * 1.4);
@@ -21,7 +26,8 @@ const swatchIndent = (look: CalloutLook) => sampleWidth(look) + 5;
 
 /** How big the box is for `text`: the text's block and the padding all round, and room for a column of series samples if `swatches`. */
 export function calloutSize(measure: TextMeasurer, text: string, look: CalloutLook, swatches = false): Size {
-  const size = measureBlock(measure, text, look.text), pad = 2 * look.metrics.padding;
+  const size = measureBlock(measure, text, look.text),
+    pad = 2 * look.metrics.padding;
   return { width: size.width + pad + (swatches ? swatchIndent(look) : 0), height: size.height + pad };
 }
 
@@ -35,11 +41,20 @@ export function calloutSize(measure: TextMeasurer, text: string, look: CalloutLo
  * told of. `samples` is what is remembered of them between calls (see `paintSample`).
  */
 export function paintCallout(
-  s: Surface, text: string, box: Rect, anchor: readonly [number, number] | null, look: CalloutLook, lines: number,
-  swatches?: readonly (Series | null)[], samples?: SampleCache,
+  s: Surface,
+  text: string,
+  box: Rect,
+  anchor: readonly [number, number] | null,
+  look: CalloutLook,
+  lines: number,
+  swatches?: readonly (Series | null)[],
+  samples?: SampleCache,
 ): number {
-  const { metrics, box: boxLook, arm } = look, w = box.width, h = box.height;
-  const cx = box.x + w / 2, cy = box.y + h / 2;
+  const { metrics, box: boxLook, arm } = look,
+    w = box.width,
+    h = box.height;
+  const cx = box.x + w / 2,
+    cy = box.y + h / 2;
   const rect = s.node('box', 'path');
   s.set(rect, 'd', `M${f2(box.x)} ${f2(box.y)}h${f2(w)}v${f2(h)}h${f2(-w)}z`);
   s.set(rect, 'fill', boxLook.fill);
@@ -49,12 +64,14 @@ export function paintCallout(
 
   if (anchor) {
     const [px, py] = anchor;
-    const rx = (px - cx) / (w / 2), ry = (py - cy) / (h / 2);
-    const horizontal = Math.abs(rx) >= Math.abs(ry), sign = (horizontal ? rx : ry) < 0 ? -1 : 1;
+    const rx = (px - cx) / (w / 2),
+      ry = (py - cy) / (h / 2);
+    const horizontal = Math.abs(rx) >= Math.abs(ry),
+      sign = (horizontal ? rx : ry) < 0 ? -1 : 1;
     const [ex1, ey1, ex2, ey2] = horizontal
-      ? [cx + sign * w / 2, box.y, cx + sign * w / 2, box.y + h]
-      : [box.x, cy + sign * h / 2, box.x + w, cy + sign * h / 2];
-    const [ax, ay] = horizontal ? [cx + sign * w / 2, cy] : [cx, cy + sign * h / 2];
+      ? [cx + (sign * w) / 2, box.y, cx + (sign * w) / 2, box.y + h]
+      : [box.x, cy + (sign * h) / 2, box.x + w, cy + (sign * h) / 2];
+    const [ax, ay] = horizontal ? [cx + (sign * w) / 2, cy] : [cx, cy + (sign * h) / 2];
     if (metrics.outline === 'edge') {
       const edge = s.node('edge', 'path');
       s.set(edge, 'd', `M${f2(ex1)} ${f2(ey1)}L${f2(ex2)} ${f2(ey2)}`);
@@ -84,10 +101,14 @@ export function paintCallout(
   }
 
   applyText(s, s.wrapper(), look.text);
-  const pad = metrics.padding, align = look.text.align, indent = swatches ? swatchIndent(look) : 0;
+  const pad = metrics.padding,
+    align = look.text.align,
+    indent = swatches ? swatchIndent(look) : 0;
   const x = align === 'start' ? box.x + pad + indent : align === 'middle' ? cx + indent / 2 : box.x + w - pad;
   const drawn = paintLines(s, 'line-', text, x, box.y + pad, look.text, lines);
-  const size = look.text.size, sw = sampleWidth(look), sh = sampleHeight(look);
+  const size = look.text.size,
+    sw = sampleWidth(look),
+    sh = sampleHeight(look);
   for (let i = 0; i < Math.max(drawn, lines); i++) {
     const series = swatches?.[i];
     if (series && samples && i < drawn) {
@@ -104,5 +125,9 @@ export function paintCallout(
 /** Take a callout off the surface. */
 export function clearCallout(s: Surface, lines: number, samples?: SampleCache): void {
   for (const key of ['box', 'edge', 'arm', 'dot']) s.remove(key);
-  for (let i = 0; i < lines; i++) { s.remove(`line-${i}`); s.removePrefix(`sw-${i}`); samples?.delete(`sw-${i}`); }
+  for (let i = 0; i < lines; i++) {
+    s.remove(`line-${i}`);
+    s.removePrefix(`sw-${i}`);
+    samples?.delete(`sw-${i}`);
+  }
 }

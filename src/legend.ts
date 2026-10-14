@@ -22,7 +22,16 @@ import type { Chart } from './chart.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
 import { hideFromAssistive, writeAria } from './aria.ts';
 import { inputOf } from './input.ts';
-import { type ChartEvent, EVENT_ARRANGE, EVENT_ATTACH, EVENT_FOCUS, EVENT_KEY, EVENT_MEASURE, EVENT_PAINT, EVENT_POINTER } from './events.ts';
+import {
+  type ChartEvent,
+  EVENT_ARRANGE,
+  EVENT_ATTACH,
+  EVENT_FOCUS,
+  EVENT_KEY,
+  EVENT_MEASURE,
+  EVENT_PAINT,
+  EVENT_POINTER,
+} from './events.ts';
 import { drawFocusRing, makeTabStop, pressesButton } from './focus.ts';
 import { type Rect, type Side, f2 } from './geometry.ts';
 import { Plane } from './plane.ts';
@@ -51,7 +60,13 @@ const TITLE_BLOCK = 18;
 /** How faded an entry is when its series is hidden. */
 const DIMMED = 0.4;
 
-interface Item { series: Series; name: string; x: number; y: number; width: number }
+interface Item {
+  series: Series;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+}
 
 export class Legend extends ChartElement<Chart, [], LegendAttributes> {
   static override takesInput = inputOf;
@@ -67,7 +82,9 @@ export class Legend extends ChartElement<Chart, [], LegendAttributes> {
   #nodes: PlatformNode[] = [];
   readonly #samples: SampleCache = new Map();
 
-  get side(): Side { return this.attrs.side ?? 'right'; }
+  get side(): Side {
+    return this.attrs.side ?? 'right';
+  }
   get horizontal(): boolean {
     return (this.attrs.orientation ?? (this.side === 'top' || this.side === 'bottom' ? 'horizontal' : 'vertical')) === 'horizontal';
   }
@@ -98,8 +115,10 @@ export class Legend extends ChartElement<Chart, [], LegendAttributes> {
       case EVENT_POINTER: {
         if (this.attrs.toggle === false) break;
         const item = this.#at(ev.x - this.#rect.x, ev.y - this.#rect.y);
-        if (ev.kind === 'down' && (ev.buttons & 1) && item) { this.#pressed = item.series; ev.handled = true; }
-        else if (ev.kind === 'up' && this.#pressed) {
+        if (ev.kind === 'down' && ev.buttons & 1 && item) {
+          this.#pressed = item.series;
+          ev.handled = true;
+        } else if (ev.kind === 'up' && this.#pressed) {
           const press = this.#pressed;
           this.#pressed = null;
           if (item?.series === press) this.#toggle(press);
@@ -108,19 +127,27 @@ export class Legend extends ChartElement<Chart, [], LegendAttributes> {
         break;
       }
       case EVENT_KEY: {
-        const i = this.#nodes.indexOf(ev.node), item = this.#items[i];
+        const i = this.#nodes.indexOf(ev.node),
+          item = this.#items[i];
         if (item && pressesButton(ev)) this.#toggle(item.series);
         break;
       }
       case EVENT_FOCUS:
-        if (ev.focused) { this.#focusNode = ev.node; this.#ring = ev.visible; }
-        else if (this.#focusNode === ev.node) { this.#focusNode = null; this.#ring = false; }
+        if (ev.focused) {
+          this.#focusNode = ev.node;
+          this.#ring = ev.visible;
+        } else if (this.#focusNode === ev.node) {
+          this.#focusNode = null;
+          this.#ring = false;
+        }
         this.invalidate();
         break;
     }
   }
 
-  #toggle(series: Series): void { series.setAttribute('visible', !series.shown); }
+  #toggle(series: Series): void {
+    series.setAttribute('visible', !series.shown);
+  }
 
   /** Where a series' entry is, in the chart's pixels (valid after layout), or null if it is not listed. */
   entryRect(series: Series): Rect | null {
@@ -131,25 +158,40 @@ export class Legend extends ChartElement<Chart, [], LegendAttributes> {
   /** The entry at a point in the legend's own pixels. */
   #at(x: number, y: number): Item | undefined {
     const pad = ENTRY_GAP / 2;
-    return this.#items.find((i) => x >= i.x - 2 && x <= i.x + i.width + pad && y >= i.y - ROW_GAP / 2 && y <= i.y + this.#rowHeight + ROW_GAP / 2);
+    return this.#items.find(
+      (i) => x >= i.x - 2 && x <= i.x + i.width + pad && y >= i.y - ROW_GAP / 2 && y <= i.y + this.#rowHeight + ROW_GAP / 2,
+    );
   }
 
-  #label() { return this.styleFor(['legendLabel', 'legend', 'text']); }
+  #label() {
+    return this.styleFor(['legendLabel', 'legend', 'text']);
+  }
 
   /** Place every entry, given how wide the chart is, and say how big the legend is; null when there is nothing to list. */
   #layout(available: number): { width: number; height: number } | null {
-    const entries = this.entries, chart = this.requireParent();
+    const entries = this.entries,
+      chart = this.requireParent();
     this.#items = [];
     if (entries.length === 0) return null;
-    const label = this.#label(), measure = chart.measureText;
+    const label = this.#label(),
+      measure = chart.measureText;
     const top = this.attrs.title ? TITLE_BLOCK : 0;
-    const rowHeight = this.#rowHeight = Math.ceil(label.size * LINE_HEIGHT) + 2;
+    const rowHeight = (this.#rowHeight = Math.ceil(label.size * LINE_HEIGHT) + 2);
     const widths = entries.map((s) => SAMPLE_WIDTH + SAMPLE_GAP + measureBlock(measure, s.attrs.name ?? '', label).width);
-    const titleWidth = this.attrs.title ? measureBlock(measure, this.attrs.title, this.styleFor(['legendTitle', 'legend', 'text'])).width : 0;
-    let width = titleWidth, y = top, x = 0, rows = 1;
+    const titleWidth = this.attrs.title
+      ? measureBlock(measure, this.attrs.title, this.styleFor(['legendTitle', 'legend', 'text'])).width
+      : 0;
+    let width = titleWidth,
+      y = top,
+      x = 0,
+      rows = 1;
     entries.forEach((series, i) => {
       if (this.horizontal) {
-        if (x > 0 && x + widths[i]! > available) { x = 0; y += rowHeight + ROW_GAP; rows++; }
+        if (x > 0 && x + widths[i]! > available) {
+          x = 0;
+          y += rowHeight + ROW_GAP;
+          rows++;
+        }
         this.#items.push({ series, name: series.attrs.name ?? '', x, y, width: widths[i]! });
         x += widths[i]! + ENTRY_GAP;
         width = Math.max(width, x - ENTRY_GAP);
@@ -163,7 +205,11 @@ export class Legend extends ChartElement<Chart, [], LegendAttributes> {
   }
 
   #paint(): void {
-    const s = this.surface, root = s.wrapper(), items = this.#items, label = this.#label(), toggle = this.attrs.toggle !== false;
+    const s = this.surface,
+      root = s.wrapper(),
+      items = this.#items,
+      label = this.#label(),
+      toggle = this.attrs.toggle !== false;
     s.set(root, 'transform', `translate(${f2(this.#rect.x)} ${f2(this.#rect.y)})`);
     applyText(s, root, label, 'start');
     writeAria(s, root, this.attrs.meta, { role: 'group', ...(this.attrs.title && { label: this.attrs.title }) });
@@ -176,9 +222,11 @@ export class Legend extends ChartElement<Chart, [], LegendAttributes> {
     } else {
       s.remove('title');
     }
-    const h = this.#rowHeight, sampleH = Math.max(6, h - 6);
+    const h = this.#rowHeight,
+      sampleH = Math.max(6, h - 6);
     items.forEach((item, i) => {
-      const shown = item.series.shown, opacity = shown ? 1 : DIMMED;
+      const shown = item.series.shown,
+        opacity = shown ? 1 : DIMMED;
       const sample = paintSample(s, `s${i}`, item.series, item.x, item.y + (h - sampleH) / 2, SAMPLE_WIDTH, sampleH, this.#samples);
       s.set(sample, 'opacity', opacity);
       hideFromAssistive(s, sample);
@@ -186,7 +234,7 @@ export class Legend extends ChartElement<Chart, [], LegendAttributes> {
       s.set(t, 'x', item.x + SAMPLE_WIDTH + SAMPLE_GAP);
       s.set(t, 'y', f2(item.y + h / 2 + label.size * 0.35));
       s.set(t, 'opacity', opacity);
-      hideFromAssistive(s, t);   // the entry's own node carries the name
+      hideFromAssistive(s, t); // the entry's own node carries the name
       s.text(t, item.name);
       // An invisible box over the entry is what the pointer is over, and what a screen reader finds.
       const hit = s.node(`h${i}`, 'rect');
@@ -209,7 +257,12 @@ export class Legend extends ChartElement<Chart, [], LegendAttributes> {
     });
     this.#nodes.length = items.length;
     const focused = this.#ring && this.#focusNode ? this.#nodes.indexOf(this.#focusNode) : -1;
-    drawFocusRing(s, 'focus', this.styleFor(['focusRing', 'line']), focused >= 0 ? { x: items[focused]!.x, y: items[focused]!.y, width: items[focused]!.width, height: h } : null);
+    drawFocusRing(
+      s,
+      'focus',
+      this.styleFor(['focusRing', 'line']),
+      focused >= 0 ? { x: items[focused]!.x, y: items[focused]!.y, width: items[focused]!.width, height: h } : null,
+    );
     for (let i = items.length; i < this.#drawn; i++) {
       s.removePrefix(`s${i}`);
       this.#samples.delete(`s${i}`);

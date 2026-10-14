@@ -42,7 +42,9 @@ export class BoxZoom extends ChartElement<Plane, [], BoxZoomAttributes> {
   #to = { x: 0, y: 0 };
 
   /** True while a box is being drawn. */
-  get selecting(): boolean { return this.#from !== null; }
+  get selecting(): boolean {
+    return this.#from !== null;
+  }
 
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
@@ -65,8 +67,11 @@ export class BoxZoom extends ChartElement<Plane, [], BoxZoomAttributes> {
 
   #pointer(ev: Extract<ChartEvent, { type: typeof EVENT_POINTER }>): void {
     if (ev.pointerType === 'touch' || ev.kind === 'wheel' || ev.kind === 'pinch') return;
-    const plane = this.requireParent(), a = this.attrs, r = plane.rect;
-    const clampX = (x: number) => Math.min(r.width, Math.max(0, x)), clampY = (y: number) => Math.min(r.height, Math.max(0, y));
+    const plane = this.requireParent(),
+      a = this.attrs,
+      r = plane.rect;
+    const clampX = (x: number) => Math.min(r.width, Math.max(0, x)),
+      clampY = (y: number) => Math.min(r.height, Math.max(0, y));
     switch (ev.kind) {
       case 'down':
         if (ev.handled || ev.outside || !(ev.buttons & 1) || !plane.covers(ev.x, ev.y)) return;
@@ -78,7 +83,10 @@ export class BoxZoom extends ChartElement<Plane, [], BoxZoomAttributes> {
         return;
       case 'move':
         if (!this.#from) return;
-        if (!(ev.buttons & 1)) { this.#cancel(); return; }
+        if (!(ev.buttons & 1)) {
+          this.#cancel();
+          return;
+        }
         this.#to = { x: clampX(ev.x), y: clampY(ev.y) };
         this.invalidate();
         ev.handled = true;
@@ -111,15 +119,20 @@ export class BoxZoom extends ChartElement<Plane, [], BoxZoomAttributes> {
   }
 
   #zoom(from: { x: number; y: number }, to: { x: number; y: number }): void {
-    const w = Math.abs(to.x - from.x), h = Math.abs(to.y - from.y), min = this.attrs.minSize ?? 8, mode = this.attrs.mode ?? 'xy';
+    const w = Math.abs(to.x - from.x),
+      h = Math.abs(to.y - from.y),
+      min = this.attrs.minSize ?? 8,
+      mode = this.attrs.mode ?? 'xy';
     // 'auto': a box much longer one way than the other is a zoom along that way only.
     const only = mode === 'auto' ? (w > 3 * h ? 'x' : h > 3 * w ? 'y' : 'xy') : mode;
-    const alongX = only !== 'y', alongY = only !== 'x';
+    const alongX = only !== 'y',
+      alongY = only !== 'x';
     if ((alongX && w < min) || (alongY && h < min)) return;
     for (const axis of this.#axes()) {
       const ruler = axis.ruler;
-      if (typeof ruler.fractionAt !== 'function' || (ruler.horizontal ? !alongX : !alongY)) continue;   // `#axes` keeps only rulers that have one
-      const v0 = axis.denormalize(ruler.fractionAt(from.x, from.y)), v1 = axis.denormalize(ruler.fractionAt(to.x, to.y));
+      if (typeof ruler.fractionAt !== 'function' || (ruler.horizontal ? !alongX : !alongY)) continue; // `#axes` keeps only rulers that have one
+      const v0 = axis.denormalize(ruler.fractionAt(from.x, from.y)),
+        v1 = axis.denormalize(ruler.fractionAt(to.x, to.y));
       if (v0 !== v0 || v1 !== v1 || v0 === v1) continue;
       axis.setViewRange({ min: Math.min(v0, v1), max: Math.max(v0, v1) });
     }
@@ -127,9 +140,14 @@ export class BoxZoom extends ChartElement<Plane, [], BoxZoomAttributes> {
   }
 
   #paint(): void {
-    const s = this.surface, from = this.#from;
-    if (!from) { s.remove('box'); return; }
-    const look = this.styleFor(['selection', 'shape']), to = this.#to;
+    const s = this.surface,
+      from = this.#from;
+    if (!from) {
+      s.remove('box');
+      return;
+    }
+    const look = this.styleFor(['selection', 'shape']),
+      to = this.#to;
     const node = s.node('box', 'rect', { above: true });
     s.set(node, 'x', f2(Math.min(from.x, to.x)));
     s.set(node, 'y', f2(Math.min(from.y, to.y)));

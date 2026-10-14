@@ -32,7 +32,9 @@ export abstract class Scale<A extends ScaleAttributes = ScaleAttributes> extends
   /** Tick values inside the range, about `count` of them. */
   abstract ticks(range: Extent, count: number): readonly number[];
   /** True when equal steps in the data are equal steps along the axis, so a straight line in data is straight on the page. */
-  get isLinear(): boolean { return false; }
+  get isLinear(): boolean {
+    return false;
+  }
   /** The text for a tick, when the scale knows better than a number does (a category name). Default: the axis formats the number. */
   label?(value: number): string | undefined;
   /**

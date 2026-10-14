@@ -10,7 +10,11 @@ import type { PlatformNode } from './platform.ts';
 import type { Surface } from './surface.ts';
 
 /** What an element supplies when its `meta` says nothing: a role that fits what it is, and a name it knows. */
-export interface AriaDefaults { role?: string; label?: string; description?: string }
+export interface AriaDefaults {
+  role?: string;
+  label?: string;
+  description?: string;
+}
 
 /**
  * Write the node's role, name, description and any other ARIA attributes. `meta.aria` wins over everything: its keys are

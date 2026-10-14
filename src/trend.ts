@@ -73,12 +73,19 @@ const NONE: Extent = { min: Infinity, max: -Infinity };
 
 /** The base of trendlines: reads the points, fits them once for each change, and samples the curve. */
 export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttributes> extends DataTransform<A, [source: DataNode]> {
-  static override attrTypes = { ...DataTransform.attrTypes, x: STRING, extend: AUTO, count: NUMBER } satisfies AttrTypesFor<TrendlineAttributes>;
+  static override attrTypes = {
+    ...DataTransform.attrTypes,
+    x: STRING,
+    extend: AUTO,
+    count: NUMBER,
+  } satisfies AttrTypesFor<TrendlineAttributes>;
   #version = 0;
   #cache: { version: number; xs: Float64Array; ys: Float64Array; model: TrendModel | null } | null = null;
   #fit: { version: number; value: TrendFit | null } | null = null;
 
-  get source(): DataNode { return this.child(0, DataSource, DataTransform); }
+  get source(): DataNode {
+    return this.child(0, DataSource, DataTransform);
+  }
   /** Make the curve from the points: ascending in x, every value finite, at least one. Null when they do not determine one. */
   protected abstract fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null;
 
@@ -86,29 +93,49 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
     this.#version++;
     super.invalidate();
   }
-  get version(): number { return this.#version; }
-  override get channelNames(): readonly string[] { return ['domain']; }
-  get pointCount(): number { return this.attrs.count ?? DEFAULT_SAMPLES; }
+  get version(): number {
+    return this.#version;
+  }
+  override get channelNames(): readonly string[] {
+    return ['domain'];
+  }
+  get pointCount(): number {
+    return this.attrs.count ?? DEFAULT_SAMPLES;
+  }
 
   /** The points the fit is made from and the curve, made again only after a change. */
   #state() {
     if (this.#cache && this.#cache.version === this.#version) return this.#cache;
-    const name = this.attrs.x, src = this.source;
+    const name = this.attrs.x,
+      src = this.source;
     const plan = src.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: name ? [name] : [] });
-    const stride = name ? 3 : 2, buf = new Float64Array(plan.capacity * stride), { count } = plan.fill(buf);
+    const stride = name ? 3 : 2,
+      buf = new Float64Array(plan.capacity * stride),
+      { count } = plan.fill(buf);
     const xc = name ? 2 : 0;
-    let xs = new Float64Array(count), ys = new Float64Array(count), n = 0;
+    let xs = new Float64Array(count),
+      ys = new Float64Array(count),
+      n = 0;
     for (let i = 0; i < count; i++) {
-      const x = buf[stride * i + xc]!, y = buf[stride * i + 1]!;
+      const x = buf[stride * i + xc]!,
+        y = buf[stride * i + 1]!;
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-      xs[n] = x; ys[n] = y; n++;
+      xs[n] = x;
+      ys[n] = y;
+      n++;
     }
-    xs = xs.slice(0, n); ys = ys.slice(0, n);
+    xs = xs.slice(0, n);
+    ys = ys.slice(0, n);
     let sorted = true;
-    for (let i = 1; i < n; i++) if (xs[i]! < xs[i - 1]!) { sorted = false; break; }
+    for (let i = 1; i < n; i++)
+      if (xs[i]! < xs[i - 1]!) {
+        sorted = false;
+        break;
+      }
     if (!sorted) {
       const order = Uint32Array.from({ length: n }, (_, i) => i).sort((p, q) => xs[p]! - xs[q]!);
-      xs = Float64Array.from(order, (i) => xs[i]!); ys = Float64Array.from(order, (i) => ys[i]!);
+      xs = Float64Array.from(order, (i) => xs[i]!);
+      ys = Float64Array.from(order, (i) => ys[i]!);
     }
     const model = n > 0 ? this.fitModel(xs, ys) : null;
     return (this.#cache = { version: this.#version, xs, ys, model });
@@ -124,8 +151,13 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
       let mean = 0;
       for (let i = 0; i < n; i++) mean += ys[i]!;
       mean /= n;
-      let sse = 0, sst = 0;
-      for (let i = 0; i < n; i++) { const r = ys[i]! - model.at(xs[i]!); sse += r * r; sst += (ys[i]! - mean) ** 2; }
+      let sse = 0,
+        sst = 0;
+      for (let i = 0; i < n; i++) {
+        const r = ys[i]! - model.at(xs[i]!);
+        sse += r * r;
+        sst += (ys[i]! - mean) ** 2;
+      }
       value = { n, r2: sst > 0 ? 1 - sse / sst : sse === 0 ? 1 : 0, rmse: Math.sqrt(sse / n), ...model.details };
     }
     this.#fit = { version: this.#version, value };
@@ -147,7 +179,9 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
   #span(): Extent | null {
     const { xs } = this.#state();
     if (!xs.length) return null;
-    const lo = xs[0]!, hi = xs[xs.length - 1]!, e = this.attrs.extend ?? 0;
+    const lo = xs[0]!,
+      hi = xs[xs.length - 1]!,
+      e = this.attrs.extend ?? 0;
     const [before, after] = typeof e === 'number' ? [e, e] : e;
     if (!(before >= 0 && after >= 0)) fail(`${this.constructor.name}: extend must be 0 or more (got ${String(e)})`);
     return { min: lo - (hi - lo) * before, max: hi + (hi - lo) * after };
@@ -164,11 +198,18 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
     return Float64Array.from({ length: n }, (_, i) => (n === 1 ? lo : i === n - 1 ? hi : lo + ((hi - lo) * i) / (n - 1)));
   }
 
-  domain(): Extent | null { return this.#span(); }
+  domain(): Extent | null {
+    return this.#span();
+  }
   valueExtent(): Extent | null {
     const ys = this.evaluate(this.#samples({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: [] }));
-    let min = Infinity, max = -Infinity;
-    for (const y of ys) if (Number.isFinite(y)) { if (y < min) min = y; if (y > max) max = y; }
+    let min = Infinity,
+      max = -Infinity;
+    for (const y of ys)
+      if (Number.isFinite(y)) {
+        if (y < min) min = y;
+        if (y > max) max = y;
+      }
     return min <= max ? { min, max } : null;
   }
   channelExtent(name: string): Extent | null {
@@ -178,12 +219,15 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
 
   plan(context: PlanContext): FillPlan {
     for (const c of context.channels) if (c !== 'domain') fail(`${this.constructor.name} has no channel "${c}" (it has domain)`);
-    const xs = this.#samples(context), n = xs.length, stride = 2 + context.channels.length;
+    const xs = this.#samples(context),
+      n = xs.length,
+      stride = 2 + context.channels.length;
     return {
       capacity: n,
       fill: (out) => {
         const ys = this.evaluate(xs);
-        let min = Infinity, max = -Infinity;
+        let min = Infinity,
+          max = -Infinity;
         for (let i = 0; i < n; i++) {
           out[stride * i] = xs[i]!;
           out[stride * i + 1] = ys[i]!;
@@ -203,18 +247,31 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
 export interface LinearTrendAttributes extends TrendlineAttributes {}
 /** The least-squares line. `fit.coefficients` is `[intercept, slope]`. */
 export class LinearTrend extends Trendline<LinearTrendAttributes> {
-  protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null { return leastSquares(xs, ys); }
+  protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
+    return leastSquares(xs, ys);
+  }
 }
 /** The least-squares line through the points; null when they share one position. */
 function leastSquares(xs: Float64Array, ys: Float64Array): TrendModel | null {
   const n = xs.length;
-  let mx = 0, my = 0;
-  for (let i = 0; i < n; i++) { mx += xs[i]!; my += ys[i]!; }
-  mx /= n; my /= n;
-  let sxx = 0, sxy = 0;
-  for (let i = 0; i < n; i++) { const dx = xs[i]! - mx; sxx += dx * dx; sxy += dx * (ys[i]! - my); }
+  let mx = 0,
+    my = 0;
+  for (let i = 0; i < n; i++) {
+    mx += xs[i]!;
+    my += ys[i]!;
+  }
+  mx /= n;
+  my /= n;
+  let sxx = 0,
+    sxy = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = xs[i]! - mx;
+    sxx += dx * dx;
+    sxy += dx * (ys[i]! - my);
+  }
   if (!(sxx > 0)) return null;
-  const slope = sxy / sxx, intercept = my - slope * mx;
+  const slope = sxy / sxx,
+    intercept = my - slope * mx;
   return { at: (x) => intercept + slope * x, details: { coefficients: [intercept, slope] } };
 }
 
@@ -235,8 +292,14 @@ function solve(a: Float64Array, b: Float64Array, m: number): Float64Array | null
     for (let r = c + 1; r < m; r++) if (Math.abs(a[r * m + c]!) > Math.abs(a[p * m + c]!)) p = r;
     if (!(Math.abs(a[p * m + c]!) > 1e-13 * scale)) return null;
     if (p !== c) {
-      for (let k = 0; k < m; k++) { const t = a[c * m + k]!; a[c * m + k] = a[p * m + k]!; a[p * m + k] = t; }
-      const t = b[c]!; b[c] = b[p]!; b[p] = t;
+      for (let k = 0; k < m; k++) {
+        const t = a[c * m + k]!;
+        a[c * m + k] = a[p * m + k]!;
+        a[p * m + k] = t;
+      }
+      const t = b[c]!;
+      b[c] = b[p]!;
+      b[p] = t;
     }
     for (let r = c + 1; r < m; r++) {
       const f = a[r * m + c]! / a[c * m + c]!;
@@ -262,22 +325,37 @@ export class PolynomialTrend extends Trendline<PolynomialTrendAttributes> {
   static override attrTypes = { ...Trendline.attrTypes, degree: NUMBER } satisfies AttrTypesFor<PolynomialTrendAttributes>;
   protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
     const d = this.attrs.degree ?? 2;
-    if (!Number.isInteger(d) || d < 1 || d > MAX_DEGREE) fail(`PolynomialTrend: degree is a whole number from 1 to ${MAX_DEGREE} (got ${d})`);
-    const n = xs.length, m = d + 1;
-    const lo = xs[0]!, hi = xs[n - 1]!, center = (lo + hi) / 2, scale = (hi - lo) / 2;
+    if (!Number.isInteger(d) || d < 1 || d > MAX_DEGREE)
+      fail(`PolynomialTrend: degree is a whole number from 1 to ${MAX_DEGREE} (got ${d})`);
+    const n = xs.length,
+      m = d + 1;
+    const lo = xs[0]!,
+      hi = xs[n - 1]!,
+      center = (lo + hi) / 2,
+      scale = (hi - lo) / 2;
     if (!(scale > 0) || n < m) return null;
-    const pow = new Float64Array(2 * d + 1), rhs = new Float64Array(m);
+    const pow = new Float64Array(2 * d + 1),
+      rhs = new Float64Array(m);
     for (let i = 0; i < n; i++) {
       const u = (xs[i]! - center) / scale;
       let p = 1;
-      for (let k = 0; k <= 2 * d; k++) { pow[k]! += p; if (k < m) rhs[k]! += p * ys[i]!; p *= u; }
+      for (let k = 0; k <= 2 * d; k++) {
+        pow[k]! += p;
+        if (k < m) rhs[k]! += p * ys[i]!;
+        p *= u;
+      }
     }
     const a = new Float64Array(m * m);
     for (let r = 0; r < m; r++) for (let c = 0; c < m; c++) a[r * m + c] = pow[r + c]!;
     const coefficients = solve(a, rhs, m);
     if (!coefficients) return null;
     return {
-      at: (x) => { const u = (x - center) / scale; let v = 0; for (let k = d; k >= 0; k--) v = v * u + coefficients[k]!; return v; },
+      at: (x) => {
+        const u = (x - center) / scale;
+        let v = 0;
+        for (let k = d; k >= 0; k--) v = v * u + coefficients[k]!;
+        return v;
+      },
       details: { coefficients: Array.from(coefficients), center, scale },
     };
   }
@@ -294,13 +372,43 @@ const SCAN_FREQUENCIES = 3000;
 const SCAN_POINTS = 2000;
 
 /** Sums for the least-squares fit of `c + a cos(wx) + b sin(wx)` at one frequency: the coefficients and the squared error left. */
-function sinFit(xs: ArrayLike<number>, ys: ArrayLike<number>, idx: ((i: number) => number) | null, n: number, w: number, center: number): { c: number; a: number; b: number; sse: number } | null {
-  let s1 = 0, sc = 0, ss = 0, scc = 0, sss = 0, scs = 0, sy = 0, syc = 0, sys = 0, syy = 0;
+function sinFit(
+  xs: ArrayLike<number>,
+  ys: ArrayLike<number>,
+  idx: ((i: number) => number) | null,
+  n: number,
+  w: number,
+  center: number,
+): { c: number; a: number; b: number; sse: number } | null {
+  let s1 = 0,
+    sc = 0,
+    ss = 0,
+    scc = 0,
+    sss = 0,
+    scs = 0,
+    sy = 0,
+    syc = 0,
+    sys = 0,
+    syy = 0;
   for (let k = 0; k < n; k++) {
-    const i = idx ? idx(k) : k, t = w * (xs[i]! - center), c = Math.cos(t), s = Math.sin(t), y = ys[i]!;
-    s1++; sc += c; ss += s; scc += c * c; sss += s * s; scs += c * s; sy += y; syc += y * c; sys += y * s; syy += y * y;
+    const i = idx ? idx(k) : k,
+      t = w * (xs[i]! - center),
+      c = Math.cos(t),
+      s = Math.sin(t),
+      y = ys[i]!;
+    s1++;
+    sc += c;
+    ss += s;
+    scc += c * c;
+    sss += s * s;
+    scs += c * s;
+    sy += y;
+    syc += y * c;
+    sys += y * s;
+    syy += y * y;
   }
-  const a = Float64Array.of(s1, sc, ss, sc, scc, scs, ss, scs, sss), b = Float64Array.of(sy, syc, sys);
+  const a = Float64Array.of(s1, sc, ss, sc, scc, scs, ss, scs, sss),
+    b = Float64Array.of(sy, syc, sys);
   const beta = solve(a, Float64Array.from(b), 3);
   if (!beta) return null;
   const sse = syy - (beta[0]! * sy + beta[1]! * syc + beta[2]! * sys);
@@ -316,9 +424,13 @@ function sinFit(xs: ArrayLike<number>, ys: ArrayLike<number>, idx: ((i: number) 
 export class SinusoidalTrend extends Trendline<SinusoidalTrendAttributes> {
   static override attrTypes = { ...Trendline.attrTypes, period: NUMBER } satisfies AttrTypesFor<SinusoidalTrendAttributes>;
   protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
-    const n = xs.length, given = this.attrs.period;
+    const n = xs.length,
+      given = this.attrs.period;
     if (given !== undefined && !(given > 0)) fail(`SinusoidalTrend: period must be above 0 (got ${given})`);
-    const lo = xs[0]!, hi = xs[n - 1]!, span = hi - lo, center = (lo + hi) / 2;
+    const lo = xs[0]!,
+      hi = xs[n - 1]!,
+      span = hi - lo,
+      center = (lo + hi) / 2;
     if (n < 3 || !(span > 0)) return null;
     let period = given;
     if (period === undefined) {
@@ -327,25 +439,48 @@ export class SinusoidalTrend extends Trendline<SinusoidalTrendAttributes> {
       for (let i = 1; i < n; i++) if (xs[i]! > xs[i - 1]!) gaps.push(xs[i]! - xs[i - 1]!);
       gaps.sort((p, q) => p - q);
       const gap = gaps[gaps.length >> 1]!;
-      const fMin = 1 / span, fMax = Math.max(fMin * 2, 1 / (2 * gap));
+      const fMin = 1 / span,
+        fMax = Math.max(fMin * 2, 1 / (2 * gap));
       const df = (fMax - fMin) / Math.min(SCAN_FREQUENCIES, Math.max(8, Math.ceil(4 * span * (fMax - fMin))));
-      const use = Math.min(n, SCAN_POINTS), idx = use < n ? (k: number) => Math.floor((k * (n - 1)) / (use - 1)) : null;
-      let best = fMin, bestSse = Infinity;
+      const use = Math.min(n, SCAN_POINTS),
+        idx = use < n ? (k: number) => Math.floor((k * (n - 1)) / (use - 1)) : null;
+      let best = fMin,
+        bestSse = Infinity;
       for (let f = fMin; f <= fMax + 1e-12; f += df) {
         const r = sinFit(xs, ys, idx, use, 2 * Math.PI * f, center);
-        if (r && r.sse < bestSse) { bestSse = r.sse; best = f; }
+        if (r && r.sse < bestSse) {
+          bestSse = r.sse;
+          best = f;
+        }
       }
       // Refine on all the points by golden-section search within a step of the best.
-      let a = Math.max(fMin * 0.5, best - df), b = best + df;
-      const phi = (Math.sqrt(5) - 1) / 2, cost = (f: number) => sinFit(xs, ys, null, n, 2 * Math.PI * f, center)?.sse ?? Infinity;
-      let c = b - phi * (b - a), d = a + phi * (b - a), fc = cost(c), fd = cost(d);
+      let a = Math.max(fMin * 0.5, best - df),
+        b = best + df;
+      const phi = (Math.sqrt(5) - 1) / 2,
+        cost = (f: number) => sinFit(xs, ys, null, n, 2 * Math.PI * f, center)?.sse ?? Infinity;
+      let c = b - phi * (b - a),
+        d = a + phi * (b - a),
+        fc = cost(c),
+        fd = cost(d);
       for (let it = 0; it < 40; it++) {
-        if (fc < fd) { b = d; d = c; fd = fc; c = b - phi * (b - a); fc = cost(c); }
-        else { a = c; c = d; fc = fd; d = a + phi * (b - a); fd = cost(d); }
+        if (fc < fd) {
+          b = d;
+          d = c;
+          fd = fc;
+          c = b - phi * (b - a);
+          fc = cost(c);
+        } else {
+          a = c;
+          c = d;
+          fc = fd;
+          d = a + phi * (b - a);
+          fd = cost(d);
+        }
       }
       period = 1 / ((a + b) / 2);
     }
-    const w = (2 * Math.PI) / period, r = sinFit(xs, ys, null, n, w, center);
+    const w = (2 * Math.PI) / period,
+      r = sinFit(xs, ys, null, n, w, center);
     if (!r) return null;
     const { c, a, b } = r;
     return {
@@ -381,47 +516,76 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
   static override attrTypes = { ...Trendline.attrTypes, smoothness: NUMBER, kernel: STRING } satisfies AttrTypesFor<LoessTrendAttributes>;
 
   protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
-    const s = this.attrs.smoothness ?? 0.5, kernel = this.attrs.kernel ?? 'tricube';
+    const s = this.attrs.smoothness ?? 0.5,
+      kernel = this.attrs.kernel ?? 'tricube';
     if (!(s >= 0 && s <= 1)) fail(`LoessTrend: smoothness is from 0 to 1 (got ${s})`);
     if (kernel !== 'tricube' && kernel !== 'gaussian') fail(`LoessTrend: kernel is 'tricube' or 'gaussian' (got "${String(kernel)}")`);
-    const n = xs.length, span = xs[n - 1]! - xs[0]!;
+    const n = xs.length,
+      span = xs[n - 1]! - xs[0]!;
     if (!(span > 0)) return null;
     if (s === 1) return leastSquares(xs, ys);
     if (s === 0) return interpolation(xs, ys);
     const h0 = (REACH_AT_HALF * span * s) / (1 - s);
-    const weight = kernel === 'tricube'
-      ? (q: number) => { const t = 1 - q * q * q; return t * t * t; }
-      : (q: number) => Math.exp(-4.5 * q * q);   // sigma = h / 3: the weight is negligible at the window's edge
+    const weight =
+      kernel === 'tricube'
+        ? (q: number) => {
+            const t = 1 - q * q * q;
+            return t * t * t;
+          }
+        : (q: number) => Math.exp(-4.5 * q * q); // sigma = h / 3: the weight is negligible at the window's edge
     // The local line at x0 (its value there and its slope) from the points within `reach`, widened to hold three.
     const local = (x0: number, reach: number): { a: number; b: number } | null => {
       let h = reach;
-      let lo = lowerBound(xs, x0 - h), hi = lowerBound(xs, x0 + h, true);
+      let lo = lowerBound(xs, x0 - h),
+        hi = lowerBound(xs, x0 + h, true);
       if (hi - lo < MIN_WINDOW) {
         // Widen to the distance of the third nearest point.
-        let l = lowerBound(xs, x0) - 1, r = l + 1, d = 0;
+        let l = lowerBound(xs, x0) - 1,
+          r = l + 1,
+          d = 0;
         for (let k = 0; k < Math.min(MIN_WINDOW, n); k++) {
-          const dl = l >= 0 ? x0 - xs[l]! : Infinity, dr = r < n ? xs[r]! - x0 : Infinity;
-          if (dl <= dr) { d = dl; l--; } else { d = dr; r++; }
+          const dl = l >= 0 ? x0 - xs[l]! : Infinity,
+            dr = r < n ? xs[r]! - x0 : Infinity;
+          if (dl <= dr) {
+            d = dl;
+            l--;
+          } else {
+            d = dr;
+            r++;
+          }
         }
         h = Math.max(h, d * (1 + 1e-9));
-        lo = lowerBound(xs, x0 - h); hi = lowerBound(xs, x0 + h, true);
+        lo = lowerBound(xs, x0 - h);
+        hi = lowerBound(xs, x0 + h, true);
       }
-      let s0 = 0, s1 = 0, s2 = 0, t0 = 0, t1 = 0;
+      let s0 = 0,
+        s1 = 0,
+        s2 = 0,
+        t0 = 0,
+        t1 = 0;
       for (let j = lo; j < hi; j++) {
-        const dx = xs[j]! - x0, w = weight(Math.abs(dx) / h);
-        s0 += w; s1 += w * dx; s2 += w * dx * dx; t0 += w * ys[j]!; t1 += w * dx * ys[j]!;
+        const dx = xs[j]! - x0,
+          w = weight(Math.abs(dx) / h);
+        s0 += w;
+        s1 += w * dx;
+        s2 += w * dx * dx;
+        t0 += w * ys[j]!;
+        t1 += w * dx * ys[j]!;
       }
       if (!(s0 > 0)) return null;
       const det = s0 * s2 - s1 * s1;
       return det > 1e-12 * s0 * s2 ? { a: (t0 * s2 - t1 * s1) / det, b: (s0 * t1 - s1 * t0) / det } : { a: t0 / s0, b: 0 };
     };
-    const first = xs[0]!, last = xs[n - 1]!;
+    const first = xs[0]!,
+      last = xs[n - 1]!;
     const at = (x: number): number => {
       if (!Number.isFinite(x)) return NaN;
       if (x >= first && x <= last) return local(x, h0)?.a ?? NaN;
       // Past the data: the local line at the end, continued with a slope taken over a wide reach, since the few points nearest
       // the end give a slope that is mostly noise.
-      const end = x < first ? first : last, edge = local(end, h0), slope = local(end, Math.max(h0, REACH_AT_HALF * span));
+      const end = x < first ? first : last,
+        edge = local(end, h0),
+        slope = local(end, Math.max(h0, REACH_AT_HALF * span));
       return edge && slope ? edge.a + slope.b * (x - end) : NaN;
     };
     return { at, details: { bandwidth: h0 } };
@@ -430,21 +594,26 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
 
 /** The index of the first x not below `x` (or, with `after`, the first above it). */
 function lowerBound(xs: Float64Array, x: number, after = false): number {
-  let lo = 0, hi = xs.length;
+  let lo = 0,
+    hi = xs.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (after ? xs[mid]! <= x : xs[mid]! < x) lo = mid + 1; else hi = mid;
+    if (after ? xs[mid]! <= x : xs[mid]! < x) lo = mid + 1;
+    else hi = mid;
   }
   return lo;
 }
 
 /** The curve straight through the points (averaging the ones that share a position), continuing the end segments past them. */
 function interpolation(xs: Float64Array, ys: Float64Array): TrendModel | null {
-  const px: number[] = [], py: number[] = [];
+  const px: number[] = [],
+    py: number[] = [];
   for (let i = 0; i < xs.length;) {
-    let j = i, sum = 0;
+    let j = i,
+      sum = 0;
     while (j < xs.length && xs[j] === xs[i]) sum += ys[j++]!;
-    px.push(xs[i]!); py.push(sum / (j - i));
+    px.push(xs[i]!);
+    py.push(sum / (j - i));
     i = j;
   }
   const m = px.length;
@@ -454,7 +623,8 @@ function interpolation(xs: Float64Array, ys: Float64Array): TrendModel | null {
     at: (v) => {
       if (!Number.isFinite(v)) return NaN;
       const k = Math.min(m - 1, Math.max(1, lowerBound(x, v)));
-      const x0 = px[k - 1]!, x1 = px[k]!;
+      const x0 = px[k - 1]!,
+        x1 = px[k]!;
       return py[k - 1]! + ((py[k]! - py[k - 1]!) * (v - x0)) / (x1 - x0);
     },
     details: { bandwidth: 0 },

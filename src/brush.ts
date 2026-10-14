@@ -22,7 +22,11 @@ import { f2 } from './geometry.ts';
 import type { Plane } from './plane.ts';
 
 /** What a brush covers on one axis, in that axis' own values. */
-export interface BrushRange { axis: Axis; min: number; max: number }
+export interface BrushRange {
+  axis: Axis;
+  min: number;
+  max: number;
+}
 /** What `onBrush` hears: every axis covered, with the first horizontal and first vertical ones' ranges also by name. */
 export interface BrushSelection {
   ranges: readonly BrushRange[];
@@ -47,15 +51,24 @@ export interface BrushAttributes extends BaseAttributes {
 
 export class Brush extends ChartElement<Plane, [], BrushAttributes> {
   static override takesInput = inputOf;
-  static override attrTypes = { ...ChartElement.attrTypes, minSize: NUMBER, live: BOOLEAN, onBrush: AUTO } satisfies AttrTypesFor<BrushAttributes>;
+  static override attrTypes = {
+    ...ChartElement.attrTypes,
+    minSize: NUMBER,
+    live: BOOLEAN,
+    onBrush: AUTO,
+  } satisfies AttrTypesFor<BrushAttributes>;
   #from: { x: number; y: number } | null = null;
   #to = { x: 0, y: 0 };
   #ranges: BrushRange[] = [];
 
   /** True while a box is being dragged. */
-  get selecting(): boolean { return this.#from !== null; }
+  get selecting(): boolean {
+    return this.#from !== null;
+  }
   /** What is brushed now, or null. */
-  get selection(): BrushSelection | null { return this.#ranges.length ? this.#describe(this.#ranges) : null; }
+  get selection(): BrushSelection | null {
+    return this.#ranges.length ? this.#describe(this.#ranges) : null;
+  }
 
   /** Brushes these ranges (as if dragged), or clears with an empty list. */
   select(ranges: readonly BrushRange[]): void {
@@ -99,7 +112,8 @@ export class Brush extends ChartElement<Plane, [], BrushAttributes> {
   }
 
   #axes(): Axis[] {
-    const a = this.attrs, mode = a.mode ?? 'xy';
+    const a = this.attrs,
+      mode = a.mode ?? 'xy';
     const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : [...this.requireParent().axes];
     return axes.filter((axis) => axis.ruler.fractionAt && (mode === 'xy' || (mode === 'x') === axis.ruler.horizontal));
   }
@@ -109,8 +123,9 @@ export class Brush extends ChartElement<Plane, [], BrushAttributes> {
     const out: BrushRange[] = [];
     for (const axis of this.#axes()) {
       const ruler = axis.ruler;
-      if (typeof ruler.fractionAt !== 'function') continue;   // `#axes` keeps only rulers that have one
-      const v0 = axis.denormalize(ruler.fractionAt(from.x, from.y)), v1 = axis.denormalize(ruler.fractionAt(to.x, to.y));
+      if (typeof ruler.fractionAt !== 'function') continue; // `#axes` keeps only rulers that have one
+      const v0 = axis.denormalize(ruler.fractionAt(from.x, from.y)),
+        v1 = axis.denormalize(ruler.fractionAt(to.x, to.y));
       if (v0 !== v0 || v1 !== v1) continue;
       out.push({ axis, min: Math.min(v0, v1), max: Math.max(v0, v1) });
     }
@@ -118,10 +133,15 @@ export class Brush extends ChartElement<Plane, [], BrushAttributes> {
   }
 
   #pointer(ev: Extract<ChartEvent, { type: typeof EVENT_POINTER }>): void {
-    const a = this.attrs, always = (a.activate ?? 'always') === 'always';
+    const a = this.attrs,
+      always = (a.activate ?? 'always') === 'always';
     if ((ev.pointerType === 'touch' && !always) || ev.kind === 'wheel' || ev.kind === 'pinch') return;
-    const plane = this.requireParent(), r = plane.rect, min = a.minSize ?? 4, mode = a.mode ?? 'xy';
-    const clampX = (x: number) => Math.min(r.width, Math.max(0, x)), clampY = (y: number) => Math.min(r.height, Math.max(0, y));
+    const plane = this.requireParent(),
+      r = plane.rect,
+      min = a.minSize ?? 4,
+      mode = a.mode ?? 'xy';
+    const clampX = (x: number) => Math.min(r.width, Math.max(0, x)),
+      clampY = (y: number) => Math.min(r.height, Math.max(0, y));
     // A box a pixel or two across is a click; along an axis it does not cover its size does not count.
     const small = (from: { x: number; y: number }, to: { x: number; y: number }) =>
       (mode !== 'y' && Math.abs(to.x - from.x) < min) || (mode !== 'x' && Math.abs(to.y - from.y) < min);
@@ -135,7 +155,10 @@ export class Brush extends ChartElement<Plane, [], BrushAttributes> {
         return;
       case 'move': {
         if (!this.#from) return;
-        if (!(ev.buttons & 1)) { this.#abandon(); return; }
+        if (!(ev.buttons & 1)) {
+          this.#abandon();
+          return;
+        }
         this.#to = { x: clampX(ev.x), y: clampY(ev.y) };
         this.invalidate();
         if (a.live && !small(this.#from, this.#to)) a.onBrush?.(this.#describe(this.#cover(this.#from, this.#to)));
@@ -166,19 +189,40 @@ export class Brush extends ChartElement<Plane, [], BrushAttributes> {
   /** The rectangle in plot pixels for the box being dragged, else for what is brushed (which follows the axes). */
   #rect(): { x0: number; y0: number; x1: number; y1: number } | null {
     const r = this.requireParent().rect;
-    if (this.#from) return { x0: Math.min(this.#from.x, this.#to.x), y0: Math.min(this.#from.y, this.#to.y), x1: Math.max(this.#from.x, this.#to.x), y1: Math.max(this.#from.y, this.#to.y) };
+    if (this.#from)
+      return {
+        x0: Math.min(this.#from.x, this.#to.x),
+        y0: Math.min(this.#from.y, this.#to.y),
+        x1: Math.max(this.#from.x, this.#to.x),
+        y1: Math.max(this.#from.y, this.#to.y),
+      };
     if (!this.#ranges.length) return null;
-    let x0 = 0, x1 = r.width, y0 = 0, y1 = r.height;
+    let x0 = 0,
+      x1 = r.width,
+      y0 = 0,
+      y1 = r.height;
     for (const { axis, min, max } of this.#ranges) {
-      const ruler = axis.ruler, p = ruler.at(axis.fractionOf(min)), q = ruler.at(axis.fractionOf(max));
-      if (ruler.horizontal) { x0 = Math.min(p[0], q[0]); x1 = Math.max(p[0], q[0]); } else { y0 = Math.min(p[1], q[1]); y1 = Math.max(p[1], q[1]); }
+      const ruler = axis.ruler,
+        p = ruler.at(axis.fractionOf(min)),
+        q = ruler.at(axis.fractionOf(max));
+      if (ruler.horizontal) {
+        x0 = Math.min(p[0], q[0]);
+        x1 = Math.max(p[0], q[0]);
+      } else {
+        y0 = Math.min(p[1], q[1]);
+        y1 = Math.max(p[1], q[1]);
+      }
     }
     return { x0: Math.max(0, x0), y0: Math.max(0, y0), x1: Math.min(r.width, x1), y1: Math.min(r.height, y1) };
   }
 
   #paint(): void {
-    const s = this.surface, box = this.#rect();
-    if (!box || box.x1 - box.x0 !== box.x1 - box.x0 || box.y1 - box.y0 !== box.y1 - box.y0) { s.remove('brush'); return; }
+    const s = this.surface,
+      box = this.#rect();
+    if (!box || box.x1 - box.x0 !== box.x1 - box.x0 || box.y1 - box.y0 !== box.y1 - box.y0) {
+      s.remove('brush');
+      return;
+    }
     const look = this.styleFor(['selection', 'shape']);
     const node = s.node('brush', 'rect', { above: true });
     s.set(node, 'x', f2(box.x0));

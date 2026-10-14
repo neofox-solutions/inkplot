@@ -34,7 +34,8 @@ const TAU = 2 * Math.PI;
 
 /** An arc of a circle as path data, in pieces of at most half a turn so that any sweep is drawn the right way round. */
 function arc(cx: number, cy: number, r: number, start: number, sweep: number): string {
-  const pieces = Math.max(1, Math.ceil(Math.abs(sweep) / Math.PI - 1e-9)), step = sweep / pieces;
+  const pieces = Math.max(1, Math.ceil(Math.abs(sweep) / Math.PI - 1e-9)),
+    step = sweep / pieces;
   const at = (a: number) => `${f2(cx + r * Math.sin(a))} ${f2(cy - r * Math.cos(a))}`;
   let d = `M${at(start)}`;
   for (let k = 1; k <= pieces; k++) d += `A${f2(r)} ${f2(r)} 0 0 ${sweep > 0 ? 1 : 0} ${at(start + k * step)}`;
@@ -54,15 +55,31 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
   readonly #xy = new Float64Array(2);
   readonly #rulers = new Map<Axis, Ruler>();
 
-  get clipUrl(): string | null { return this.attrs.clip === false ? null : `url(#${this.clipId})`; }
-  get curved(): boolean { return true; }
-  get startAngle(): number { return this.attrs.startAngle ?? 0; }
-  get sweep(): number { return this.attrs.sweep ?? TAU; }
-  get innerRadius(): number { return this.attrs.innerRadius ?? 0; }
+  get clipUrl(): string | null {
+    return this.attrs.clip === false ? null : `url(#${this.clipId})`;
+  }
+  get curved(): boolean {
+    return true;
+  }
+  get startAngle(): number {
+    return this.attrs.startAngle ?? 0;
+  }
+  get sweep(): number {
+    return this.attrs.sweep ?? TAU;
+  }
+  get innerRadius(): number {
+    return this.attrs.innerRadius ?? 0;
+  }
   /** The outer radius in plot pixels. Valid after arrange. */
-  get radius(): number { return this.#radius; }
-  protected get cx(): number { return this.#cx; }
-  protected get cy(): number { return this.#cy; }
+  get radius(): number {
+    return this.#radius;
+  }
+  protected get cx(): number {
+    return this.#cx;
+  }
+  protected get cy(): number {
+    return this.#cy;
+  }
 
   /** The line of constant value at pixel radius `r`, from the start of the sweep to its end (or back), as path data starting with M. */
   protected abstract ring(r: number, reverse?: boolean): string;
@@ -75,11 +92,15 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
   /** Called when the circle is settled, before any series is projected. */
   protected prepare(): void {}
 
-  override cyclic(axis: Axis): boolean { return axis.orientation === 'angle' && Math.abs(this.sweep) >= TAU - 1e-9; }
+  override cyclic(axis: Axis): boolean {
+    return axis.orientation === 'angle' && Math.abs(this.sweep) >= TAU - 1e-9;
+  }
 
   /** On the plot when inside the rim in that direction, outside the hole, and (for a part of a turn) within the sweep. */
   override covers(x: number, y: number): boolean {
-    const dx = x - this.#cx, dy = y - this.#cy, len = Math.hypot(dx, dy);
+    const dx = x - this.#cx,
+      dy = y - this.#cy,
+      len = Math.hypot(dx, dy);
     if (len > this.outerRadius(dx, dy) + 1e-9 || len < this.#radius * this.innerRadius - 1e-9) return false;
     const first = this.defaultAxis('first');
     if (len === 0 || !first || this.cyclic(first)) return true;
@@ -101,7 +122,9 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
   }
 
   /** Pixels along an axis: what its ticks have to fit into. */
-  protected lengthOf(axis: Axis): number { return this.#rulers.get(axis)?.length ?? 1; }
+  protected lengthOf(axis: Axis): number {
+    return this.#rulers.get(axis)?.length ?? 1;
+  }
   /** The fractions 0..1 of an axis' ticks that fall inside its range. */
   protected tickFractions(axis: Axis | undefined): number[] {
     const out: number[] = [];
@@ -114,10 +137,14 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
   }
 
   unplace(x: number, y: number, first: Axis, second: Axis): readonly [number, number] {
-    const dx = x - this.#cx, dy = y - this.#cy, inner = this.innerRadius;
+    const dx = x - this.#cx,
+      dy = y - this.#cy,
+      inner = this.innerRadius;
     const around = this.angleFraction(dx, dy);
     const out = (Math.hypot(dx, dy) / this.outerRadius(dx, dy) - inner) / (1 - inner);
-    return first.orientation === 'angle' ? [first.denormalize(around), second.denormalize(out)] : [first.denormalize(out), second.denormalize(around)];
+    return first.orientation === 'angle'
+      ? [first.denormalize(around), second.denormalize(out)]
+      : [first.denormalize(out), second.denormalize(around)];
   }
 
   place(points: PointBuffer, first: Axis, second: Axis): void {
@@ -126,8 +153,11 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
       fail('a series needs one angle axis and one radius axis');
     }
     const { data, count, stride } = points;
-    const R = this.#radius, inner = this.innerRadius, xy = this.#xy;
-    const a0 = angleIsDomain ? 0 : 1, r0 = 1 - a0;
+    const R = this.#radius,
+      inner = this.innerRadius,
+      xy = this.#xy;
+    const a0 = angleIsDomain ? 0 : 1,
+      r0 = 1 - a0;
     for (let k = 0, i = 0; k < count; k++, i += stride) {
       // Below the middle would come out on the far side. Above the edge is left for the clip.
       this.locate(data[i + a0]!, R * (inner + (1 - inner) * Math.max(0, data[i + r0]!)), xy);
@@ -155,7 +185,11 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
    * is worked out when it is drawn, since a radar's depends on ticks that are only settled by then.
    */
   private setRulers(): void {
-    const start = this.startAngle, sweep = this.sweep, R = this.#radius, r0 = R * this.innerRadius, xy = this.#xy;
+    const start = this.startAngle,
+      sweep = this.sweep,
+      R = this.#radius,
+      r0 = R * this.innerRadius,
+      xy = this.#xy;
     const ring = (r: number) => this.ring(r);
     const at0 = (r: number): string => {
       this.locate(0, r, xy);
@@ -171,27 +205,44 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
       return [xy[0]!, xy[1]!, -Math.cos(start), -Math.sin(start)];
     };
     // A radial axis' title is always on its own line, past its labels: there is no edge of a circle to put it at.
-    const spot = (mid: readonly [number, number, number, number]): TitleSpot => ({ x: mid[0], y: mid[1], nx: mid[2], ny: mid[3], beyond: true });
+    const spot = (mid: readonly [number, number, number, number]): TitleSpot => ({
+      x: mid[0],
+      y: mid[1],
+      nx: mid[2],
+      ny: mid[3],
+      beyond: true,
+    });
     for (const axis of this.axes) {
-      const ruler: Ruler = axis.orientation === 'angle'
-        ? {
-          length: Math.max(1, Math.abs(sweep) * R), tickSpacing: 70, horizontal: false,
-          get line() { return ring(R); },
-          at: angleAt,
-          title: () => spot(angleAt(0.5)),
-        }
-        : {
-          length: Math.max(1, R - r0), tickSpacing: 36, horizontal: false,
-          get line() { return `M${at0(r0)}L${at0(R)}`; },
-          at: radiusAt,
-          title: () => spot(radiusAt(0.5)),
-          // However far round the pointer is, it is as far along the radius as it is out from the middle, measured
-          // against the edge in its own direction (a radar's edge is nearer between spokes).
-          fractionAt: (x, y) => {
-            const dx = x - this.#cx, dy = y - this.#cy, inner = this.innerRadius;
-            return (Math.hypot(dx, dy) / this.outerRadius(dx, dy) - inner) / (1 - inner);
-          },
-        };
+      const ruler: Ruler =
+        axis.orientation === 'angle'
+          ? {
+              length: Math.max(1, Math.abs(sweep) * R),
+              tickSpacing: 70,
+              horizontal: false,
+              get line() {
+                return ring(R);
+              },
+              at: angleAt,
+              title: () => spot(angleAt(0.5)),
+            }
+          : {
+              length: Math.max(1, R - r0),
+              tickSpacing: 36,
+              horizontal: false,
+              get line() {
+                return `M${at0(r0)}L${at0(R)}`;
+              },
+              at: radiusAt,
+              title: () => spot(radiusAt(0.5)),
+              // However far round the pointer is, it is as far along the radius as it is out from the middle, measured
+              // against the edge in its own direction (a radar's edge is nearer between spokes).
+              fractionAt: (x, y) => {
+                const dx = x - this.#cx,
+                  dy = y - this.#cy,
+                  inner = this.innerRadius;
+                return (Math.hypot(dx, dy) / this.outerRadius(dx, dy) - inner) / (1 - inner);
+              },
+            };
       this.#rulers.set(axis, ruler);
       axis.setRuler(ruler);
     }
@@ -202,7 +253,8 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
    * the largest circle in what is left, and the only margin that matters is what the angle axis' labels need around it.
    */
   private arrange(available: Rect): void {
-    const axes = this.axes, series = this.series;
+    const axes = this.axes,
+      series = this.series;
     this.assignAxes(SIDES, polarSide);
 
     // A first guess at the circle sizes the fills and the tick counts; the labels then say how much room they take.
@@ -218,11 +270,14 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
     }
     const o: Partial<Insets> = this.attrs.insets ?? {};
     const insets: Insets = {
-      top: o.top ?? Math.max(MIN_INSET, margin), bottom: o.bottom ?? Math.max(MIN_INSET, margin),
-      left: o.left ?? Math.max(MIN_INSET, margin), right: o.right ?? Math.max(MIN_INSET, margin),
+      top: o.top ?? Math.max(MIN_INSET, margin),
+      bottom: o.bottom ?? Math.max(MIN_INSET, margin),
+      left: o.left ?? Math.max(MIN_INSET, margin),
+      right: o.right ?? Math.max(MIN_INSET, margin),
     };
     const rect: Rect = {
-      x: available.x + insets.left, y: available.y + insets.top,
+      x: available.x + insets.left,
+      y: available.y + insets.top,
       width: Math.max(1, available.width - insets.left - insets.right),
       height: Math.max(1, available.height - insets.top - insets.bottom),
     };
@@ -238,15 +293,20 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
 
   /** What the plot covers: the whole outline for a full turn (less the hole), a sector for part of one. */
   private region(): string {
-    const R = this.#radius, r0 = R * this.innerRadius;
+    const R = this.#radius,
+      r0 = R * this.innerRadius;
     if (Math.abs(this.sweep) >= TAU - 1e-9) return this.ring(R) + 'Z' + (r0 > 0 ? this.ring(r0) + 'Z' : '');
     return this.ring(R) + 'L' + this.ring(r0, true).slice(1) + 'Z';
   }
 
   /** Clip region, then spokes at the angle axis' ticks and rings at the radius axis' ticks. */
   private paint(): void {
-    const s = this.surface, r = this.rect, a = this.attrs;
-    const R = this.#radius, inner = this.innerRadius, xy = this.#xy;
+    const s = this.surface,
+      r = this.rect,
+      a = this.attrs;
+    const R = this.#radius,
+      inner = this.innerRadius,
+      xy = this.#xy;
     s.set(s.wrapper(), 'transform', `translate(${f2(r.x)} ${f2(r.y)})`);
     writeAria(s, s.wrapper(), a.meta, { role: 'group' });
 
@@ -260,7 +320,8 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
 
     if (a.gridlines !== false) {
       let d = '';
-      const angle = this.axes.find((x) => x.orientation === 'angle'), radius = this.axes.find((x) => x.orientation === 'radius');
+      const angle = this.axes.find((x) => x.orientation === 'angle'),
+        radius = this.axes.find((x) => x.orientation === 'radius');
       for (const f of this.tickFractions(angle)) {
         this.locate(f, R * inner, xy);
         d += `M${f2(xy[0]!)} ${f2(xy[1]!)}`;
@@ -288,13 +349,17 @@ export class PolarPlane extends RadialPlane<PolarPlaneAttributes> {
     out[0] = this.cx + r * Math.sin(a);
     out[1] = this.cy - r * Math.cos(a);
   }
-  protected outerRadius(): number { return this.radius; }
+  protected outerRadius(): number {
+    return this.radius;
+  }
   protected angleFraction(dx: number, dy: number): number {
     const f = (Math.atan2(dx, -dy) - this.startAngle) / this.sweep;
     return Math.abs(this.sweep) >= TAU - 1e-9 ? f - Math.floor(f) : f;
   }
   protected ring(r: number, reverse = false): string {
-    return reverse ? arc(this.cx, this.cy, r, this.startAngle + this.sweep, -this.sweep) : arc(this.cx, this.cy, r, this.startAngle, this.sweep);
+    return reverse
+      ? arc(this.cx, this.cy, r, this.startAngle + this.sweep, -this.sweep)
+      : arc(this.cx, this.cy, r, this.startAngle, this.sweep);
   }
 }
 
@@ -325,14 +390,17 @@ export class RadarPlane extends RadialPlane<RadarPlaneAttributes> {
   }
 
   /** The spokes: a line along the angle axis bends at each. */
-  override breaks(axis: Axis): readonly number[] { return axis.orientation === 'angle' ? this.#at : []; }
+  override breaks(axis: Axis): readonly number[] {
+    return axis.orientation === 'angle' ? this.#at : [];
+  }
 
   protected locate(fraction: number, r: number, out: Float64Array): void {
     const at = this.#at;
     let k = 0;
     while (k < at.length - 2 && fraction > at[k + 1]!) k++;
     const t = (fraction - at[k]!) / (at[k + 1]! - at[k]!);
-    const x0 = r * this.#sin[k]!, y0 = -r * this.#cos[k]!;
+    const x0 = r * this.#sin[k]!,
+      y0 = -r * this.#cos[k]!;
     out[0] = this.cx + x0 + t * (r * this.#sin[k + 1]! - x0);
     out[1] = this.cy + y0 + t * (-r * this.#cos[k + 1]! - y0);
   }
@@ -351,19 +419,29 @@ export class RadarPlane extends RadialPlane<RadarPlaneAttributes> {
     // The chord of the wedge the pointer is in: a ray meets it where the chord's distance from the middle, over the
     // cosine of the angle to the chord's normal, says.
     const { k } = this.wedge(dx, dy);
-    const nx = this.#sin[k]! + this.#sin[k + 1]!, ny = -(this.#cos[k]! + this.#cos[k + 1]!), norm = Math.hypot(nx, ny);
-    const chord = (this.#sin[k]! * nx - this.#cos[k]! * ny) / norm, along = (dx * nx + dy * ny) / norm / Math.hypot(dx, dy);
+    const nx = this.#sin[k]! + this.#sin[k + 1]!,
+      ny = -(this.#cos[k]! + this.#cos[k + 1]!),
+      norm = Math.hypot(nx, ny);
+    const chord = (this.#sin[k]! * nx - this.#cos[k]! * ny) / norm,
+      along = (dx * nx + dy * ny) / norm / Math.hypot(dx, dy);
     const t = (chord / along) * this.radius;
     return t > 0 && Number.isFinite(t) ? t : this.radius;
   }
 
   /** Where along the chord the pointer's ray crosses it, mapped to the fractions of the two spokes (not linear in the angle). */
   protected angleFraction(dx: number, dy: number): number {
-    const at = this.#at, { k, f } = this.wedge(dx, dy), R = this.radius;
+    const at = this.#at,
+      { k, f } = this.wedge(dx, dy),
+      R = this.radius;
     const len = Math.hypot(dx, dy);
     if (len === 0) return f;
-    const reach = this.outerRadius(dx, dy), px = (dx / len) * reach, py = (dy / len) * reach;
-    const ax = R * this.#sin[k]!, ay = -R * this.#cos[k]!, sx = R * this.#sin[k + 1]! - ax, sy = -R * this.#cos[k + 1]! - ay;
+    const reach = this.outerRadius(dx, dy),
+      px = (dx / len) * reach,
+      py = (dy / len) * reach;
+    const ax = R * this.#sin[k]!,
+      ay = -R * this.#cos[k]!,
+      sx = R * this.#sin[k + 1]! - ax,
+      sy = -R * this.#cos[k + 1]! - ay;
     const t = ((px - ax) * sx + (py - ay) * sy) / (sx * sx + sy * sy);
     return at[k]! + Math.min(1, Math.max(0, t)) * (at[k + 1]! - at[k]!);
   }

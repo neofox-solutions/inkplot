@@ -17,82 +17,85 @@ export default defineConfig({
     retry: process.env.CI ? 1 : 0,
     reporters: process.env.CI ? ['default', 'github-actions'] : ['default'],
   },
+  fmt: {
+    printWidth: 140,
+    singleQuote: true,
+    ignorePatterns: [
+      'out/**',
+      'types/**',
+      'shots/**',
+      'node_modules/**',
+      'playground.html',
+      'pnpm-lock.yaml',
+      '**/*.md',
+      'docs/**',
+      'scratch/skill/**',
+      '**/*.json',
+      '**/*.yml',
+      '**/*.yaml',
+      '**/*.html',
+      '**/*.css',
+    ],
+  },
   lint: {
     options: { typeAware: true },
-    "plugins": [
-      "typescript",
-      "unicorn",
-      "oxc"
-    ],
-    "categories": {
-      "correctness": "error",
-      "suspicious": "warn"
+    plugins: ['typescript', 'unicorn', 'oxc'],
+    categories: {
+      correctness: 'error',
+      suspicious: 'warn',
     },
-    "env": {
-      "browser": true,
-      "node": true,
-      "es2022": true
+    env: {
+      browser: true,
+      node: true,
+      es2022: true,
     },
-    "ignorePatterns": [
-      "out/**",
-      "types/**",
-      "shots/**",
-      "node_modules/**",
-      "playground.html"
-    ],
-    "rules": {
-      "typescript/no-explicit-any": "error",
-      "typescript/ban-ts-comment": [
-        "error",
+    ignorePatterns: ['out/**', 'types/**', 'shots/**', 'node_modules/**', 'playground.html'],
+    rules: {
+      'typescript/no-explicit-any': 'error',
+      'typescript/ban-ts-comment': [
+        'error',
         {
-          "ts-expect-error": "allow-with-description",
-          "ts-ignore": true,
-          "ts-nocheck": true
-        }
+          'ts-expect-error': 'allow-with-description',
+          'ts-ignore': true,
+          'ts-nocheck': true,
+        },
       ],
-      "typescript/no-confusing-non-null-assertion": "off",
-      "eslint/no-new": "off",
-      "eslint/no-shadow": "off",
-      "eslint/no-underscore-dangle": "off",
-      "unicorn/consistent-function-scoping": "off",
-      "unicorn/no-array-fill-with-reference-type": "off",
-      "unicorn/no-array-sort": "off",
-      "unicorn/no-array-reverse": "off",
-      "unicorn/prefer-add-event-listener": "off",
-      "typescript/no-non-null-assertion": "error",
+      'typescript/no-confusing-non-null-assertion': 'off',
+      'eslint/no-new': 'off',
+      'eslint/no-shadow': 'off',
+      'eslint/no-underscore-dangle': 'off',
+      'unicorn/consistent-function-scoping': 'off',
+      'unicorn/no-array-fill-with-reference-type': 'off',
+      'unicorn/no-array-sort': 'off',
+      'unicorn/no-array-reverse': 'off',
+      'unicorn/prefer-add-event-listener': 'off',
+      'typescript/no-non-null-assertion': 'error',
       // Casts are owned by the comments above each one (consistent-type-assertions), so a second rule would only repeat them.
-      "typescript/no-unsafe-type-assertion": "off",
+      'typescript/no-unsafe-type-assertion': 'off',
       // Exhaustive switches and effect cleanups return on some paths by design; tsc checks the exhaustive ones.
-      "typescript/consistent-return": "off",
-      "typescript/no-unnecessary-type-parameters": "off",
-      "typescript/consistent-type-assertions": [
-        "error",
+      'typescript/consistent-return': 'off',
+      'typescript/no-unnecessary-type-parameters': 'off',
+      'typescript/consistent-type-assertions': [
+        'error',
         {
-          "assertionStyle": "never"
-        }
-      ]
+          assertionStyle: 'never',
+        },
+      ],
     },
-    "overrides": [
+    overrides: [
       {
-        "files": [
-          "src/*.check.tsx"
-        ],
-        "rules": {
-          "eslint/no-constant-binary-expression": "off"
-        }
+        files: ['src/*.check.tsx'],
+        rules: {
+          'eslint/no-constant-binary-expression': 'off',
+        },
       },
       {
-        "files": [
-          "**/*.test.ts",
-          "src/*.check.tsx",
-          "src/fake-platform.ts",
-          "tools/**"
-        ],
-        "rules": {
-          "typescript/no-non-null-assertion": "off",
-          "typescript/consistent-type-assertions": "off"
-        }
-      }
-    ]
+        files: ['**/*.test.ts', 'src/*.check.tsx', 'src/fake-platform.ts', 'tools/**'],
+        rules: {
+          'typescript/no-non-null-assertion': 'off',
+          'typescript/consistent-type-assertions': 'off',
+        },
+      },
+    ],
   },
 });

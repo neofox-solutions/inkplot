@@ -26,8 +26,7 @@ export interface MappedDimensionAttributes extends DimensionAttributes {}
  * for itself when a new flush has begun. The first contribution of a flush starts it over, and the first read of the
  * range, which is when something draws, fixes it.
  */
-export abstract class MappedDimension<Out, A extends MappedDimensionAttributes = MappedDimensionAttributes>
-  extends Dimension<Chart, A> {
+export abstract class MappedDimension<Out, A extends MappedDimensionAttributes = MappedDimensionAttributes> extends Dimension<Chart, A> {
   /** The output for a position 0..1 along the dimension. */
   abstract valueAt(fraction: number): Out;
   /** What data outside the range, or NaN, maps to. */
@@ -38,7 +37,10 @@ export abstract class MappedDimension<Out, A extends MappedDimensionAttributes =
   #flush = -1;
   #sync(): void {
     const flush = this.chart?.flushCount ?? 0;
-    if (flush !== this.#flush) { this.#flush = flush; this.begin(); }
+    if (flush !== this.#flush) {
+      this.#flush = flush;
+      this.begin();
+    }
   }
   override contribute(min: number, max: number): void {
     this.#sync();
@@ -105,16 +107,24 @@ export class ColorAxis extends MappedDimension<string, ColorAxisAttributes> {
   valueAt(fraction: number): string {
     if (!(fraction >= -1e-9 && fraction <= 1 + 1e-9)) return this.missing;
     const f = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
-    const stops = this.stops, n = stops.length;
+    const stops = this.stops,
+      n = stops.length;
     if (this.attrs.interpolation === 'step') return stops[Math.min(n - 1, Math.floor(f * n))]!;
-    const rgb = stopsToRgb(stops), pos = f * (n - 1), i = Math.min(n - 2, Math.floor(pos));
+    const rgb = stopsToRgb(stops),
+      pos = f * (n - 1),
+      i = Math.min(n - 2, Math.floor(pos));
     if (n === 1) return stops[0]!;
     const t = pos - i;
-    return '#' + hex2(rgb[3 * i]! + t * (rgb[3 * i + 3]! - rgb[3 * i]!))
-      + hex2(rgb[3 * i + 1]! + t * (rgb[3 * i + 4]! - rgb[3 * i + 1]!))
-      + hex2(rgb[3 * i + 2]! + t * (rgb[3 * i + 5]! - rgb[3 * i + 2]!));
+    return (
+      '#' +
+      hex2(rgb[3 * i]! + t * (rgb[3 * i + 3]! - rgb[3 * i]!)) +
+      hex2(rgb[3 * i + 1]! + t * (rgb[3 * i + 4]! - rgb[3 * i + 1]!)) +
+      hex2(rgb[3 * i + 2]! + t * (rgb[3 * i + 5]! - rgb[3 * i + 2]!))
+    );
   }
-  get missing(): string { return this.attrs.missing ?? '#bbb'; }
+  get missing(): string {
+    return this.attrs.missing ?? '#bbb';
+  }
 }
 
 // ─── Size ───
@@ -129,14 +139,18 @@ export interface SizeAxisAttributes extends MappedDimensionAttributes {
 /** Data to a number: a marker size, a stroke width, an opacity. `new SizeAxis({ output: [3, 14] }, new LinearScale())`. */
 export class SizeAxis extends MappedDimension<number, SizeAxisAttributes> {
   /** The output range. */
-  get output(): readonly [number, number] { return this.attrs.output ?? [2, 12]; }
+  get output(): readonly [number, number] {
+    return this.attrs.output ?? [2, 12];
+  }
 
   valueAt(fraction: number): number {
     if (!(fraction >= -1e-9 && fraction <= 1 + 1e-9)) return this.missing;
     const [lo, hi] = this.output;
     return lo + (fraction < 0 ? 0 : fraction > 1 ? 1 : fraction) * (hi - lo);
   }
-  get missing(): number { return this.attrs.missing ?? this.output[0]; }
+  get missing(): number {
+    return this.attrs.missing ?? this.output[0];
+  }
 }
 
 /** One attribute fed from one channel of the data through a mapped dimension. */

@@ -5,14 +5,33 @@ import { writeAria } from './aria.ts';
 import { Axis } from './axis.ts';
 import { type BaseAttributes, ChartElement, type ElementRef, resolveRef } from './element.ts';
 import { inputOf } from './input.ts';
-import { type ChartEvent, type ChartKeyEvent, type ChartPointerEvent, EVENT_FOCUS, EVENT_KEY, EVENT_PAINT, EVENT_POINTER } from './events.ts';
+import {
+  type ChartEvent,
+  type ChartKeyEvent,
+  type ChartPointerEvent,
+  EVENT_FOCUS,
+  EVENT_KEY,
+  EVENT_PAINT,
+  EVENT_POINTER,
+} from './events.ts';
 import { drawFocusRing, makeTabStop } from './focus.ts';
 import type { Extent } from './geometry.ts';
 import type { Plane } from './plane.ts';
 import type { PlatformNode } from './platform.ts';
 
 /** What a key can do. */
-export type PanZoomAction = 'left' | 'right' | 'up' | 'down' | 'pageLeft' | 'pageRight' | 'pageUp' | 'pageDown' | 'zoomIn' | 'zoomOut' | 'reset';
+export type PanZoomAction =
+  | 'left'
+  | 'right'
+  | 'up'
+  | 'down'
+  | 'pageLeft'
+  | 'pageRight'
+  | 'pageUp'
+  | 'pageDown'
+  | 'zoomIn'
+  | 'zoomOut'
+  | 'reset';
 /** Keys, by `KeyboardEvent.key`, for each action. An action left out has the default keys; an empty list turns it off. */
 export type PanZoomKeys = Partial<Record<PanZoomAction, readonly string[]>>;
 
@@ -21,14 +40,28 @@ export type PanZoomKeys = Partial<Record<PanZoomAction, readonly string[]>>;
  * (with the `=` and `_` that share their keys) zoom about the middle, and `0` or Home puts the view back.
  */
 export const DEFAULT_PANZOOM_KEYS: Readonly<Record<PanZoomAction, readonly string[]>> = {
-  left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
-  pageLeft: [], pageRight: [], pageUp: ['PageUp'], pageDown: ['PageDown'],
-  zoomIn: ['+', '='], zoomOut: ['-', '_'], reset: ['0', 'Home'],
+  left: ['ArrowLeft'],
+  right: ['ArrowRight'],
+  up: ['ArrowUp'],
+  down: ['ArrowDown'],
+  pageLeft: [],
+  pageRight: [],
+  pageUp: ['PageUp'],
+  pageDown: ['PageDown'],
+  zoomIn: ['+', '='],
+  zoomOut: ['-', '_'],
+  reset: ['0', 'Home'],
 };
 /** For each moving action: along a horizontal axis or not, which way along it (+1 towards higher values), and whether it is a page. */
 const MOVES: Record<Exclude<PanZoomAction, 'zoomIn' | 'zoomOut' | 'reset'>, readonly [boolean, 1 | -1, boolean]> = {
-  left: [true, -1, false], right: [true, 1, false], up: [false, 1, false], down: [false, -1, false],
-  pageLeft: [true, -1, true], pageRight: [true, 1, true], pageUp: [false, 1, true], pageDown: [false, -1, true],
+  left: [true, -1, false],
+  right: [true, 1, false],
+  up: [false, 1, false],
+  down: [false, -1, false],
+  pageLeft: [true, -1, true],
+  pageRight: [true, 1, true],
+  pageUp: [false, 1, true],
+  pageDown: [false, -1, true],
 };
 /** Fractions of the view moved by an arrow, and by a page. */
 const KEY_STEP = 0.1;
@@ -90,7 +123,11 @@ const PINCH_MIN_SPAN = 24;
 /** Zoom per pixel of a trackpad pinch (a wheel turn with Ctrl held), as a natural-log factor. */
 const PINCH_SPEED = 0.02;
 /** A flick: it counts if the finger moved within `FLICK_REST` ms of letting go, at least `FLICK_MIN` px/ms measured over the last `FLICK_WINDOW` ms; speed falls by 1/e every `FLICK_TAU` ms down to `FLICK_STOP`. */
-const FLICK_REST = 80, FLICK_WINDOW = 100, FLICK_MIN = 0.15, FLICK_TAU = 325, FLICK_STOP = 0.02;
+const FLICK_REST = 80,
+  FLICK_WINDOW = 100,
+  FLICK_MIN = 0.15,
+  FLICK_TAU = 325,
+  FLICK_STOP = 0.02;
 
 /** An axis it can move, how far along it a position in the plot is, and its range when a drag began (`snap`: later maths is relative to it, so a drag cannot drift). */
 type Moving = { axis: Axis; at: (x: number, y: number) => number; snap: Extent };
@@ -109,7 +146,17 @@ type ViewChange = { snap: Extent; scale: number; anchor: number; shift: number }
  */
 export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
   static override takesInput = inputOf;
-  static override attrTypes = { ...ChartElement.attrTypes, keyStep: NUMBER, keyZoom: NUMBER, pinchSpeed: NUMBER, inertia: BOOLEAN, axisZoom: BOOLEAN, resetOnDoubleClick: BOOLEAN, zoomSpeed: NUMBER, keys: { pageLeft: AUTO, pageRight: AUTO, pageUp: AUTO, pageDown: AUTO, zoomIn: AUTO, zoomOut: AUTO } } satisfies AttrTypesFor<PanZoomAttributes>;
+  static override attrTypes = {
+    ...ChartElement.attrTypes,
+    keyStep: NUMBER,
+    keyZoom: NUMBER,
+    pinchSpeed: NUMBER,
+    inertia: BOOLEAN,
+    axisZoom: BOOLEAN,
+    resetOnDoubleClick: BOOLEAN,
+    zoomSpeed: NUMBER,
+    keys: { pageLeft: AUTO, pageRight: AUTO, pageUp: AUTO, pageDown: AUTO, zoomIn: AUTO, zoomOut: AUTO },
+  } satisfies AttrTypesFor<PanZoomAttributes>;
   // The drag in progress, with each axis' range as it was at the start; and the last press, for double-click detection.
   #drag: Drag | null = null;
   /** A flick in progress: stopped by the next touch, wheel or reset. */
@@ -135,22 +182,34 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
     switch (ev.type) {
       case EVENT_PAINT:
         this.#paintFocus();
-        if (this.attrs.pan !== false || this.attrs.zoom !== false) this.chart?.platform?.setTouchMode?.(this.attrs.touch === 'always' ? 'always' : 'two-finger');
+        if (this.attrs.pan !== false || this.attrs.zoom !== false)
+          this.chart?.platform?.setTouchMode?.(this.attrs.touch === 'always' ? 'always' : 'two-finger');
         return;
-      case EVENT_KEY: this.#key(ev); return;
+      case EVENT_KEY:
+        this.#key(ev);
+        return;
       case EVENT_FOCUS:
-        if (ev.focused) { this.#focusNode = ev.node; this.#ring = ev.visible; }
-        else if (this.#focusNode === ev.node) { this.#focusNode = null; this.#ring = false; }
+        if (ev.focused) {
+          this.#focusNode = ev.node;
+          this.#ring = ev.visible;
+        } else if (this.#focusNode === ev.node) {
+          this.#focusNode = null;
+          this.#ring = false;
+        }
         this.invalidate();
         return;
     }
     if (ev.type !== EVENT_POINTER) return;
-    const a = this.attrs, platform = this.chart?.platform;
+    const a = this.attrs,
+      platform = this.chart?.platform;
     // An element ahead of this one (a `PointerListener`) may already have used a press or claimed the cursor.
     if (ev.handled && (ev.kind === 'down' || ev.kind === 'move') && !this.#drag && !this.#pinch) return;
     // Beside the plot, over an axis, only when asked: with `axisZoom` off the axes are inert.
     if (ev.outside && a.axisZoom === false && !this.#drag && !this.#pinch) return;
-    if (ev.pointerType === 'touch' && ev.kind !== 'wheel' && ev.kind !== 'pinch') { this.#touch(ev); return; }
+    if (ev.pointerType === 'touch' && ev.kind !== 'wheel' && ev.kind !== 'pinch') {
+      this.#touch(ev);
+      return;
+    }
     switch (ev.kind) {
       case 'down': {
         if (!(ev.buttons & 1)) break;
@@ -163,14 +222,26 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
       }
       case 'move': {
         const drag = this.#drag;
-        if (!drag) { if (a.pan !== false) platform?.setCursor?.('grab'); break; }
-        if (!(ev.buttons & 1)) { this.#drag = null; platform?.setCursor?.('grab'); break; }
-        for (const { axis, at, snap } of drag.moves) this.apply(axis, { snap, scale: 1, anchor: 0, shift: at(drag.x, drag.y) - at(ev.x, ev.y) });
+        if (!drag) {
+          if (a.pan !== false) platform?.setCursor?.('grab');
+          break;
+        }
+        if (!(ev.buttons & 1)) {
+          this.#drag = null;
+          platform?.setCursor?.('grab');
+          break;
+        }
+        for (const { axis, at, snap } of drag.moves)
+          this.apply(axis, { snap, scale: 1, anchor: 0, shift: at(drag.x, drag.y) - at(ev.x, ev.y) });
         ev.handled = true;
         break;
       }
       case 'up':
-        if (this.#drag) { this.#drag = null; platform?.setCursor?.('grab'); ev.handled = true; }
+        if (this.#drag) {
+          this.#drag = null;
+          platform?.setCursor?.('grab');
+          ev.handled = true;
+        }
         break;
       case 'leave':
         platform?.setCursor?.('');
@@ -209,7 +280,8 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
 
   /** Two presses close together reset the axis under them, or all of them. True when this press was the second. */
   #doubleClick(ev: ChartPointerEvent): boolean {
-    const now = performance.now(), last = this.#lastDown;
+    const now = performance.now(),
+      last = this.#lastDown;
     if (this.attrs.resetOnDoubleClick !== false && now - last.time < 350 && Math.hypot(ev.x - last.x, ev.y - last.y) < 6) {
       this.#lastDown = { time: -Infinity, x: 0, y: 0 };
       for (const { axis } of this.targets(ev.axis)) axis.setViewRange(null);
@@ -226,7 +298,9 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
    * the fingers are barely apart it only pans, so a level pinch zooms the horizontal axes alone and a plumb one the vertical.
    */
   #touch(ev: ChartPointerEvent): void {
-    const a = this.attrs, always = a.touch === 'always', touches = this.#touches;
+    const a = this.attrs,
+      always = a.touch === 'always',
+      touches = this.#touches;
     switch (ev.kind) {
       case 'down': {
         this.#stopCoast();
@@ -237,18 +311,33 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
           ev.handled = true;
         } else if (touches.size === 1) {
           if (this.#doubleClick(ev)) break;
-          if (always && a.pan !== false) { this.#drag = { id: ev.id, x: ev.x, y: ev.y, moves: this.targets(ev.axis), samples: [{ t: performance.now(), x: ev.x, y: ev.y }] }; ev.handled = true; }
+          if (always && a.pan !== false) {
+            this.#drag = {
+              id: ev.id,
+              x: ev.x,
+              y: ev.y,
+              moves: this.targets(ev.axis),
+              samples: [{ t: performance.now(), x: ev.x, y: ev.y }],
+            };
+            ev.handled = true;
+          }
         }
         break;
       }
       case 'move': {
         const t = touches.get(ev.id);
         if (!t) break;
-        t.x = ev.x; t.y = ev.y;
-        if (this.#pinch) { this.#movePinch(); ev.handled = true; break; }
+        t.x = ev.x;
+        t.y = ev.y;
+        if (this.#pinch) {
+          this.#movePinch();
+          ev.handled = true;
+          break;
+        }
         const drag = this.#drag;
         if (drag && drag.id === ev.id) {
-          for (const { axis, at, snap } of drag.moves) this.apply(axis, { snap, scale: 1, anchor: 0, shift: at(drag.x, drag.y) - at(ev.x, ev.y) });
+          for (const { axis, at, snap } of drag.moves)
+            this.apply(axis, { snap, scale: 1, anchor: 0, shift: at(drag.x, drag.y) - at(ev.x, ev.y) });
           drag.samples?.push({ t: performance.now(), x: ev.x, y: ev.y });
           if (drag.samples && drag.samples.length > 8) drag.samples.shift();
           ev.handled = true;
@@ -283,30 +372,48 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
 
   /** The finger left while moving: carry on at its speed, slowing as a flick does, a frame at a time until it is slow enough to stop. */
   #flick(drag: Drag): void {
-    const platform = this.chart?.platform, samples = drag.samples;
+    const platform = this.chart?.platform,
+      samples = drag.samples;
     if (!platform?.schedule || !samples || samples.length < 2) return;
-    const now = performance.now(), last = samples[samples.length - 1]!;
+    const now = performance.now(),
+      last = samples[samples.length - 1]!;
     if (now - last.t > FLICK_REST) return; // it stopped before it let go
     const first = samples.find((p) => last.t - p.t <= FLICK_WINDOW) ?? last;
     const dt = Math.max(last.t - first.t, 1);
-    let vx = (last.x - first.x) / dt, vy = (last.y - first.y) / dt;
+    let vx = (last.x - first.x) / dt,
+      vy = (last.y - first.y) / dt;
     if (Math.hypot(vx, vy) < FLICK_MIN) return;
     // Virtual finger position, advanced by the speed each frame; the view follows it the way a drag would.
-    let x = last.x, y = last.y, then = now, stop: (() => void) | null = null, live = true;
+    let x = last.x,
+      y = last.y,
+      then = now,
+      stop: (() => void) | null = null,
+      live = true;
     const tick = (): void => {
       stop = null;
       const p = this.chart?.platform;
       if (!live || !p?.schedule) return;
-      const t = performance.now(), step = Math.min(t - then, 64);
+      const t = performance.now(),
+        step = Math.min(t - then, 64);
       then = t;
-      x += vx * step; y += vy * step;
+      x += vx * step;
+      y += vy * step;
       const decay = Math.exp(-step / FLICK_TAU);
-      vx *= decay; vy *= decay;
+      vx *= decay;
+      vy *= decay;
       for (const { axis, at, snap } of drag.moves) this.apply(axis, { snap, scale: 1, anchor: 0, shift: at(drag.x, drag.y) - at(x, y) });
-      if (Math.hypot(vx, vy) < FLICK_STOP) { this.#coast = null; return; }
+      if (Math.hypot(vx, vy) < FLICK_STOP) {
+        this.#coast = null;
+        return;
+      }
       stop = p.schedule(tick);
     };
-    this.#coast = { cancel: () => { live = false; stop?.(); } };
+    this.#coast = {
+      cancel: () => {
+        live = false;
+        stop?.();
+      },
+    };
     stop = platform.schedule(tick);
   }
 
@@ -322,10 +429,14 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
   #movePinch(): void {
     const pinch = this.#pinch;
     if (!pinch) return;
-    const p1 = this.#touches.get(pinch.ids[0]), p2 = this.#touches.get(pinch.ids[1]);
+    const p1 = this.#touches.get(pinch.ids[0]),
+      p2 = this.#touches.get(pinch.ids[1]);
     if (!p1 || !p2) return;
     for (const m of pinch.moves) {
-      const b1 = m.at(p1.x, p1.y), b2 = m.at(p2.x, p2.y), span = m.a2 - m.a1, now = b2 - b1;
+      const b1 = m.at(p1.x, p1.y),
+        b2 = m.at(p2.x, p2.y),
+        span = m.a2 - m.a1,
+        now = b2 - b1;
       if (Math.abs(span) * m.length >= PINCH_MIN_SPAN && Math.abs(now) * m.length >= 1) {
         const k = span / now;
         this.apply(m.axis, { snap: m.snap, scale: k, anchor: 0, shift: m.a1 - b1 * k });
@@ -349,9 +460,17 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
 
   /** The plot as a tab stop with the application role, which is what tells a screen reader to pass the arrow keys on to it. */
   #paintFocus(): void {
-    const s = this.surface, plane = this.requireParent(), map = this.keyMap;
-    if (!map) { s.removePrefix('focus'); s.remove('ring'); this.#lastKeys = ''; return; }
-    const r = plane.rect, node = s.node('focus', 'rect', { above: true });
+    const s = this.surface,
+      plane = this.requireParent(),
+      map = this.keyMap;
+    if (!map) {
+      s.removePrefix('focus');
+      s.remove('ring');
+      this.#lastKeys = '';
+      return;
+    }
+    const r = plane.rect,
+      node = s.node('focus', 'rect', { above: true });
     s.set(node, 'x', 0);
     s.set(node, 'y', 0);
     s.set(node, 'width', r.width);
@@ -359,12 +478,22 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
     s.set(node, 'fill', 'none');
     s.set(node, 'pointer-events', 'none');
     makeTabStop(s, node);
-    writeAria(s, node, this.attrs.meta ?? (plane.attrs.meta?.title !== undefined ? { title: plane.attrs.meta.title } : undefined), { role: 'application' });
+    writeAria(s, node, this.attrs.meta ?? (plane.attrs.meta?.title !== undefined ? { title: plane.attrs.meta.title } : undefined), {
+      role: 'application',
+    });
     const shortcuts = [...new Set(Object.values(map).flat())].map((k) => (k === '+' ? 'Plus' : k === ' ' ? 'Space' : k)).join(' ');
-    if (shortcuts !== this.#lastKeys) { this.#lastKeys = shortcuts; s.set(node, 'aria-keyshortcuts', shortcuts); }
+    if (shortcuts !== this.#lastKeys) {
+      this.#lastKeys = shortcuts;
+      s.set(node, 'aria-keyshortcuts', shortcuts);
+    }
     inputOf(this.requireChart()).focusable(this, node);
     this.#node = node;
-    drawFocusRing(s, 'ring', this.styleFor(['focusRing', 'line']), this.#ring ? { x: 3, y: 3, width: Math.max(0, r.width - 6), height: Math.max(0, r.height - 6) } : null);
+    drawFocusRing(
+      s,
+      'ring',
+      this.styleFor(['focusRing', 'line']),
+      this.#ring ? { x: 3, y: 3, width: Math.max(0, r.width - 6), height: Math.max(0, r.height - 6) } : null,
+    );
   }
   #node: PlatformNode | null = null;
 
@@ -373,14 +502,23 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
     const map = this.keyMap;
     if (!map || ev.kind !== 'down' || ev.node !== this.#node || ev.ctrl || ev.alt) return;
     let action: PanZoomAction | undefined;
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- `for…in` gives `string`; the keys of `map` are `PanZoomAction`s
-    for (const name in map) if (map[name as PanZoomAction]!.includes(ev.key)) { action = name as PanZoomAction; break; }
+    for (const name in map)
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- `for…in` gives `string`; the keys of `map` are `PanZoomAction`s
+      if (map[name as PanZoomAction]!.includes(ev.key)) {
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- as above: the keys of `map` are `PanZoomAction`s
+        action = name as PanZoomAction;
+        break;
+      }
     if (!action) return;
     ev.handled = true;
     const a = this.attrs;
-    if (action === 'reset') { this.reset(); return; }
+    if (action === 'reset') {
+      this.reset();
+      return;
+    }
     if (action === 'zoomIn' || action === 'zoomOut') {
-      const k = a.keyZoom ?? KEY_ZOOM, scale = action === 'zoomIn' ? 1 / k : k;
+      const k = a.keyZoom ?? KEY_ZOOM,
+        scale = action === 'zoomIn' ? 1 / k : k;
       for (const { axis, snap } of this.controlled()) this.apply(axis, { snap, scale, anchor: 0.5, shift: 0 });
       return;
     }
@@ -393,7 +531,8 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
 
   /** The axes this will move, as of now: the chosen ones (or all the plane's) that can be followed along and fit `direction`. */
   private controlled(): Moving[] {
-    const a = this.attrs, only = a.direction ?? 'both';
+    const a = this.attrs,
+      only = a.direction ?? 'both';
     const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : [...this.requireParent().axes];
     const out: Moving[] = [];
     for (const axis of axes) {
@@ -410,10 +549,14 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
    * (If it were the part in view, zooming one axis would move the limit of the other under your hand.)
    */
   private limitFor(axis: Axis): Extent {
-    let lo = Infinity, hi = -Infinity;
+    let lo = Infinity,
+      hi = -Infinity;
     for (const series of this.requireParent().series) {
       const extent = series.extentFor(axis);
-      if (extent) { if (extent.min < lo) lo = extent.min; if (extent.max > hi) hi = extent.max; }
+      if (extent) {
+        if (extent.min < lo) lo = extent.min;
+        if (extent.max > hi) hi = extent.max;
+      }
     }
     return axis.fit(lo, hi);
   }
@@ -429,22 +572,32 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
    * A display fraction `d` along the axis is `u` in the scale's own fractions, flipped when the axis is inverted.
    */
   private viewFor(axis: Axis, { snap, scale: k, anchor, shift }: ViewChange): Extent | 'natural' | null {
-    const scale = axis.scale, inverted = axis.attrs.inverted === true;
+    const scale = axis.scale,
+      inverted = axis.attrs.inverted === true;
     const map = (u: number) => {
       const d = inverted ? 1 - u : u;
       const moved = anchor + (d - anchor) * k + shift;
       return inverted ? 1 - moved : moved;
     };
-    let u0 = map(0), u1 = map(1);
+    let u0 = map(0),
+      u1 = map(1);
     if (this.attrs.limit !== false) {
       const wanted = this.limitFor(axis);
       const natural = new Float64Array([wanted.min, wanted.max]);
       scale.normalize(natural, 2, 1, 0, snap);
-      const lo = Math.min(natural[0]!, natural[1]!), hi = Math.max(natural[0]!, natural[1]!);
+      const lo = Math.min(natural[0]!, natural[1]!),
+        hi = Math.max(natural[0]!, natural[1]!);
       if (u1 - u0 >= hi - lo) return 'natural';
-      if (u0 < lo) { u1 += lo - u0; u0 = lo; } else if (u1 > hi) { u0 -= u1 - hi; u1 = hi; }
+      if (u0 < lo) {
+        u1 += lo - u0;
+        u0 = lo;
+      } else if (u1 > hi) {
+        u0 -= u1 - hi;
+        u1 = hi;
+      }
     }
-    const min = scale.denormalize(u0, snap), max = scale.denormalize(u1, snap);
+    const min = scale.denormalize(u0, snap),
+      max = scale.denormalize(u1, snap);
     // Past the precision of a double there is nothing left to zoom into.
     if (!(max - min > 1e-12 * Math.max(1, Math.abs(min), Math.abs(max)))) return null;
     return { min, max };

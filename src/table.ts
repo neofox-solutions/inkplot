@@ -39,10 +39,15 @@ export interface Table {
 export function readTable(node: DataNode, options: TableOptions = {}): Table {
   const channels = options.channels ?? (node.channelNames ?? []).filter((n) => n !== 'domain' && n !== 'value');
   const context: PlanContext = {
-    width: options.samples ?? 0, height: 0, domainRange: options.domain ?? { min: -Infinity, max: Infinity }, channels,
+    width: options.samples ?? 0,
+    height: 0,
+    domainRange: options.domain ?? { min: -Infinity, max: Infinity },
+    channels,
   };
-  const plan: FillPlan = node.plan(context), stride = 2 + channels.length;
-  const buffer = new Float64Array(plan.capacity * stride), { count } = plan.fill(buffer);
+  const plan: FillPlan = node.plan(context),
+    stride = 2 + channels.length;
+  const buffer = new Float64Array(plan.capacity * stride),
+    { count } = plan.fill(buffer);
   const columns = [options.names?.domain ?? 'domain', options.names?.value ?? 'value', ...channels];
   const data = columns.map((_, c) => {
     const out = new Float64Array(count);
@@ -51,7 +56,9 @@ export function readTable(node: DataNode, options: TableOptions = {}): Table {
     return out;
   });
   return {
-    columns, count, data,
+    columns,
+    count,
+    data,
     column(name) {
       const at = columns.indexOf(name);
       if (at < 0) throw new Error(`readTable: no column "${name}" (have ${columns.join(', ')})`);

@@ -9,10 +9,29 @@
 import type { Size } from './geometry.ts';
 
 export const SVG_NS = 'http://www.w3.org/2000/svg';
-export type SvgTag = 'svg' | 'g' | 'path' | 'rect' | 'line' | 'circle' | 'text' | 'clipPath' | 'defs' | 'title' | 'desc' | 'linearGradient' | 'stop';
-export interface PlatformNode { readonly __platformNode: unique symbol }
+export type SvgTag =
+  | 'svg'
+  | 'g'
+  | 'path'
+  | 'rect'
+  | 'line'
+  | 'circle'
+  | 'text'
+  | 'clipPath'
+  | 'defs'
+  | 'title'
+  | 'desc'
+  | 'linearGradient'
+  | 'stop';
+export interface PlatformNode {
+  readonly __platformNode: unique symbol;
+}
 export type Unsubscribe = () => void;
-export interface FontSpec { family: string; size: number; weight?: number | string }
+export interface FontSpec {
+  family: string;
+  size: number;
+  weight?: number | string;
+}
 export type TextMeasurer = (text: string, font: FontSpec) => Size;
 
 /** Pointer input boiled down to what charts use, so every platform feeds the same events whatever its native ones look like. */
@@ -45,7 +64,11 @@ export interface RawKey {
   repeat: boolean;
 }
 /** A node gaining or losing focus; `visible` is whether a ring is wanted (the browser's `:focus-visible`). */
-export interface RawFocus { node: PlatformNode; focused: boolean; visible: boolean }
+export interface RawFocus {
+  node: PlatformNode;
+  focused: boolean;
+  visible: boolean;
+}
 
 export interface Platform {
   readonly name: string;
@@ -125,20 +148,26 @@ export class StringPlatform implements Platform {
     this.#root.attrs.set('xmlns', 'http://www.w3.org/2000/svg');
     this.root = handleOf(this.#root);
   }
-  size(): Size { return this.#size; }
+  size(): Size {
+    return this.#size;
+  }
   createNode(tag: SvgTag): PlatformNode {
     return handleOf({ tag, attrs: new Map(), children: [], text: null, parent: null });
   }
   setAttribute(node: PlatformNode, name: string, value: string | number): void {
     nodeOf(node).attrs.set(name, value);
   }
-  setText(node: PlatformNode, text: string): void { nodeOf(node).text = text; }
+  setText(node: PlatformNode, text: string): void {
+    nodeOf(node).text = text;
+  }
   insertBefore(parent: PlatformNode, node: PlatformNode, before: PlatformNode | null): void {
-    const p = nodeOf(parent), n = nodeOf(node);
+    const p = nodeOf(parent),
+      n = nodeOf(node);
     if (n.parent) this.remove(node);
     n.parent = p;
     const at = before ? p.children.indexOf(nodeOf(before)) : -1;
-    if (at < 0) p.children.push(n); else p.children.splice(at, 0, n);
+    if (at < 0) p.children.push(n);
+    else p.children.splice(at, 0, n);
   }
   remove(node: PlatformNode): void {
     const n = nodeOf(node);
@@ -155,8 +184,14 @@ export class StringPlatform implements Platform {
       const pad = '  '.repeat(depth);
       let open = `${pad}<${n.tag}`;
       for (const [k, v] of n.attrs) open += ` ${k}="${escapeAttr(String(v))}"`;
-      if (n.text !== null) { lines.push(`${open}>${escapeText(n.text)}</${n.tag}>`); return; }
-      if (n.children.length === 0) { lines.push(`${open}/>`); return; }
+      if (n.text !== null) {
+        lines.push(`${open}>${escapeText(n.text)}</${n.tag}>`);
+        return;
+      }
+      if (n.children.length === 0) {
+        lines.push(`${open}/>`);
+        return;
+      }
       lines.push(`${open}>`);
       for (const c of n.children) visit(c, depth + 1);
       lines.push(`${pad}</${n.tag}>`);

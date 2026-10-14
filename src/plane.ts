@@ -58,15 +58,25 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
   #rect: Rect = { x: 0, y: 0, width: 1, height: 1 };
 
   /** The allocated plot area, in the chart's coordinates. Valid after arrange. */
-  get rect(): Readonly<Rect> { return this.#rect; }
+  get rect(): Readonly<Rect> {
+    return this.#rect;
+  }
   /** Subclasses record the plot area they settle on. */
-  protected setRect(rect: Rect): void { this.#rect = rect; }
+  protected setRect(rect: Rect): void {
+    this.#rect = rect;
+  }
 
-  get axes(): readonly Axis[] { return [...this].filter((c): c is Axis => c instanceof Axis); }
+  get axes(): readonly Axis[] {
+    return [...this].filter((c): c is Axis => c instanceof Axis);
+  }
   /** Every series on the plane, in drawing order, those inside a `Stack` included, whether shown or not: the order that gives each its palette colour. */
-  get allSeries(): readonly Series[] { return [...this].flatMap(seriesOf); }
+  get allSeries(): readonly Series[] {
+    return [...this].flatMap(seriesOf);
+  }
   /** The series that are on show (`visible` is not false): the ones that are drawn, fit the axes and are hit. */
-  get series(): readonly Series[] { return this.allSeries.filter((s) => s.shown); }
+  get series(): readonly Series[] {
+    return this.allSeries.filter((s) => s.shown);
+  }
 
   /**
    * The axis a series uses when it does not name one, for the axis its first or its second coordinate rides on. What
@@ -82,12 +92,16 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
    * Fractions of `axis` at which a line running along it changes direction, ascending, for planes that are not smooth
    * (a radar's spokes). A line traced through these is exact where sampling evenly would cut the corners. Default none.
    */
-  breaks(_axis: Axis): readonly number[] { return []; }
+  breaks(_axis: Axis): readonly number[] {
+    return [];
+  }
   /**
    * About how long `axis` will be drawn, in pixels, given the room estimated for the plot, so that a series' reach in
    * pixels can be turned into room in the axis' range. 0 where that has no meaning (the default, and any axis round a circle).
    */
-  protected axisLength(_axis: Axis, _estimate: Size): number { return 0; }
+  protected axisLength(_axis: Axis, _estimate: Size): number {
+    return 0;
+  }
   /** CSS reference to this plane's clip region, for children to clip themselves with. `null` when not clipped. */
   abstract get clipUrl(): string | null;
   /**
@@ -103,24 +117,33 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
   abstract unplace(x: number, y: number, first: Axis, second: Axis): readonly [first: number, second: number];
 
   /** Put every axis of the plane back to the range its data asks for, undoing pan, zoom and box zoom. */
-  resetViews(): void { for (const axis of this.axes) axis.setViewRange(null); }
+  resetViews(): void {
+    for (const axis of this.axes) axis.setViewRange(null);
+  }
 
   /** Whether `axis` comes back round to where it started, so that its two ends are the same place (the angle of a full turn). Default no. */
-  cyclic(_axis: Axis): boolean { return false; }
+  cyclic(_axis: Axis): boolean {
+    return false;
+  }
   /**
    * The axis whose strip beside the plot a position (in plot pixels) is on, or null: the strip is where its line, ticks and labels
    * are. This is what lets a wheel turn or a drag over an axis act on that axis alone. Default: none, so only the plot itself takes input.
    */
-  axisAt(_x: number, _y: number): Axis | null { return null; }
+  axisAt(_x: number, _y: number): Axis | null {
+    return null;
+  }
   /** Whether a position in plot pixels is on the plot: inside the rectangle, and for a circular plot inside the circle. Default: inside the rectangle. */
-  covers(x: number, y: number): boolean { return x >= 0 && y >= 0 && x <= this.#rect.width && y <= this.#rect.height; }
+  covers(x: number, y: number): boolean {
+    return x >= 0 && y >= 0 && x <= this.#rect.width && y <= this.#rect.height;
+  }
   /**
    * The line along which the first (or second) coordinate has the data value `value`, across the whole plot, as path data in
    * plot pixels: a vertical line for a horizontal first axis, a spoke for an angle, a circle for a radius. It is what a
    * crosshair draws, and is as the plane draws its own gridlines. Empty when the plane has no such axis.
    */
   guide(role: 'first' | 'second', value: number): string {
-    const a = this.defaultAxis('first'), b = this.defaultAxis('second');
+    const a = this.defaultAxis('first'),
+      b = this.defaultAxis('second');
     if (!a || !b) return '';
     const f = (role === 'first' ? a : b).fractionOf(value);
     if (!Number.isFinite(f)) return '';
@@ -160,15 +183,17 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
    * plot is expected to have, which sizes decimation; the real plot is only known once the axes have been measured.
    */
   protected fit(estimate: Size): void {
-    const axes = this.axes, series = this.series;
+    const axes = this.axes,
+      series = this.series;
     for (const a of axes) a.begin(this.axisLength(a, estimate));
     for (const s of series) s.resolveAxes(this);
     for (const s of series) s.contributeDomain();
     for (const s of series) s.resolveDomain();
     // A group (a stack) loads its own members, since what they contribute depends on all of them.
     for (const c of this) {
-      if (c instanceof Series) { if (c.shown) c.load(estimate); }
-      else groupOf(c)?.load(estimate);
+      if (c instanceof Series) {
+        if (c.shown) c.load(estimate);
+      } else groupOf(c)?.load(estimate);
     }
     for (const a of axes) a.resolve();
   }
@@ -195,10 +220,14 @@ export const MIN_INSET = 8;
 /** A point `offset` pixels outside the middle of an edge of a plot `w` by `h`: where a title there starts. */
 function edgeSpot(side: CartesianOrientation, w: number, h: number, offset: number): TitleSpot {
   switch (side) {
-    case 'bottom': return { x: w / 2, y: h + offset, nx: 0, ny: 1, beyond: false };
-    case 'top': return { x: w / 2, y: -offset, nx: 0, ny: -1, beyond: false };
-    case 'left': return { x: -offset, y: h / 2, nx: -1, ny: 0, beyond: false };
-    case 'right': return { x: w + offset, y: h / 2, nx: 1, ny: 0, beyond: false };
+    case 'bottom':
+      return { x: w / 2, y: h + offset, nx: 0, ny: 1, beyond: false };
+    case 'top':
+      return { x: w / 2, y: -offset, nx: 0, ny: -1, beyond: false };
+    case 'left':
+      return { x: -offset, y: h / 2, nx: -1, ny: 0, beyond: false };
+    case 'right':
+      return { x: w + offset, y: h / 2, nx: 1, ny: 0, beyond: false };
   }
 }
 
@@ -207,25 +236,51 @@ function edgeSpot(side: CartesianOrientation, w: number, h: number, offset: numb
  * right for a vertical one. `title` says where its title goes, given the middle of the line.
  */
 function rulerAt(
-  side: CartesianOrientation, w: number, h: number, pos: number,
+  side: CartesianOrientation,
+  w: number,
+  h: number,
+  pos: number,
   title: (position: Side | undefined, mid: readonly [x: number, y: number, nx: number, ny: number]) => TitleSpot,
 ): Ruler {
-  const horizontal = isHorizontal(side), sign = side === 'top' || side === 'left' ? -1 : 1;
+  const horizontal = isHorizontal(side),
+    sign = side === 'top' || side === 'left' ? -1 : 1;
   if (horizontal) {
     const at = (f: number): [number, number, number, number] => [f * w, pos, 0, sign];
-    return { length: w, tickSpacing: 70, horizontal, line: `M0 ${f2(pos)}H${f2(w)}`, at, fractionAt: (px) => px / w, title: (p) => title(p, at(0.5)) };
+    return {
+      length: w,
+      tickSpacing: 70,
+      horizontal,
+      line: `M0 ${f2(pos)}H${f2(w)}`,
+      at,
+      fractionAt: (px) => px / w,
+      title: (p) => title(p, at(0.5)),
+    };
   }
   const at = (f: number): [number, number, number, number] => [pos, (1 - f) * h, sign, 0];
-  return { length: h, tickSpacing: 36, horizontal, line: `M${f2(pos)} 0V${f2(h)}`, at, fractionAt: (_px, py) => 1 - py / h, title: (p) => title(p, at(0.5)) };
+  return {
+    length: h,
+    tickSpacing: 36,
+    horizontal,
+    line: `M${f2(pos)} 0V${f2(h)}`,
+    at,
+    fractionAt: (_px, py) => 1 - py / h,
+    title: (p) => title(p, at(0.5)),
+  };
 }
 
 /** x/y plane: horizontal and vertical axes on its edges (or floating across it), clipped, with gridlines at the first axes' ticks. */
 export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
   private readonly clipId = nextClipId();
 
-  get clipUrl(): string | null { return this.attrs.clip === false ? null : `url(#${this.clipId})`; }
-  get curved(): boolean { return false; }
-  protected override axisLength(axis: Axis, estimate: Size): number { return isHorizontal(axis.orientation) ? estimate.width : estimate.height; }
+  get clipUrl(): string | null {
+    return this.attrs.clip === false ? null : `url(#${this.clipId})`;
+  }
+  get curved(): boolean {
+    return false;
+  }
+  protected override axisLength(axis: Axis, estimate: Size): number {
+    return isHorizontal(axis.orientation) ? estimate.width : estimate.height;
+  }
 
   /** The first coordinate is on the horizontal axis, the second on the vertical one. */
   defaultAxis(role: 'first' | 'second'): Axis | undefined {
@@ -241,7 +296,8 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
       fail('a series needs one horizontal and one vertical axis');
     }
     const { data, count, stride } = points;
-    const w = this.rect.width, h = this.rect.height;
+    const w = this.rect.width,
+      h = this.rect.height;
     switch (first.orientation) {
       case 'bottom':
       case 'top':
@@ -265,17 +321,25 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
   }
 
   unplace(x: number, y: number, first: Axis, second: Axis): readonly [number, number] {
-    const across = x / this.rect.width, up = 1 - y / this.rect.height;
-    return isHorizontal(first.orientation) ? [first.denormalize(across), second.denormalize(up)] : [first.denormalize(up), second.denormalize(across)];
+    const across = x / this.rect.width,
+      up = 1 - y / this.rect.height;
+    return isHorizontal(first.orientation)
+      ? [first.denormalize(across), second.denormalize(up)]
+      : [first.denormalize(up), second.denormalize(across)];
   }
 
   override axisAt(x: number, y: number): Axis | null {
-    const w = this.rect.width, h = this.rect.height;
+    const w = this.rect.width,
+      h = this.rect.height;
     for (const a of this.axes) {
       if (!this.reserves(a) || a.thickness <= 0) continue;
-      const at = a.ruler.at(0), horizontal = isHorizontal(a.orientation);
-      const pos = horizontal ? at[1] : at[0], sign = horizontal ? at[3] : at[2], far = pos + sign * a.thickness;
-      const lo = Math.min(pos, far), hi = Math.max(pos, far);
+      const at = a.ruler.at(0),
+        horizontal = isHorizontal(a.orientation);
+      const pos = horizontal ? at[1] : at[0],
+        sign = horizontal ? at[3] : at[2],
+        far = pos + sign * a.thickness;
+      const lo = Math.min(pos, far),
+        hi = Math.max(pos, far);
       if (horizontal ? x >= 0 && x <= w && y >= lo && y <= hi : y >= 0 && y <= h && x >= lo && x <= hi) return a;
     }
     return null;
@@ -284,7 +348,7 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
       case EVENT_ATTACH:
-        this.surface.wrapper();   // carries the plot offset
+        this.surface.wrapper(); // carries the plot offset
         break;
       case EVENT_ARRANGE:
         this.arrange(ev.rect);
@@ -303,8 +367,10 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
     const at = axis.attrs.crossesAt;
     if (at === undefined) return null;
     const horizontal = isHorizontal(axis.orientation);
-    const cross = resolveRef<Axis>(axis.attrs.crossAxis, axis, Axis) ?? this.axes.find((a) => isHorizontal(a.orientation) !== horizontal)
-      ?? fail('a floating axis needs an axis on the other orientation to cross');
+    const cross =
+      resolveRef<Axis>(axis.attrs.crossAxis, axis, Axis) ??
+      this.axes.find((a) => isHorizontal(a.orientation) !== horizontal) ??
+      fail('a floating axis needs an axis on the other orientation to cross');
     return Math.min(1, Math.max(0, cross.fractionOf(at)));
   }
 
@@ -313,8 +379,12 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
     const across = this.crossing(axis);
     if (across === null) return true;
     switch (cartesianSide(axis.orientation)) {
-      case 'bottom': case 'left': return across <= 1e-9;
-      case 'top': case 'right': return across >= 1 - 1e-9;
+      case 'bottom':
+      case 'left':
+        return across <= 1e-9;
+      case 'top':
+      case 'right':
+        return across >= 1 - 1e-9;
     }
   }
 
@@ -326,7 +396,9 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
     const stacked: Record<CartesianOrientation, number> = { top: 0, right: 0, bottom: 0, left: 0 };
     const titleAt = new Map<Axis, number>();
     for (const a of this.axes) {
-      const o = cartesianSide(a.orientation), across = this.crossing(a), reserves = this.reserves(a);
+      const o = cartesianSide(a.orientation),
+        across = this.crossing(a),
+        reserves = this.reserves(a);
       // A title belongs on the axis line when the axis is fixed there and the title is asked for on its own side.
       const spot = (position: Side | undefined, mid: readonly [number, number, number, number]): TitleSpot =>
         reserves && (position ?? o) === o
@@ -336,7 +408,8 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
         a.setRuler(rulerAt(o, w, h, isHorizontal(o) ? (1 - across) * h : across * w, spot));
         continue;
       }
-      const edge = o === 'bottom' ? h : o === 'right' ? w : 0, sign = o === 'top' || o === 'left' ? -1 : 1;
+      const edge = o === 'bottom' ? h : o === 'right' ? w : 0,
+        sign = o === 'top' || o === 'left' ? -1 : 1;
       a.setRuler(rulerAt(o, w, h, edge + sign * stacked[o], spot));
       stacked[o] += a.thickness;
     }
@@ -349,13 +422,14 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
 
   /** Negotiates ranges, lays out the axes, projects every series. */
   private arrange(available: Rect): void {
-    const axes = this.axes, series = this.series;
+    const axes = this.axes,
+      series = this.series;
     this.assignAxes(DEFAULT_SIDES, cartesianSide);
     // 80 and 40: roughly a y-axis's labels and an x-axis's labels. Only a guess for decimation; the real plot is set below.
     const estimate = { width: Math.max(1, available.width - 80), height: Math.max(1, available.height - 40) };
     this.setRulers(estimate.width, estimate.height);
     this.fit(estimate);
-    this.setRulers(estimate.width, estimate.height);   // ranges are settled now, which is what tells a floating axis from a fixed one
+    this.setRulers(estimate.width, estimate.height); // ranges are settled now, which is what tells a floating axis from a fixed one
 
     // Axes ask for space; what is left is the plot. Overhang is a horizontal axis' end labels poking past the plot sides.
     // (The fixed-side thickness is summed per side, so stacked axes add up.)
@@ -388,7 +462,9 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
 
   /** Clip region, gridlines (from the first horizontal and vertical axis) and frame. */
   private paint(): void {
-    const s = this.surface, r = this.rect, a = this.attrs;
+    const s = this.surface,
+      r = this.rect,
+      a = this.attrs;
     s.set(s.wrapper(), 'transform', `translate(${f2(r.x)} ${f2(r.y)})`);
     writeAria(s, s.wrapper(), a.meta, { role: 'group' });
 

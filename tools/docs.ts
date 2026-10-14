@@ -64,7 +64,11 @@ function jsxOf(v: string | undefined, where: string): 'ink' | 'react' {
   throw new Error(`${where}: jsx must be ink or react`);
 }
 
-const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 
 /** Every `live` and `check` block of one Markdown text. Other fences are skipped, but must still be closed. */
 export function blocksOf(markdown: string, file: string): DocBlock[] {
@@ -73,7 +77,9 @@ export function blocksOf(markdown: string, file: string): DocBlock[] {
   for (let i = 0; i < lines.length; i++) {
     const open = /^(\s*)(`{3,})(.*)$/.exec(lines[i]!);
     if (!open) continue;
-    const fence = open[2]!, indent = open[1]!.length, where = `${file}:${i + 1}`;
+    const fence = open[2]!,
+      indent = open[1]!.length,
+      where = `${file}:${i + 1}`;
     let end = i + 1;
     while (end < lines.length && !new RegExp(`^\\s*${fence}\`*\\s*$`).test(lines[end]!)) end++;
     if (end >= lines.length) throw new Error(`${where}: this code block is never closed`);
@@ -92,10 +98,22 @@ export function blocksOf(markdown: string, file: string): DocBlock[] {
         return Number(v);
       };
       out.push({
-        file, line: i + 1, kind, language, title, id: values.get('id') ?? slug(title),
-        jsx: jsxOf(values.get('jsx'), where), height: num('height', 260)!, width: num('width', null),
-        dark: flags.has('dark'), isStatic: flags.has('static'),
-        code: lines.slice(i + 1, end).map((l) => l.slice(Math.min(indent, l.length - l.trimStart().length))).join('\n') + '\n',
+        file,
+        line: i + 1,
+        kind,
+        language,
+        title,
+        id: values.get('id') ?? slug(title),
+        jsx: jsxOf(values.get('jsx'), where),
+        height: num('height', 260)!,
+        width: num('width', null),
+        dark: flags.has('dark'),
+        isStatic: flags.has('static'),
+        code:
+          lines
+            .slice(i + 1, end)
+            .map((l) => l.slice(Math.min(indent, l.length - l.trimStart().length)))
+            .join('\n') + '\n',
       });
     } else if (flags.size || values.size) {
       throw new Error(`${where}: '${info}' has docs words, but the block is not 'live' or 'check'`);
@@ -122,7 +140,8 @@ export function allBlocks(root: string, dir = join(root, 'docs')): DocBlock[] {
   const seen = new Map<string, DocBlock>();
   for (const b of blocks) {
     const before = seen.get(b.id);
-    if (before) throw new Error(`${b.file}:${b.line}: example id '${b.id}' is also used at ${before.file}:${before.line}; give one an id="…"`);
+    if (before)
+      throw new Error(`${b.file}:${b.line}: example id '${b.id}' is also used at ${before.file}:${before.line}; give one an id="…"`);
     seen.set(b.id, b);
   }
   return blocks;
@@ -130,7 +149,12 @@ export function allBlocks(root: string, dir = join(root, 'docs')): DocBlock[] {
 
 /** A heading's anchor, as GitHub makes it: lowercase, punctuation dropped, spaces to hyphens. */
 export function anchorOf(heading: string): string {
-  return heading.trim().toLowerCase().replace(/`/g, '').replace(/[^\p{L}\p{N} _-]/gu, '').replace(/ /g, '-');
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/`/g, '')
+    .replace(/[^\p{L}\p{N} _-]/gu, '')
+    .replace(/ /g, '-');
 }
 
 /** Every relative link in the documentation that goes nowhere: a missing file, or an anchor the page does not have. */
@@ -145,7 +169,10 @@ export function linkProblems(root: string, dir = join(root, 'docs')): string[] {
     const set = new Set<string>();
     let fenced = false;
     for (const line of text.split('\n')) {
-      if (/^\s*`{3,}/.test(line)) { fenced = !fenced; continue; }
+      if (/^\s*`{3,}/.test(line)) {
+        fenced = !fenced;
+        continue;
+      }
       const m = !fenced && /^#{1,6}\s+(.*)$/.exec(line);
       if (m) set.add(anchorOf(m[1]!));
     }
@@ -154,7 +181,10 @@ export function linkProblems(root: string, dir = join(root, 'docs')): string[] {
   for (const [file, text] of texts) {
     let fenced = false;
     text.split('\n').forEach((line, i) => {
-      if (/^\s*`{3,}/.test(line)) { fenced = !fenced; return; }
+      if (/^\s*`{3,}/.test(line)) {
+        fenced = !fenced;
+        return;
+      }
       if (fenced) return;
       for (const m of line.replace(/`[^`]*`/g, '').matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
         const target = m[1]!;
@@ -162,7 +192,10 @@ export function linkProblems(root: string, dir = join(root, 'docs')): string[] {
         const [path = '', anchor] = target.split('#');
         const resolved = path === '' ? file : join(dirname(file), path);
         const where = `${relative(root, file)}:${i + 1}`;
-        if (!anchors.has(resolved)) { problems.push(`${where}: '${target}' is not a page of the documentation`); continue; }
+        if (!anchors.has(resolved)) {
+          problems.push(`${where}: '${target}' is not a page of the documentation`);
+          continue;
+        }
         if (anchor && !anchors.get(resolved)!.has(anchor)) problems.push(`${where}: '${target}' has no heading '${anchor}'`);
       }
     });

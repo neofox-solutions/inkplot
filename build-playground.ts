@@ -10,11 +10,14 @@ const read = (p: string) => readFileSync(here(p), 'utf8');
 
 // The framework adapters need a framework or a page of custom elements, which this page is not; they have their own tests.
 const ADAPTERS = ['react.ts', 'web-components.ts', 'style-names.ts', 'adapt.ts'];
-const files = readdirSync(here('./src/')).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && f !== 'fake-platform.ts' && !ADAPTERS.includes(f)).sort();
+const files = readdirSync(here('./src/'))
+  .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && f !== 'fake-platform.ts' && !ADAPTERS.includes(f))
+  .sort();
 // The public specifier for a module: `inkplot` for the barrel, `inkplot/<name>` for the rest.
-const specifier = (file: string) => file === 'index.ts' ? 'inkplot' : `inkplot/${file.replace(/\.ts$/, '')}`;
+const specifier = (file: string) => (file === 'index.ts' ? 'inkplot' : `inkplot/${file.replace(/\.ts$/, '')}`);
 
-let bytes = 0, scripts = '';
+let bytes = 0,
+  scripts = '';
 for (const file of files) {
   const ts = read(`./src/${file}`);
   const js = stripTypeScriptTypes(ts, { mode: 'strip' })
@@ -26,7 +29,13 @@ for (const file of files) {
 }
 
 // The page's JSX demo: compiled here against the library's JSX runtime, and loaded like a library module.
-const jsxDemo = transformSync(read('./playground/jsx-demo.jsx'), { loader: 'jsx', jsx: 'automatic', jsxImportSource: 'inkplot', format: 'esm', target: 'es2022' }).code;
+const jsxDemo = transformSync(read('./playground/jsx-demo.jsx'), {
+  loader: 'jsx',
+  jsx: 'automatic',
+  jsxImportSource: 'inkplot',
+  format: 'esm',
+  target: 'es2022',
+}).code;
 if (/<\/script|<!--/i.test(jsxDemo)) throw new Error('the JSX demo contains a sequence that would end its script element');
 scripts += `<script type="text/plain" data-module="playground/jsx-demo">${jsxDemo}</script>\n`;
 

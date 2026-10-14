@@ -3,7 +3,8 @@ import { expandAttributes } from './attrs.ts';
 
 type Plain = Record<string, unknown>;
 
-const isPlain = (v: unknown): v is Plain => typeof v === 'object' && v !== null && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+const isPlain = (v: unknown): v is Plain =>
+  typeof v === 'object' && v !== null && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
 /** Same value, or same content for plain objects and arrays (not typed arrays, elements or anything else with an identity). */
 export function same(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
@@ -27,4 +28,3 @@ export function attributesOf(props: Plain, options?: Parameters<typeof expandAtt
   for (const k of Object.keys(attrs)) if (attrs[k] === undefined) delete attrs[k];
   return attrs;
 }
-

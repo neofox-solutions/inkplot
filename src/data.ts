@@ -30,7 +30,11 @@ import type { Extent } from './geometry.ts';
 import type { Series } from './series.ts';
 
 /** Points in pixel space as a series hands them to planes and renderers: `count` rows of `stride` numbers in `data`. */
-export interface PointBuffer { data: Float64Array; stride: number; count: number }
+export interface PointBuffer {
+  data: Float64Array;
+  stride: number;
+  count: number;
+}
 
 /** What a series tells the data about the plot it will draw in, so stages can deliver only what is needed. */
 export interface PlanContext {
@@ -56,9 +60,16 @@ export interface PlanContext {
  * source's (in place, or sorted into the managed copy) and left out when something made them up (a decimator's
  * min and max), so that an edit can never be aimed at a row that is not there.
  */
-export interface FillResult { readonly count: number; readonly extents: readonly Extent[]; readonly rowOf?: (index: number) => number }
+export interface FillResult {
+  readonly count: number;
+  readonly extents: readonly Extent[];
+  readonly rowOf?: (index: number) => number;
+}
 /** A promise of points: how much room `fill` may need, and the function that writes them. */
-export interface FillPlan { readonly capacity: number; fill(out: Float64Array): FillResult }
+export interface FillPlan {
+  readonly capacity: number;
+  fill(out: Float64Array): FillResult;
+}
 
 /** A read-only look at a source's own storage, so a decimator can scan it without copying. */
 export interface PointView {
@@ -126,7 +137,11 @@ const LOAD_CONTEXT: PlanContext = { width: 0, height: 0, domainRange: { min: -In
 
 /** A source's own sorted copy of its points, valid for one `version`. `extents` has one entry per column. */
 interface ManagedPoints {
-  version: number; data: Float64Array; count: number; stride: number; extents: readonly Extent[];
+  version: number;
+  data: Float64Array;
+  count: number;
+  stride: number;
+  extents: readonly Extent[];
   /** The storage row of each sorted point, or null when sorted order is storage order. */
   rows: Uint32Array | null;
 }
@@ -139,9 +154,22 @@ export const num = (v: unknown): number => (v === null || v === undefined ? NaN 
 
 /** The first and last finite values of `n` readings, which for an ascending domain are its extent. */
 export function endsOf(n: number, at: (i: number) => number): Extent | null {
-  let min = Infinity, max = -Infinity;
-  for (let i = 0; i < n; i++) { const x = at(i); if (Number.isFinite(x)) { min = x; break; } }
-  for (let i = n - 1; i >= 0; i--) { const x = at(i); if (Number.isFinite(x)) { max = x; break; } }
+  let min = Infinity,
+    max = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const x = at(i);
+    if (Number.isFinite(x)) {
+      min = x;
+      break;
+    }
+  }
+  for (let i = n - 1; i >= 0; i--) {
+    const x = at(i);
+    if (Number.isFinite(x)) {
+      max = x;
+      break;
+    }
+  }
   return min <= max ? { min, max } : null;
 }
 
@@ -149,8 +177,13 @@ export function endsOf(n: number, at: (i: number) => number): Extent | null {
 function columnExtents(buf: Float64Array, count: number, stride: number): Extent[] {
   const out: Extent[] = [count > 0 ? { min: buf[0]!, max: buf[stride * (count - 1)]! } : NO_POINTS];
   for (let c = 1; c < stride; c++) {
-    let min = Infinity, max = -Infinity;
-    for (let i = 0, j = c; i < count; i++, j += stride) { const v = buf[j]!; if (v < min) min = v; if (v > max) max = v; }
+    let min = Infinity,
+      max = -Infinity;
+    for (let i = 0, j = c; i < count; i++, j += stride) {
+      const v = buf[j]!;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
     out.push(count > 0 && min <= max ? { min, max } : NO_POINTS);
   }
   return out;
@@ -161,7 +194,9 @@ function columnExtents(buf: Float64Array, count: number, stride: number): Extent
  * wrapping, extents and caching. A concrete source supplies only `fill`, `scanDomain` and (if it can) `orderedView`.
  */
 export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttributes, Channel extends string = string>
-  extends ChartElement<Series | DataTransform, [], A> implements DataStage {
+  extends ChartElement<Series | DataTransform, [], A>
+  implements DataStage
+{
   static override attrTypes = { ...ChartElement.attrTypes, isSorted: BOOLEAN } satisfies AttrTypesFor<DataSourceAttributes>;
   /** Type checking only: the channel names this source offers. Never present at run time. */
   declare readonly offers?: Offers<Channel>;
@@ -171,19 +206,27 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   private channelCache: { version: number; byName: Map<string, Extent | null> } | null = null;
 
   /** Increases whenever the data changes. Cached fills are keyed on it. */
-  get version(): number { return this.#version; }
+  get version(): number {
+    return this.#version;
+  }
   abstract get pointCount(): number;
 
   /**
    * True when `fill` already writes ascending points, so nothing needs arranging: the data is flagged sorted,
    * or the source generates it in order. A generated source overrides this.
    */
-  protected get ordered(): boolean { return this.attrs.isSorted === true; }
+  protected get ordered(): boolean {
+    return this.attrs.isSorted === true;
+  }
   /** Ordered, and so read where it is stored: not when wrapped, since the extra point has to live somewhere. */
-  private get inPlace(): boolean { return this.ordered && this.attrs.wrap === undefined; }
+  private get inPlace(): boolean {
+    return this.ordered && this.attrs.wrap === undefined;
+  }
 
   /** The channels this source can deliver, in the order `managed` stores them. Default none. */
-  get channelNames(): readonly string[] { return []; }
+  get channelNames(): readonly string[] {
+    return [];
+  }
 
   /**
    * Write every point into `out`, in storage order, as the domain, the value and then each of `context.channels`,
@@ -197,7 +240,9 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
    */
   protected abstract scanDomain(): Extent | null;
   /** An `ordered` source that can be read in place offers its storage here. Default: nothing to offer. */
-  protected orderedView(): PointView | null { return null; }
+  protected orderedView(): PointView | null {
+    return null;
+  }
 
   // The managed copy is rebuilt lazily, at most once per version, and only for sources that need arranging.
   #managed: ManagedPoints | null = null;
@@ -210,19 +255,29 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   protected managed(): ManagedPoints {
     const cached = this.#managed;
     if (cached && cached.version === this.version) return cached;
-    const names = this.channelNames, stride = 2 + names.length, n = this.pointCount;
+    const names = this.channelNames,
+      stride = 2 + names.length,
+      n = this.pointCount;
     if (this.#loadBuffer.length < stride * (n + 1)) this.#loadBuffer = new Float64Array(stride * (n + 1));
     const loaded = this.fill(this.#loadBuffer, { ...LOAD_CONTEXT, channels: names });
-    let buf = this.#loadBuffer, count = loaded.count, extents = loaded.extents;
+    let buf = this.#loadBuffer,
+      count = loaded.count,
+      extents = loaded.extents;
     let rows: Uint32Array | null = null;
     if (!this.inPlace) {
       // One pass: close the gaps left by NaN domains (compacting in place) and notice whether the order is already right.
       // `origin` (made at the first gap) remembers which stored row each kept point came from.
-      let kept = 0, ascending = true, prev = -Infinity, origin: Uint32Array | null = null;
+      let kept = 0,
+        ascending = true,
+        prev = -Infinity,
+        origin: Uint32Array | null = null;
       for (let i = 0; i < count; i++) {
         const x = buf[stride * i]!;
         if (!Number.isFinite(x)) {
-          if (!origin) { origin = new Uint32Array(count); for (let k = 0; k < kept; k++) origin[k] = k; }
+          if (!origin) {
+            origin = new Uint32Array(count);
+            for (let k = 0; k < kept; k++) origin[k] = k;
+          }
           continue;
         }
         if (x < prev) ascending = false;
@@ -251,7 +306,8 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
         buf[stride * count] = buf[0]! + wrap;
         // The copy is the first point again, so an edit to it lands on the first point's row.
         const longer = new Uint32Array(count + 1);
-        if (rows) longer.set(rows.subarray(0, count)); else for (let k = 0; k < count; k++) longer[k] = k;
+        if (rows) longer.set(rows.subarray(0, count));
+        else for (let k = 0; k < count; k++) longer[k] = k;
         longer[count] = longer[0]!;
         rows = longer;
         count++;
@@ -268,7 +324,9 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   }
 
   /** The points ascending in the domain, to read in place; valid until the next change. Null: use `plan`. */
-  view(): PointView | null { return this.inPlace ? this.orderedView() : this.managedView(); }
+  view(): PointView | null {
+    return this.inPlace ? this.orderedView() : this.managedView();
+  }
 
   /** Any change to the data bumps the version, which is what discards cached fills. */
   override invalidate(): void {
@@ -293,14 +351,25 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   valueExtent(): Extent | null {
     const c = this.valueCache;
     if (c && c.version === this.version) return c.extent;
-    let min = Infinity, max = -Infinity;
+    let min = Infinity,
+      max = -Infinity;
     const v = this.view();
     if (v) {
-      const d = v.data, s = v.stride, n = v.count;
-      for (let i = 0, j = v.valueOffset; i < n; i++, j += s) { const y = d[j]!; if (y < min) min = y; if (y > max) max = y; }
+      const d = v.data,
+        s = v.stride,
+        n = v.count;
+      for (let i = 0, j = v.valueOffset; i < n; i++, j += s) {
+        const y = d[j]!;
+        if (y < min) min = y;
+        if (y > max) max = y;
+      }
     } else {
-      const plan = this.plan(LOAD_CONTEXT), extent = plan.fill(new Float64Array(2 * plan.capacity)).extents[1];
-      if (extent) { min = extent.min; max = extent.max; }
+      const plan = this.plan(LOAD_CONTEXT),
+        extent = plan.fill(new Float64Array(2 * plan.capacity)).extents[1];
+      if (extent) {
+        min = extent.min;
+        max = extent.max;
+      }
     }
     const extent = min <= max ? { min, max } : null;
     this.valueCache = { version: this.version, extent };
@@ -313,7 +382,8 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
     if (!c || c.version !== this.version) c = this.channelCache = { version: this.version, byName: new Map() };
     const known = c.byName.get(name);
     if (known !== undefined) return known;
-    const plan = this.plan({ ...LOAD_CONTEXT, channels: [name] }), column = plan.fill(new Float64Array(3 * plan.capacity)).extents[2];
+    const plan = this.plan({ ...LOAD_CONTEXT, channels: [name] }),
+      column = plan.fill(new Float64Array(3 * plan.capacity)).extents[2];
     const extent = column && column.min <= column.max ? column : null;
     c.byName.set(name, extent);
     return extent;
@@ -325,16 +395,25 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
    */
   plan(context: PlanContext): FillPlan {
     if (this.inPlace) return { capacity: this.pointCount, fill: (out) => ({ ...this.fill(out, context), rowOf: identity }) };
-    const m = this.managed(), want = context.channels, have = this.channelNames;
-    const rows = m.rows, rowOf = rows ? (i: number) => rows[i]! : identity;
+    const m = this.managed(),
+      want = context.channels,
+      have = this.channelNames;
+    const rows = m.rows,
+      rowOf = rows ? (i: number) => rows[i]! : identity;
     if (want.length === have.length && want.every((w, i) => w === have[i])) {
       return {
         capacity: m.count,
-        fill: (out) => { out.set(m.data.subarray(0, m.stride * m.count)); return { count: m.count, extents: m.extents, rowOf }; },
+        fill: (out) => {
+          out.set(m.data.subarray(0, m.stride * m.count));
+          return { count: m.count, extents: m.extents, rowOf };
+        },
       };
     }
     // A different selection of channels: repack each row.
-    const columns = want.map((name) => { const i = have.indexOf(name); return i < 0 ? fail(`the data has no channel "${name}"`) : 2 + i; });
+    const columns = want.map((name) => {
+      const i = have.indexOf(name);
+      return i < 0 ? fail(`the data has no channel "${name}"`) : 2 + i;
+    });
     const out2 = 2 + want.length;
     return {
       capacity: m.count,
@@ -351,14 +430,22 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
 }
 
 /** A stage that takes another stage as input: a decimator, a filter, a resampler. It has no storage of its own, so it implements the stage interface directly. */
-export abstract class DataTransform<A extends BaseAttributes = BaseAttributes, Children extends readonly AnyElement[] = [source: DataNode], Channel extends string = string>
-  extends ChartElement<Series | DataTransform, Children, A> implements DataStage {
+export abstract class DataTransform<
+  A extends BaseAttributes = BaseAttributes,
+  Children extends readonly AnyElement[] = [source: DataNode],
+  Channel extends string = string,
+>
+  extends ChartElement<Series | DataTransform, Children, A>
+  implements DataStage
+{
   /** Type checking only: the channel names this stage offers. Never present at run time. */
   declare readonly offers?: Offers<Channel>;
   abstract get version(): number;
   abstract get pointCount(): number;
   /** The channels it delivers by name. Default none; a transform that passes its source's through, or makes its own, says so. */
-  get channelNames(): readonly string[] { return []; }
+  get channelNames(): readonly string[] {
+    return [];
+  }
   /** A transform that keeps its output in a typed array may offer it for reading in place. */
   view?(): PointView | null;
   abstract domain(): Extent | null;
@@ -368,4 +455,6 @@ export abstract class DataTransform<A extends BaseAttributes = BaseAttributes, C
 }
 
 /** A source or a transform. `DataNode<'x'>` is one the type checker knows offers a channel called x. */
-export type DataNode<Channel extends string = string> = DataSource<DataSourceAttributes, Channel> | DataTransform<BaseAttributes, readonly AnyElement[], Channel>;
+export type DataNode<Channel extends string = string> =
+  | DataSource<DataSourceAttributes, Channel>
+  | DataTransform<BaseAttributes, readonly AnyElement[], Channel>;

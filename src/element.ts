@@ -21,7 +21,16 @@
  * anywhere cannot leave a stale position behind.
  */
 import type { Chart } from './chart.ts';
-import { type ChartEvent, type ChartEventInit, EVENT_ARRANGE, EVENT_ATTACH, EVENT_MEASURE, EVENT_PAINT, type MeasureEvent, makeEvent } from './events.ts';
+import {
+  type ChartEvent,
+  type ChartEventInit,
+  EVENT_ARRANGE,
+  EVENT_ATTACH,
+  EVENT_MEASURE,
+  EVENT_PAINT,
+  type MeasureEvent,
+  makeEvent,
+} from './events.ts';
 import type { LayoutRequest, Rect, Size } from './geometry.ts';
 import type { Platform, PlatformNode } from './platform.ts';
 import type { Roots, SelectorName, Theme } from './theme.ts';
@@ -36,7 +45,12 @@ import { type AttrTypesFor, type JsxChild, STRING } from './attrs.ts';
  * of it. `role` overrides the ARIA role the element would have, and `aria` sets any other ARIA attributes by name
  * (`{ 'aria-roledescription': 'sparkline' }`, or `{ roledescription: 'sparkline' }`). See aria.ts.
  */
-export interface Meta { title?: string; description?: string; role?: string; aria?: Record<string, string | number | boolean> }
+export interface Meta {
+  title?: string;
+  description?: string;
+  role?: string;
+  aria?: Record<string, string | number | boolean>;
+}
 /** What every element accepts. */
 export interface BaseAttributes {
   /** Lets other elements (and JSON/adapter configs) refer to this one by name; see `resolveRef`. */
@@ -80,7 +94,10 @@ export type ClassFor<T> = T extends unknown ? abstract new (...args: AnyArgs) =>
 export type ElementRef<T extends AnyElement = AnyElement> = T | string;
 
 /** What an attached element needs from the chart: where to draw, and the counters Surface reports into. */
-interface MountContext { platform: Platform; counters: Counters }
+interface MountContext {
+  platform: Platform;
+  counters: Counters;
+}
 
 /** The answer of an element that did not respond to MEASURE: it wants nothing and can take anything. */
 const NO_REQUEST: LayoutRequest = { min: { width: 0, height: 0 }, max: { width: Infinity, height: Infinity } };
@@ -89,11 +106,15 @@ const NO_REQUEST: LayoutRequest = { min: { width: 0, height: 0 }, max: { width: 
  * The element type of a parent's variadic tail: the children that may come and go.
  * `[Scale]` has none, `[DataNode, ...SeriesRenderer[]]` has SeriesRenderer, `Axis[]` has Axis.
  */
-export type VariadicChild<C extends readonly unknown[]> =
-  C extends readonly [unknown, ...infer Rest] ? VariadicChild<Rest> : C extends readonly (infer E)[] ? E : never;
+export type VariadicChild<C extends readonly unknown[]> = C extends readonly [unknown, ...infer Rest]
+  ? VariadicChild<Rest>
+  : C extends readonly (infer E)[]
+    ? E
+    : never;
 /** The positions of a parent's fixed children, which are always present and can only be replaced. */
-export type FixedIndex<C extends readonly unknown[], Seen extends unknown[] = []> =
-  C extends readonly [unknown, ...infer Rest] ? Seen['length'] | FixedIndex<Rest, [...Seen, unknown]> : never;
+export type FixedIndex<C extends readonly unknown[], Seen extends unknown[] = []> = C extends readonly [unknown, ...infer Rest]
+  ? Seen['length'] | FixedIndex<Rest, [...Seen, unknown]>
+  : never;
 
 /**
  * A node with three links: its parent, its first child, and its next sibling. Nothing else is stored, so
@@ -137,7 +158,7 @@ export abstract class ChartElement<
     let i = 0;
     const first = list[0];
     if (first === undefined || (typeof first === 'object' && first !== null && !(first instanceof ChartElement))) {
-      this.#attrs = { ...(first) } as Attrs;
+      this.#attrs = { ...first } as Attrs;
       i = 1;
     } else {
       this.#attrs = {} as Attrs;
@@ -146,26 +167,40 @@ export abstract class ChartElement<
   }
 
   /** Read-only view; change attributes through `setAttribute(s)` so the chart learns it is stale. */
-  get attrs(): Readonly<Attrs> { return this.#attrs; }
-  get parent(): Parent | null { return this.#parent as Parent | null; }
-  get firstChild(): AnyElement | null { return this.#first; }
-  get nextSibling(): AnyElement | null { return this.#next; }
+  get attrs(): Readonly<Attrs> {
+    return this.#attrs;
+  }
+  get parent(): Parent | null {
+    return this.#parent as Parent | null;
+  }
+  get firstChild(): AnyElement | null {
+    return this.#first;
+  }
+  get nextSibling(): AnyElement | null {
+    return this.#next;
+  }
   /** For elements that only make sense inside a parent (an axis in a plane): fails loudly rather than returning null. */
   requireParent(): Parent & AnyElement {
     if (!this.#parent) fail(`${this.constructor.name} has no parent`);
     return this.#parent as Parent & AnyElement;
   }
   /** The root chart, if this element is in a tree that has one. */
-  get chart(): Chart | null { return this.#parent ? this.#parent.chart : null; }
+  get chart(): Chart | null {
+    return this.#parent ? this.#parent.chart : null;
+  }
   /** Like `chart`, for code that only runs inside a chart (painting, input): fails loudly rather than returning null. */
-  requireChart(): Chart { return this.chart ?? fail(`${this.constructor.name} is not in a chart`); }
+  requireChart(): Chart {
+    return this.chart ?? fail(`${this.constructor.name} is not in a chart`);
+  }
   /** True for an element that takes a pointer press (PanZoom): one that must see the press first (a BoxZoom, a Brush) is placed before it. */
   declare readonly claimsPress?: boolean;
-  get isAttached(): boolean { return this.#ctx !== null; }
+  get isAttached(): boolean {
+    return this.#ctx !== null;
+  }
 
   /** The children in order. Do not remove the element you are on and the one after it while iterating. */
   *[Symbol.iterator](): Generator<Children[number]> {
-    for (let c = this.#first; c; ) {
+    for (let c = this.#first; c;) {
       const next = c.#next;
       yield c;
       c = next;
@@ -188,11 +223,15 @@ export abstract class ChartElement<
    * included). The classes must be ones the declared child type allows, so a wrong one is a compile error; a wrong or missing child
    * is a run-time error that says what was expected and what was found, wherever the tree was built (`new`, JSX, React, markup).
    */
-  child<I extends FixedIndex<Children> & keyof Children>(index: I, ...classes: [ClassFor<Children[I]>, ...ClassFor<Children[I]>[]]): Children[I] {
+  child<I extends FixedIndex<Children> & keyof Children>(
+    index: I,
+    ...classes: [ClassFor<Children[I]>, ...ClassFor<Children[I]>[]]
+  ): Children[I] {
     const found = this.nth(index);
     const names = classes.map((k) => k.name || 'a different class').join(' or ');
     if (!found) fail(`${this.constructor.name}: has no child ${index as number} (it needs ${names})`);
-    if (!classes.some((k) => found instanceof k)) fail(`${this.constructor.name}: child ${index as number} should be ${names}, but is ${found.constructor.name}`);
+    if (!classes.some((k) => found instanceof k))
+      fail(`${this.constructor.name}: child ${index as number} should be ${names}, but is ${found.constructor.name}`);
     return found as Children[I];
   }
   private nth(index: number): AnyElement | null {
@@ -214,7 +253,9 @@ export abstract class ChartElement<
     return this.#surface;
   }
   /** The flush counters if attached, else null: for code that also runs when a node is read outside a chart. */
-  protected get countersOrNull(): Counters | null { return this.#ctx?.counters ?? null; }
+  protected get countersOrNull(): Counters | null {
+    return this.#ctx?.counters ?? null;
+  }
   /** The chart's flush counters. Only valid between attach and detach. */
   protected get counters(): Counters {
     return (this.#ctx ?? fail(`${this.constructor.name} is not attached`)).counters;
@@ -226,7 +267,11 @@ export abstract class ChartElement<
    * settled (see theme.ts for the order). `local` is the element's own attributes that are style properties; `accent` is
    * a default colour from the palette that anything named in a theme beats.
    */
-  protected styleFor<R extends keyof Roots>(chain: readonly [...SelectorName[], R], local?: Partial<Roots[R]>, accent?: Partial<Roots[R]>): Roots[R] {
+  protected styleFor<R extends keyof Roots>(
+    chain: readonly [...SelectorName[], R],
+    local?: Partial<Roots[R]>,
+    accent?: Partial<Roots[R]>,
+  ): Roots[R] {
     const chart = this.chart ?? fail(`${this.constructor.name} is not in a chart`);
     const scopes: (Theme | undefined)[] = [];
     // oxlint-disable-next-line typescript/no-this-alias -- a walk up the parent chain that starts at this element
@@ -234,7 +279,9 @@ export abstract class ChartElement<
     return resolveStyle(chain, scopes, chart.attrs.theme, local, accent);
   }
 
-  getAttribute<K extends keyof Attrs>(name: K): Attrs[K] { return this.#attrs[name]; }
+  getAttribute<K extends keyof Attrs>(name: K): Attrs[K] {
+    return this.#attrs[name];
+  }
   setAttribute<K extends keyof Attrs>(name: K, value: Attrs[K]): this {
     if (this.put(name, value)) this.invalidate();
     return this;
@@ -247,7 +294,8 @@ export abstract class ChartElement<
   }
   private put<K extends keyof Attrs>(name: K, value: Attrs[K]): boolean {
     if (this.#attrs[name] === value) return false;
-    if (value === undefined) delete this.#attrs[name]; else this.#attrs[name] = value;
+    if (value === undefined) delete this.#attrs[name];
+    else this.#attrs[name] = value;
     return true;
   }
 
@@ -258,14 +306,16 @@ export abstract class ChartElement<
     for (let c = this.#first; c && c !== before; c = c.#next) prev = c;
     child.#parent = this;
     child.#next = before;
-    if (prev) prev.#next = child; else this.#first = child;
+    if (prev) prev.#next = child;
+    else this.#first = child;
   }
   private unlink(child: AnyElement): void {
     let prev: AnyElement | null = null;
     let c = this.#first;
     for (; c && c !== child; c = c.#next) prev = c;
     if (!c) fail('element is not a child of this element');
-    if (prev) prev.#next = child.#next; else this.#first = child.#next;
+    if (prev) prev.#next = child.#next;
+    else this.#first = child.#next;
     child.#next = child.#parent = null;
   }
 
@@ -327,7 +377,7 @@ export abstract class ChartElement<
   /** Parents are visited before their children, so a parent can set up state its children read in the same event. */
   private cascade(ev: ChartEvent): void {
     this.receive(ev);
-    for (let c = this.#first; c; ) {
+    for (let c = this.#first; c;) {
       const next = c.#next;
       c.cascade(ev);
       c = next;
@@ -363,7 +413,8 @@ export abstract class ChartElement<
   /** Put this tree on the platform. The root calls it; elements added later are mounted by their parent. */
   protected mount(ctx: MountContext): void {
     this.#ctx = ctx;
-    const takes = (this.constructor as typeof ChartElement).takesInput, chart = this.chart;
+    const takes = (this.constructor as typeof ChartElement).takesInput,
+      chart = this.chart;
     if (takes && chart) takes(chart);
     this.receive(makeEvent({ type: EVENT_ATTACH, platform: ctx.platform }, this));
     for (let c = this.#first; c; c = c.#next) c.mount(ctx);
@@ -435,19 +486,33 @@ export function walk(root: AnyElement, visit: (element: AnyElement, depth: numbe
 /** The first element under `root` (or `root` itself) with this id. */
 export function findById<T extends AnyElement = AnyElement>(root: AnyElement, id: string): T | undefined {
   let found: AnyElement | undefined;
-  walk(root, (e) => { if (found) return false; if (e.attrs.id === id) { found = e; return false; } });
+  walk(root, (e) => {
+    if (found) return false;
+    if (e.attrs.id === id) {
+      found = e;
+      return false;
+    }
+  });
   return found as T | undefined;
 }
 /** Every element below `root` of a class, in tree order. */
 export function descendantsOfType<T extends AnyElement>(root: AnyElement, type: ElementClass<T>): T[] {
   const out: T[] = [];
-  walk(root, (e) => { if (e !== root && e instanceof type) out.push(e); });
+  walk(root, (e) => {
+    if (e !== root && e instanceof type) out.push(e);
+  });
   return out;
 }
 /** The first element below `root` of a class, stopping the walk as soon as it is found. */
 export function firstDescendantOfType<T extends AnyElement>(root: AnyElement, type: ElementClass<T>): T | undefined {
   let found: T | undefined;
-  walk(root, (e) => { if (found) return false; if (e !== root && e instanceof type) { found = e; return false; } });
+  walk(root, (e) => {
+    if (found) return false;
+    if (e !== root && e instanceof type) {
+      found = e;
+      return false;
+    }
+  });
   return found;
 }
 /** The direct children of a class; use it when the parent's children are mixed (an axis next to series). */
@@ -478,10 +543,12 @@ export function resolveRef<T extends AnyElement>(ref: ElementRef<T> | undefined,
     el = ref;
   }
   if (type && !(el instanceof type)) {
-    fail(`element "${typeof ref === 'string' ? ref : ref.attrs.id ?? '?'}" is not a ${type.name}`);
+    fail(`element "${typeof ref === 'string' ? ref : (ref.attrs.id ?? '?')}" is not a ${type.name}`);
   }
   return el as T;
 }
 
 /** `throw` as an expression, so a missing value can be reported inline: `x ?? fail('no x')`. */
-export function fail(message: string): never { throw new Error(message); }
+export function fail(message: string): never {
+  throw new Error(message);
+}

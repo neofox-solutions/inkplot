@@ -40,7 +40,13 @@ export interface MarkerAttributes<Bindable extends object> extends SeriesRendere
 }
 
 /** What a marker's node is told to look like: constants and bindings resolved, `size` in pixels. */
-export interface MarkerStyle { stroke: string; strokeWidth: number; fill: string; opacity: number; size: number }
+export interface MarkerStyle {
+  stroke: string;
+  strokeWidth: number;
+  fill: string;
+  opacity: number;
+  size: number;
+}
 
 /** Points further than this outside the plot are skipped when a bound size cannot say how far a marker reaches. */
 const CULL_MARGIN = 16;
@@ -73,9 +79,15 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
 
   /** Its fill (or its stroke, for a marker that is only a stroke), unless that is bound to data. */
   override get swatch(): string | null {
-    const a = this.attrs, series = this.requireParent(), bind = a.bind as Record<string, unknown> | undefined;
+    const a = this.attrs,
+      series = this.requireParent(),
+      bind = a.bind as Record<string, unknown> | undefined;
     if (bind?.fill || bind?.stroke) return null;
-    const look = this.styleFor([this.kind, 'marker', 'shape'], { stroke: a.stroke, strokeWidth: a.strokeWidth, fill: a.fill, opacity: a.opacity }, this.accent(series.accentColor));
+    const look = this.styleFor(
+      [this.kind, 'marker', 'shape'],
+      { stroke: a.stroke, strokeWidth: a.strokeWidth, fill: a.fill, opacity: a.opacity },
+      this.accent(series.accentColor),
+    );
     return look.fill && look.fill !== 'none' ? look.fill : look.stroke && look.stroke !== 'none' ? look.stroke : null;
   }
 
@@ -84,8 +96,13 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
    * the value at the middle of its dimension, since a sample stands for no point in particular.
    */
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
-    const a = this.attrs, series = this.requireParent();
-    const look = this.styleFor([this.kind, 'marker', 'shape'], { stroke: a.stroke, strokeWidth: a.strokeWidth, fill: a.fill, opacity: a.opacity }, this.accent(series.accentColor));
+    const a = this.attrs,
+      series = this.requireParent();
+    const look = this.styleFor(
+      [this.kind, 'marker', 'shape'],
+      { stroke: a.stroke, strokeWidth: a.strokeWidth, fill: a.fill, opacity: a.opacity },
+      this.accent(series.accentColor),
+    );
     const v: MarkerStyle = { ...look, size: this.styleFor([this.kind, 'marker'], { size: a.size }).size };
     for (const b of this.bindings) writeProperty(v, b.property, b.axis.valueAt(0.5) as string | number);
     v.size = Math.min(v.size, width / 2, height / 2);
@@ -96,7 +113,7 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
 
   /** Its size, or the largest a bound size gives, and a pixel for the stroke round it. */
   override get reach(): number {
-    const size = this.bindings.find((b) => !this.isGeometric(b.property) ? false : b.property === 'size');
+    const size = this.bindings.find((b) => (!this.isGeometric(b.property) ? false : b.property === 'size'));
     const output = (size?.axis as unknown as { output?: readonly [number, number] } | undefined)?.output;
     const r = output ? Math.max(output[0], output[1]) : this.styleFor([this.kind, 'marker'], { size: this.attrs.size }).size;
     return r + 1;
@@ -117,7 +134,7 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
   }
 
   override onEvent(ev: ChartEvent): void {
-    if (ev.type === EVENT_ATTACH) void this.stepsPerBinding;   // throws now rather than at the first paint
+    if (ev.type === EVENT_ATTACH) void this.stepsPerBinding; // throws now rather than at the first paint
     super.onEvent(ev);
   }
 
@@ -127,11 +144,15 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
    * and remove those that no longer have any marker.
    */
   protected draw(points: Readonly<PointBuffer>): void {
-    const series = this.requireParent(), plane = series.plane;
-    const a = this.attrs, s = this.surface, counters = this.counters;
+    const series = this.requireParent(),
+      plane = series.plane;
+    const a = this.attrs,
+      s = this.surface,
+      counters = this.counters;
     const t0 = performance.now();
     const { data, count, stride } = points;
-    const w = plane.rect.width, h = plane.rect.height;
+    const w = plane.rect.width,
+      h = plane.rect.height;
     const merge = a.merge !== false;
     const local = { stroke: a.stroke, strokeWidth: a.strokeWidth, fill: a.fill, opacity: a.opacity };
     const look = this.styleFor([this.kind, 'marker', 'shape'], local, this.accent(series.accentColor));
@@ -146,13 +167,14 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
     const steps = this.stepsPerBinding;
 
     let bytes = 0;
-    const paths = new Map<number, string>();   // look key → the path data of every marker with that look
+    const paths = new Map<number, string>(); // look key → the path data of every marker with that look
     let separate = 0;
     const v: MarkerStyle = { ...base };
     // The style handed to `style()` starts from the constants each time, then has the bound values written over it.
     const reset = () => Object.assign(v, base);
     for (let i = 0; i < count; i++) {
-      const x = data[i * stride]!, y = data[i * stride + 1]!;
+      const x = data[i * stride]!,
+        y = data[i * stride + 1]!;
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
       const r = geometric ? (geometric.b.axis.valueAt(geometric.f[i]!) as number) : base.size;
       if (!(r >= 0)) continue;
@@ -198,7 +220,11 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
 
 // ─── Dots ───
 
-export interface DotMarkerBindable { stroke: string; size: number; opacity: number }
+export interface DotMarkerBindable {
+  stroke: string;
+  size: number;
+  opacity: number;
+}
 export interface DotMarkerAttributes extends MarkerAttributes<DotMarkerBindable> {
   /** Round caps make circles, square caps make squares. Default 'round'. */
   cap?: 'round' | 'square';
@@ -209,9 +235,15 @@ export interface DotMarkerAttributes extends MarkerAttributes<DotMarkerBindable>
  */
 export class DotMarker extends Marker<DotMarkerAttributes> {
   protected readonly kind = 'dotMarker';
-  protected accent(color: string): Partial<ShapeProps> { return { stroke: color }; }
-  protected shape(x: number, y: number): string { return `M${f2(x)} ${f2(y)}h0`; }
-  protected isGeometric(): boolean { return false; }
+  protected accent(color: string): Partial<ShapeProps> {
+    return { stroke: color };
+  }
+  protected shape(x: number, y: number): string {
+    return `M${f2(x)} ${f2(y)}h0`;
+  }
+  protected isGeometric(): boolean {
+    return false;
+  }
   protected style(s: Surface, n: PlatformNode, v: MarkerStyle): void {
     s.set(n, 'fill', 'none');
     s.set(n, 'stroke', v.stroke);
@@ -223,12 +255,21 @@ export class DotMarker extends Marker<DotMarkerAttributes> {
 
 // ─── Open shapes ───
 
-export interface LineMarkerBindable { stroke: string; strokeWidth: number; opacity: number; size: number }
+export interface LineMarkerBindable {
+  stroke: string;
+  strokeWidth: number;
+  opacity: number;
+  size: number;
+}
 /** Shapes made of strokes. The size is in the path data, so it varies per point at no cost. */
 export abstract class LineMarker<A extends MarkerAttributes<LineMarkerBindable> = MarkerAttributes<LineMarkerBindable>> extends Marker<A> {
   protected readonly kind = 'lineMarker';
-  protected accent(color: string): Partial<ShapeProps> { return { stroke: color }; }
-  protected isGeometric(property: string): boolean { return property === 'size'; }
+  protected accent(color: string): Partial<ShapeProps> {
+    return { stroke: color };
+  }
+  protected isGeometric(property: string): boolean {
+    return property === 'size';
+  }
   protected style(s: Surface, n: PlatformNode, v: MarkerStyle): void {
     s.set(n, 'fill', 'none');
     s.set(n, 'stroke', v.stroke);
@@ -252,12 +293,20 @@ export class PlusMarker extends LineMarker {
 
 // ─── Closed shapes ───
 
-export interface ShapeMarkerBindable extends StyleBindable { size: number }
+export interface ShapeMarkerBindable extends StyleBindable {
+  size: number;
+}
 /** Closed shapes, filled and stroked. The most flexible markers: stroke, stroke width, fill, opacity and size are all bindable. */
-export abstract class ShapeMarker<A extends MarkerAttributes<ShapeMarkerBindable> = MarkerAttributes<ShapeMarkerBindable>> extends Marker<A> {
+export abstract class ShapeMarker<
+  A extends MarkerAttributes<ShapeMarkerBindable> = MarkerAttributes<ShapeMarkerBindable>,
+> extends Marker<A> {
   protected readonly kind = 'shapeMarker';
-  protected accent(color: string): Partial<ShapeProps> { return { fill: color }; }
-  protected isGeometric(property: string): boolean { return property === 'size'; }
+  protected accent(color: string): Partial<ShapeProps> {
+    return { fill: color };
+  }
+  protected isGeometric(property: string): boolean {
+    return property === 'size';
+  }
   protected style(s: Surface, n: PlatformNode, v: MarkerStyle): void {
     s.set(n, 'fill', v.fill);
     s.set(n, 'stroke', v.stroke);

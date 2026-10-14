@@ -4,4 +4,6 @@
 import { chromium as playwrightChromium } from 'playwright';
 
 const executablePath = process.env.INKPLOT_CHROMIUM || undefined;
-export const chromium = { launch: (options = {}) => playwrightChromium.launch({ ...options, ...(executablePath ? { executablePath } : {}) }) };
+export const chromium = {
+  launch: (options = {}) => playwrightChromium.launch({ ...options, ...(executablePath ? { executablePath } : {}) }),
+};

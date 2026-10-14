@@ -54,7 +54,9 @@ const TANGENT = 1e-4;
 
 /** The error of one row: above and below, as non-negative distances, or NaN where either is missing. */
 function distances(view: SpreadView, i: number, error: string, negative: string, relative: boolean, value: number): [number, number] {
-  const row = i * view.stride, up = view.raw[row + view.channelColumn(error)]!, down = view.raw[row + view.channelColumn(negative)]!;
+  const row = i * view.stride,
+    up = view.raw[row + view.channelColumn(error)]!,
+    down = view.raw[row + view.channelColumn(negative)]!;
   const k = relative ? Math.abs(value) : 1;
   return [Math.abs(up) * k, Math.abs(down) * k];
 }
@@ -65,13 +67,18 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
     const a = this.attrs;
     return a.negativeError && a.negativeError !== a.error ? [a.error, a.negativeError] : [a.error];
   }
-  private get negative(): string { return this.attrs.negativeError ?? this.attrs.error; }
+  private get negative(): string {
+    return this.attrs.negativeError ?? this.attrs.error;
+  }
 
   override spread(view: SpreadView): Spread | null {
-    const a = this.attrs, relative = a.mode === 'relative';
-    let lo = Infinity, hi = -Infinity;
+    const a = this.attrs,
+      relative = a.mode === 'relative';
+    let lo = Infinity,
+      hi = -Infinity;
     for (let i = 0; i < view.count; i++) {
-      const row = i * view.stride, own = view.raw[row + (a.along === 'domain' ? view.firstColumn : view.secondColumn)]!;
+      const row = i * view.stride,
+        own = view.raw[row + (a.along === 'domain' ? view.firstColumn : view.secondColumn)]!;
       const at = view.top && a.along !== 'domain' ? view.top[i]! : own;
       const [up, down] = distances(view, i, a.error, this.negative, relative, view.raw[row + view.secondColumn]!);
       if (!Number.isFinite(at) || !Number.isFinite(up) || !Number.isFinite(down)) continue;
@@ -83,12 +90,20 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
   }
 
   override limit(series: Series): Spread | null {
-    const a = this.attrs, relative = a.mode === 'relative', domain = a.along === 'domain';
-    const own = series.ownExtent(domain ? 'first' : 'second'), up = series.data.channelExtent(a.error), down = series.data.channelExtent(this.negative);
+    const a = this.attrs,
+      relative = a.mode === 'relative',
+      domain = a.along === 'domain';
+    const own = series.ownExtent(domain ? 'first' : 'second'),
+      up = series.data.channelExtent(a.error),
+      down = series.data.channelExtent(this.negative);
     const values = series.ownExtent('second');
     if (!own || !up || !down || !values) return null;
-    const most = Math.max(Math.abs(values.min), Math.abs(values.max)), k = relative ? most : 1;
-    const e: Extent = { min: own.min - Math.max(Math.abs(down.min), Math.abs(down.max)) * k, max: own.max + Math.max(Math.abs(up.min), Math.abs(up.max)) * k };
+    const most = Math.max(Math.abs(values.min), Math.abs(values.max)),
+      k = relative ? most : 1;
+    const e: Extent = {
+      min: own.min - Math.max(Math.abs(down.min), Math.abs(down.max)) * k,
+      max: own.max + Math.max(Math.abs(up.min), Math.abs(up.max)) * k,
+    };
     return domain ? { first: e } : { second: e };
   }
 
@@ -100,21 +115,53 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
   protected ends(series: Series): { n: number; pts: Float64Array } | null {
     const d = series.drawn;
     if (!d) return null;
-    const a = this.attrs, relative = a.mode === 'relative', domain = a.along === 'domain', first = series.firstAxis, second = series.secondAxis;
-    const n = d.points.count, rs = d.stride, bound = d.channels.length, base = rs - bound;
-    const colError = base + d.channels.indexOf(a.error), colNeg = base + d.channels.indexOf(this.negative);
-    const pts = new Float64Array(n * 8), held = new Uint8Array(n);
+    const a = this.attrs,
+      relative = a.mode === 'relative',
+      domain = a.along === 'domain',
+      first = series.firstAxis,
+      second = series.secondAxis;
+    const n = d.points.count,
+      rs = d.stride,
+      bound = d.channels.length,
+      base = rs - bound;
+    const colError = base + d.channels.indexOf(a.error),
+      colNeg = base + d.channels.indexOf(this.negative);
+    const pts = new Float64Array(n * 8),
+      held = new Uint8Array(n);
     for (let i = 0; i < n; i++) {
-      const row = i * rs, x = d.raw[row + d.firstColumn]!, own = d.raw[row + d.secondColumn]!;
+      const row = i * rs,
+        x = d.raw[row + d.firstColumn]!,
+        own = d.raw[row + d.secondColumn]!;
       const centre = domain ? x : d.top ? d.top[i]! : own;
-      const k = relative ? Math.abs(own) : 1, up = Math.abs(d.raw[row + colError]!) * k, down = Math.abs(d.raw[row + colNeg]!) * k;
-      const bad = !Number.isFinite(centre) || !Number.isFinite(up) || !Number.isFinite(down) || (domain ? !Number.isFinite(own) : !Number.isFinite(x));
-      const lo = bad ? NaN : centre - down, hi = bad ? NaN : centre + up, k8 = i * 8;
+      const k = relative ? Math.abs(own) : 1,
+        up = Math.abs(d.raw[row + colError]!) * k,
+        down = Math.abs(d.raw[row + colNeg]!) * k;
+      const bad =
+        !Number.isFinite(centre) ||
+        !Number.isFinite(up) ||
+        !Number.isFinite(down) ||
+        (domain ? !Number.isFinite(own) : !Number.isFinite(x));
+      const lo = bad ? NaN : centre - down,
+        hi = bad ? NaN : centre + up,
+        k8 = i * 8;
       // A lower end at or below zero has no place on a log axis: it is held at the edge (below).
       if (!bad && lo <= 0 && centre > 0) held[i] = 1;
       // Four points, each as first coordinate then second.
-      const put = (slot: number, f: number, sc: number) => { pts[k8 + slot * 2] = f; pts[k8 + slot * 2 + 1] = sc; };
-      if (domain) { put(0, lo, own); put(1, hi, own); put(2, lo, own); put(3, hi, own); } else { put(0, x, lo); put(1, x, hi); put(2, x, lo); put(3, x, hi); }
+      const put = (slot: number, f: number, sc: number) => {
+        pts[k8 + slot * 2] = f;
+        pts[k8 + slot * 2 + 1] = sc;
+      };
+      if (domain) {
+        put(0, lo, own);
+        put(1, hi, own);
+        put(2, lo, own);
+        put(3, hi, own);
+      } else {
+        put(0, x, lo);
+        put(1, x, hi);
+        put(2, x, lo);
+        put(3, x, hi);
+      }
     }
     first.normalize(pts, n * 4, 2, 0);
     second.normalize(pts, n * 4, 2, 1);
@@ -132,7 +179,11 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
         if (!domain) pts[k] = pts[k] + shift;
       }
       // The two along points step the cap's way: along the domain for a value error, along the value for a domain one.
-      for (const slot of [2, 3]) { const k = i * 8 + slot * 2; if (domain) pts[k + 1] = pts[k + 1]! + TANGENT; else pts[k] = pts[k]! + TANGENT; }
+      for (const slot of [2, 3]) {
+        const k = i * 8 + slot * 2;
+        if (domain) pts[k + 1] = pts[k + 1]! + TANGENT;
+        else pts[k] = pts[k]! + TANGENT;
+      }
     }
     d.plane.place({ data: pts, stride: 2, count: n * 4 }, first, second);
     return { n, pts };
@@ -141,17 +192,29 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
 
 /** A whisker from the lower end to the upper, with a cap across each, as one path. */
 export class ErrorBars extends ErrorRenderer<ErrorBarsAttributes> {
-  static override attrTypes = { ...SeriesRenderer.attrTypes, error: STRING, negativeError: STRING, capWidth: NUMBER, mode: STRING, along: STRING } satisfies AttrTypesFor<ErrorBarsAttributes>;
+  static override attrTypes = {
+    ...SeriesRenderer.attrTypes,
+    error: STRING,
+    negativeError: STRING,
+    capWidth: NUMBER,
+    mode: STRING,
+    along: STRING,
+  } satisfies AttrTypesFor<ErrorBarsAttributes>;
 
   /** Neutral by default (the theme's line colour), so that it can be seen on the bars it goes with. */
   private look() {
     const a = this.attrs;
     return this.styleFor(['errorBar', 'line'], { color: a.stroke, width: a.strokeWidth, opacity: a.opacity });
   }
-  override get reach(): number { return (this.attrs.capWidth ?? 8) / 2; }
+  override get reach(): number {
+    return (this.attrs.capWidth ?? 8) / 2;
+  }
 
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
-    const look = this.look(), n = s.node(key, 'path', { parent }), x = width / 2, cap = Math.min(width, this.attrs.capWidth ?? 8) / 2;
+    const look = this.look(),
+      n = s.node(key, 'path', { parent }),
+      x = width / 2,
+      cap = Math.min(width, this.attrs.capWidth ?? 8) / 2;
     s.set(n, 'd', `M${x} 1V${height - 1}M${x - cap} 1H${x + cap}M${x - cap} ${height - 1}H${x + cap}`);
     s.set(n, 'fill', 'none');
     s.set(n, 'stroke', look.color);
@@ -160,20 +223,33 @@ export class ErrorBars extends ErrorRenderer<ErrorBarsAttributes> {
   }
 
   protected draw(): void {
-    const s = this.surface, series = this.requireParent(), look = this.look(), cap = (this.attrs.capWidth ?? 8) / 2;
+    const s = this.surface,
+      series = this.requireParent(),
+      look = this.look(),
+      cap = (this.attrs.capWidth ?? 8) / 2;
     const e = this.ends(series);
     let d = '';
     if (e) {
       const p = e.pts;
       for (let i = 0; i < e.n; i++) {
-        const k = i * 8, lx = p[k]!, ly = p[k + 1]!, hx = p[k + 2]!, hy = p[k + 3]!;
+        const k = i * 8,
+          lx = p[k]!,
+          ly = p[k + 1]!,
+          hx = p[k + 2]!,
+          hy = p[k + 3]!;
         if (!(Number.isFinite(lx) && Number.isFinite(ly) && Number.isFinite(hx) && Number.isFinite(hy))) continue;
         d += `M${f2(lx)} ${f2(ly)}L${f2(hx)} ${f2(hy)}`;
         if (cap > 0) {
-          for (const [x, y, ax, ay] of [[lx, ly, p[k + 4]!, p[k + 5]!], [hx, hy, p[k + 6]!, p[k + 7]!]] as const) {
-            const tx = ax - x, ty = ay - y, len = Math.hypot(tx, ty);
+          for (const [x, y, ax, ay] of [
+            [lx, ly, p[k + 4]!, p[k + 5]!],
+            [hx, hy, p[k + 6]!, p[k + 7]!],
+          ] as const) {
+            const tx = ax - x,
+              ty = ay - y,
+              len = Math.hypot(tx, ty);
             if (!(len > 0)) continue;
-            const ux = (tx / len) * cap, uy = (ty / len) * cap;
+            const ux = (tx / len) * cap,
+              uy = (ty / len) * cap;
             d += `M${f2(x - ux)} ${f2(y - uy)}L${f2(x + ux)} ${f2(y + uy)}`;
           }
         }
@@ -191,15 +267,28 @@ export class ErrorBars extends ErrorRenderer<ErrorBarsAttributes> {
 
 /** The region between the lower and the upper ends, as one path; a gap splits it. */
 export class ErrorBand extends ErrorRenderer<ErrorBandAttributes> {
-  static override attrTypes = { ...SeriesRenderer.attrTypes, error: STRING, negativeError: STRING, mode: STRING, along: STRING } satisfies AttrTypesFor<ErrorBandAttributes>;
+  static override attrTypes = {
+    ...SeriesRenderer.attrTypes,
+    error: STRING,
+    negativeError: STRING,
+    mode: STRING,
+    along: STRING,
+  } satisfies AttrTypesFor<ErrorBandAttributes>;
 
   private look() {
     const a = this.attrs;
-    return this.styleFor(['errorBand', 'shape'], { fill: a.fill, stroke: a.stroke, strokeWidth: a.strokeWidth, opacity: a.opacity }, { fill: this.requireParent().accentColor });
+    return this.styleFor(
+      ['errorBand', 'shape'],
+      { fill: a.fill, stroke: a.stroke, strokeWidth: a.strokeWidth, opacity: a.opacity },
+      { fill: this.requireParent().accentColor },
+    );
   }
-  override get swatch(): string { return this.look().fill; }
+  override get swatch(): string {
+    return this.look().fill;
+  }
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
-    const look = this.look(), n = s.node(key, 'path', { parent });
+    const look = this.look(),
+      n = s.node(key, 'path', { parent });
     s.set(n, 'd', `M0 ${height * 0.2}H${width}V${height * 0.8}H0Z`);
     s.set(n, 'fill', look.fill);
     s.set(n, 'fill-opacity', look.opacity);
@@ -208,13 +297,22 @@ export class ErrorBand extends ErrorRenderer<ErrorBandAttributes> {
   }
 
   protected draw(): void {
-    const s = this.surface, series = this.requireParent(), look = this.look();
+    const s = this.surface,
+      series = this.requireParent(),
+      look = this.look();
     const e = this.ends(series);
     let d = '';
     if (e) {
-      const p = e.pts, ok = (i: number) => { const k = i * 8; return Number.isFinite(p[k]!) && Number.isFinite(p[k + 1]!) && Number.isFinite(p[k + 2]!) && Number.isFinite(p[k + 3]!); };
+      const p = e.pts,
+        ok = (i: number) => {
+          const k = i * 8;
+          return Number.isFinite(p[k]!) && Number.isFinite(p[k + 1]!) && Number.isFinite(p[k + 2]!) && Number.isFinite(p[k + 3]!);
+        };
       for (let i = 0; i < e.n;) {
-        if (!ok(i)) { i++; continue; }
+        if (!ok(i)) {
+          i++;
+          continue;
+        }
         let j = i;
         while (j < e.n && ok(j)) j++;
         // The run i..j-1: forward along the upper ends, back along the lower.

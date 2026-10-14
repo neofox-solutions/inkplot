@@ -11,7 +11,12 @@ import { TimeScale, TIME_FORMATS_TYPES, type TimeRank, type TimeScaleAttributes,
 
 /** The part of a `Temporal.ZonedDateTime` that this uses. */
 export interface ZonedLike {
-  readonly year: number; readonly month: number; readonly day: number; readonly hour: number; readonly minute: number; readonly second: number;
+  readonly year: number;
+  readonly month: number;
+  readonly day: number;
+  readonly hour: number;
+  readonly minute: number;
+  readonly second: number;
   readonly dayOfWeek: number;
   readonly epochMilliseconds: number;
   with(fields: Record<string, number>): ZonedLike;
@@ -47,8 +52,14 @@ const DEFAULTS: Record<TimeRank, Intl.DateTimeFormatOptions> = {
 };
 
 export class TemporalTimeScale extends TimeScale<Intl.DateTimeFormatOptions, TemporalTimeScaleAttributes> {
-  static override attrTypes = { ...TimeScale.attrTypes, locale: STRING, formats: TIME_FORMATS_TYPES } satisfies AttrTypesFor<TemporalTimeScaleAttributes>;
-  protected get defaultFormats(): Record<TimeRank, Intl.DateTimeFormatOptions> { return DEFAULTS; }
+  static override attrTypes = {
+    ...TimeScale.attrTypes,
+    locale: STRING,
+    formats: TIME_FORMATS_TYPES,
+  } satisfies AttrTypesFor<TemporalTimeScaleAttributes>;
+  protected get defaultFormats(): Record<TimeRank, Intl.DateTimeFormatOptions> {
+    return DEFAULTS;
+  }
 
   get #temporal(): TemporalLike {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- `Temporal` is not in every runtime's global types
@@ -57,18 +68,26 @@ export class TemporalTimeScale extends TimeScale<Intl.DateTimeFormatOptions, Tem
     return T;
   }
   #at(t: number): ZonedLike {
-    const T = this.#temporal, z = this.attrs.timeZone ?? 'UTC';
+    const T = this.#temporal,
+      z = this.attrs.timeZone ?? 'UTC';
     return T.Instant.fromEpochMilliseconds(Math.floor(t)).toZonedDateTimeISO(z === 'local' ? T.Now.timeZoneId() : z);
   }
 
   protected startOf(t: number, unit: TimeUnit): number {
     const z = this.#at(t);
     switch (unit) {
-      case 'second': case 'minute': case 'hour': return z.round({ smallestUnit: unit, roundingMode: 'floor' }).epochMilliseconds;
-      case 'day': return z.startOfDay().epochMilliseconds;
-      case 'week': return z.subtract({ days: (z.dayOfWeek % 7 - this.weekStart + 7) % 7 }).startOfDay().epochMilliseconds;
-      case 'month': return z.with({ day: 1 }).startOfDay().epochMilliseconds;
-      default: return z.with({ month: 1, day: 1 }).startOfDay().epochMilliseconds;
+      case 'second':
+      case 'minute':
+      case 'hour':
+        return z.round({ smallestUnit: unit, roundingMode: 'floor' }).epochMilliseconds;
+      case 'day':
+        return z.startOfDay().epochMilliseconds;
+      case 'week':
+        return z.subtract({ days: ((z.dayOfWeek % 7) - this.weekStart + 7) % 7 }).startOfDay().epochMilliseconds;
+      case 'month':
+        return z.with({ day: 1 }).startOfDay().epochMilliseconds;
+      default:
+        return z.with({ month: 1, day: 1 }).startOfDay().epochMilliseconds;
     }
   }
   protected add(t: number, unit: TimeUnit, n: number): number {

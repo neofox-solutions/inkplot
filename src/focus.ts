@@ -18,7 +18,10 @@ const RING_GAP = 2;
 /** Draw the focus ring round `rect`, or take it away when `rect` is null. The `look` is the theme's `focusRing`. */
 export function drawFocusRing(surface: Surface, key: string, look: LineProps, rect: Rect | null, parent?: PlatformNode): void {
   const ring = surface.node(key, 'rect', { above: true, ...(parent && { parent }) });
-  if (!rect) { surface.set(ring, 'display', 'none'); return; }
+  if (!rect) {
+    surface.set(ring, 'display', 'none');
+    return;
+  }
   surface.set(ring, 'display', 'inline');
   surface.set(ring, 'x', rect.x - RING_GAP);
   surface.set(ring, 'y', rect.y - RING_GAP);

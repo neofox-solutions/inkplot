@@ -26,7 +26,12 @@ import type { Surface } from './surface.ts';
 import { notImplemented } from './stub.ts';
 
 /** The attributes any renderer can bind. Colours are CSS colour strings; widths and opacity are numbers. */
-export interface StyleBindable { stroke: string; fill: string; strokeWidth: number; opacity: number }
+export interface StyleBindable {
+  stroke: string;
+  fill: string;
+  strokeWidth: number;
+  opacity: number;
+}
 
 export interface SeriesRendererAttributes<Bindable extends object = StyleBindable> extends BaseAttributes {
   /** Outline colour (a CSS colour). Default: from the theme. */
@@ -65,7 +70,10 @@ export interface SpreadView {
   readonly top: Float64Array | null;
 }
 /** Extents a renderer asks of the series' two axes, in data units. */
-export interface Spread { first?: Extent; second?: Extent }
+export interface Spread {
+  first?: Extent;
+  second?: Extent;
+}
 
 /** What a renderer ended up binding, after resolving refs. The series reads this to know which channels to request. */
 export interface ResolvedBinding {
@@ -77,7 +85,11 @@ export interface ResolvedBinding {
 }
 
 /** Closed outlines in plot pixels, `perShape` points each (a `NaN` shape is left out): what a renderer that draws shapes can say it drew. */
-export interface PolygonSet { readonly data: Float64Array; readonly perShape: number; readonly count: number }
+export interface PolygonSet {
+  readonly data: Float64Array;
+  readonly perShape: number;
+  readonly count: number;
+}
 
 /**
  * The line a renderer actually draws, when it is not the straight one through the series' points (steps, curves): the
@@ -97,9 +109,17 @@ export interface Trace {
 export type AnySeriesRenderer = SeriesRenderer<any, any>;
 
 /** Draws a series' projected points into its own surface. */
-export abstract class SeriesRenderer<A extends SeriesRendererAttributes<object> = SeriesRendererAttributes, Children extends readonly AnyElement[] = []>
-  extends ChartElement<Series, Children, A> {
-  static override attrTypes = { ...ChartElement.attrTypes, fill: STRING, maxNodes: NUMBER, stroke: STRING, strokeWidth: NUMBER } satisfies Partial<AttrTypesFor<SeriesRendererAttributes>>;
+export abstract class SeriesRenderer<
+  A extends SeriesRendererAttributes<object> = SeriesRendererAttributes,
+  Children extends readonly AnyElement[] = [],
+> extends ChartElement<Series, Children, A> {
+  static override attrTypes = {
+    ...ChartElement.attrTypes,
+    fill: STRING,
+    maxNodes: NUMBER,
+    stroke: STRING,
+    strokeWidth: NUMBER,
+  } satisfies Partial<AttrTypesFor<SeriesRendererAttributes>>;
   /** Create or update this renderer's nodes from the placed points. Runs on every PAINT, so it must be idempotent. */
   protected abstract draw(points: Readonly<PointBuffer>): void;
 
@@ -107,7 +127,9 @@ export abstract class SeriesRenderer<A extends SeriesRendererAttributes<object> 
    * The one colour that stands for what this draws, for a key or a tooltip to show beside the series' name: its line, its
    * fill. Null when it has none (the colour is bound to data, so there is not one).
    */
-  get swatch(): string | null { return null; }
+  get swatch(): string | null {
+    return null;
+  }
   /**
    * Draw a sample of what this draws into `parent` (a node of `surface`, the caller's), in a box `width` by `height` from
    * its own top left corner: a short line for a line, a box for an area or bars, one marker for markers. It takes the look
@@ -117,23 +139,34 @@ export abstract class SeriesRenderer<A extends SeriesRendererAttributes<object> 
    */
   sample(surface: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
     const colour = this.swatch;
-    if (!colour || colour === 'none') { surface.remove(key); return; }
+    if (!colour || colour === 'none') {
+      surface.remove(key);
+      return;
+    }
     const n = surface.node(key, 'path', { parent });
     surface.set(n, 'd', `M0 0H${width}V${height}H0Z`);
     surface.set(n, 'fill', colour);
     surface.set(n, 'stroke', 'none');
   }
   /** Values this renderer needs the value axis to reach whatever the data says: the baseline bars grow from. Default none. */
-  get includes(): readonly number[] { return []; }
+  get includes(): readonly number[] {
+    return [];
+  }
   /**
    * Pixels this draws beyond the places of its points (a marker's radius), which the axes leave room for so that a mark
    * on the end of the data is not cut by the edge of the plot. Default 0.
    */
-  get reach(): number { return 0; }
+  get reach(): number {
+    return 0;
+  }
   /** Half the width of what this draws along the domain, as a fraction of the gap between neighbouring points (bars), which the domain axis leaves room for. Default 0. */
-  get spans(): number { return 0; }
+  get spans(): number {
+    return 0;
+  }
   /** What a pointer hit on the series should measure by default, if this renderer knows: bars say 'shape'. Default no opinion. */
-  get hitMode(): HitMode | undefined { return undefined; }
+  get hitMode(): HitMode | undefined {
+    return undefined;
+  }
   /** The shapes this draws, one for each point of the series in the same order, for a 'shape' hit. Default none. */
   shapes?(): PolygonSet | null;
   /** The path this draws as a line (or the top of a shape), if it is not the straight one through the points. Hits and readings follow it. Default none. */
@@ -143,7 +176,9 @@ export abstract class SeriesRenderer<A extends SeriesRendererAttributes<object> 
    * axis to turn them into anything. The series requests them with the bound ones; in `points` they follow the two coordinates,
    * raw, in the order of `Series.channels`. Default none.
    */
-  get channelNames(): readonly string[] { return []; }
+  get channelNames(): readonly string[] {
+    return [];
+  }
   /**
    * What this draws beyond the values on each axis, over the rows now in view (a stack's rows are at their stacked places):
    * the extents the series adds to its axes, so that error bars are not cut off by the plot. Default none.
@@ -152,9 +187,13 @@ export abstract class SeriesRenderer<A extends SeriesRendererAttributes<object> 
   /** The same over all the data, for the range zooming is held to. It may be generous. Default none. */
   limit?(series: Series): Spread | null;
   /** Nothing is bound until bindings are written; a renderer that has some will report them here. */
-  get bindings(): readonly ResolvedBinding[] { return []; }
+  get bindings(): readonly ResolvedBinding[] {
+    return [];
+  }
   /** Buckets per stylistic binding, from `maxNodes`. 0 when nothing is stylistically bound. */
-  get stepsPerBinding(): number { return 0; }
+  get stepsPerBinding(): number {
+    return 0;
+  }
 
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
@@ -166,7 +205,14 @@ export abstract class SeriesRenderer<A extends SeriesRendererAttributes<object> 
 }
 
 /** A box in the look of a filled shape: what an area and a bar are in a legend. */
-export function paintBox(s: Surface, parent: PlatformNode, key: string, width: number, height: number, look: { fill: string; stroke: string; strokeWidth: number; opacity: number }): void {
+export function paintBox(
+  s: Surface,
+  parent: PlatformNode,
+  key: string,
+  width: number,
+  height: number,
+  look: { fill: string; stroke: string; strokeWidth: number; opacity: number },
+): void {
   const n = s.node(key, 'path', { parent });
   s.set(n, 'd', `M0 0H${width}V${height}H0Z`);
   s.set(n, 'fill', look.fill);
@@ -183,16 +229,27 @@ export interface LinePathAttributes extends SeriesRendererAttributes {}
  */
 export class LinePath extends SeriesRenderer<LinePathAttributes, [curve: Curve]> {
   /** How the points are joined. */
-  get curve(): Curve { return this.child(0, Curve); }
+  get curve(): Curve {
+    return this.child(0, Curve);
+  }
   /** The series' palette colour is the default; a dash pattern is style only (`style: { seriesLine: { dash } }`). */
   protected look() {
     const a = this.attrs;
-    return this.styleFor(['seriesLine', 'line'], { color: a.stroke, width: a.strokeWidth, opacity: a.opacity }, { color: this.requireParent().accentColor });
+    return this.styleFor(
+      ['seriesLine', 'line'],
+      { color: a.stroke, width: a.strokeWidth, opacity: a.opacity },
+      { color: this.requireParent().accentColor },
+    );
   }
-  override get swatch(): string { return this.look().color; }
-  override trace(): Trace | null { return this.curve.trace(this.requireParent(), null); }
+  override get swatch(): string {
+    return this.look().color;
+  }
+  override trace(): Trace | null {
+    return this.curve.trace(this.requireParent(), null);
+  }
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
-    const look = this.look(), n = s.node(key, 'path', { parent });
+    const look = this.look(),
+      n = s.node(key, 'path', { parent });
     s.set(n, 'd', `M0 ${height / 2}H${width}`);
     s.set(n, 'fill', 'none');
     s.set(n, 'stroke', look.color);
@@ -203,7 +260,9 @@ export class LinePath extends SeriesRenderer<LinePathAttributes, [curve: Curve]>
   }
 
   protected draw(): void {
-    const counters = this.counters, s = this.surface, a = this.attrs;
+    const counters = this.counters,
+      s = this.surface,
+      a = this.attrs;
     if (a.bind) notImplemented('LinePath bindings');
     const look = this.look();
     const t0 = performance.now();
@@ -237,17 +296,31 @@ export interface AreaPathAttributes extends SeriesRendererAttributes {
  */
 export class AreaPath extends SeriesRenderer<AreaPathAttributes, [curve: Curve]> {
   /** How the points are joined. */
-  get curve(): Curve { return this.child(0, Curve); }
+  get curve(): Curve {
+    return this.child(0, Curve);
+  }
   protected look() {
     const a = this.attrs;
-    return this.styleFor(['seriesArea', 'shape'], { fill: a.fill, stroke: a.stroke, strokeWidth: a.strokeWidth, opacity: a.opacity }, { fill: this.requireParent().accentColor });
+    return this.styleFor(
+      ['seriesArea', 'shape'],
+      { fill: a.fill, stroke: a.stroke, strokeWidth: a.strokeWidth, opacity: a.opacity },
+      { fill: this.requireParent().accentColor },
+    );
   }
-  override get swatch(): string { return this.look().fill; }
-  override trace(): Trace | null { return this.curve.trace(this.requireParent(), this.attrs.baseline ?? 0); }
-  override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void { paintBox(s, parent, key, width, height, this.look()); }
+  override get swatch(): string {
+    return this.look().fill;
+  }
+  override trace(): Trace | null {
+    return this.curve.trace(this.requireParent(), this.attrs.baseline ?? 0);
+  }
+  override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
+    paintBox(s, parent, key, width, height, this.look());
+  }
 
   protected draw(): void {
-    const counters = this.counters, s = this.surface, a = this.attrs;
+    const counters = this.counters,
+      s = this.surface,
+      a = this.attrs;
     if (a.bind) notImplemented('AreaPath bindings');
     const look = this.look();
     const t0 = performance.now();

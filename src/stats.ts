@@ -59,43 +59,73 @@ interface Computed {
 }
 
 export class BoxStats extends DataTransform<BoxStatsAttributes, [source: DataNode]> {
-  static override attrTypes = { ...DataTransform.attrTypes, output: STRING, fence: AUTO, method: STRING, value: STRING } satisfies AttrTypesFor<BoxStatsAttributes>;
+  static override attrTypes = {
+    ...DataTransform.attrTypes,
+    output: STRING,
+    fence: AUTO,
+    method: STRING,
+    value: STRING,
+  } satisfies AttrTypesFor<BoxStatsAttributes>;
   #version = 0;
   #cache: { version: number; value: Computed } | null = null;
 
-  get source(): DataNode { return this.child(0, DataSource, DataTransform); }
-  override get channelNames(): readonly string[] { return this.attrs.output === 'outliers' ? [] : SUMMARY; }
+  get source(): DataNode {
+    return this.child(0, DataSource, DataTransform);
+  }
+  override get channelNames(): readonly string[] {
+    return this.attrs.output === 'outliers' ? [] : SUMMARY;
+  }
   /** Anything beneath (the source) bubbles an invalidation up through here, so one counter covers the source and the attributes. */
   override invalidate(): void {
     this.#version++;
     super.invalidate();
   }
-  get version(): number { return this.#version; }
+  get version(): number {
+    return this.#version;
+  }
 
   #compute(): Computed {
     if (this.#cache && this.#cache.version === this.#version) return this.#cache.value;
-    const src = this.source, plan = src.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: [] });
-    const buf = new Float64Array(plan.capacity * 2), { count } = plan.fill(buf);
-    const a = this.attrs, fence = a.fence === 'minmax' ? Infinity : a.fence ?? 1.5, method = a.method ?? 'inclusive';
-    if (a.fence !== undefined && a.fence !== 'minmax' && !(typeof a.fence === 'number' && a.fence >= 0)) fail('BoxStats: fence is a number of interquartile ranges, or "minmax"');
-    const groups: number[] = [], cols: Record<SummaryChannel, number[]> = { min: [], q1: [], median: [], q3: [], max: [], mean: [], sd: [], sem: [], n: [] };
-    const outD: number[] = [], outV: number[] = [];
+    const src = this.source,
+      plan = src.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: [] });
+    const buf = new Float64Array(plan.capacity * 2),
+      { count } = plan.fill(buf);
+    const a = this.attrs,
+      fence = a.fence === 'minmax' ? Infinity : (a.fence ?? 1.5),
+      method = a.method ?? 'inclusive';
+    if (a.fence !== undefined && a.fence !== 'minmax' && !(typeof a.fence === 'number' && a.fence >= 0))
+      fail('BoxStats: fence is a number of interquartile ranges, or "minmax"');
+    const groups: number[] = [],
+      cols: Record<SummaryChannel, number[]> = { min: [], q1: [], median: [], q3: [], max: [], mean: [], sd: [], sem: [], n: [] };
+    const outD: number[] = [],
+      outV: number[] = [];
     for (let i = 0; i < count;) {
       const key = buf[2 * i]!;
       let j = i;
       const values: number[] = [];
-      for (; j < count && buf[2 * j] === key; j++) { const y = buf[2 * j + 1]!; if (Number.isFinite(y)) values.push(y); }
+      for (; j < count && buf[2 * j] === key; j++) {
+        const y = buf[2 * j + 1]!;
+        if (Number.isFinite(y)) values.push(y);
+      }
       i = j;
       if (values.length === 0) continue;
       values.sort((p, q) => p - q);
-      const n = values.length, q1 = quantile(values, 0.25, method), med = quantile(values, 0.5, method), q3 = quantile(values, 0.75, method);
+      const n = values.length,
+        q1 = quantile(values, 0.25, method),
+        med = quantile(values, 0.5, method),
+        q3 = quantile(values, 0.75, method);
       const reach = fence * (q3 - q1);
-      let lo = values[0]!, hi = values[n - 1]!;
+      let lo = values[0]!,
+        hi = values[n - 1]!;
       if (reach !== Infinity) {
         // The furthest samples still inside the fences; those beyond are outliers.
         lo = values.find((v) => v >= q1 - reach) ?? q1;
         hi = [...values].reverse().find((v) => v <= q3 + reach) ?? q3;
-        for (const v of values) if (v < q1 - reach || v > q3 + reach) { outD.push(key); outV.push(v); }
+        for (const v of values)
+          if (v < q1 - reach || v > q3 + reach) {
+            outD.push(key);
+            outV.push(v);
+          }
       }
       let sum = 0;
       for (const v of values) sum += v;
@@ -104,26 +134,42 @@ export class BoxStats extends DataTransform<BoxStatsAttributes, [source: DataNod
       for (const v of values) ss += (v - mean) * (v - mean);
       const sd = n > 1 ? Math.sqrt(ss / (n - 1)) : NaN;
       groups.push(key);
-      cols.min.push(lo); cols.q1.push(q1); cols.median.push(med); cols.q3.push(q3); cols.max.push(hi);
-      cols.mean.push(mean); cols.sd.push(sd); cols.sem.push(sd / Math.sqrt(n)); cols.n.push(n);
+      cols.min.push(lo);
+      cols.q1.push(q1);
+      cols.median.push(med);
+      cols.q3.push(q3);
+      cols.max.push(hi);
+      cols.mean.push(mean);
+      cols.sd.push(sd);
+      cols.sem.push(sd / Math.sqrt(n));
+      cols.n.push(n);
     }
     const value: Computed = {
       groups: Float64Array.from(groups),
       columns: Object.fromEntries(SUMMARY.map((c) => [c, Float64Array.from(cols[c])])) as Computed['columns'],
-      outlierDomain: Float64Array.from(outD), outlierValue: Float64Array.from(outV),
+      outlierDomain: Float64Array.from(outD),
+      outlierValue: Float64Array.from(outV),
     };
     this.#cache = { version: this.#version, value };
     return value;
   }
 
-  get pointCount(): number { const c = this.#compute(); return this.attrs.output === 'outliers' ? c.outlierDomain.length : c.groups.length; }
+  get pointCount(): number {
+    const c = this.#compute();
+    return this.attrs.output === 'outliers' ? c.outlierDomain.length : c.groups.length;
+  }
   domain(): Extent | null {
-    const c = this.#compute(), d = this.attrs.output === 'outliers' ? c.outlierDomain : c.groups;
+    const c = this.#compute(),
+      d = this.attrs.output === 'outliers' ? c.outlierDomain : c.groups;
     return d.length > 0 ? { min: d[0]!, max: d[d.length - 1]! } : null;
   }
   #extent(a: Float64Array): Extent | null {
-    let min = Infinity, max = -Infinity;
-    for (const v of a) { if (v < min) min = v; if (v > max) max = v; }
+    let min = Infinity,
+      max = -Infinity;
+    for (const v of a) {
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
     return min <= max ? { min, max } : null;
   }
   valueExtent(): Extent | null {
@@ -136,16 +182,25 @@ export class BoxStats extends DataTransform<BoxStatsAttributes, [source: DataNod
   }
 
   plan(context: PlanContext): FillPlan {
-    const c = this.#compute(), outliers = this.attrs.output === 'outliers';
+    const c = this.#compute(),
+      outliers = this.attrs.output === 'outliers';
     const names = context.channels;
     if (outliers && names.length > 0) fail('BoxStats: the outliers have no channels, only the sample (the value)');
-    const want = names.map((n) => (SUMMARY as readonly string[]).includes(n) ? (n as SummaryChannel) : fail(`BoxStats has no channel "${n}" (it has ${SUMMARY.join(', ')})`));
-    const count = outliers ? c.outlierDomain.length : c.groups.length, stride = 2 + want.length;
+    const want = names.map((n) =>
+      (SUMMARY as readonly string[]).includes(n)
+        ? (n as SummaryChannel)
+        : fail(`BoxStats has no channel "${n}" (it has ${SUMMARY.join(', ')})`),
+    );
+    const count = outliers ? c.outlierDomain.length : c.groups.length,
+      stride = 2 + want.length;
     return {
       capacity: count,
       fill: (out) => {
-        const domain = outliers ? c.outlierDomain : c.groups, value = outliers ? c.outlierValue : c.columns[this.attrs.value ?? 'median'];
-        const extents: Extent[] = [domain.length > 0 ? { min: domain[0]!, max: domain[domain.length - 1]! } : { min: Infinity, max: -Infinity }];
+        const domain = outliers ? c.outlierDomain : c.groups,
+          value = outliers ? c.outlierValue : c.columns[this.attrs.value ?? 'median'];
+        const extents: Extent[] = [
+          domain.length > 0 ? { min: domain[0]!, max: domain[domain.length - 1]! } : { min: Infinity, max: -Infinity },
+        ];
         for (let i = 0; i < count; i++) {
           out[stride * i] = domain[i]!;
           out[stride * i + 1] = value[i]!;

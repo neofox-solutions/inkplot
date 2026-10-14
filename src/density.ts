@@ -68,7 +68,11 @@ export interface DensityAttributes extends BaseAttributes {
 }
 
 /** One dimension's bins: edge `lo`, `n` bins `width` wide. */
-interface Axis { lo: number; width: number; n: number }
+interface Axis {
+  lo: number;
+  width: number;
+  n: number;
+}
 
 interface Computed {
   /** The dimensions' centres, each a column of one value for every output bin. */
@@ -77,21 +81,39 @@ interface Computed {
   count: number;
 }
 
-const list = <T>(v: T | readonly T[] | undefined, k: number): T | undefined => (Array.isArray(v) ? (v as readonly T[])[k] : (v as T | undefined));
+const list = <T>(v: T | readonly T[] | undefined, k: number): T | undefined =>
+  Array.isArray(v) ? (v as readonly T[])[k] : (v as T | undefined);
 
 export class Density extends DataTransform<DensityAttributes, [source: DataNode]> {
-  static override attrTypes = { ...DataTransform.attrTypes, by: AUTO, weight: STRING, stat: STRING, width: AUTO, bins: AUTO, origin: AUTO, extent: AUTO, maxBins: NUMBER, empty: STRING } satisfies AttrTypesFor<DensityAttributes>;
+  static override attrTypes = {
+    ...DataTransform.attrTypes,
+    by: AUTO,
+    weight: STRING,
+    stat: STRING,
+    width: AUTO,
+    bins: AUTO,
+    origin: AUTO,
+    extent: AUTO,
+    maxBins: NUMBER,
+    empty: STRING,
+  } satisfies AttrTypesFor<DensityAttributes>;
   #version = 0;
   #cache: { version: number; value: Computed } | null = null;
 
-  get source(): DataNode { return this.child(0, DataSource, DataTransform); }
+  get source(): DataNode {
+    return this.child(0, DataSource, DataTransform);
+  }
   override invalidate(): void {
     this.#version++;
     super.invalidate();
   }
-  get version(): number { return this.#version; }
+  get version(): number {
+    return this.#version;
+  }
 
-  get #dims(): readonly string[] { return this.attrs.by ?? ['domain']; }
+  get #dims(): readonly string[] {
+    return this.attrs.by ?? ['domain'];
+  }
   /** What it offers: the other dimensions, then the statistics and sizes. */
   override get channelNames(): readonly string[] {
     const dims = this.#dims;
@@ -100,44 +122,74 @@ export class Density extends DataTransform<DensityAttributes, [source: DataNode]
 
   #compute(): Computed {
     if (this.#cache && this.#cache.version === this.#version) return this.#cache.value;
-    const a = this.attrs, dims = this.#dims, k = dims.length;
+    const a = this.attrs,
+      dims = this.#dims,
+      k = dims.length;
     if (k === 0) fail('Density: `by` needs at least one dimension');
     if (new Set(dims).size !== k) fail('Density: `by` names a dimension twice');
     const weightName = a.weight;
     // Read what is needed from the source: its own two columns, and a channel for each other name.
     const names = [...new Set([...dims, ...(weightName ? [weightName] : [])].filter((n) => n !== 'domain' && n !== 'value'))];
     const plan = this.source.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: names });
-    const stride = 2 + names.length, buf = new Float64Array(plan.capacity * stride), { count: n } = plan.fill(buf);
+    const stride = 2 + names.length,
+      buf = new Float64Array(plan.capacity * stride),
+      { count: n } = plan.fill(buf);
     const column = (name: string) => (name === 'domain' ? 0 : name === 'value' ? 1 : 2 + names.indexOf(name));
-    const cols = dims.map(column), wcol = weightName ? column(weightName) : -1;
+    const cols = dims.map(column),
+      wcol = weightName ? column(weightName) : -1;
 
     // The points that count: every dimension (and the weight) a number.
     const rows: number[] = [];
     for (let i = 0; i < n; i++) {
       let ok = true;
-      for (const c of cols) { const v = buf[stride * i + c]!; if (!Number.isFinite(v)) { ok = false; break; } }
-      if (ok && wcol >= 0) { const w = buf[stride * i + wcol]!; if (!Number.isFinite(w)) ok = false; }
+      for (const c of cols) {
+        const v = buf[stride * i + c]!;
+        if (!Number.isFinite(v)) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok && wcol >= 0) {
+        const w = buf[stride * i + wcol]!;
+        if (!Number.isFinite(w)) ok = false;
+      }
       if (ok) rows.push(i);
     }
 
     // One dimension's bins from the data and the attributes.
     const axes: Axis[] = dims.map((_, d) => {
       const v = Float64Array.from(rows, (i) => buf[stride * i + cols[d]!]!);
-      const given = a.extent === undefined ? undefined : Array.isArray(a.extent) ? (a.extent as readonly (Extent | null)[])[d] : (a.extent as Extent);
-      let min = Infinity, max = -Infinity;
-      if (given) { min = given.min; max = given.max; } else for (const x of v) { if (x < min) min = x; if (x > max) max = x; }
+      const given =
+        a.extent === undefined ? undefined : Array.isArray(a.extent) ? (a.extent as readonly (Extent | null)[])[d] : (a.extent as Extent);
+      let min = Infinity,
+        max = -Infinity;
+      if (given) {
+        min = given.min;
+        max = given.max;
+      } else
+        for (const x of v) {
+          if (x < min) min = x;
+          if (x > max) max = x;
+        }
       if (!(min <= max)) return { lo: 0, width: 1, n: 0 };
-      const width = list(a.width, d), bins = list(a.bins, d), origin = list(a.origin, d) ?? 0, maxBins = a.maxBins ?? 200;
+      const width = list(a.width, d),
+        bins = list(a.bins, d),
+        origin = list(a.origin, d) ?? 0,
+        maxBins = a.maxBins ?? 200;
       if (width !== undefined && !(width > 0)) fail(`Density: width must be above 0 (got ${width})`);
       if (bins !== undefined && !(bins >= 1)) fail(`Density: bins must be at least 1 (got ${bins})`);
       if (width !== undefined) {
-        const i0 = Math.floor((min - origin) / width + 1e-9), i1 = Math.floor((max - origin) / width + 1e-9);
+        const i0 = Math.floor((min - origin) / width + 1e-9),
+          i1 = Math.floor((max - origin) / width + 1e-9);
         if (i1 - i0 + 1 > MAX_CELLS) fail(`Density: width ${width} makes ${i1 - i0 + 1} bins along "${dims[d]}": use a wider bin`);
         return { lo: origin + i0 * width, width, n: i1 - i0 + 1 };
       }
       const span = max - min;
-      if (span === 0) return { lo: min - 0.5, width: 1, n: 1 };   // no spread: one bin round the value
-      if (bins !== undefined) { const nb = Math.floor(bins); return { lo: min, width: span > 0 ? span / nb : 1, n: nb }; }
+      if (span === 0) return { lo: min - 0.5, width: 1, n: 1 }; // no spread: one bin round the value
+      if (bins !== undefined) {
+        const nb = Math.floor(bins);
+        return { lo: min, width: span > 0 ? span / nb : 1, n: nb };
+      }
       // The rule: Freedman–Diaconis from the spread of the points, else Sturges.
       v.sort();
       const m = v.length;
@@ -148,16 +200,27 @@ export class Density extends DataTransform<DensityAttributes, [source: DataNode]
     });
 
     let cells = 1;
-    for (const ax of axes) { cells *= Math.max(ax.n, 1); if (cells > MAX_CELLS) fail(`Density: ${axes.map((x) => x.n).join(' by ')} bins is too many cells: use \`width\` or \`bins\` to make them fewer`); }
-    const counts = new Float64Array(cells), sums = new Float64Array(cells);
+    for (const ax of axes) {
+      cells *= Math.max(ax.n, 1);
+      if (cells > MAX_CELLS)
+        fail(`Density: ${axes.map((x) => x.n).join(' by ')} bins is too many cells: use \`width\` or \`bins\` to make them fewer`);
+    }
+    const counts = new Float64Array(cells),
+      sums = new Float64Array(cells);
     if (!axes.some((ax) => ax.n === 0)) {
       for (const i of rows) {
-        let at = 0, inside = true;
+        let at = 0,
+          inside = true;
         for (let d = 0; d < k; d++) {
-          const ax = axes[d]!, v = buf[stride * i + cols[d]!]!, x = Math.floor((v - ax.lo) / ax.width + 1e-9);
+          const ax = axes[d]!,
+            v = buf[stride * i + cols[d]!]!,
+            x = Math.floor((v - ax.lo) / ax.width + 1e-9);
           // The top edge belongs to the last bin; a point past the ends (an explicit extent) is left out.
           const idx = v === ax.lo + ax.n * ax.width ? ax.n - 1 : x;
-          if (idx < 0 || idx >= ax.n) { inside = false; break; }
+          if (idx < 0 || idx >= ax.n) {
+            inside = false;
+            break;
+          }
           at = at * ax.n + idx;
         }
         if (!inside) continue;
@@ -179,14 +242,20 @@ export class Density extends DataTransform<DensityAttributes, [source: DataNode]
     kept.forEach((cell, r) => {
       let rest = cell;
       for (let d = k - 1; d >= 0; d--) {
-        const ax = axes[d]!, idx = rest % ax.n;
+        const ax = axes[d]!,
+          idx = rest % ax.n;
         rest = (rest - idx) / ax.n;
         centres[d]![r] = ax.lo + (idx + 0.5) * ax.width;
       }
-      const cnt = counts[cell]!, sum = sums[cell]!;
-      out.count[r] = cnt; out.sum[r] = sum; out.mean[r] = cnt > 0 ? sum / cnt : NaN;
-      out.fraction[r] = total > 0 ? sum / total : NaN; out.density[r] = total > 0 ? sum / total / volume : NaN;
-      out.width[r] = axes[0]!.width; out.height[r] = k > 1 ? axes[1]!.width : NaN;
+      const cnt = counts[cell]!,
+        sum = sums[cell]!;
+      out.count[r] = cnt;
+      out.sum[r] = sum;
+      out.mean[r] = cnt > 0 ? sum / cnt : NaN;
+      out.fraction[r] = total > 0 ? sum / total : NaN;
+      out.density[r] = total > 0 ? sum / total / volume : NaN;
+      out.width[r] = axes[0]!.width;
+      out.height[r] = k > 1 ? axes[1]!.width : NaN;
     });
     const value: Computed = { centres, columns: out, count: m };
     this.#cache = { version: this.#version, value };
@@ -202,29 +271,46 @@ export class Density extends DataTransform<DensityAttributes, [source: DataNode]
   }
   /** A named channel's column. */
   #channel(c: Computed, name: string): Float64Array {
-    const dims = this.#dims, extra = dims.indexOf(name);
+    const dims = this.#dims,
+      extra = dims.indexOf(name);
     if (name === 'domain') return c.centres[0]!;
     if (extra >= 2) return c.centres[extra]!;
     if ((STATS as readonly string[]).includes(name) || (SIZES as readonly string[]).includes(name)) return c.columns[name as Stat];
     return fail(`Density has no channel "${name}" (it has ${this.channelNames.join(', ')})`);
   }
   #extent(a: Float64Array): Extent | null {
-    let min = Infinity, max = -Infinity;
-    for (const v of a) if (Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; }
+    let min = Infinity,
+      max = -Infinity;
+    for (const v of a)
+      if (Number.isFinite(v)) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
     return min <= max ? { min, max } : null;
   }
 
-  get pointCount(): number { return this.#compute().count; }
+  get pointCount(): number {
+    return this.#compute().count;
+  }
   domain(): Extent | null {
-    const c = this.#compute(), d = c.centres[0]!;
+    const c = this.#compute(),
+      d = c.centres[0]!;
     return d.length > 0 ? { min: d[0]!, max: d[d.length - 1]! } : null;
   }
-  valueExtent(): Extent | null { return this.#extent(this.#value(this.#compute())); }
-  channelExtent(name: string): Extent | null { return this.#extent(this.#channel(this.#compute(), name)); }
+  valueExtent(): Extent | null {
+    return this.#extent(this.#value(this.#compute()));
+  }
+  channelExtent(name: string): Extent | null {
+    return this.#extent(this.#channel(this.#compute(), name));
+  }
 
   plan(context: PlanContext): FillPlan {
-    const c = this.#compute(), want = context.channels.map((n) => this.#channel(c, n)), stride = 2 + want.length;
-    const domain = c.centres[0]!, value = this.#value(c), count = c.count;
+    const c = this.#compute(),
+      want = context.channels.map((n) => this.#channel(c, n)),
+      stride = 2 + want.length;
+    const domain = c.centres[0]!,
+      value = this.#value(c),
+      count = c.count;
     return {
       capacity: count,
       fill: (out) => {

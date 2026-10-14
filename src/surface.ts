@@ -26,7 +26,15 @@ export interface Counters {
 }
 /** Fresh zeroed counters; the chart resets (rather than replaces) them each flush so surfaces keep a valid reference. */
 export const newCounters = (): Counters => ({
-  writes: 0, skipped: 0, names: new Set(), filled: 0, cached: 0, projected: 0, pointsIn: 0, pointsDrawn: 0, pathBytes: 0,
+  writes: 0,
+  skipped: 0,
+  names: new Set(),
+  filled: 0,
+  cached: 0,
+  projected: 0,
+  pointsIn: 0,
+  pointsDrawn: 0,
+  pathBytes: 0,
   stages: { generate: 0, decimate: 0, normalize: 0, place: 0, path: 0 },
 });
 
@@ -51,7 +59,11 @@ export interface NodeOptions {
 }
 
 /** One keyed node. `parent` set means it lives inside another of the element's nodes, not at the top level. */
-interface Entry { node: PlatformNode; parent: PlatformNode | null; above: boolean }
+interface Entry {
+  node: PlatformNode;
+  parent: PlatformNode | null;
+  above: boolean;
+}
 
 /**
  * What an element draws with. Nodes are keyed, created on demand, positioned from the live tree,
@@ -90,11 +102,17 @@ export class Surface {
     return this.wrapperNode;
   }
   /** The wrapper, if the element has one. */
-  get wrapperRoot(): PlatformNode | null { return this.wrapperNode; }
+  get wrapperRoot(): PlatformNode | null {
+    return this.wrapperNode;
+  }
   /** First own node below the children, if any. */
-  get firstBelow(): PlatformNode | null { return this.firstOf(false); }
+  get firstBelow(): PlatformNode | null {
+    return this.firstOf(false);
+  }
   /** First own node above the children, if any. */
-  get firstAbove(): PlatformNode | null { return this.firstOf(true); }
+  get firstAbove(): PlatformNode | null {
+    return this.firstOf(true);
+  }
 
   /**
    * The node for `key`, created the first time and the same node afterwards. Keys are per element, so two elements
@@ -147,7 +165,10 @@ export class Surface {
   setHidden(hidden: boolean): void {
     this.hidden = hidden;
     const display = hidden ? 'none' : 'inline';
-    if (this.wrapperNode) { this.set(this.wrapperNode, 'display', display); return; }
+    if (this.wrapperNode) {
+      this.set(this.wrapperNode, 'display', display);
+      return;
+    }
     for (const e of this.nodes.values()) if (!e.parent) this.set(e.node, 'display', display);
   }
 
@@ -167,8 +188,14 @@ export class Surface {
   /** The write cache lives per node (a WeakMap) so a removed node's entries are collected with it. */
   private write(node: PlatformNode, name: string, value: string | number, commit: () => void): void {
     let cached = this.cache.get(node);
-    if (!cached) { cached = new Map(); this.cache.set(node, cached); }
-    if (cached.get(name) === value) { this.counters.skipped++; return; }
+    if (!cached) {
+      cached = new Map();
+      this.cache.set(node, cached);
+    }
+    if (cached.get(name) === value) {
+      this.counters.skipped++;
+      return;
+    }
     cached.set(name, value);
     commit();
     this.counters.writes++;

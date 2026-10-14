@@ -32,7 +32,9 @@ export class Crosshair extends ChartElement<Cursor, [], CrosshairAttributes> imp
   #dots = 0;
 
   /** At the pointer's own place unless it is snapped to a reading. */
-  get follows(): boolean { return this.attrs.snap !== true; }
+  get follows(): boolean {
+    return this.attrs.snap !== true;
+  }
 
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
@@ -46,24 +48,31 @@ export class Crosshair extends ChartElement<Cursor, [], CrosshairAttributes> imp
   }
 
   #paint(): void {
-    const s = this.surface, root = s.wrapper(), state = this.requireParent().state, a = this.attrs;
+    const s = this.surface,
+      root = s.wrapper(),
+      state = this.requireParent().state,
+      a = this.attrs;
     if (!state) {
       s.remove('guide');
       for (let i = 0; i < this.#dots; i++) s.remove(`dot-${i}`);
       this.#dots = 0;
       return;
     }
-    const { plane, hits } = state, r = plane.rect;
+    const { plane, hits } = state,
+      r = plane.rect;
     s.set(root, 'transform', `translate(${f2(r.x)} ${f2(r.y)})`);
     const clip = plane.clipUrl;
     if (clip) s.set(root, 'clip-path', clip);
     // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
     const snapped = a.snap === true && hits.length > 0 ? hits[0]! : null;
-    const x = snapped ? snapped.px : state.x, y = snapped ? snapped.py : state.y;
-    const first = plane.defaultAxis('first'), second = plane.defaultAxis('second');
+    const x = snapped ? snapped.px : state.x,
+      y = snapped ? snapped.py : state.y;
+    const first = plane.defaultAxis('first'),
+      second = plane.defaultAxis('second');
     let d = '';
     if (first && second) {
-      const at = plane.unplace(x, y, first, second), which = a.lines ?? 'both';
+      const at = plane.unplace(x, y, first, second),
+        which = a.lines ?? 'both';
       if (which !== 'second') d += plane.guide('first', at[0]);
       if (which !== 'first') d += plane.guide('second', at[1]);
     }
@@ -75,7 +84,9 @@ export class Crosshair extends ChartElement<Cursor, [], CrosshairAttributes> imp
     s.set(line, 'stroke-width', look.width);
     s.set(line, 'stroke-dasharray', look.dash);
     s.set(line, 'opacity', look.opacity);
-    const halo = this.styleFor(['calloutBox', 'shape']).fill, size = a.dotSize ?? 4, shown = a.dots ? hits : [];
+    const halo = this.styleFor(['calloutBox', 'shape']).fill,
+      size = a.dotSize ?? 4,
+      shown = a.dots ? hits : [];
     shown.forEach((hit, i) => {
       const dot = s.node(`dot-${i}`, 'path');
       s.set(dot, 'd', circlePath(hit.px, hit.py, size));

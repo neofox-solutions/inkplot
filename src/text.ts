@@ -29,7 +29,11 @@ export const LINE_HEIGHT = 1.25;
 export function measureBlock(measure: TextMeasurer, text: string, t: TextProps): Size & { lines: number } {
   const lines = text.split('\n');
   let width = 0;
-  for (const line of lines) width = Math.max(width, measure(line, { family: t.family === 'inherit' ? 'sans-serif' : t.family, size: t.size, weight: t.weight }).width);
+  for (const line of lines)
+    width = Math.max(
+      width,
+      measure(line, { family: t.family === 'inherit' ? 'sans-serif' : t.family, size: t.size, weight: t.weight }).width,
+    );
   return { width, height: lines.length * t.size * LINE_HEIGHT, lines: lines.length };
 }
 
@@ -38,7 +42,16 @@ export function measureBlock(measure: TextMeasurer, text: string, t: TextProps):
  * (its own `text-anchor` says which end of it), `top` the top of the block. Lines left over from a longer text are
  * removed; `previous` is how many there were, and the new count is returned for the next call.
  */
-export function paintLines(surface: Surface, prefix: string, text: string, x: number, top: number, t: TextProps, previous: number, parent?: PlatformNode): number {
+export function paintLines(
+  surface: Surface,
+  prefix: string,
+  text: string,
+  x: number,
+  top: number,
+  t: TextProps,
+  previous: number,
+  parent?: PlatformNode,
+): number {
   const lines = text.split('\n');
   lines.forEach((line, i) => {
     const n = surface.node(`${prefix}${i}`, 'text', parent ? { parent } : {});

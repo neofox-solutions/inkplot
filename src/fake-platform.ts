@@ -9,19 +9,57 @@ export class FakePlatform extends StringPlatform {
   focusHandler: ((f: RawFocus) => void) | null = null;
   focused: PlatformNode | null = null;
   announced: string[] = [];
-  announce(text: string): void { this.announced.push(text); }
+  announce(text: string): void {
+    this.announced.push(text);
+  }
   pending: (() => void) | null = null;
   current: Size;
   unsubscribed = 0;
   cursor = '';
-  setCursor(cursor: string): void { this.cursor = cursor; }
-  constructor(size: Size) { super(size); this.current = size; }
-  override size(): Size { return this.current; }
-  schedule = (cb: () => void): Unsubscribe => { this.pending = cb; return () => { this.pending = null; }; };
-  onResize = (cb: (size: Size) => void): Unsubscribe => { this.resize = cb; return () => { this.resize = null; this.unsubscribed++; }; };
-  onPointer = (cb: (p: RawPointer) => boolean | void): Unsubscribe => { this.pointer = cb; return () => { this.pointer = null; this.unsubscribed++; }; };
-  onKey = (cb: (k: RawKey, node: PlatformNode) => boolean | void): Unsubscribe => { this.keyHandler = cb; return () => { this.keyHandler = null; this.unsubscribed++; }; };
-  onFocus = (cb: (f: RawFocus) => void): Unsubscribe => { this.focusHandler = cb; return () => { this.focusHandler = null; this.unsubscribed++; }; };
+  setCursor(cursor: string): void {
+    this.cursor = cursor;
+  }
+  constructor(size: Size) {
+    super(size);
+    this.current = size;
+  }
+  override size(): Size {
+    return this.current;
+  }
+  schedule = (cb: () => void): Unsubscribe => {
+    this.pending = cb;
+    return () => {
+      this.pending = null;
+    };
+  };
+  onResize = (cb: (size: Size) => void): Unsubscribe => {
+    this.resize = cb;
+    return () => {
+      this.resize = null;
+      this.unsubscribed++;
+    };
+  };
+  onPointer = (cb: (p: RawPointer) => boolean | void): Unsubscribe => {
+    this.pointer = cb;
+    return () => {
+      this.pointer = null;
+      this.unsubscribed++;
+    };
+  };
+  onKey = (cb: (k: RawKey, node: PlatformNode) => boolean | void): Unsubscribe => {
+    this.keyHandler = cb;
+    return () => {
+      this.keyHandler = null;
+      this.unsubscribed++;
+    };
+  };
+  onFocus = (cb: (f: RawFocus) => void): Unsubscribe => {
+    this.focusHandler = cb;
+    return () => {
+      this.focusHandler = null;
+      this.unsubscribed++;
+    };
+  };
   /** Like the browser: moves focus, telling the old node and the new one. A keyboard-driven focus shows its ring. */
   focus(node: PlatformNode, visible = true): void {
     if (this.focused === node) return;
@@ -43,5 +81,9 @@ export class FakePlatform extends StringPlatform {
     if (release) this.keyHandler?.({ kind: 'up', ...base, repeat: false }, this.focused);
     return used;
   }
-  runScheduled() { const cb = this.pending; this.pending = null; cb?.(); }
+  runScheduled() {
+    const cb = this.pending;
+    this.pending = null;
+    cb?.();
+  }
 }

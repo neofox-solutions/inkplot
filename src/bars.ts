@@ -56,11 +56,16 @@ export interface BarLayout {
 export function layoutBars(series: Series, options: BarOptions): BarLayout | null {
   const d = series.drawn;
   if (!d) return null;
-  const n = d.points.count, rs = d.stride, raw = d.raw, first = series.firstAxis, second = series.secondAxis;
+  const n = d.points.count,
+    rs = d.stride,
+    raw = d.raw,
+    first = series.firstAxis,
+    second = series.secondAxis;
   const baseline = options.baseline ?? 0;
   const norm = new Float64Array(n * 3);
   for (let i = 0; i < n; i++) {
-    const v = raw[i * rs + d.secondColumn]!, ok = Number.isFinite(v);
+    const v = raw[i * rs + d.secondColumn]!,
+      ok = Number.isFinite(v);
     norm[3 * i] = raw[i * rs + d.firstColumn]!;
     norm[3 * i + 1] = ok ? (d.base ? d.base[i]! : baseline) : NaN;
     norm[3 * i + 2] = ok ? (d.top ? d.top[i]! : v) : NaN;
@@ -76,7 +81,8 @@ export function layoutBars(series: Series, options: BarOptions): BarLayout | nul
   if (typeof scale.bandwidth === 'number' && options.width === undefined) {
     room = scale.bandwidth;
   } else {
-    let pitch = Infinity, prev = NaN;
+    let pitch = Infinity,
+      prev = NaN;
     for (let i = 0; i < n; i++) {
       const x = norm[3 * i]!;
       if (!Number.isFinite(x)) continue;
@@ -86,7 +92,8 @@ export function layoutBars(series: Series, options: BarOptions): BarLayout | nul
     if (typeof scale.bandwidth === 'number') pitch = scale.bandwidth / (1 - (scale.attrs?.gap ?? 0.2));
     room = (options.width ?? 0.8) * (pitch < Infinity ? pitch : 0.25);
   }
-  const { index, count } = d.slot, slot = room / count;
+  const { index, count } = d.slot,
+    slot = room / count;
   return { n, norm, slot, shift: (index - (count - 1) / 2) * slot };
 }
 
@@ -96,39 +103,61 @@ export function layoutBars(series: Series, options: BarOptions): BarLayout | nul
  */
 export function barShift(series: Series, options: BarOptions = {}): number {
   const d = series.drawn;
-  return d && d.slot.count > 1 ? layoutBars(series, options)?.shift ?? 0 : 0;
+  return d && d.slot.count > 1 ? (layoutBars(series, options)?.shift ?? 0) : 0;
 }
 
 const clamp = (v: number) => (v < -REACH ? -REACH : v > 1 + REACH ? 1 + REACH : v);
 /** The three stems drawn in a bar series' legend sample: position across, height up. */
-const STEM_SAMPLE: readonly (readonly [at: number, up: number])[] = [[0.2, 0.6], [0.5, 1], [0.8, 0.4]];
+const STEM_SAMPLE: readonly (readonly [at: number, up: number])[] = [
+  [0.2, 0.6],
+  [0.5, 1],
+  [0.8, 0.4],
+];
 
 /**
  * The outline of every bar of a series in plot pixels, `perShape` points each, in the order of the series' points
  * (a point that is a gap leaves a shape of NaN). Null before the first projection.
  */
 export function barShapes(series: Series, options: BarOptions = {}): PolygonSet | null {
-  const lay = layoutBars(series, options), plane = series.drawn?.plane;
+  const lay = layoutBars(series, options),
+    plane = series.drawn?.plane;
   if (!lay || !plane) return null;
   const { n, norm, slot, shift } = lay;
   // On a curved plane the edges that run along the angle become arcs: the ones along the domain normally, the ones along
   // the value when the value is the angle (a ring or pie: each bar is a segment of a ring).
   const roundValue = plane.curved && series.secondAxis.orientation === 'angle';
-  const steps = roundValue ? MAX_VALUE_ARC : plane.curved ? Math.min(MAX_ARC, Math.max(2, Math.ceil(slot * 64))) : 1, per = 2 * (steps + 1);
+  const steps = roundValue ? MAX_VALUE_ARC : plane.curved ? Math.min(MAX_ARC, Math.max(2, Math.ceil(slot * 64))) : 1,
+    per = 2 * (steps + 1);
   const out = new Float64Array(n * per * 2);
   for (let i = 0; i < n; i++) {
-    const x = norm[3 * i]! + shift, from = norm[3 * i + 1]!, to = norm[3 * i + 2]!;
+    const x = norm[3 * i]! + shift,
+      from = norm[3 * i + 1]!,
+      to = norm[3 * i + 2]!;
     const bad = !Number.isFinite(x) || !Number.isFinite(from) || !Number.isFinite(to);
-    const x0 = x - slot / 2, b = bad ? NaN : clamp(from), t = bad ? NaN : clamp(to);
+    const x0 = x - slot / 2,
+      b = bad ? NaN : clamp(from),
+      t = bad ? NaN : clamp(to);
     let k = i * per * 2;
     // Along the start edge one way, then back along the end edge: a closed outline.
     if (roundValue) {
-      for (let j = 0; j <= steps; j++) { out[k++] = x0; out[k++] = b + ((t - b) * j) / steps; }
-      for (let j = steps; j >= 0; j--) { out[k++] = x0 + slot; out[k++] = b + ((t - b) * j) / steps; }
+      for (let j = 0; j <= steps; j++) {
+        out[k++] = x0;
+        out[k++] = b + ((t - b) * j) / steps;
+      }
+      for (let j = steps; j >= 0; j--) {
+        out[k++] = x0 + slot;
+        out[k++] = b + ((t - b) * j) / steps;
+      }
       continue;
     }
-    for (let j = 0; j <= steps; j++) { out[k++] = x0 + (slot * j) / steps; out[k++] = b; }
-    for (let j = steps; j >= 0; j--) { out[k++] = x0 + (slot * j) / steps; out[k++] = t; }
+    for (let j = 0; j <= steps; j++) {
+      out[k++] = x0 + (slot * j) / steps;
+      out[k++] = b;
+    }
+    for (let j = steps; j >= 0; j--) {
+      out[k++] = x0 + (slot * j) / steps;
+      out[k++] = t;
+    }
   }
   plane.place({ data: out, stride: 2, count: n * per }, series.firstAxis, series.secondAxis);
   return { data: out, perShape: per, count: n };
@@ -140,12 +169,15 @@ export function barShapes(series: Series, options: BarOptions = {}): PolygonSet 
  * spoke) on a polar one. Gaps leave NaN.
  */
 export function stemLines(series: Series, options: BarOptions = {}): PolygonSet | null {
-  const lay = layoutBars(series, options), plane = series.drawn?.plane;
+  const lay = layoutBars(series, options),
+    plane = series.drawn?.plane;
   if (!lay || !plane) return null;
   const { n, norm, shift } = lay;
   const out = new Float64Array(n * 4);
   for (let i = 0; i < n; i++) {
-    const x = norm[3 * i]! + shift, from = norm[3 * i + 1]!, to = norm[3 * i + 2]!;
+    const x = norm[3 * i]! + shift,
+      from = norm[3 * i + 1]!,
+      to = norm[3 * i + 2]!;
     const bad = !Number.isFinite(x) || !Number.isFinite(from) || !Number.isFinite(to);
     out[4 * i] = out[4 * i + 2] = bad ? NaN : x;
     out[4 * i + 1] = bad ? NaN : clamp(from);
@@ -164,11 +196,19 @@ export interface BarRendererAttributes extends SeriesRendererAttributes, BarOpti
  */
 export abstract class BarRenderer<A extends BarRendererAttributes = BarRendererAttributes> extends SeriesRenderer<A> {
   protected abstract outline(): PolygonSet | null;
-  override get includes(): readonly number[] { return [this.attrs.baseline ?? 0]; }
+  override get includes(): readonly number[] {
+    return [this.attrs.baseline ?? 0];
+  }
   /** Half of a bar's room: its width, in the gaps between points (a band's own bars fit it already). */
-  override get spans(): number { return (this.attrs.width ?? 0.8) / 2; }
-  override get hitMode(): HitMode { return 'shape'; }
-  override shapes(): PolygonSet | null { return this.outline(); }
+  override get spans(): number {
+    return (this.attrs.width ?? 0.8) / 2;
+  }
+  override get hitMode(): HitMode {
+    return 'shape';
+  }
+  override shapes(): PolygonSet | null {
+    return this.outline();
+  }
 }
 
 export interface BarPathAttributes extends BarRendererAttributes {}
@@ -177,14 +217,26 @@ export interface BarPathAttributes extends BarRendererAttributes {}
 export class BarPath extends BarRenderer<BarPathAttributes> {
   private look() {
     const a = this.attrs;
-    return this.styleFor(['seriesBar', 'shape'], { fill: a.fill, stroke: a.stroke, strokeWidth: a.strokeWidth, opacity: a.opacity }, { fill: this.requireParent().accentColor });
+    return this.styleFor(
+      ['seriesBar', 'shape'],
+      { fill: a.fill, stroke: a.stroke, strokeWidth: a.strokeWidth, opacity: a.opacity },
+      { fill: this.requireParent().accentColor },
+    );
   }
-  override get swatch(): string { return this.look().fill; }
-  protected outline(): PolygonSet | null { return barShapes(this.requireParent(), this.attrs); }
-  override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void { paintBox(s, parent, key, width, height, this.look()); }
+  override get swatch(): string {
+    return this.look().fill;
+  }
+  protected outline(): PolygonSet | null {
+    return barShapes(this.requireParent(), this.attrs);
+  }
+  override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
+    paintBox(s, parent, key, width, height, this.look());
+  }
 
   protected draw(): void {
-    const counters = this.counters, s = this.surface, a = this.attrs;
+    const counters = this.counters,
+      s = this.surface,
+      a = this.attrs;
     if (a.bind) notImplemented('BarPath bindings');
     const look = this.look();
     const t0 = performance.now();
@@ -193,7 +245,8 @@ export class BarPath extends BarRenderer<BarPathAttributes> {
     if (shapes) {
       const { data, perShape, count } = shapes;
       for (let i = 0, k = 0; i < count; i++, k += perShape * 2) {
-        const x = data[k]!, y = data[k + 1]!;
+        const x = data[k]!,
+          y = data[k + 1]!;
         if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
         d += 'M' + f2(x) + ' ' + f2(y) + 'L';
         for (let j = 1; j < perShape; j++) d += (j > 1 ? ' ' : '') + f2(data[k + 2 * j]!) + ' ' + f2(data[k + 2 * j + 1]!);
@@ -226,13 +279,22 @@ export interface BarLinePathAttributes extends BarRendererAttributes {
 export class BarLinePath extends BarRenderer<BarLinePathAttributes> {
   private look() {
     const a = this.attrs;
-    return this.styleFor(['seriesLine', 'line'], { color: a.stroke, width: a.strokeWidth, opacity: a.opacity }, { color: this.requireParent().accentColor });
+    return this.styleFor(
+      ['seriesLine', 'line'],
+      { color: a.stroke, width: a.strokeWidth, opacity: a.opacity },
+      { color: this.requireParent().accentColor },
+    );
   }
-  override get swatch(): string { return this.look().color; }
-  protected outline(): PolygonSet | null { return stemLines(this.requireParent(), this.attrs); }
+  override get swatch(): string {
+    return this.look().color;
+  }
+  protected outline(): PolygonSet | null {
+    return stemLines(this.requireParent(), this.attrs);
+  }
   /** Three stems of different heights, as wide as the stroke says. */
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
-    const look = this.look(), n = s.node(key, 'path', { parent });
+    const look = this.look(),
+      n = s.node(key, 'path', { parent });
     let d = '';
     for (const [at, up] of STEM_SAMPLE) d += `M${f2(width * at)} ${f2(height)}V${f2(height * (1 - up))}`;
     s.set(n, 'd', d);
@@ -245,7 +307,9 @@ export class BarLinePath extends BarRenderer<BarLinePathAttributes> {
   }
 
   protected draw(): void {
-    const counters = this.counters, s = this.surface, a = this.attrs;
+    const counters = this.counters,
+      s = this.surface,
+      a = this.attrs;
     if (a.bind) notImplemented('BarLinePath bindings');
     const look = this.look();
     const t0 = performance.now();
@@ -254,7 +318,8 @@ export class BarLinePath extends BarRenderer<BarLinePathAttributes> {
     if (stems) {
       const { data, count } = stems;
       for (let i = 0, k = 0; i < count; i++, k += 4) {
-        const x = data[k]!, y = data[k + 1]!;
+        const x = data[k]!,
+          y = data[k + 1]!;
         if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
         d += 'M' + f2(x) + ' ' + f2(y) + 'L' + f2(data[k + 2]!) + ' ' + f2(data[k + 3]!);
       }

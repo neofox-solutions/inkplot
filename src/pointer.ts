@@ -60,11 +60,18 @@ export interface PointerListenerAttributes extends BaseAttributes {
 }
 
 /** Same point as before? A row is the identity that survives re-sorting; without one the drawn index will do. */
-const same = (a: Hit | null, b: Hit | null) => a === b || (!!a && !!b && a.series === b.series && (a.row ?? a.index) === (b.row ?? b.index));
+const same = (a: Hit | null, b: Hit | null) =>
+  a === b || (!!a && !!b && a.series === b.series && (a.row ?? a.index) === (b.row ?? b.index));
 
 export class PointerListener extends ChartElement<Plane, [], PointerListenerAttributes> {
   static override takesInput = inputOf;
-  static override attrTypes = { ...ChartElement.attrTypes, dragThreshold: NUMBER, onClick: AUTO, onDrag: AUTO, onHover: AUTO } satisfies AttrTypesFor<PointerListenerAttributes>;
+  static override attrTypes = {
+    ...ChartElement.attrTypes,
+    dragThreshold: NUMBER,
+    onClick: AUTO,
+    onDrag: AUTO,
+    onHover: AUTO,
+  } satisfies AttrTypesFor<PointerListenerAttributes>;
   #hover: Hit | null = null;
   // A press in progress: where it began, the point under it, and the offset from the pointer to that point.
   #press: { x: number; y: number; hit: Hit | null; dx: number; dy: number; claimed: boolean; dragging: boolean } | null = null;
@@ -79,17 +86,23 @@ export class PointerListener extends ChartElement<Plane, [], PointerListenerAttr
       return;
     }
     if (ev.type !== EVENT_POINTER) return;
-    const a = this.attrs, plane = this.requireParent(), platform = this.chart?.platform;
+    const a = this.attrs,
+      plane = this.requireParent(),
+      platform = this.chart?.platform;
     // Over an axis the pointer is not over anything plotted. (A press that began on the plot goes on being ours until it ends.)
     if (ev.outside && !this.#press && ev.kind !== 'leave') {
-      if (this.#hover && ev.kind === 'move') { this.#hover = null; a.onHover?.({ plane, x: ev.x, y: ev.y, first: NaN, second: NaN, hit: null, shift: ev.shift, ctrl: ev.ctrl }); }
+      if (this.#hover && ev.kind === 'move') {
+        this.#hover = null;
+        a.onHover?.({ plane, x: ev.x, y: ev.y, first: NaN, second: NaN, hit: null, shift: ev.shift, ctrl: ev.ctrl });
+      }
       return;
     }
     if (ev.kind === 'wheel' || ev.kind === 'pinch') return;
     const threshold = a.dragThreshold ?? 3;
     const info = (hit: Hit | null, x: number, y: number, dx = 0, dy = 0): PointerInfo => {
-      const first = hit ? hit.series.firstAxis : plane.defaultAxis('first'), second = hit ? hit.series.secondAxis : plane.defaultAxis('second');
-      const at = first && second ? plane.unplace(x + dx, y + dy, first, second) : [NaN, NaN] as const;
+      const first = hit ? hit.series.firstAxis : plane.defaultAxis('first'),
+        second = hit ? hit.series.secondAxis : plane.defaultAxis('second');
+      const at = first && second ? plane.unplace(x + dx, y + dy, first, second) : ([NaN, NaN] as const);
       // In a stack the pointer reads the stacked height: the layer's own value is that less what it sits on.
       return { plane, x, y, first: at[0], second: at[1] - (hit?.lift ?? 0), hit, shift: ev.shift, ctrl: ev.ctrl };
     };
@@ -105,7 +118,10 @@ export class PointerListener extends ChartElement<Plane, [], PointerListenerAttr
       case 'move': {
         const press = this.#press;
         if (press) {
-          if (!(ev.buttons & 1)) { this.#press = null; break; }
+          if (!(ev.buttons & 1)) {
+            this.#press = null;
+            break;
+          }
           if (!press.dragging && Math.hypot(ev.x - press.x, ev.y - press.y) < threshold) break;
           const first = !press.dragging;
           press.dragging = true;
@@ -118,9 +134,15 @@ export class PointerListener extends ChartElement<Plane, [], PointerListenerAttr
         }
         if (!a.onHover && !a.onDrag && !a.onClick) break;
         const hit = hitPlane(plane, ev.x, ev.y);
-        if (!same(hit, this.#hover)) { this.#hover = hit; a.onHover?.(info(hit, ev.x, ev.y)); }
+        if (!same(hit, this.#hover)) {
+          this.#hover = hit;
+          a.onHover?.(info(hit, ev.x, ev.y));
+        }
         // Over a point the cursor says what it can do. Handled, so that `PanZoom` does not put its own over it.
-        if (hit) { platform?.setCursor?.(a.onDrag ? 'grab' : 'pointer'); ev.handled = true; } else if (!a.onDrag) platform?.setCursor?.('');
+        if (hit) {
+          platform?.setCursor?.(a.onDrag ? 'grab' : 'pointer');
+          ev.handled = true;
+        } else if (!a.onDrag) platform?.setCursor?.('');
         break;
       }
       case 'up': {
@@ -137,7 +159,10 @@ export class PointerListener extends ChartElement<Plane, [], PointerListenerAttr
       }
       case 'leave':
         this.#press = null;
-        if (this.#hover) { this.#hover = null; a.onHover?.(info(null, ev.x, ev.y)); }
+        if (this.#hover) {
+          this.#hover = null;
+          a.onHover?.(info(null, ev.x, ev.y));
+        }
         break;
     }
   }

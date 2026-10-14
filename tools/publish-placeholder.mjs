@@ -15,13 +15,35 @@ const repository = { type: 'git', url: 'git+https://github.com/neofox-solutions/
 for (const name of ['inkplot', 'inkplot-scratch']) {
   const dir = mkdtempSync(join(tmpdir(), `${name}-placeholder-`));
   try {
-    writeFileSync(join(dir, 'package.json'), JSON.stringify({
-      name, version, description: `Placeholder for ${name}; the real releases are published from CI.`, license: 'MIT', repository,
-      homepage: 'https://github.com/neofox-solutions/inkplot#readme',
-    }, null, 2));
-    writeFileSync(join(dir, 'README.md'), `# ${name}\n\nThis is a placeholder. See https://github.com/neofox-solutions/inkplot for the real package.\n`);
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify(
+        {
+          name,
+          version,
+          description: `Placeholder for ${name}; the real releases are published from CI.`,
+          license: 'MIT',
+          repository,
+          homepage: 'https://github.com/neofox-solutions/inkplot#readme',
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(dir, 'README.md'),
+      `# ${name}\n\nThis is a placeholder. See https://github.com/neofox-solutions/inkplot for the real package.\n`,
+    );
     console.log(`${dry ? 'would publish' : 'publishing'} ${name}@${version} (tag placeholder)`);
-    execFileSync('npm', ['publish', '--tag', 'placeholder', '--access', 'public', ...(dry ? ['--dry-run'] : [])], { cwd: dir, stdio: 'inherit' });
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+    execFileSync('npm', ['publish', '--tag', 'placeholder', '--access', 'public', ...(dry ? ['--dry-run'] : [])], {
+      cwd: dir,
+      stdio: 'inherit',
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
-if (!dry) console.log('\nNow, for each package on npmjs.com → Settings → Trusted publisher → GitHub Actions:\n  organization neofox-solutions, repository inkplot, workflow publish.yml, environment npm');
+if (!dry)
+  console.log(
+    '\nNow, for each package on npmjs.com → Settings → Trusted publisher → GitHub Actions:\n  organization neofox-solutions, repository inkplot, workflow publish.yml, environment npm',
+  );

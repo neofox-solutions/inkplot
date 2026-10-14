@@ -8,44 +8,69 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'vite-plus/test';
 
-test("pack", () => {
-const root = fileURLToPath(new URL('../', import.meta.url));
-const out = mkdtempSync(join(tmpdir(), 'inkplot-pack-'));
-try {
-  const scratchTgz = execFileSync(process.execPath, [join(root, 'tools/pack-scratch.mjs'), out], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-  const inkplotTgz = execFileSync('sh', ['-c', `ls ${out}/inkplot-lib/inkplot/*.tgz`]).toString().trim();
-  const files = (tgz) => new Set(execFileSync('tar', ['-tzf', tgz]).toString().split('\n').filter(Boolean).map((f) => f.replace(/^package\//, '')));
-  const manifest = (tgz) => JSON.parse(execFileSync('tar', ['-xzOf', tgz, 'package/package.json']).toString());
+test('pack', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const out = mkdtempSync(join(tmpdir(), 'inkplot-pack-'));
+  try {
+    const scratchTgz = execFileSync(process.execPath, [join(root, 'tools/pack-scratch.mjs'), out], { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+    const inkplotTgz = execFileSync('sh', ['-c', `ls ${out}/inkplot-lib/inkplot/*.tgz`])
+      .toString()
+      .trim();
+    const files = (tgz) =>
+      new Set(
+        execFileSync('tar', ['-tzf', tgz])
+          .toString()
+          .split('\n')
+          .filter(Boolean)
+          .map((f) => f.replace(/^package\//, '')),
+      );
+    const manifest = (tgz) => JSON.parse(execFileSync('tar', ['-xzOf', tgz, 'package/package.json']).toString());
 
-  const lib = manifest(inkplotTgz), have = files(inkplotTgz);
-  const targets = (v) => (typeof v === 'string' ? [v] : Object.values(v).flatMap(targets));
-  for (const [path, entry] of Object.entries(lib.exports)) for (const t of targets(entry)) assert.ok(have.has(t.replace(/^\.\//, '')), `inkplot: export "${path}" points at ${t}, which is not in the tarball`);
-  for (const f of ['LICENSE', 'README.md']) assert.ok(have.has(f), `inkplot: ${f} is missing`);
-  assert.deepEqual(Object.keys(lib.exports), ['.', './jsx-runtime', './jsx-dev-runtime', './react', './web-components']);
-  assert.equal(lib.license, 'MIT');
-  assert.equal(lib.engines, undefined, 'inkplot: the repository\'s Node requirement is for its tooling, not the library');
-  assert.match(lib.repository.url, /neofox-solutions\/inkplot\.git$/);
-  assert.equal(lib.peerDependencies.react, '>=18');
-  assert.ok(![...have].some((f) => /\.test\.|fake-platform/.test(f)), 'inkplot: test files are in the tarball');
+    const lib = manifest(inkplotTgz),
+      have = files(inkplotTgz);
+    const targets = (v) => (typeof v === 'string' ? [v] : Object.values(v).flatMap(targets));
+    for (const [path, entry] of Object.entries(lib.exports))
+      for (const t of targets(entry))
+        assert.ok(have.has(t.replace(/^\.\//, '')), `inkplot: export "${path}" points at ${t}, which is not in the tarball`);
+    for (const f of ['LICENSE', 'README.md']) assert.ok(have.has(f), `inkplot: ${f} is missing`);
+    assert.deepEqual(Object.keys(lib.exports), ['.', './jsx-runtime', './jsx-dev-runtime', './react', './web-components']);
+    assert.equal(lib.license, 'MIT');
+    assert.equal(lib.engines, undefined, "inkplot: the repository's Node requirement is for its tooling, not the library");
+    assert.match(lib.repository.url, /neofox-solutions\/inkplot\.git$/);
+    assert.equal(lib.peerDependencies.react, '>=18');
+    assert.ok(![...have].some((f) => /\.test\.|fake-platform/.test(f)), 'inkplot: test files are in the tarball');
 
-  const tool = manifest(scratchTgz), toolFiles = files(scratchTgz);
-  // inkplot-scratch's manifest is published as written (npm resolves no `catalog:`), so its ranges must be the catalog's.
-  const catalog = Object.fromEntries([...readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8').matchAll(/^ {2}'?([^':\s]+)'?: (\S+)$/gm)].map((m) => [m[1], m[2]]));
-  for (const group of [tool.dependencies, tool.optionalDependencies])
-    for (const [name, range] of Object.entries(group ?? {})) if (name in catalog) assert.equal(range, catalog[name], `inkplot-scratch asks for ${name}@${range}; the catalog says ${catalog[name]}`);
-  assert.ok('typescript' in catalog && tool.dependencies.typescript === catalog.typescript, 'the catalog is read');
-  assert.equal(tool.version, lib.version);
-  assert.equal(tool.dependencies.inkplot, lib.version);
-  assert.ok(toolFiles.has('bin.mjs') && toolFiles.has('LICENSE'));
-  // The skill upload: one folder named as the skill is, with its SKILL.md.
-  // Given a relative folder, as CI does, from the repository root.
-  const skillZip = execFileSync(process.execPath, ['tools/pack-skill-zip.mjs', 'out/pack-test-skill'], { cwd: root }).toString().trim();
-  assert.equal(skillZip, join(root, 'out/pack-test-skill', `inkplot-data-charts-${lib.version}.zip`));
-  const entries = execFileSync('unzip', ['-Z1', skillZip]).toString().split('\n').filter(Boolean);
-  const skillMd = execFileSync('unzip', ['-p', skillZip, 'inkplot-data-charts/SKILL.md']).toString();
-  assert.deepEqual(entries.filter((e) => !e.endsWith('/')), ['inkplot-data-charts/SKILL.md']);
-  assert.match(skillMd, /^---\nname: inkplot-data-charts\ndescription: .+\n---\n/);
-  assert.match(skillZip, new RegExp(`inkplot-data-charts-${lib.version.replaceAll('.', '\\.')}\\.zip$`));
-  console.log(`ok pack (inkplot ${lib.version}: ${have.size} files, inkplot-scratch: ${toolFiles.size} files)`);
-} finally { rmSync(out, { recursive: true, force: true }); rmSync(join(root, 'out/pack-test-skill'), { recursive: true, force: true }); }
+    const tool = manifest(scratchTgz),
+      toolFiles = files(scratchTgz);
+    // inkplot-scratch's manifest is published as written (npm resolves no `catalog:`), so its ranges must be the catalog's.
+    const catalog = Object.fromEntries(
+      [...readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8').matchAll(/^ {2}'?([^':\s]+)'?: (\S+)$/gm)].map((m) => [m[1], m[2]]),
+    );
+    for (const group of [tool.dependencies, tool.optionalDependencies])
+      for (const [name, range] of Object.entries(group ?? {}))
+        if (name in catalog)
+          assert.equal(range, catalog[name], `inkplot-scratch asks for ${name}@${range}; the catalog says ${catalog[name]}`);
+    assert.ok('typescript' in catalog && tool.dependencies.typescript === catalog.typescript, 'the catalog is read');
+    assert.equal(tool.version, lib.version);
+    assert.equal(tool.dependencies.inkplot, lib.version);
+    assert.ok(toolFiles.has('bin.mjs') && toolFiles.has('LICENSE'));
+    // The skill upload: one folder named as the skill is, with its SKILL.md.
+    // Given a relative folder, as CI does, from the repository root.
+    const skillZip = execFileSync(process.execPath, ['tools/pack-skill-zip.mjs', 'out/pack-test-skill'], { cwd: root }).toString().trim();
+    assert.equal(skillZip, join(root, 'out/pack-test-skill', `inkplot-data-charts-${lib.version}.zip`));
+    const entries = execFileSync('unzip', ['-Z1', skillZip]).toString().split('\n').filter(Boolean);
+    const skillMd = execFileSync('unzip', ['-p', skillZip, 'inkplot-data-charts/SKILL.md']).toString();
+    assert.deepEqual(
+      entries.filter((e) => !e.endsWith('/')),
+      ['inkplot-data-charts/SKILL.md'],
+    );
+    assert.match(skillMd, /^---\nname: inkplot-data-charts\ndescription: .+\n---\n/);
+    assert.match(skillZip, new RegExp(`inkplot-data-charts-${lib.version.replaceAll('.', '\\.')}\\.zip$`));
+    console.log(`ok pack (inkplot ${lib.version}: ${have.size} files, inkplot-scratch: ${toolFiles.size} files)`);
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+    rmSync(join(root, 'out/pack-test-skill'), { recursive: true, force: true });
+  }
 });

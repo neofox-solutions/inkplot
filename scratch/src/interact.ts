@@ -5,7 +5,6 @@
  */
 import { type AnyElement, BoxZoom, CartesianPlane, type Chart, ChartTooltip, Crosshair, Cursor, PanZoom, Plane } from 'inkplot';
 
-
 /** What was added, by name: for the page's hint line and for tests. */
 export function makeInteractive(chart: Chart): string[] {
   const added = new Set<string>();
@@ -21,7 +20,10 @@ export function makeInteractive(chart: Chart): string[] {
       plane.insertBefore(new BoxZoom(), first as Parameters<Plane['insertBefore']>[1]);
       added.add('boxzoom');
     }
-    if (!kids.some((k) => k instanceof PanZoom)) { plane.append(new PanZoom()); added.add('panzoom'); }
+    if (!kids.some((k) => k instanceof PanZoom)) {
+      plane.append(new PanZoom());
+      added.add('panzoom');
+    }
   }
   if (planes.length > 0 && !children(chart).some((c) => c instanceof Cursor)) {
     chart.append(new Cursor({}, new Crosshair(), new ChartTooltip()));

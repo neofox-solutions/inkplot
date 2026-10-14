@@ -31,7 +31,21 @@
  *   component that re-renders by itself: a child that does not render is not in the list, so it cannot be reordered (it stays where it is).
  * - Fixed children (an axis' scale) come first in the order the class' documentation gives; the order is not type-checked.
  */
-import { type ForwardRefExoticComponent, type HTMLAttributes, type PropsWithoutRef, type ReactElement, type ReactNode, type RefAttributes, createContext, createElement, forwardRef, useContext, useImperativeHandle, useLayoutEffect, useRef } from 'react';
+import {
+  type ForwardRefExoticComponent,
+  type HTMLAttributes,
+  type PropsWithoutRef,
+  type ReactElement,
+  type ReactNode,
+  type RefAttributes,
+  createContext,
+  createElement,
+  forwardRef,
+  useContext,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+} from 'react';
 import type { NestedProps } from './attrs.ts';
 import { attributesOf, difference } from './adapt.ts';
 import { DOMPlatform, type DOMPlatformOptions } from './dom-platform.ts';
@@ -83,8 +97,8 @@ export interface RootProps {
   platformOptions?: DOMPlatformOptions;
 }
 /** The props of a wrapped class: its attributes, children, and for a root (anything with `attach`) the host's props. */
-export type WrapperProps<C extends ElementConstructor> =
-  Omit<InstanceType<C>['$props'], 'children'> & NestedProps & { children?: ReactNode } & (InstanceType<C> extends { attach: unknown } ? RootProps : unknown);
+export type WrapperProps<C extends ElementConstructor> = Omit<InstanceType<C>['$props'], 'children'> &
+  NestedProps & { children?: ReactNode } & (InstanceType<C> extends { attach: unknown } ? RootProps : unknown);
 
 /** What a wrapper tells the wrappers below it: where their elements go, and the list they report to as they render. */
 interface Parent {
@@ -100,7 +114,10 @@ const ParentContext = createContext<Parent | null>(null);
 function place(parent: Parent, element: AnyElement): void {
   let found = false;
   for (const other of parent.list) {
-    if (found && other.parent === parent.element) { parent.element.insertBefore(element, other); return; }
+    if (found && other.parent === parent.element) {
+      parent.element.insertBefore(element, other);
+      return;
+    }
     if (other === element) found = true;
   }
   parent.element.append(element);
@@ -114,7 +131,10 @@ function reorder(self: Parent): void {
   if (self.list.size !== self.mounted.size) return;
   let at = self.element.firstChild;
   for (const child of self.list) {
-    if (child === at) { at = at.nextSibling; continue; }
+    if (child === at) {
+      at = at.nextSibling;
+      continue;
+    }
     if (child.parent === self.element) self.element.remove(child);
     self.element.insertBefore(child, at);
   }
@@ -139,21 +159,30 @@ function useAttached(chart: AnyElement, hostRef: { current: HTMLDivElement | nul
 }
 
 /** The host div's props: it fills what it is in unless told otherwise. */
-const hostPropsOf = (props: HTMLAttributes<HTMLDivElement> | undefined, ref: { current: HTMLDivElement | null }) =>
-  ({ ...props, ref, style: { width: '100%', height: '100%', ...props?.style } });
+const hostPropsOf = (props: HTMLAttributes<HTMLDivElement> | undefined, ref: { current: HTMLDivElement | null }) => ({
+  ...props,
+  ref,
+  style: { width: '100%', height: '100%', ...props?.style },
+});
 
 /**
  * A React component for a chart element class. Its props are the element's attributes (hyphenated names nest) and its
  * children are the element's children. A `ref` receives the element. See the notes at the top of this file.
  */
-export function reactWrapper<C extends ElementConstructor>(cls: C): ForwardRefExoticComponent<PropsWithoutRef<WrapperProps<C>> & RefAttributes<InstanceType<C>>> {
+export function reactWrapper<C extends ElementConstructor>(
+  cls: C,
+): ForwardRefExoticComponent<PropsWithoutRef<WrapperProps<C>> & RefAttributes<InstanceType<C>>> {
   const Wrapper = forwardRef<AnyElement, Plain>((props, ref) => {
     const parent = useContext(ParentContext);
     const host = useRef<HTMLDivElement | null>(null);
     const state = useRef<{ element: AnyElement; applied: Plain; self: Parent } | null>(null);
 
     // oxlint-disable-next-line typescript/consistent-type-assertions -- the props of a generic component, split into the ones this wrapper owns
-    const { children, hostProps, platformOptions, ...rest } = props as Plain & { children?: ReactNode; hostProps?: HTMLAttributes<HTMLDivElement>; platformOptions?: DOMPlatformOptions };
+    const { children, hostProps, platformOptions, ...rest } = props as Plain & {
+      children?: ReactNode;
+      hostProps?: HTMLAttributes<HTMLDivElement>;
+      platformOptions?: DOMPlatformOptions;
+    };
     const next = attributesOf(rest);
     if (!state.current) {
       const element = new cls(next);
@@ -196,7 +225,11 @@ export function reactWrapper<C extends ElementConstructor>(cls: C): ForwardRefEx
  * Shows a chart made some other way (with `new`, or with the JSX runtime) in React. The chart is attached while this is mounted
  * and detached when it is not; its attributes and children are yours to change, as the chart is not React's.
  */
-export function ChartView(props: { chart: ChartElement; hostProps?: HTMLAttributes<HTMLDivElement>; platformOptions?: DOMPlatformOptions }): ReactElement {
+export function ChartView(props: {
+  chart: ChartElement;
+  hostProps?: HTMLAttributes<HTMLDivElement>;
+  platformOptions?: DOMPlatformOptions;
+}): ReactElement {
   const host = useRef<HTMLDivElement | null>(null);
   useAttached(props.chart, host, props.platformOptions);
   return createElement('div', hostPropsOf(props.hostProps, host));

@@ -36,16 +36,22 @@ export const EVENT_FOCUS = 8;
 export class EventBase<T extends number = number> {
   declare readonly type: T;
   readonly target: AnyElement;
-  constructor(target: AnyElement) { this.target = target; }
+  constructor(target: AnyElement) {
+    this.target = target;
+  }
 }
 
-export interface AttachEvent extends EventBase<typeof EVENT_ATTACH> { readonly platform: Platform }
+export interface AttachEvent extends EventBase<typeof EVENT_ATTACH> {
+  readonly platform: Platform;
+}
 export interface MeasureEvent extends EventBase<typeof EVENT_MEASURE> {
   readonly available: Size;
   /** The element writes its answer here. Defaults to "needs nothing". */
   request: LayoutRequest;
 }
-export interface ArrangeEvent extends EventBase<typeof EVENT_ARRANGE> { readonly rect: Rect }
+export interface ArrangeEvent extends EventBase<typeof EVENT_ARRANGE> {
+  readonly rect: Rect;
+}
 /** An element draws through its own surface, so the event carries nothing. */
 export interface PaintEvent extends EventBase<typeof EVENT_PAINT> {}
 export interface ChartPointerEvent extends EventBase<typeof EVENT_POINTER> {
@@ -102,8 +108,13 @@ export interface FocusEvent extends EventBase<typeof EVENT_FOCUS> {
 
 export type ChartEvent =
   | AttachEvent
-  | MeasureEvent | ArrangeEvent | PaintEvent
-  | ChartPointerEvent | HoverEvent | ChartKeyEvent | FocusEvent;
+  | MeasureEvent
+  | ArrangeEvent
+  | PaintEvent
+  | ChartPointerEvent
+  | HoverEvent
+  | ChartKeyEvent
+  | FocusEvent;
 
 /** `Omit` applied to each member of a union, so the init of every event keeps its own fields. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;

@@ -96,8 +96,15 @@ export type ChartChildren = ChartChildMap[keyof ChartChildMap][];
 
 /** The root: the only element that knows about the platform lifecycle (attach, flush, detach). */
 export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
-  static override attrTypes = { ...ChartElement.attrTypes, measureText: AUTO, onFlush: AUTO, locale: STRING } satisfies AttrTypesFor<ChartAttributes>;
-  override get chart(): Chart { return this; }
+  static override attrTypes = {
+    ...ChartElement.attrTypes,
+    measureText: AUTO,
+    onFlush: AUTO,
+    locale: STRING,
+  } satisfies AttrTypesFor<ChartAttributes>;
+  override get chart(): Chart {
+    return this;
+  }
   #platform: Platform | null = null;
   #lastFlush: FlushStats | null = null;
   #needsFlush = false;
@@ -108,12 +115,20 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
   /** The input host, once something in the chart has asked for it (see `inputOf`): null on a chart nothing listens to. */
   input: InputHost | null = null;
 
-  get platform(): Platform | null { return this.#platform; }
-  get lastFlush(): FlushStats | null { return this.#lastFlush; }
+  get platform(): Platform | null {
+    return this.#platform;
+  }
+  get lastFlush(): FlushStats | null {
+    return this.#lastFlush;
+  }
   /** How many flushes have begun. Elements that belong to the chart rather than a plane use it to tell a new pass from the same one. */
-  get flushCount(): number { return this.#flushCount; }
+  get flushCount(): number {
+    return this.#flushCount;
+  }
   /** True from any invalidation until the next flush. */
-  get needsFlush(): boolean { return this.#needsFlush; }
+  get needsFlush(): boolean {
+    return this.#needsFlush;
+  }
 
   /** Construction has no side effects; this makes the chart live. */
   attach(platform: Platform): this {
@@ -146,15 +161,22 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     if (!p) return;
     this.#needsFlush = true;
     if (p.schedule && !this.unschedule) {
-      this.unschedule = p.schedule(() => { this.unschedule = null; this.flush(); });
+      this.unschedule = p.schedule(() => {
+        this.unschedule = null;
+        this.flush();
+      });
     }
   }
 
   /** Put every axis of every plane back to the range its data asks for. */
-  resetViews(): void { for (const c of this) if (c instanceof Plane) c.resetViews(); }
+  resetViews(): void {
+    for (const c of this) if (c instanceof Plane) c.resetViews();
+  }
 
   /** Send an event through the tree from `root` (default the chart). For the input host, which lives outside this class. */
-  deliver(init: ChartEventInit, root: AnyElement = this): ChartEvent { return this.broadcast(init, root); }
+  deliver(init: ChartEventInit, root: AnyElement = this): ChartEvent {
+    return this.broadcast(init, root);
+  }
 
   /** Preference order: the chart's own, the platform's (real fonts), then a deliberately wide estimate. */
   get measureText(): TextMeasurer {
@@ -174,9 +196,11 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- `Object.keys` is `string[]`; these are the keys of `stages`
     for (const k of Object.keys(c.stages) as StageName[]) c.stages[k] = 0;
 
-    const a = this.attrs, surface = this.surface;
+    const a = this.attrs,
+      surface = this.surface;
     const size = platform.size();
-    const width = a.width ?? size.width, height = a.height ?? size.height;
+    const width = a.width ?? size.width,
+      height = a.height ?? size.height;
     const root = platform.root;
     surface.set(root, 'width', width);
     surface.set(root, 'height', height);
@@ -191,11 +215,13 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
       surface.set(bg, 'fill', background);
     } else surface.remove('background');
     // Content area: the drawing minus the margin. Never below 1px so downstream divisions stay finite.
-    const pad = typeof a.padding === 'number'
-      ? { top: a.padding, right: a.padding, bottom: a.padding, left: a.padding }
-      : { top: 10, right: 10, bottom: 10, left: 10, ...a.padding };
+    const pad =
+      typeof a.padding === 'number'
+        ? { top: a.padding, right: a.padding, bottom: a.padding, left: a.padding }
+        : { top: 10, right: 10, bottom: 10, left: 10, ...a.padding };
     const content: Rect = {
-      x: pad.left, y: pad.top,
+      x: pad.left,
+      y: pad.top,
       width: Math.max(1, width - pad.left - pad.right),
       height: Math.max(1, height - pad.top - pad.bottom),
     };
@@ -239,8 +265,14 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     const edge: Record<'top' | 'bottom', number> = { top: content.y, bottom: content.y + content.height };
     for (const { child, request, side } of bands) {
       const height = request.min.height;
-      if (side === 'top') { this.arrangeChild(child, { x: content.x, y: edge.top, width: content.width, height }); edge.top += height + BAND_GAP; }
-      else { edge.bottom -= height; this.arrangeChild(child, { x: content.x, y: edge.bottom, width: content.width, height }); edge.bottom -= BAND_GAP; }
+      if (side === 'top') {
+        this.arrangeChild(child, { x: content.x, y: edge.top, width: content.width, height });
+        edge.top += height + BAND_GAP;
+      } else {
+        edge.bottom -= height;
+        this.arrangeChild(child, { x: content.x, y: edge.bottom, width: content.width, height });
+        edge.bottom -= BAND_GAP;
+      }
     }
     for (const child of this) if (child instanceof Plane) this.arrangeChild(child, plotArea);
     const along: Record<Side, number> = { top: inner.x, bottom: inner.x, left: inner.y, right: inner.y };
@@ -255,7 +287,11 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     }
     // What a screen reader is told of the chart as a whole: `meta` first, then what a describer child makes of it, which needs the layout to have settled.
     let said: ReturnType<Describer['describe']> | undefined;
-    for (const child of this) if (isDescriber(child) && child.attrs.visible !== false) { said = child.describe(); break; }
+    for (const child of this)
+      if (isDescriber(child) && child.attrs.visible !== false) {
+        said = child.describe();
+        break;
+      }
     writeAria(surface, root, a.meta, { role: 'group', ...(said && { description: said.description }) });
     if (said?.roleDescription !== undefined && !a.meta?.aria?.['aria-roledescription'] && !a.meta?.aria?.['roledescription']) {
       surface.set(root, 'aria-roledescription', said.roleDescription);
@@ -308,7 +344,10 @@ function scopeIds(svg: string, prefix: string | undefined): string {
   const ids = [...new Set([...svg.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]!))];
   if (ids.length === 0) return svg;
   const number = new Map(ids.map((id, i) => [id, i + 1]));
-  const swap = (text: string, head: string) => text.replace(/(\sid="|url\(#)([^")]+)/g, (whole, lead: string, id: string) => number.has(id) ? `${lead}${head}${number.get(id)}` : whole);
+  const swap = (text: string, head: string) =>
+    text.replace(/(\sid="|url\(#)([^")]+)/g, (whole, lead: string, id: string) =>
+      number.has(id) ? `${lead}${head}${number.get(id)}` : whole,
+    );
   return swap(svg, `${prefix ?? `ink${fnv(swap(svg, ''))}`}-`);
 }
 

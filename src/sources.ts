@@ -1,7 +1,17 @@
 /** The data sources: rows of objects, flat typed arrays, generated points and separate columns. The contract and the base class are in data.ts. */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, AUTO, NUMBER } from './attrs.ts';
-import { DataSource, type DataSourceAttributes, type FillPlan, type FillResult, NO_POINTS, type PlanContext, type PointView, endsOf, num } from './data.ts';
+import {
+  DataSource,
+  type DataSourceAttributes,
+  type FillPlan,
+  type FillResult,
+  NO_POINTS,
+  type PlanContext,
+  type PointView,
+  endsOf,
+  num,
+} from './data.ts';
 import { fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 
@@ -20,15 +30,26 @@ export interface ObjectDataSourceAttributes<Row, Channel extends string = string
 }
 /** Rows as objects. Convenient and not the fastest: reading goes through the field accessors, so the numbers are loaded into the managed buffer once per change. */
 // oxlint-disable-next-line typescript/no-explicit-any -- the default row type: untyped rows (from JSON, or JSX/React where no type argument can be written) must be accepted, and `unknown` would reject every field accessor
-export class ObjectDataSource<Row = any, Channel extends string = string> extends DataSource<ObjectDataSourceAttributes<Row, Channel>, Channel> {
+export class ObjectDataSource<Row = any, Channel extends string = string> extends DataSource<
+  ObjectDataSourceAttributes<Row, Channel>,
+  Channel
+> {
   // oxlint-disable-next-line eslint/no-useless-constructor -- makes the attributes required (the base class accepts none)
-  constructor(attrs: ObjectDataSourceAttributes<Row, Channel>) { super(attrs); }
+  constructor(attrs: ObjectDataSourceAttributes<Row, Channel>) {
+    super(attrs);
+  }
 
   /** Without a domain the rows are numbered in order, which is ascending by construction. */
-  protected override get ordered(): boolean { return this.attrs.domain === undefined || this.attrs.isSorted === true; }
+  protected override get ordered(): boolean {
+    return this.attrs.domain === undefined || this.attrs.isSorted === true;
+  }
 
-  get pointCount(): number { return this.attrs.source.length; }
-  override get channelNames(): readonly string[] { return Object.keys(this.attrs.channels ?? {}); }
+  get pointCount(): number {
+    return this.attrs.source.length;
+  }
+  override get channelNames(): readonly string[] {
+    return Object.keys(this.attrs.channels ?? {});
+  }
 
   protected scanDomain(): Extent | null {
     const { source, domain } = this.attrs;
@@ -39,20 +60,28 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
   }
 
   /** Rows are not numbers in an array, so reading them in place means loading them once into the managed buffer. */
-  protected override orderedView(): PointView { return this.managedView(); }
+  protected override orderedView(): PointView {
+    return this.managedView();
+  }
 
   protected fill(out: Float64Array, context: PlanContext): FillResult {
     const { source, domain, value, channels } = this.attrs;
     const xFn = typeof domain === 'function' ? domain : null;
     const yFn = typeof value === 'function' ? value : null;
-    const names = context.channels, k = names.length, stride = 2 + k;
+    const names = context.channels,
+      k = names.length,
+      stride = 2 + k;
     const cFns = names.map((name) => {
       const f = (channels as Readonly<Record<string, Field<Row>>> | undefined)?.[name] ?? fail(`the data has no channel "${name}"`);
       return typeof f === 'function' ? f : (row: Row) => num((row as Record<string | number, unknown>)[f]);
     });
-    const cMin = new Float64Array(k).fill(Infinity), cMax = new Float64Array(k).fill(-Infinity);
+    const cMin = new Float64Array(k).fill(Infinity),
+      cMax = new Float64Array(k).fill(-Infinity);
     const n = source.length;
-    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    let xMin = Infinity,
+      xMax = -Infinity,
+      yMin = Infinity,
+      yMax = -Infinity;
     for (let i = 0; i < n; i++) {
       const row = source[i]!;
       const x = xFn ? xFn(row, i) : domain === undefined ? i : num((row as Record<string | number, unknown>)[domain as string]);
@@ -70,7 +99,10 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
         if (v > cMax[c]!) cMax[c] = v;
       }
     }
-    const extents: Extent[] = [{ min: xMin, max: xMax }, { min: yMin, max: yMax }];
+    const extents: Extent[] = [
+      { min: xMin, max: xMax },
+      { min: yMin, max: yMax },
+    ];
     for (let c = 0; c < k; c++) extents.push({ min: cMin[c]!, max: cMax[c]! });
     return { count: n, extents };
   }
@@ -94,13 +126,23 @@ export interface FlatDataSourceAttributes<Channel extends string = string> exten
 }
 /** Numbers in a typed array (or any numeric array), read where they are: the fast path for large data. */
 export class FlatDataSource<Channel extends string = string> extends DataSource<FlatDataSourceAttributes<Channel>, Channel> {
-  static override attrTypes = { ...DataSource.attrTypes, domainOffset: NUMBER, regularDomain: AUTO, valueOffset: NUMBER } satisfies Partial<AttrTypesFor<FlatDataSourceAttributes>>;
+  static override attrTypes = { ...DataSource.attrTypes, domainOffset: NUMBER, regularDomain: AUTO, valueOffset: NUMBER } satisfies Partial<
+    AttrTypesFor<FlatDataSourceAttributes>
+  >;
   // oxlint-disable-next-line eslint/no-useless-constructor -- makes the attributes required (the base class accepts none)
-  constructor(attrs: FlatDataSourceAttributes<Channel>) { super(attrs); }
+  constructor(attrs: FlatDataSourceAttributes<Channel>) {
+    super(attrs);
+  }
 
-  private get stride(): number { return this.attrs.stride ?? (this.attrs.regularDomain ? 1 : 2); }
-  get pointCount(): number { return this.attrs.count ?? Math.floor(this.attrs.data.length / this.stride); }
-  override get channelNames(): readonly string[] { return Object.keys(this.attrs.channels ?? {}); }
+  private get stride(): number {
+    return this.attrs.stride ?? (this.attrs.regularDomain ? 1 : 2);
+  }
+  get pointCount(): number {
+    return this.attrs.count ?? Math.floor(this.attrs.data.length / this.stride);
+  }
+  override get channelNames(): readonly string[] {
+    return Object.keys(this.attrs.channels ?? {});
+  }
   /** A regular domain ascends by construction (if its step is positive); anything else says so with `isSorted`. */
   protected override get ordered(): boolean {
     const r = this.attrs.regularDomain;
@@ -108,7 +150,8 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
   }
 
   protected override orderedView(): PointView {
-    const a = this.attrs, r = a.regularDomain;
+    const a = this.attrs,
+      r = a.regularDomain;
     return {
       data: a.data,
       count: this.pointCount,
@@ -130,12 +173,21 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
 
   protected fill(out: Float64Array, context: PlanContext): FillResult {
     const { data, regularDomain: r, domainOffset = 0, channels } = this.attrs;
-    const stride = this.stride, n = this.pointCount;
+    const stride = this.stride,
+      n = this.pointCount;
     const valueOffset = this.attrs.valueOffset ?? (r ? 0 : 1);
-    const names = context.channels, k = names.length, os = 2 + k;
-    const offsets = names.map((name) => (channels as Readonly<Record<string, number>> | undefined)?.[name] ?? fail(`the data has no channel "${name}"`));
-    const cMin = new Float64Array(k).fill(Infinity), cMax = new Float64Array(k).fill(-Infinity);
-    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    const names = context.channels,
+      k = names.length,
+      os = 2 + k;
+    const offsets = names.map(
+      (name) => (channels as Readonly<Record<string, number>> | undefined)?.[name] ?? fail(`the data has no channel "${name}"`),
+    );
+    const cMin = new Float64Array(k).fill(Infinity),
+      cMax = new Float64Array(k).fill(-Infinity);
+    let xMin = Infinity,
+      xMax = -Infinity,
+      yMin = Infinity,
+      yMax = -Infinity;
     for (let i = 0, j = 0; i < n; i++, j += stride) {
       const x = r ? r.start + r.step * i : data[j + domainOffset]!;
       const y = data[j + valueOffset]!;
@@ -153,7 +205,10 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
       }
     }
     if (n === 0) return { count: 0, extents: [NO_POINTS, NO_POINTS, ...names.map(() => NO_POINTS)] };
-    const extents: Extent[] = [{ min: xMin, max: xMax }, { min: yMin, max: yMax }];
+    const extents: Extent[] = [
+      { min: xMin, max: xMax },
+      { min: yMin, max: yMax },
+    ];
     for (let c = 0; c < k; c++) extents.push({ min: cMin[c]!, max: cMax[c]! });
     return { count: n, extents };
   }
@@ -182,10 +237,16 @@ export interface SyntheticDataSourceAttributes extends DataSourceAttributes {
  */
 export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttributes> {
   // oxlint-disable-next-line eslint/no-useless-constructor -- makes the attributes required (the base class accepts none)
-  constructor(attrs: SyntheticDataSourceAttributes) { super(attrs); }
+  constructor(attrs: SyntheticDataSourceAttributes) {
+    super(attrs);
+  }
 
-  protected override get ordered(): boolean { return true; }
-  get pointCount(): number { return this.attrs.count ?? DEFAULT_SAMPLES; }
+  protected override get ordered(): boolean {
+    return true;
+  }
+  get pointCount(): number {
+    return this.attrs.count ?? DEFAULT_SAMPLES;
+  }
 
   protected scanDomain(): Extent | null {
     const d = this.attrs.domain;
@@ -194,7 +255,9 @@ export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttribute
 
   /** How many samples, over which part of the domain, for this plot. */
   private span(context: PlanContext): { lo: number; hi: number; n: number } {
-    const d = this.attrs.domain, lo = Math.max(d.min, context.domainRange.min), hi = Math.min(d.max, context.domainRange.max);
+    const d = this.attrs.domain,
+      lo = Math.max(d.min, context.domainRange.min),
+      hi = Math.min(d.max, context.domainRange.max);
     if (!(lo <= hi)) return { lo, hi, n: 0 };
     return { lo, hi, n: this.attrs.count ?? (context.width > 0 ? Math.max(2, Math.ceil(context.width)) : DEFAULT_SAMPLES) };
   }
@@ -205,9 +268,11 @@ export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttribute
     const { fn, domain, count } = this.attrs;
     const { lo, hi, n } = count === undefined ? this.span(context) : { lo: domain.min, hi: domain.max, n: count };
     if (n === 0) return { count: 0, extents: [NO_POINTS, NO_POINTS] };
-    let yMin = Infinity, yMax = -Infinity;
+    let yMin = Infinity,
+      yMax = -Infinity;
     for (let i = 0; i < n; i++) {
-      const x = n === 1 ? lo : i === n - 1 ? hi : lo + ((hi - lo) * i) / (n - 1), y = fn(x);
+      const x = n === 1 ? lo : i === n - 1 ? hi : lo + ((hi - lo) * i) / (n - 1),
+        y = fn(x);
       out[2 * i] = x;
       out[2 * i + 1] = y;
       if (y < yMin) yMin = y;
@@ -242,10 +307,16 @@ const reader = (c: Column): ((i: number) => number) => (typeof c === 'function' 
  */
 export class CompositeDataSource<Channel extends string = string> extends DataSource<CompositeDataSourceAttributes<Channel>, Channel> {
   // oxlint-disable-next-line eslint/no-useless-constructor -- makes the attributes required (the base class accepts none)
-  constructor(attrs: CompositeDataSourceAttributes<Channel>) { super(attrs); }
+  constructor(attrs: CompositeDataSourceAttributes<Channel>) {
+    super(attrs);
+  }
 
-  get pointCount(): number { return this.attrs.count; }
-  override get channelNames(): readonly string[] { return Object.keys(this.attrs.channels ?? {}); }
+  get pointCount(): number {
+    return this.attrs.count;
+  }
+  override get channelNames(): readonly string[] {
+    return Object.keys(this.attrs.channels ?? {});
+  }
 
   protected scanDomain(): Extent | null {
     const at = reader(this.attrs.domain);
@@ -254,13 +325,23 @@ export class CompositeDataSource<Channel extends string = string> extends DataSo
 
   protected fill(out: Float64Array, context: PlanContext): FillResult {
     const { count: n, channels } = this.attrs;
-    const xAt = reader(this.attrs.domain), yAt = reader(this.attrs.value);
-    const names = context.channels, k = names.length, stride = 2 + k;
-    const cAt = names.map((name) => reader((channels as Readonly<Record<string, Column>> | undefined)?.[name] ?? fail(`the data has no channel "${name}"`)));
-    const cMin = new Float64Array(k).fill(Infinity), cMax = new Float64Array(k).fill(-Infinity);
-    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    const xAt = reader(this.attrs.domain),
+      yAt = reader(this.attrs.value);
+    const names = context.channels,
+      k = names.length,
+      stride = 2 + k;
+    const cAt = names.map((name) =>
+      reader((channels as Readonly<Record<string, Column>> | undefined)?.[name] ?? fail(`the data has no channel "${name}"`)),
+    );
+    const cMin = new Float64Array(k).fill(Infinity),
+      cMax = new Float64Array(k).fill(-Infinity);
+    let xMin = Infinity,
+      xMax = -Infinity,
+      yMin = Infinity,
+      yMax = -Infinity;
     for (let i = 0; i < n; i++) {
-      const x = num(xAt(i)), y = num(yAt(i));
+      const x = num(xAt(i)),
+        y = num(yAt(i));
       out[stride * i] = x;
       out[stride * i + 1] = y;
       if (x < xMin) xMin = x;

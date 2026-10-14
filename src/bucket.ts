@@ -9,7 +9,11 @@ import type { MappedDimension } from './mapped.ts';
 import type { ResolvedBinding } from './renderer.ts';
 
 /** The bound properties of `attrs.bind` with their dimensions resolved from `from`. */
-export function resolveBindings(bind: unknown, from: Parameters<typeof resolveRef>[1], isGeometric: (property: string) => boolean): ResolvedBinding[] {
+export function resolveBindings(
+  bind: unknown,
+  from: Parameters<typeof resolveRef>[1],
+  isGeometric: (property: string) => boolean,
+): ResolvedBinding[] {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- the `bind` attribute, typed here as the shape this element reads
   const map = bind as Record<string, { axis: ElementRef<MappedDimension<unknown>>; channel: string } | undefined> | undefined;
   if (!map) return [];
@@ -42,7 +46,8 @@ export function fractionsOf(b: ResolvedBinding, data: ArrayLike<number>, column:
 
 /** Which look a shape has: one step along each bound style, the last step meaning "no value". */
 export function lookKey(styled: readonly { f: Float64Array }[], i: number, steps: number): number {
-  let key = 0, mult = 1;
+  let key = 0,
+    mult = 1;
   for (const { f } of styled) {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
     const p = f[i]!;
@@ -53,7 +58,12 @@ export function lookKey(styled: readonly { f: Float64Array }[], i: number, steps
 }
 
 /** Undo `lookKey`: the value each bound style has for that key (the middle of its step), handed to `write` by property. */
-export function lookValues(key: number, styled: readonly { b: ResolvedBinding }[], steps: number, write: (property: string, value: string | number) => void): void {
+export function lookValues(
+  key: number,
+  styled: readonly { b: ResolvedBinding }[],
+  steps: number,
+  write: (property: string, value: string | number) => void,
+): void {
   let rest = key;
   for (const { b } of styled) {
     const step = rest % steps;

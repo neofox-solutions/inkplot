@@ -1,9 +1,25 @@
 /** Rectangles, sizes and extents: the plain-data vocabulary shared by layout, hit-testing and drawing. */
 
-export interface Size { width: number; height: number }
-export interface Rect { x: number; y: number; width: number; height: number }
-export interface Insets { top: number; right: number; bottom: number; left: number }
-export interface Extent { min: number; max: number }
+export interface Size {
+  width: number;
+  height: number;
+}
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+export interface Insets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+export interface Extent {
+  min: number;
+  max: number;
+}
 /** Half-open on the far edges, so two touching rectangles never both claim the same point. */
 export const contains = (r: Rect, x: number, y: number) => x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height;
 export type Side = 'top' | 'right' | 'bottom' | 'left';

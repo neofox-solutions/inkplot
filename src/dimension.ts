@@ -15,7 +15,11 @@ import type { Extent } from './geometry.ts';
 import { Scale } from './scale.ts';
 
 /** One mark on an axis: where (`value`), what it says, and whether it is a labelled tick or a minor one. */
-export interface Tick { value: number; label: string; major: boolean }
+export interface Tick {
+  value: number;
+  label: string;
+  major: boolean;
+}
 
 export interface DimensionAttributes extends BaseAttributes {
   /** Fix an end of the range. Beats everything else, including `nice`. */
@@ -51,14 +55,26 @@ const numberFormats = new Map<string, Intl.NumberFormat>();
 function numberFormat(locale: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
   const key = locale + JSON.stringify(options);
   let f = numberFormats.get(key);
-  if (!f) { f = new Intl.NumberFormat(locale, options); numberFormats.set(key, f); }
+  if (!f) {
+    f = new Intl.NumberFormat(locale, options);
+    numberFormats.set(key, f);
+  }
   return f;
 }
 
 /** Anything that turns a data range into 0..1. Its one child is the scale that does the turning. */
-export abstract class Dimension<Parent extends AnyElement = AnyElement, A extends DimensionAttributes = DimensionAttributes>
-  extends ChartElement<Parent, [scale: Scale], A> {
-  static override attrTypes = { ...ChartElement.attrTypes, title: STRING, tickCount: NUMBER, tickStep: NUMBER, locale: STRING, onViewChange: AUTO } satisfies AttrTypesFor<DimensionAttributes>;
+export abstract class Dimension<
+  Parent extends AnyElement = AnyElement,
+  A extends DimensionAttributes = DimensionAttributes,
+> extends ChartElement<Parent, [scale: Scale], A> {
+  static override attrTypes = {
+    ...ChartElement.attrTypes,
+    title: STRING,
+    tickCount: NUMBER,
+    tickStep: NUMBER,
+    locale: STRING,
+    onViewChange: AUTO,
+  } satisfies AttrTypesFor<DimensionAttributes>;
 
   #range: Extent = { min: 0, max: 1 };
   private lo = Infinity;
@@ -72,13 +88,21 @@ export abstract class Dimension<Parent extends AnyElement = AnyElement, A extend
   private readonly tmp = new Float64Array(1);
 
   /** The resolved range after the last layout: the view if one is set, otherwise the natural range. */
-  get range(): Readonly<Extent> { return this.#range; }
+  get range(): Readonly<Extent> {
+    return this.#range;
+  }
   /** True while a view range overrides the natural one. */
-  get isZoomed(): boolean { return this.view !== null; }
+  get isZoomed(): boolean {
+    return this.view !== null;
+  }
   /** The range pan/zoom has set, which takes effect at the next layout (`range` still holds the last one until then). */
-  get viewRange(): Readonly<Extent> | null { return this.view; }
+  get viewRange(): Readonly<Extent> | null {
+    return this.view;
+  }
 
-  get scale(): Scale { return this.child(0, Scale); }
+  get scale(): Scale {
+    return this.child(0, Scale);
+  }
 
   // ─── Engine protocol: a plane and its series negotiate the range through these. ───
 
@@ -86,9 +110,17 @@ export abstract class Dimension<Parent extends AnyElement = AnyElement, A extend
    * Start a layout pass: forget last pass's contributions. `lengthInPixels` is how long the dimension is expected to be
    * drawn, which is what turns a reach in pixels into data; 0 (the default) where that is not meaningful.
    */
-  begin(lengthInPixels = 0): void { this.lo = Infinity; this.hi = -Infinity; this.resolved = false; this.reachPx = 0; this.lengthPx = lengthInPixels; }
+  begin(lengthInPixels = 0): void {
+    this.lo = Infinity;
+    this.hi = -Infinity;
+    this.resolved = false;
+    this.reachPx = 0;
+    this.lengthPx = lengthInPixels;
+  }
   /** A series asks for room of `pixels` past the ends of its data, so that marks centred on them are not cut by the plot. Ignored once resolved. */
-  reach(pixels: number): void { if (!this.resolved && pixels > this.reachPx) this.reachPx = pixels; }
+  reach(pixels: number): void {
+    if (!this.resolved && pixels > this.reachPx) this.reachPx = pixels;
+  }
   /** A series reports the extent it will draw. Ignored once the range is resolved. */
   contribute(min: number, max: number): void {
     if (this.resolved) return;
@@ -107,21 +139,37 @@ export abstract class Dimension<Parent extends AnyElement = AnyElement, A extend
    * `min` and `max`, what the scale can represent, and tidy ends. With nothing to fit it is 0 to 1.
    */
   fit(lo: number, hi: number): Extent {
-    const a = this.attrs, scale = this.scale;
-    for (const v of a.include ?? []) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    const a = this.attrs,
+      scale = this.scale;
+    for (const v of a.include ?? []) {
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
     // Nothing contributed (no data yet): a unit range keeps every downstream division finite.
-    if (!(lo <= hi)) { lo = 0; hi = 1; }
+    if (!(lo <= hi)) {
+      lo = 0;
+      hi = 1;
+    }
     const span = hi - lo;
-    if (a.padding && span > 0) { lo -= span * a.padding; hi += span * a.padding; }
+    if (a.padding && span > 0) {
+      lo -= span * a.padding;
+      hi += span * a.padding;
+    }
     let r: Extent = { min: a.min ?? lo, max: a.max ?? hi };
     // A flat line has zero span; open it up so the scale has something to divide by.
-    if (r.min === r.max) { const d = r.min === 0 ? 1 : Math.abs(r.min) * 0.1; r = { min: r.min - d, max: r.max + d }; }
+    if (r.min === r.max) {
+      const d = r.min === 0 ? 1 : Math.abs(r.min) * 0.1;
+      r = { min: r.min - d, max: r.max + d };
+    }
     r = scale.constrain(r);
     // Room for what reaches past the ends of the data: the same number of pixels at each end, in the scale's own terms.
     // An end the attributes fixed is left where it was put.
-    const m = this.reachPx, L = this.lengthPx;
+    const m = this.reachPx,
+      L = this.lengthPx;
     if (m > 0 && L > 2 * m + 1 && (a.min === undefined || a.max === undefined)) {
-      const f = m / (L - 2 * m), lo2 = scale.denormalize(-f, r), hi2 = scale.denormalize(1 + f, r);
+      const f = m / (L - 2 * m),
+        lo2 = scale.denormalize(-f, r),
+        hi2 = scale.denormalize(1 + f, r);
       r = scale.constrain({ min: a.min ?? (Number.isFinite(lo2) ? lo2 : r.min), max: a.max ?? (Number.isFinite(hi2) ? hi2 : r.max) });
     }
     if (a.nice) {
@@ -167,17 +215,23 @@ export abstract class Dimension<Parent extends AnyElement = AnyElement, A extend
     const label = this.scale.label?.(value);
     if (label !== undefined) return label;
     const locale = a.locale ?? this.chart?.attrs.locale;
-    if (locale) return numberFormat(locale, Math.abs(value) >= 1e5 ? { maximumFractionDigits: 0 } : { maximumSignificantDigits: 5 }).format(value);
+    if (locale)
+      return numberFormat(locale, Math.abs(value) >= 1e5 ? { maximumFractionDigits: 0 } : { maximumSignificantDigits: 5 }).format(value);
     return Math.abs(value) >= 1e5 ? value.toFixed(0) : String(+value.toPrecision(5));
   }
   /** A tick's number as plain text, or in the locale's way if there is one. */
   #plain(value: number, decimals: number): string {
     const locale = this.attrs.locale ?? this.chart?.attrs.locale;
-    return locale ? numberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value) : value.toFixed(decimals);
+    return locale
+      ? numberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value)
+      : value.toFixed(decimals);
   }
   /** Where the ticks are: the attributes' say if they have one, else the scale's choice of about `count`. Always inside the range. */
   private tickValues(count: number): readonly number[] {
-    const a = this.attrs, r = this.range, lo = Math.min(r.min, r.max), hi = Math.max(r.min, r.max);
+    const a = this.attrs,
+      r = this.range,
+      lo = Math.min(r.min, r.max),
+      hi = Math.max(r.min, r.max);
     const eps = (hi - lo) * 1e-9;
     // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unnecessary-type-assertion -- the attribute type with its default filled in; the type is generic here, and without the assertion it is not narrowed
     const explicit = a.ticks as DimensionAttributes['ticks'];
@@ -186,29 +240,36 @@ export abstract class Dimension<Parent extends AnyElement = AnyElement, A extend
       return given.filter((v) => v >= lo - eps && v <= hi + eps);
     }
     if (a.tickStep && a.tickStep > 0) {
-      const out: number[] = [], step = a.tickStep;
-      for (let k = Math.ceil(lo / step - 1e-9); k * step <= hi + eps && out.length < 1000; k++) out.push(Number((k * step).toPrecision(12)));
+      const out: number[] = [],
+        step = a.tickStep;
+      for (let k = Math.ceil(lo / step - 1e-9); k * step <= hi + eps && out.length < 1000; k++)
+        out.push(Number((k * step).toPrecision(12)));
       return out;
     }
     return this.scale.ticks(r, count);
   }
   /** Overridden by dimensions that know their length matters (an axis wants more ticks when longer). */
-  protected tickCountFor(_lengthInPixels: number): number { return 5; }
+  protected tickCountFor(_lengthInPixels: number): number {
+    return 5;
+  }
   /** The ticks for a dimension drawn `lengthInPixels` long. `tickCount` wins; else `count`; else a number that suits the length. */
   getTicks(lengthInPixels: number, count?: number): readonly Tick[] {
     const a = this.attrs;
     count = a.tickCount ?? count ?? this.tickCountFor(lengthInPixels);
     const values = this.tickValues(count);
     let step = values.length > 1 ? Infinity : Math.abs(this.range.max - this.range.min) || 1;
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-    for (let i = 1; i < values.length; i++) { const d = Math.abs(values[i]! - values[i - 1]!); if (d > 0 && d < step) step = d; }
+    for (let i = 1; i < values.length; i++) {
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
+      const d = Math.abs(values[i]! - values[i - 1]!);
+      if (d > 0 && d < step) step = d;
+    }
     // Enough decimals to tell neighbouring ticks apart, and the same for all so the labels line up.
     const decimals = Math.min(10, Math.max(0, Math.ceil(-Math.log10(step) - 1e-9)));
     const set = !a.format ? this.scale.labels?.(values, this.range) : undefined;
     return values.map((value, i) => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-      let label = a.format ? a.format(value) : set ? set[i]! : this.scale.label?.(value) ?? this.#plain(value, decimals);
-      if (label === '-0') label = '0';   // toFixed keeps the sign of a tiny negative
+      let label = a.format ? a.format(value) : set ? set[i]! : (this.scale.label?.(value) ?? this.#plain(value, decimals));
+      if (label === '-0') label = '0'; // toFixed keeps the sign of a tiny negative
       return { value, label, major: true };
     });
   }

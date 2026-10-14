@@ -39,7 +39,8 @@ export function englishSummary(f: ChartFacts): string {
     const list = f.series.map((s) => `${s.name}, ${plural(s.points, 'point', 'points')}${s.shown ? '' : ', hidden'}`).join('; ');
     parts.push(`${plural(f.series.length, 'series', 'series')}: ${list}.`);
   }
-  for (const a of f.axes) parts.push(`${a.horizontal ? 'Horizontal' : 'Vertical'} axis${a.title ? ` ${a.title}` : ''}, from ${a.from} to ${a.to}.`);
+  for (const a of f.axes)
+    parts.push(`${a.horizontal ? 'Horizontal' : 'Vertical'} axis${a.title ? ` ${a.title}` : ''}, from ${a.from} to ${a.to}.`);
   return parts.join(' ');
 }
 
@@ -47,7 +48,9 @@ export class ChartSummary extends ChartElement<Chart, [], ChartSummaryAttributes
   static override attrTypes = { ...ChartElement.attrTypes, roleDescription: STRING } satisfies AttrTypesFor<ChartSummaryAttributes>;
   /** What the chart holds as of the last layout. */
   get facts(): ChartFacts {
-    const chart = this.requireParent(), series: ChartFacts['series'][number][] = [], axes: ChartFacts['axes'][number][] = [];
+    const chart = this.requireParent(),
+      series: ChartFacts['series'][number][] = [],
+      axes: ChartFacts['axes'][number][] = [];
     const seen = new Set<Axis>();
     let n = 0;
     for (const plane of chart) {
@@ -61,8 +64,14 @@ export class ChartSummary extends ChartElement<Chart, [], ChartSummaryAttributes
         seen.add(axis);
         const ticks = axis.getTicks(axis.ruler.length);
         if (ticks.length < 2) continue;
-        // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-        axes.push({ ...(axis.attrs.title && { title: axis.attrs.title }), horizontal: axis.ruler.horizontal, from: ticks[0]!.label, to: ticks[ticks.length - 1]!.label });
+        axes.push({
+          ...(axis.attrs.title && { title: axis.attrs.title }),
+          horizontal: axis.ruler.horizontal,
+          // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
+          from: ticks[0]!.label,
+          // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
+          to: ticks[ticks.length - 1]!.label,
+        });
       }
     }
     const title = chart.attrs.meta?.title;

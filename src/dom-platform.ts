@@ -1,6 +1,17 @@
 /** The browser platform: renders into a real SVG element and listens for resize and pointer input. */
 import type { Size } from './geometry.ts';
-import { type Platform, type PlatformNode, type RawFocus, type RawKey, type RawPointer, SVG_NS, estimateTextWidth, type SvgTag, type TextMeasurer, type Unsubscribe } from './platform.ts';
+import {
+  type Platform,
+  type PlatformNode,
+  type RawFocus,
+  type RawKey,
+  type RawPointer,
+  SVG_NS,
+  estimateTextWidth,
+  type SvgTag,
+  type TextMeasurer,
+  type Unsubscribe,
+} from './platform.ts';
 
 /* oxlint-disable typescript/consistent-type-assertions -- the opaque `PlatformNode` handle is a DOM `Element` here, and DOM event targets are loosely typed: the casts sit at this one boundary */
 
@@ -14,7 +25,9 @@ const fromElement = (node: EventTarget | null): PlatformNode => node as unknown 
 /** What `send` reads: pointer events, wheel events (which are mouse events) and Safari's gesture events. */
 type PointerLike = MouseEvent & Partial<Pick<PointerEvent, 'pointerId' | 'pointerType'>>;
 /** Safari's trackpad pinch events: `scale` is the total since the gesture began. They are not in the DOM typings. */
-interface SafariGestureEvent extends MouseEvent { readonly scale: number }
+interface SafariGestureEvent extends MouseEvent {
+  readonly scale: number;
+}
 
 /** The part of an element the DOM platform needs. A real `HTMLElement` fits. */
 export interface DOMContainer {
@@ -50,7 +63,9 @@ export class DOMPlatform implements Platform {
   readonly #svg: SVGSVGElement;
   readonly #fixed: Size | null;
   /** The container's document, seen with DOM types (`DOMContainer` keeps them out of the public signature). */
-  get #document(): Document { return this.#container.ownerDocument as unknown as Document; }
+  get #document(): Document {
+    return this.#container.ownerDocument as unknown as Document;
+  }
   readonly #cleanups = new Set<Unsubscribe>();
 
   constructor(container: DOMContainer, options: DOMPlatformOptions = {}) {
@@ -64,10 +79,19 @@ export class DOMPlatform implements Platform {
 
     switch (options.schedule ?? 'frame') {
       case 'frame':
-        this.schedule = (cb) => { const id = requestAnimationFrame(() => cb()); return () => cancelAnimationFrame(id); };
+        this.schedule = (cb) => {
+          const id = requestAnimationFrame(() => cb());
+          return () => cancelAnimationFrame(id);
+        };
         break;
       case 'microtask':
-        this.schedule = (cb) => { let live = true; queueMicrotask(() => live && cb()); return () => { live = false; }; };
+        this.schedule = (cb) => {
+          let live = true;
+          queueMicrotask(() => live && cb());
+          return () => {
+            live = false;
+          };
+        };
         break;
       case 'manual':
         break;
@@ -91,12 +115,24 @@ export class DOMPlatform implements Platform {
   size(): Size {
     return this.#fixed ?? { width: this.#container.clientWidth || 600, height: this.#container.clientHeight || 300 };
   }
-  createNode(tag: SvgTag): PlatformNode { return fromElement(this.#svg.ownerDocument.createElementNS(SVG_NS, tag)); }
-  setAttribute(node: PlatformNode, name: string, value: string | number): void { element(node).setAttribute(name, String(value)); }
-  setText(node: PlatformNode, text: string): void { element(node).textContent = text; }
-  insertBefore(parent: PlatformNode, node: PlatformNode, before: PlatformNode | null): void { element(parent).insertBefore(element(node), before && element(before)); }
-  remove(node: PlatformNode): void { element(node).remove(); }
-  setCursor(cursor: string): void { this.#svg.style.cursor = cursor; }
+  createNode(tag: SvgTag): PlatformNode {
+    return fromElement(this.#svg.ownerDocument.createElementNS(SVG_NS, tag));
+  }
+  setAttribute(node: PlatformNode, name: string, value: string | number): void {
+    element(node).setAttribute(name, String(value));
+  }
+  setText(node: PlatformNode, text: string): void {
+    element(node).textContent = text;
+  }
+  insertBefore(parent: PlatformNode, node: PlatformNode, before: PlatformNode | null): void {
+    element(parent).insertBefore(element(node), before && element(before));
+  }
+  remove(node: PlatformNode): void {
+    element(node).remove();
+  }
+  setCursor(cursor: string): void {
+    this.#svg.style.cursor = cursor;
+  }
   #touchMode: 'always' | 'two-finger' = 'always';
   #listening = false;
   setTouchMode(mode: 'always' | 'two-finger'): void {
@@ -121,9 +157,16 @@ export class DOMPlatform implements Platform {
     const send = (e: PointerLike, kind: RawPointer['kind'], extra: Partial<RawPointer> = {}): boolean | void => {
       const box = svg.getBoundingClientRect();
       return callback({
-        kind, x: e.clientX - box.left, y: e.clientY - box.top, buttons: e.buttons, deltaY: 0,
-        id: e.pointerId ?? 0, pointerType: e.pointerType === 'pen' || e.pointerType === 'touch' ? e.pointerType : 'mouse',
-        shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, ...extra,
+        kind,
+        x: e.clientX - box.left,
+        y: e.clientY - box.top,
+        buttons: e.buttons,
+        deltaY: 0,
+        id: e.pointerId ?? 0,
+        pointerType: e.pointerType === 'pen' || e.pointerType === 'touch' ? e.pointerType : 'mouse',
+        shift: e.shiftKey,
+        ctrl: e.ctrlKey || e.metaKey,
+        ...extra,
       });
     };
     // Safari reports a trackpad pinch as gesture events (not as wheel events with ctrlKey, as other browsers do): each carries the
@@ -132,24 +175,50 @@ export class DOMPlatform implements Platform {
     // Handlers are typed by the event they are registered for; the table is widened to `Event` at its one point of use, below.
     const listeners: [string, (e: never) => void, AddEventListenerOptions?][] = [
       ['pointermove', (e: PointerEvent) => send(e, 'move')],
-      ['pointerdown', (e: PointerEvent) => { svg.setPointerCapture(e.pointerId); send(e, 'down'); }],
+      [
+        'pointerdown',
+        (e: PointerEvent) => {
+          svg.setPointerCapture(e.pointerId);
+          send(e, 'down');
+        },
+      ],
       ['pointerup', (e: PointerEvent) => send(e, 'up')],
       ['pointercancel', (e: PointerEvent) => send(e, 'up')],
       ['pointerleave', (e: PointerEvent) => send(e, 'leave')],
-      ['wheel', (e: WheelEvent) => {
-        // Wheel deltas arrive in lines or pages on some devices; normalise to pixels so zoom speed is consistent.
-        const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? this.size().height : 1;
-        if (send(e, 'wheel', { deltaY: e.deltaY * unit, deltaX: e.deltaX * unit })) e.preventDefault();
-      }, { passive: false }],
-      ['gesturestart', (e: Event) => { gestureScale = 1; e.preventDefault(); }],
-      ['gesturechange', (e: SafariGestureEvent) => {
-        const scale = e.scale / gestureScale;
-        gestureScale = e.scale;
-        send(e, 'pinch', { scale });
-        e.preventDefault();
-      }, { passive: false }],
+      [
+        'wheel',
+        (e: WheelEvent) => {
+          // Wheel deltas arrive in lines or pages on some devices; normalise to pixels so zoom speed is consistent.
+          const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? this.size().height : 1;
+          if (send(e, 'wheel', { deltaY: e.deltaY * unit, deltaX: e.deltaX * unit })) e.preventDefault();
+        },
+        { passive: false },
+      ],
+      [
+        'gesturestart',
+        (e: Event) => {
+          gestureScale = 1;
+          e.preventDefault();
+        },
+      ],
+      [
+        'gesturechange',
+        (e: SafariGestureEvent) => {
+          const scale = e.scale / gestureScale;
+          gestureScale = e.scale;
+          send(e, 'pinch', { scale });
+          e.preventDefault();
+        },
+        { passive: false },
+      ],
       // With one finger the page scrolls (touch-action allows it); a second finger down means the chart has taken the gesture.
-      ['touchmove', (e: TouchEvent) => { if (this.#touchMode === 'two-finger' && e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive: false }],
+      [
+        'touchmove',
+        (e: TouchEvent) => {
+          if (this.#touchMode === 'two-finger' && e.touches.length > 1 && e.cancelable) e.preventDefault();
+        },
+        { passive: false },
+      ],
     ];
     for (const [type, handler, options] of listeners) svg.addEventListener(type, handler as EventListener, options);
     this.#listening = true;
@@ -166,22 +235,33 @@ export class DOMPlatform implements Platform {
     const handler = (kind: RawKey['kind']) => (e: KeyboardEvent) => {
       // The browser's own shortcuts (copy, reload, switch tab) are never the chart's to take.
       if (e.metaKey || (e.ctrlKey && e.key.length === 1)) return;
-      const used = callback({ kind, key: e.key, shift: e.shiftKey, ctrl: e.ctrlKey, alt: e.altKey, repeat: e.repeat }, fromElement(e.target));
+      const used = callback(
+        { kind, key: e.key, shift: e.shiftKey, ctrl: e.ctrlKey, alt: e.altKey, repeat: e.repeat },
+        fromElement(e.target),
+      );
       if (used) e.preventDefault();
     };
-    const down = handler('down'), up = handler('up');
+    const down = handler('down'),
+      up = handler('up');
     svg.addEventListener('keydown', down);
     svg.addEventListener('keyup', up);
-    return this.#track(() => { svg.removeEventListener('keydown', down); svg.removeEventListener('keyup', up); });
+    return this.#track(() => {
+      svg.removeEventListener('keydown', down);
+      svg.removeEventListener('keyup', up);
+    });
   }
 
   onFocus(callback: (focus: RawFocus) => void): Unsubscribe {
     const svg = this.#svg;
-    const into = (e: FocusEvent) => callback({ node: fromElement(e.target), focused: true, visible: !!(e.target as Element | null)?.matches?.(':focus-visible') });
+    const into = (e: FocusEvent) =>
+      callback({ node: fromElement(e.target), focused: true, visible: !!(e.target as Element | null)?.matches?.(':focus-visible') });
     const out = (e: FocusEvent) => callback({ node: fromElement(e.target), focused: false, visible: false });
     svg.addEventListener('focusin', into);
     svg.addEventListener('focusout', out);
-    return this.#track(() => { svg.removeEventListener('focusin', into); svg.removeEventListener('focusout', out); });
+    return this.#track(() => {
+      svg.removeEventListener('focusin', into);
+      svg.removeEventListener('focusout', out);
+    });
   }
 
   /** A visually hidden live region beside the chart: SVG text is not reliably announced when it changes, an HTML status is. */
@@ -191,7 +271,8 @@ export class DOMPlatform implements Platform {
       live.setAttribute('role', 'status');
       live.setAttribute('aria-live', 'polite');
       live.setAttribute('aria-atomic', 'true');
-      live.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0';
+      live.style.cssText =
+        'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0';
       this.#container.appendChild(live);
       this.#live = live;
     }
@@ -199,7 +280,9 @@ export class DOMPlatform implements Platform {
   }
   #live: HTMLElement | null = null;
 
-  focus(node: PlatformNode): void { (element(node) as HTMLElement).focus({ focusVisible: true }); }
+  focus(node: PlatformNode): void {
+    (element(node) as HTMLElement).focus({ focusVisible: true });
+  }
 
   dispose(): void {
     // oxlint-disable-next-line unicorn/no-useless-spread -- a snapshot: each cleanup removes itself from the set while we walk it
@@ -211,7 +294,9 @@ export class DOMPlatform implements Platform {
 
   /** Registers a cleanup so `dispose()` releases every listener even if the caller never unsubscribed. */
   #track(cleanup: Unsubscribe): Unsubscribe {
-    const once = () => { if (this.#cleanups.delete(once)) cleanup(); };
+    const once = () => {
+      if (this.#cleanups.delete(once)) cleanup();
+    };
     this.#cleanups.add(once);
     return once;
   }

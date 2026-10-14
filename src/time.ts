@@ -34,14 +34,36 @@ export type TimeRank = 'year' | 'month' | 'day' | 'hour' | 'minute' | 'second' |
 
 /** The text-only and capitalised parts of `Intl.DateTimeFormatOptions`, for the `formats` attribute of both Intl-based time scales. */
 const INTL_FORMAT_TYPES = {
-  localeMatcher: STRING, timeZone: STRING, hourCycle: STRING, formatMatcher: STRING, dateStyle: STRING, timeStyle: STRING,
-  dayPeriod: STRING, fractionalSecondDigits: AUTO, calendar: STRING, numberingSystem: STRING, weekday: STRING, era: STRING,
-  year: STRING, month: STRING, day: STRING, hour: STRING, minute: STRING, second: STRING, timeZoneName: STRING,
+  localeMatcher: STRING,
+  timeZone: STRING,
+  hourCycle: STRING,
+  formatMatcher: STRING,
+  dateStyle: STRING,
+  timeStyle: STRING,
+  dayPeriod: STRING,
+  fractionalSecondDigits: AUTO,
+  calendar: STRING,
+  numberingSystem: STRING,
+  weekday: STRING,
+  era: STRING,
+  year: STRING,
+  month: STRING,
+  day: STRING,
+  hour: STRING,
+  minute: STRING,
+  second: STRING,
+  timeZoneName: STRING,
 } satisfies AttrTypes;
 /** `formats` for the time scales (Intl options per rank; a format of another kind lists its own parts). */
 export const TIME_FORMATS_TYPES = {
-  year: INTL_FORMAT_TYPES, month: INTL_FORMAT_TYPES, day: INTL_FORMAT_TYPES, hour: INTL_FORMAT_TYPES,
-  minute: INTL_FORMAT_TYPES, second: INTL_FORMAT_TYPES, millisecond: INTL_FORMAT_TYPES, full: INTL_FORMAT_TYPES,
+  year: INTL_FORMAT_TYPES,
+  month: INTL_FORMAT_TYPES,
+  day: INTL_FORMAT_TYPES,
+  hour: INTL_FORMAT_TYPES,
+  minute: INTL_FORMAT_TYPES,
+  second: INTL_FORMAT_TYPES,
+  millisecond: INTL_FORMAT_TYPES,
+  full: INTL_FORMAT_TYPES,
 } satisfies AttrTypes;
 
 export interface TimeScaleAttributes<Format = unknown> extends ScaleAttributes {
@@ -53,33 +75,71 @@ export interface TimeScaleAttributes<Format = unknown> extends ScaleAttributes {
   formats?: Partial<Record<TimeRank, Format>>;
 }
 
-const SECOND = 1000, MINUTE = 60 * SECOND, HOUR = 60 * MINUTE, DAY = 24 * HOUR, YEAR = 365.2425 * DAY;
+const SECOND = 1000,
+  MINUTE = 60 * SECOND,
+  HOUR = 60 * MINUTE,
+  DAY = 24 * HOUR,
+  YEAR = 365.2425 * DAY;
 /** The intervals a tick set is chosen from, with the length each is taken to have when comparing. Years beyond the first are the nice numbers of years. */
 const LADDER: readonly (readonly [TimeUnit, number, number])[] = [
-  ['second', 1, SECOND], ['second', 5, 5 * SECOND], ['second', 15, 15 * SECOND], ['second', 30, 30 * SECOND],
-  ['minute', 1, MINUTE], ['minute', 5, 5 * MINUTE], ['minute', 15, 15 * MINUTE], ['minute', 30, 30 * MINUTE],
-  ['hour', 1, HOUR], ['hour', 3, 3 * HOUR], ['hour', 6, 6 * HOUR], ['hour', 12, 12 * HOUR],
-  ['day', 1, DAY], ['day', 2, 2 * DAY], ['week', 1, 7 * DAY],
-  ['month', 1, YEAR / 12], ['month', 3, YEAR / 4], ['month', 6, YEAR / 2], ['year', 1, YEAR],
+  ['second', 1, SECOND],
+  ['second', 5, 5 * SECOND],
+  ['second', 15, 15 * SECOND],
+  ['second', 30, 30 * SECOND],
+  ['minute', 1, MINUTE],
+  ['minute', 5, 5 * MINUTE],
+  ['minute', 15, 15 * MINUTE],
+  ['minute', 30, 30 * MINUTE],
+  ['hour', 1, HOUR],
+  ['hour', 3, 3 * HOUR],
+  ['hour', 6, 6 * HOUR],
+  ['hour', 12, 12 * HOUR],
+  ['day', 1, DAY],
+  ['day', 2, 2 * DAY],
+  ['week', 1, 7 * DAY],
+  ['month', 1, YEAR / 12],
+  ['month', 3, YEAR / 4],
+  ['month', 6, YEAR / 2],
+  ['year', 1, YEAR],
 ];
 /** An interval: whole milliseconds (`unit` null), or `step` of a calendar unit. */
-interface Interval { unit: TimeUnit | null; step: number; ms: number }
+interface Interval {
+  unit: TimeUnit | null;
+  step: number;
+  ms: number;
+}
 
 /** The interval for ticks about `target` milliseconds apart. */
 function intervalFor(target: number): Interval {
   if (!(target > 0) || !isFinite(target)) return { unit: null, step: 1, ms: 1 };
-  if (target < 0.75 * SECOND) { const step = niceStep(target); return { unit: null, step, ms: step }; }
-  if (target > 1.4 * YEAR) { const step = Math.max(1, niceStep(target / YEAR)); return { unit: 'year', step, ms: step * YEAR }; }
+  if (target < 0.75 * SECOND) {
+    const step = niceStep(target);
+    return { unit: null, step, ms: step };
+  }
+  if (target > 1.4 * YEAR) {
+    const step = Math.max(1, niceStep(target / YEAR));
+    return { unit: 'year', step, ms: step * YEAR };
+  }
   // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-  let best = LADDER[0]!, off = Infinity;
-  for (const e of LADDER) { const d = Math.abs(Math.log(e[2] / target)); if (d < off) { off = d; best = e; } }
+  let best = LADDER[0]!,
+    off = Infinity;
+  for (const e of LADDER) {
+    const d = Math.abs(Math.log(e[2] / target));
+    if (d < off) {
+      off = d;
+      best = e;
+    }
+  }
   return { unit: best[0], step: best[1], ms: best[2] };
 }
 
 /** The most ticks made for a range, a guard against a huge range with a tiny interval. */
 const MOST = 2000;
 
-export abstract class TimeScale<Format = unknown, A extends TimeScaleAttributes<Format> = TimeScaleAttributes<Format>> extends LinearScale<A> {
+export abstract class TimeScale<
+  Format = unknown,
+  A extends TimeScaleAttributes<Format> = TimeScaleAttributes<Format>,
+> extends LinearScale<A> {
   static override attrTypes = { ...LinearScale.attrTypes, timeZone: STRING, weekStart: NUMBER } satisfies AttrTypesFor<TimeScaleAttributes>;
   /** The start of the `unit` that holds `t`, in the time zone. */
   protected abstract startOf(t: number, unit: TimeUnit): number;
@@ -93,9 +153,13 @@ export abstract class TimeScale<Format = unknown, A extends TimeScaleAttributes<
   protected abstract get defaultFormats(): Record<TimeRank, Format>;
 
   /** The day weeks start on, 0 to 6 from Sunday. */
-  protected get weekStart(): number { return this.attrs.weekStart ?? 1; }
+  protected get weekStart(): number {
+    return this.attrs.weekStart ?? 1;
+  }
 
-  #spec(rank: TimeRank): Format { return this.attrs.formats?.[rank] ?? this.defaultFormats[rank]; }
+  #spec(rank: TimeRank): Format {
+    return this.attrs.formats?.[rank] ?? this.defaultFormats[rank];
+  }
 
   /** The ticks of an interval inside [lo, hi], in order. */
   #walk(lo: number, hi: number, iv: Interval): number[] {
@@ -104,21 +168,30 @@ export abstract class TimeScale<Format = unknown, A extends TimeScaleAttributes<
       for (let k = Math.ceil(lo / iv.step - 1e-9), v = k * iv.step; v <= hi + 1e-9 && out.length < MOST; v = ++k * iv.step) out.push(v);
       return out;
     }
-    const unit = iv.unit, step = iv.step;
+    const unit = iv.unit,
+      step = iv.step;
     if (unit === 'week') {
       for (let t = this.startOf(lo, 'week'); t <= hi && out.length < MOST; t = this.add(t, 'week', 1)) if (t >= lo) out.push(t);
       return out;
     }
     if (unit === 'year') {
       // Years can be many and far apart: go straight to the first aligned one and then by whole steps.
-      const base = this.startOf(lo, 'year'), y = this.field(base, 'year'), first = Math.ceil(y / step) * step;
+      const base = this.startOf(lo, 'year'),
+        y = this.field(base, 'year'),
+        first = Math.ceil(y / step) * step;
       for (let t = this.add(base, 'year', first - y); t <= hi && out.length < MOST; t = this.add(t, 'year', step)) if (t >= lo) out.push(t);
       return out;
     }
-    const aligned = (t: number) => { const f = this.field(t, unit); return unit === 'day' ? (f - 1) % step === 0 : f % step === 0; };
+    const aligned = (t: number) => {
+      const f = this.field(t, unit);
+      return unit === 'day' ? (f - 1) % step === 0 : f % step === 0;
+    };
     let guard = 0;
     for (let t = this.startOf(lo, unit); t <= hi && guard++ < 20 * MOST;) {
-      if (t >= lo && aligned(t)) { out.push(t); if (out.length >= MOST) break; }
+      if (t >= lo && aligned(t)) {
+        out.push(t);
+        if (out.length >= MOST) break;
+      }
       let next = this.add(t, unit, 1);
       // Stepping by whole hours (minutes, seconds) leaves the clock's grid when its offset changes by a part of one (Lord Howe's half hour): back onto it.
       if (this.startOf(next, unit) !== next) next = Math.max(this.startOf(this.add(next, unit, 1), unit), t + 1);
@@ -134,15 +207,25 @@ export abstract class TimeScale<Format = unknown, A extends TimeScaleAttributes<
 
   override nice(r: Extent): Extent {
     if (!(r.max > r.min) || !isFinite(r.min) || !isFinite(r.max)) return r;
-    const iv = intervalFor((r.max - r.min) / 5), pad = 2 * iv.ms;
+    const iv = intervalFor((r.max - r.min) / 5),
+      pad = 2 * iv.ms;
     const all = this.#walk(r.min - pad, r.max + pad, iv);
-    let min = r.min, max = r.max;
-    for (const t of all) { if (t <= r.min) min = t; if (t >= r.max) { max = t; break; } }
+    let min = r.min,
+      max = r.max;
+    for (const t of all) {
+      if (t <= r.min) min = t;
+      if (t >= r.max) {
+        max = t;
+        break;
+      }
+    }
     return { min, max };
   }
 
   /** The reading of one instant: the `full` format. */
-  override label(value: number): string | undefined { return this.format(value, 'full', this.#spec('full')); }
+  override label(value: number): string | undefined {
+    return this.format(value, 'full', this.#spec('full'));
+  }
 
   override labels(values: readonly number[]): readonly string[] {
     // How finely the ticks that begin no day are divided: the largest unit that every tick begins.
@@ -151,7 +234,8 @@ export abstract class TimeScale<Format = unknown, A extends TimeScaleAttributes<
     if (fine === 'minute' && values.some((t) => this.startOf(t, 'minute') !== t)) fine = 'second';
     if (fine === 'second' && values.some((t) => this.startOf(t, 'second') !== t)) fine = 'millisecond';
     return values.map((t) => {
-      const rank: TimeRank = this.startOf(t, 'year') === t ? 'year' : this.startOf(t, 'month') === t ? 'month' : this.startOf(t, 'day') === t ? 'day' : fine;
+      const rank: TimeRank =
+        this.startOf(t, 'year') === t ? 'year' : this.startOf(t, 'month') === t ? 'month' : this.startOf(t, 'day') === t ? 'day' : fine;
       return this.format(t, rank, this.#spec(rank));
     });
   }

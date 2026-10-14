@@ -57,45 +57,74 @@ interface Geometry {
 }
 
 export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
-  static override attrTypes = { ...SeriesRenderer.attrTypes, low: STRING, q1: STRING, median: STRING, q3: STRING, high: STRING, capWidth: NUMBER, width: NUMBER } satisfies AttrTypesFor<BoxPathAttributes>;
+  static override attrTypes = {
+    ...SeriesRenderer.attrTypes,
+    low: STRING,
+    q1: STRING,
+    median: STRING,
+    q3: STRING,
+    high: STRING,
+    capWidth: NUMBER,
+    width: NUMBER,
+  } satisfies AttrTypesFor<BoxPathAttributes>;
   #geometry: Geometry | null = null;
 
   private get names() {
     const a = this.attrs;
     return { low: a.low ?? 'min', q1: a.q1 ?? 'q1', median: a.median, q3: a.q3 ?? 'q3', high: a.high ?? 'max' };
   }
-  override get channelNames(): readonly string[] { const n = this.names; return [...new Set([n.low, n.q1, ...(n.median ? [n.median] : []), n.q3, n.high])]; }
+  override get channelNames(): readonly string[] {
+    const n = this.names;
+    return [...new Set([n.low, n.q1, ...(n.median ? [n.median] : []), n.q3, n.high])];
+  }
   /** Half the width of a box, in the gaps between points, which the domain axis leaves room for. */
-  override get spans(): number { return (this.attrs.width ?? 0.8) / 2; }
-  override get hitMode(): HitMode { return 'shape'; }
+  override get spans(): number {
+    return (this.attrs.width ?? 0.8) / 2;
+  }
+  override get hitMode(): HitMode {
+    return 'shape';
+  }
 
   override spread(view: SpreadView): Spread | null {
-    const n = this.names, lo = view.channelColumn(n.low), hi = view.channelColumn(n.high);
-    let min = Infinity, max = -Infinity;
+    const n = this.names,
+      lo = view.channelColumn(n.low),
+      hi = view.channelColumn(n.high);
+    let min = Infinity,
+      max = -Infinity;
     for (let i = 0; i < view.count; i++) {
-      const a = view.raw[i * view.stride + lo]!, b = view.raw[i * view.stride + hi]!;
+      const a = view.raw[i * view.stride + lo]!,
+        b = view.raw[i * view.stride + hi]!;
       if (Number.isFinite(a) && a < min) min = a;
       if (Number.isFinite(b) && b > max) max = b;
     }
     return min <= max ? { second: { min, max } } : null;
   }
   override limit(series: Series): Spread | null {
-    const n = this.names, lo = series.data.channelExtent(n.low), hi = series.data.channelExtent(n.high);
+    const n = this.names,
+      lo = series.data.channelExtent(n.low),
+      hi = series.data.channelExtent(n.high);
     return lo && hi ? { second: { min: Math.min(lo.min, hi.min), max: Math.max(lo.max, hi.max) } } : null;
   }
 
   private box() {
     const a = this.attrs;
-    return this.styleFor(['seriesBox', 'shape'], { fill: a.fill, stroke: a.stroke, strokeWidth: a.strokeWidth, opacity: a.opacity }, { fill: this.requireParent().accentColor, stroke: this.requireParent().accentColor });
+    return this.styleFor(
+      ['seriesBox', 'shape'],
+      { fill: a.fill, stroke: a.stroke, strokeWidth: a.strokeWidth, opacity: a.opacity },
+      { fill: this.requireParent().accentColor, stroke: this.requireParent().accentColor },
+    );
   }
   private line() {
     const a = this.attrs;
     return this.styleFor(['boxLine', 'line'], { color: a.stroke, width: a.strokeWidth }, { color: this.requireParent().accentColor });
   }
-  override get swatch(): string { return this.box().fill; }
+  override get swatch(): string {
+    return this.box().fill;
+  }
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
     paintBox(s, parent, key, width, height, this.box());
-    const look = this.line(), m = s.node(`${key}/median`, 'path', { parent });
+    const look = this.line(),
+      m = s.node(`${key}/median`, 'path', { parent });
     s.set(m, 'd', `M0 ${height / 2}H${width}`);
     s.set(m, 'fill', 'none');
     s.set(m, 'stroke', look.color);
@@ -104,37 +133,68 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
 
   /** Where everything goes, in plot pixels; made again only when the series has been projected again. */
   private geometry(): Geometry | null {
-    const series = this.requireParent(), d = series.drawn, plane = d?.plane;
+    const series = this.requireParent(),
+      d = series.drawn,
+      plane = d?.plane;
     if (!d || !plane) return null;
     if (this.#geometry && this.#geometry.projection === series.projection) return this.#geometry;
     const lay = layoutBars(series, this.attrs);
     if (!lay) return null;
-    const names = this.names, n = lay.n, rs = d.stride, base = rs - d.channels.length;
+    const names = this.names,
+      n = lay.n,
+      rs = d.stride,
+      base = rs - d.channels.length;
     const col = (name: string) => base + d.channels.indexOf(name);
     const cols = [col(names.low), col(names.q1), names.median ? col(names.median) : d.secondColumn, col(names.q3), col(names.high)];
     // The five values of each row on the value axis, as fractions.
     const v = new Float64Array(n * 5);
     for (let i = 0; i < n; i++) for (let k = 0; k < 5; k++) v[i * 5 + k] = d.raw[i * rs + cols[k]!]!;
     series.secondAxis.normalize(v, n * 5, 1, 0);
-    const steps = plane.curved ? Math.min(MAX_ARC, Math.max(2, Math.ceil(lay.slot * 64))) : 1, per = 2 * (steps + 1), median = steps + 1;
+    const steps = plane.curved ? Math.min(MAX_ARC, Math.max(2, Math.ceil(lay.slot * 64))) : 1,
+      per = 2 * (steps + 1),
+      median = steps + 1;
     const cap = Math.max(0, this.attrs.capWidth ?? 0.5);
-    const total = n * (per + median + 8), out = new Float64Array(total * 2);
-    const boxAt = 0, medianAt = n * per, whiskerAt = medianAt + n * median, capAt = whiskerAt + n * 4;
+    const total = n * (per + median + 8),
+      out = new Float64Array(total * 2);
+    const boxAt = 0,
+      medianAt = n * per,
+      whiskerAt = medianAt + n * median,
+      capAt = whiskerAt + n * 4;
     for (let i = 0; i < n; i++) {
-      const x = lay.norm[3 * i]! + lay.shift, x0 = x - lay.slot / 2;
-      const lo = v[i * 5]!, q1 = v[i * 5 + 1]!, med = v[i * 5 + 2]!, q3 = v[i * 5 + 3]!, hi = v[i * 5 + 4]!;
-      const bad = !Number.isFinite(x) || !Number.isFinite(lo) || !Number.isFinite(q1) || !Number.isFinite(med) || !Number.isFinite(q3) || !Number.isFinite(hi);
-      const put = (at: number, f: number, s: number) => { out[2 * at] = f; out[2 * at + 1] = bad ? NaN : Number.isFinite(f) ? clamp(s) : NaN; };
+      const x = lay.norm[3 * i]! + lay.shift,
+        x0 = x - lay.slot / 2;
+      const lo = v[i * 5]!,
+        q1 = v[i * 5 + 1]!,
+        med = v[i * 5 + 2]!,
+        q3 = v[i * 5 + 3]!,
+        hi = v[i * 5 + 4]!;
+      const bad =
+        !Number.isFinite(x) ||
+        !Number.isFinite(lo) ||
+        !Number.isFinite(q1) ||
+        !Number.isFinite(med) ||
+        !Number.isFinite(q3) ||
+        !Number.isFinite(hi);
+      const put = (at: number, f: number, s: number) => {
+        out[2 * at] = f;
+        out[2 * at + 1] = bad ? NaN : Number.isFinite(f) ? clamp(s) : NaN;
+      };
       let k = boxAt + i * per;
       for (let j = 0; j <= steps; j++) put(k++, x0 + (lay.slot * j) / steps, q1);
       for (let j = steps; j >= 0; j--) put(k++, x0 + (lay.slot * j) / steps, q3);
       k = medianAt + i * median;
       for (let j = 0; j <= steps; j++) put(k++, x0 + (lay.slot * j) / steps, med);
       k = whiskerAt + i * 4;
-      put(k++, x, q3); put(k++, x, hi); put(k++, x, q1); put(k, x, lo);
+      put(k++, x, q3);
+      put(k++, x, hi);
+      put(k++, x, q1);
+      put(k, x, lo);
       k = capAt + i * 4;
       const c = (lay.slot * cap) / 2;
-      put(k++, x - c, hi); put(k++, x + c, hi); put(k++, x - c, lo); put(k, x + c, lo);
+      put(k++, x - c, hi);
+      put(k++, x + c, hi);
+      put(k++, x - c, lo);
+      put(k, x + c, lo);
     }
     // `put` clamps the value but the domain half of an outline is exact; NaN is already in the second coordinate of a bad row, so mirror it.
     for (let i = 0; i < total; i++) if (!Number.isFinite(out[2 * i + 1]!)) out[2 * i] = NaN;
@@ -148,19 +208,29 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
   }
 
   protected draw(): void {
-    const s = this.surface, g = this.geometry(), box = this.box(), line = this.line();
-    let boxes = '', medians = '', whiskers = '';
+    const s = this.surface,
+      g = this.geometry(),
+      box = this.box(),
+      line = this.line();
+    let boxes = '',
+      medians = '',
+      whiskers = '';
     if (g) {
       const path = (from: number, count: number, close: boolean) => {
         let d = '';
         for (let j = 0; j < count; j++) {
-          const x = g.data[2 * (from + j)]!, y = g.data[2 * (from + j) + 1]!;
+          const x = g.data[2 * (from + j)]!,
+            y = g.data[2 * (from + j) + 1]!;
           if (!(Number.isFinite(x) && Number.isFinite(y))) return '';
           d += `${j === 0 ? 'M' : 'L'}${f2(x)} ${f2(y)}`;
         }
         return d + (close ? 'Z' : '');
       };
-      const { n, per, steps } = g, median = steps + 1, medianAt = n * per, whiskerAt = medianAt + n * median, capAt = whiskerAt + n * 4;
+      const { n, per, steps } = g,
+        median = steps + 1,
+        medianAt = n * per,
+        whiskerAt = medianAt + n * median,
+        capAt = whiskerAt + n * 4;
       for (let i = 0; i < n; i++) {
         const b = path(i * per, per, true);
         if (!b) continue;

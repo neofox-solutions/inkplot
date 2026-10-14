@@ -80,7 +80,7 @@ export interface SeriesGroup {
 /** A plane child that holds series of its own (a stack), or null. Recognised by what it offers, so this file need not import every kind of group. */
 export function groupOf(child: unknown): (SeriesGroup & AnyElement) | null {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- `members` was probed on the line above
-  return typeof child === 'object' && child !== null && 'members' in child ? child as SeriesGroup & AnyElement : null;
+  return typeof child === 'object' && child !== null && 'members' in child ? (child as SeriesGroup & AnyElement) : null;
 }
 /** The series a plane child stands for: itself, the members of a group, or none. */
 export function seriesOf(child: unknown): readonly Series[] {
@@ -120,8 +120,11 @@ export interface Drawn {
 }
 
 /** The shared pipeline: raw fill (cached), column gather, normalise, place. Subclasses say which columns and axes. */
-export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Channel extends string = string>
-  extends ChartElement<Plane | (SeriesGroup & AnyElement), SeriesChildren<Channel>, A> {
+export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Channel extends string = string> extends ChartElement<
+  Plane | (SeriesGroup & AnyElement),
+  SeriesChildren<Channel>,
+  A
+> {
   static override attrTypes = { ...ChartElement.attrTypes, name: STRING } satisfies AttrTypesFor<SeriesAttributes>;
   // The projected points handed to renderers; grown as needed and reused so a redraw allocates nothing.
   #points: PointBuffer | null = null;
@@ -142,32 +145,47 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   #aligned: Rows | null = null;
 
   /** Whether a missing value is drawn as 0 (not in a stack, which has its own say). */
-  get #zero(): boolean { return this.attrs.gaps === 'zero' && this.#layer === null; }
+  get #zero(): boolean {
+    return this.attrs.gaps === 'zero' && this.#layer === null;
+  }
   /** The plane this series is drawn on, which is its parent unless a stack sits between them. */
   get plane(): Plane {
     const p = this.requireParent();
     // oxlint-disable-next-line typescript/consistent-type-assertions -- `members` was probed in the condition: this is the series group's plane
-    return 'members' in p ? p.requireParent() as Plane : p;
+    return 'members' in p ? (p.requireParent() as Plane) : p;
   }
   /** The rows drawn from: a stack's lined-up table when it made one, else the series' own fill. */
   protected rows(): Rows {
     return this.#aligned ?? { raw: this.#raw, count: this.#rawCount, stride: this.#stride, rowOf: this.#rowOf };
   }
   /** Engine protocol for a `Stack`: the series' own fill as it stands (call after `prepare`). */
-  ownRows(): Rows { return { raw: this.#raw, count: this.#rawCount, stride: this.#stride, rowOf: this.#rowOf }; }
+  ownRows(): Rows {
+    return { raw: this.#raw, count: this.#rawCount, stride: this.#stride, rowOf: this.#rowOf };
+  }
   /** Engine protocol for a `Stack`: take a place in a stack, with rows lined up to its others'. Null for both leaves it. */
-  join(layer: StackLayer | null, rows: Rows | null): void { this.#layer = layer; this.#aligned = rows; }
+  join(layer: StackLayer | null, rows: Rows | null): void {
+    this.#layer = layer;
+    this.#aligned = rows;
+  }
   /** What a stack has made of this series, if it is in one. */
-  get layer(): StackLayer | null { return this.#layer; }
+  get layer(): StackLayer | null {
+    return this.#layer;
+  }
 
-  get data(): DataNode<Channel> { return this.child(0, DataSource, DataTransform); }
+  get data(): DataNode<Channel> {
+    return this.child(0, DataSource, DataTransform);
+  }
   /**
    * Every channel its renderers bind or ask for (`channelNames`): what a renderer can ask for by name. In `points` they follow the two coordinates
    * in this order, so a channel's column is `2 + channels.indexOf(name)`.
    */
   get channels(): readonly string[] {
     const names = new Set<string>();
-    for (const r of this) if (r instanceof SeriesRenderer) { for (const b of r.bindings) names.add(b.channel); for (const c of r.channelNames) names.add(c); }
+    for (const r of this)
+      if (r instanceof SeriesRenderer) {
+        for (const b of r.bindings) names.add(b.channel);
+        for (const c of r.channelNames) names.add(c);
+      }
     return [...names];
   }
   /**
@@ -180,7 +198,9 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     return palette[index % palette.length] ?? '#888';
   }
   /** Whether the series is on show: `visible` is not false. One that is not takes no part: it is not drawn, does not set the axes' ranges, and is not hit. */
-  get shown(): boolean { return this.attrs.visible !== false; }
+  get shown(): boolean {
+    return this.attrs.visible !== false;
+  }
   /**
    * Draw a sample of what this series looks like into `parent`, `width` by `height` from its top left corner: each renderer's
    * own sample (a line, a box, a marker), one over another in drawing order, in the look the renderer resolves from the
@@ -195,7 +215,11 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    * else the palette colour. A key or tooltip shows it beside the name.
    */
   get color(): string {
-    for (const r of this) if (r instanceof SeriesRenderer) { const c = r.swatch; if (c && c !== 'none') return c; }
+    for (const r of this)
+      if (r instanceof SeriesRenderer) {
+        const c = r.swatch;
+        if (c && c !== 'none') return c;
+      }
     return this.accentColor;
   }
   /** What the first renderer that has an opinion says a hit on this series should measure: bars say the shapes they draw. */
@@ -205,23 +229,35 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   }
   /** The shapes the series draws, as polygons in plot pixels, if a renderer draws any (bars): what a 'shape' hit is inside. */
   shapes(): PolygonSet | null {
-    for (const r of this) if (r instanceof SeriesRenderer) { const g = r.shapes?.(); if (g) return g; }
+    for (const r of this)
+      if (r instanceof SeriesRenderer) {
+        const g = r.shapes?.();
+        if (g) return g;
+      }
     return null;
   }
   /** The path the series' renderer draws, if it draws other than straight lines through the points (steps, curves): what a line hit or a reading follows. */
   trace(): Trace | null {
-    for (const r of this) if (r instanceof SeriesRenderer) { const t = r.trace?.(); if (t) return t; }
+    for (const r of this)
+      if (r instanceof SeriesRenderer) {
+        const t = r.trace?.();
+        if (t) return t;
+      }
     return null;
   }
   /** How many times the series has been projected: a renderer that works something out from the points can tell whether they have changed. */
-  get projection(): number { return this.#projections; }
+  get projection(): number {
+    return this.#projections;
+  }
   /** The last projected points, in plot pixels: `[first, second, ...channels]` in each row of `points.stride` numbers. */
-  get points(): Readonly<PointBuffer> { return this.#points ?? NO_DRAWN_POINTS; }
+  get points(): Readonly<PointBuffer> {
+    return this.#points ?? NO_DRAWN_POINTS;
+  }
 
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
       case EVENT_ATTACH:
-        this.surface.wrapper();   // carries the clip
+        this.surface.wrapper(); // carries the clip
         break;
       case EVENT_PAINT: {
         const clip = this.plane.clipUrl;
@@ -237,17 +273,31 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    * kept out of the series so that a chart that never hit-tests does not carry it. Null before the first projection.
    */
   get drawn(): Drawn | null {
-    const plane = this.#plane, points = this.#points;
+    const plane = this.#plane,
+      points = this.#points;
     if (!plane || !points) return null;
-    const rows = this.rows(), layer = this.#layer;
+    const rows = this.rows(),
+      layer = this.#layer;
     return {
-      plane, points, raw: rows.raw, stride: rows.stride, firstColumn: this.firstColumn, secondColumn: this.secondColumn,
-      channels: this.channels, rowOf: rows.rowOf, alongDomain: this.alongDomain,
-      base: layer?.base ?? null, top: layer?.top ?? null, slot: layer?.slot ?? { index: 0, count: 1 }, additive: layer?.additive ?? true,
+      plane,
+      points,
+      raw: rows.raw,
+      stride: rows.stride,
+      firstColumn: this.firstColumn,
+      secondColumn: this.secondColumn,
+      channels: this.channels,
+      rowOf: rows.rowOf,
+      alongDomain: this.alongDomain,
+      base: layer?.base ?? null,
+      top: layer?.top ?? null,
+      slot: layer?.slot ?? { index: 0, count: 1 },
+      additive: layer?.additive ?? true,
     };
   }
   /** Whether the first coordinate is a position along the line, so that a value can be read between two points. */
-  protected get alongDomain(): boolean { return false; }
+  protected get alongDomain(): boolean {
+    return false;
+  }
 
   // ─── What a kind of series says. ───
 
@@ -277,13 +327,15 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    * domain, the value, then each requested channel.
    */
   protected fill(ctx: PlanContext): readonly Extent[] {
-    const data = this.data, counters = this.counters;
+    const data = this.data,
+      counters = this.counters;
     const stride = 2 + ctx.channels.length;
     const key = `${data.version}|${ctx.domainRange.min}|${ctx.domainRange.max}|${ctx.width}|${ctx.channels.join()}`;
     if (key === this.#key) {
       counters.cached++;
     } else {
-      const t0 = performance.now(), d0 = counters.stages.decimate;
+      const t0 = performance.now(),
+        d0 = counters.stages.decimate;
       const plan = data.plan(ctx);
       if (this.#raw.length < plan.capacity * stride) this.#raw = new Float64Array(plan.capacity * stride);
       const result = plan.fill(this.#raw);
@@ -306,7 +358,10 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   protected contributeReach(): void {
     let px = 0;
     for (const r of this) if (r instanceof SeriesRenderer && r.reach > px) px = r.reach;
-    if (px > 0) { this.firstAxis.reach(px); this.secondAxis.reach(px); }
+    if (px > 0) {
+      this.firstAxis.reach(px);
+      this.secondAxis.reach(px);
+    }
   }
   /** The largest `spans` of the renderers: how far they draw beyond a point along the domain, as a fraction of the gap between points. */
   protected get spans(): number {
@@ -321,8 +376,13 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    */
   protected contributeChannels(): void {
     if (this.#zero) {
-      const { raw, count: n, stride: rs } = this.rows(), c = this.secondColumn;
-      for (let i = 0; i < n; i++) if (!Number.isFinite(raw[i * rs + c]!)) { this.secondAxis.contribute(0, 0); break; }
+      const { raw, count: n, stride: rs } = this.rows(),
+        c = this.secondColumn;
+      for (let i = 0; i < n; i++)
+        if (!Number.isFinite(raw[i * rs + c]!)) {
+          this.secondAxis.contribute(0, 0);
+          break;
+        }
     }
     // Values a renderer needs on the value axis whatever the data says: the baseline bars grow from.
     for (const r of this) if (r instanceof SeriesRenderer) for (const v of r.includes) this.secondAxis.contribute(v, v);
@@ -345,11 +405,21 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
 
   /** The rows as a renderer's `spread` sees them. */
   private spreadView(): SpreadView {
-    const { raw, count, stride } = this.rows(), channels = this.channels, layer = this.#layer;
+    const { raw, count, stride } = this.rows(),
+      channels = this.channels,
+      layer = this.#layer;
     const first = channels.length === 0 ? stride : stride - channels.length;
     return {
-      raw, count, stride, firstColumn: this.firstColumn, secondColumn: this.secondColumn, top: layer?.top ?? null,
-      channelColumn: (name) => { const k = channels.indexOf(name); return k < 0 ? -1 : first + k; },
+      raw,
+      count,
+      stride,
+      firstColumn: this.firstColumn,
+      secondColumn: this.secondColumn,
+      top: layer?.top ?? null,
+      channelColumn: (name) => {
+        const k = channels.indexOf(name);
+        return k < 0 ? -1 : first + k;
+      },
     };
   }
   /** The extent the data alone asks of the first (`'first'`) or second axis, over all of it: no renderer's spread in it. */
@@ -360,7 +430,8 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     if (this.#layer) return e;
     for (const r of this) {
       if (!(r instanceof SeriesRenderer) || !r.limit) continue;
-      const s = r.limit(this), w = axis === this.firstAxis ? s?.first : axis === this.secondAxis ? s?.second : undefined;
+      const s = r.limit(this),
+        w = axis === this.firstAxis ? s?.first : axis === this.secondAxis ? s?.second : undefined;
       if (w) e = e ? { min: Math.min(e.min, w.min), max: Math.max(e.max, w.max) } : w;
     }
     return e;
@@ -371,9 +442,15 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    * The result is `[first, second, ...bound channels]` whatever order the data held them in.
    */
   project(plane: Plane): void {
-    const counters = this.counters, first = this.firstAxis, second = this.secondAxis;
-    const { raw, count: n, stride: rs } = this.rows(), layer = this.#layer;
-    const c0 = this.firstColumn, c1 = this.secondColumn, bound = this.channels.length, stride = 2 + bound;
+    const counters = this.counters,
+      first = this.firstAxis,
+      second = this.secondAxis;
+    const { raw, count: n, stride: rs } = this.rows(),
+      layer = this.#layer;
+    const c0 = this.firstColumn,
+      c1 = this.secondColumn,
+      bound = this.channels.length,
+      stride = 2 + bound;
     if (!this.#points || this.#points.data.length < n * stride) this.#points = { data: new Float64Array(n * stride), stride, count: 0 };
     const p = this.#points;
     p.stride = stride;
@@ -389,9 +466,17 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
         for (let k = 0; k < bound; k++) p.data[i * stride + 2 + k] = raw[i * rs + channels + k]!;
       }
     }
-    if (this.#zero) for (let i = 0; i < n; i++) { const v = p.data[i * stride + 1]!; if (!Number.isFinite(v) && Number.isFinite(p.data[i * stride]!)) p.data[i * stride + 1] = 0; }
+    if (this.#zero)
+      for (let i = 0; i < n; i++) {
+        const v = p.data[i * stride + 1]!;
+        if (!Number.isFinite(v) && Number.isFinite(p.data[i * stride]!)) p.data[i * stride + 1] = 0;
+      }
     // In a stack a point is drawn where the stack puts it: the row's own value has already served its purpose.
-    if (layer) for (let i = 0; i < n; i++) { const v = p.data[i * stride + 1]!; p.data[i * stride + 1] = Number.isFinite(v) ? layer.top[i]! : NaN; }
+    if (layer)
+      for (let i = 0; i < n; i++) {
+        const v = p.data[i * stride + 1]!;
+        p.data[i * stride + 1] = Number.isFinite(v) ? layer.top[i]! : NaN;
+      }
     let t = performance.now();
     first.normalize(p.data, n, stride, 0);
     second.normalize(p.data, n, stride, 1);
@@ -412,23 +497,32 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    * the data forward and this backward is a closed shape on a rectangle and on a circle alike.
    */
   baseline(value: number): Readonly<PointBuffer> {
-    const plane = this.#plane ?? fail('series has not been projected'), { raw, count: n, stride: rs } = this.rows(), layer = this.#layer;
+    const plane = this.#plane ?? fail('series has not been projected'),
+      { raw, count: n, stride: rs } = this.rows(),
+      layer = this.#layer;
     const key = `${this.#projections}|${value}`;
     if (key === this.#baseKey) return this.#base;
     this.#baseKey = key;
     if (this.#base.data.length < n * 2) this.#base.data = new Float64Array(n * 2);
-    const b = this.#base, c0 = this.firstColumn, c1 = this.secondColumn;
+    const b = this.#base,
+      c0 = this.firstColumn,
+      c1 = this.secondColumn;
     b.count = n;
     for (let i = 0; i < n; i++) {
       b.data[2 * i] = raw[i * rs + c0]!;
       // A gap in the data stays a gap in the baseline.
       // In a stack the baseline is the layer below, row by row, and `value` is not asked.
-      b.data[2 * i + 1] = Number.isFinite(raw[i * rs + c1]!) || (this.#zero && Number.isFinite(raw[i * rs + c0]!)) ? (layer ? layer.base[i]! : value) : NaN;
+      b.data[2 * i + 1] =
+        Number.isFinite(raw[i * rs + c1]!) || (this.#zero && Number.isFinite(raw[i * rs + c0]!)) ? (layer ? layer.base[i]! : value) : NaN;
     }
     this.firstAxis.normalize(b.data, n, 2, 0);
     this.secondAxis.normalize(b.data, n, 2, 1);
     // Keep the baseline inside its axis, so a fill to a value outside the range closes along the edge.
-    for (let i = 1; i < 2 * n; i += 2) { const v = b.data[i]!; if (v < 0) b.data[i] = 0; else if (v > 1) b.data[i] = 1; }
+    for (let i = 1; i < 2 * n; i += 2) {
+      const v = b.data[i]!;
+      if (v < 0) b.data[i] = 0;
+      else if (v > 1) b.data[i] = 1;
+    }
     plane.place(b, this.firstAxis, this.secondAxis);
     return b;
   }
@@ -452,13 +546,27 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   #domainAxis: Axis | null = null;
   #valueAxis: Axis | null = null;
 
-  get domainAxis(): Axis { return this.#domainAxis ?? fail('series has not been laid out'); }
-  get valueAxis(): Axis { return this.#valueAxis ?? fail('series has not been laid out'); }
-  get firstAxis(): Axis { return this.domainAxis; }
-  get secondAxis(): Axis { return this.valueAxis; }
-  protected get firstColumn(): number { return 0; }
-  protected get secondColumn(): number { return 1; }
-  protected override get alongDomain(): boolean { return true; }
+  get domainAxis(): Axis {
+    return this.#domainAxis ?? fail('series has not been laid out');
+  }
+  get valueAxis(): Axis {
+    return this.#valueAxis ?? fail('series has not been laid out');
+  }
+  get firstAxis(): Axis {
+    return this.domainAxis;
+  }
+  get secondAxis(): Axis {
+    return this.valueAxis;
+  }
+  protected get firstColumn(): number {
+    return 0;
+  }
+  protected get secondColumn(): number {
+    return 1;
+  }
+  protected override get alongDomain(): boolean {
+    return true;
+  }
 
   resolveAxes(plane: Plane): void {
     const a = this.attrs;
@@ -467,7 +575,9 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   }
 
   contributeDomain(): void {
-    const d = this.data.domain(), n = this.data.pointCount, spans = this.spans;
+    const d = this.data.domain(),
+      n = this.data.pointCount,
+      spans = this.spans;
     if (d) {
       // Bars centred on the first and last points reach half a bar past them: the mean gap is what is known before reading.
       const room = spans > 0 && n > 1 && !('bandwidth' in this.domainAxis.scale) ? (spans * (d.max - d.min)) / (n - 1) : 0;
@@ -475,7 +585,9 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
     }
     this.contributeReach();
   }
-  resolveDomain(): void { this.domainAxis.resolve(); }
+  resolveDomain(): void {
+    this.domainAxis.resolve();
+  }
 
   load(estimate: Size): void {
     const ext = this.fill({ ...estimate, domainRange: this.domainAxis.range, channels: this.channels })[1] ?? NO_EXTENT;
@@ -494,10 +606,16 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
     this.contributeChannels();
   }
 
-  ownExtent(role: 'first' | 'second'): Extent | null { return role === 'first' ? this.data.domain() : this.data.valueExtent(); }
+  ownExtent(role: 'first' | 'second'): Extent | null {
+    return role === 'first' ? this.data.domain() : this.data.valueExtent();
+  }
   extentFor(axis: Axis): Extent | null {
     if (axis === this.valueAxis && this.layer) return this.layer.extent;
-    return axis === this.domainAxis ? this.widened(axis, this.data.domain()) : axis === this.valueAxis ? this.widened(axis, this.data.valueExtent()) : null;
+    return axis === this.domainAxis
+      ? this.widened(axis, this.data.domain())
+      : axis === this.valueAxis
+        ? this.widened(axis, this.data.valueExtent())
+        : null;
   }
 }
 
@@ -531,13 +649,25 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   #xAxis: Axis | null = null;
   #yAxis: Axis | null = null;
 
-  get xAxis(): Axis { return this.#xAxis ?? fail('series has not been laid out'); }
-  get yAxis(): Axis { return this.#yAxis ?? fail('series has not been laid out'); }
-  get firstAxis(): Axis { return this.xAxis; }
-  get secondAxis(): Axis { return this.yAxis; }
+  get xAxis(): Axis {
+    return this.#xAxis ?? fail('series has not been laid out');
+  }
+  get yAxis(): Axis {
+    return this.#yAxis ?? fail('series has not been laid out');
+  }
+  get firstAxis(): Axis {
+    return this.xAxis;
+  }
+  get secondAxis(): Axis {
+    return this.yAxis;
+  }
   // The data is [order, y, x, ...bound channels]: x is asked for ahead of the channels the renderers bind.
-  protected get firstColumn(): number { return 2; }
-  protected get secondColumn(): number { return 1; }
+  protected get firstColumn(): number {
+    return 2;
+  }
+  protected get secondColumn(): number {
+    return 1;
+  }
 
   resolveAxes(plane: Plane): void {
     const a = this.attrs;
@@ -546,22 +676,34 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   }
 
   // An order has no extent to agree on before reading, so there is nothing to do ahead of `load`.
-  contributeDomain(): void { this.contributeReach(); }
+  contributeDomain(): void {
+    this.contributeReach();
+  }
   resolveDomain(): void {}
 
   load(estimate: Size): void {
     const ext = this.fill({
-      ...estimate, domainRange: { min: -Infinity, max: Infinity }, sequence: true, channels: [this.attrs.x, ...this.channels],
+      ...estimate,
+      domainRange: { min: -Infinity, max: Infinity },
+      sequence: true,
+      channels: [this.attrs.x, ...this.channels],
     });
-    const x = ext[2] ?? NO_EXTENT, y = ext[1] ?? NO_EXTENT;
+    const x = ext[2] ?? NO_EXTENT,
+      y = ext[1] ?? NO_EXTENT;
     this.xAxis.contribute(x.min, x.max);
     this.yAxis.contribute(y.min, y.max);
     this.contributeChannels();
   }
 
-  ownExtent(role: 'first' | 'second'): Extent | null { return role === 'first' ? this.data.channelExtent(this.attrs.x) : this.data.valueExtent(); }
+  ownExtent(role: 'first' | 'second'): Extent | null {
+    return role === 'first' ? this.data.channelExtent(this.attrs.x) : this.data.valueExtent();
+  }
   extentFor(axis: Axis): Extent | null {
-    return axis === this.xAxis ? this.widened(axis, this.data.channelExtent(this.attrs.x)) : axis === this.yAxis ? this.widened(axis, this.data.valueExtent()) : null;
+    return axis === this.xAxis
+      ? this.widened(axis, this.data.channelExtent(this.attrs.x))
+      : axis === this.yAxis
+        ? this.widened(axis, this.data.valueExtent())
+        : null;
   }
 }
 
@@ -573,11 +715,23 @@ export type SampleCache = Map<string, { series: Series; renderers: number }>;
  * series (a tooltip line that now reads another one) is made afresh, so nothing of the old one is left; `cache` is what the
  * caller keeps between calls. Returns the group, for what the caller wants to do to it (dim it).
  */
-export function paintSample(surface: Surface, key: string, series: Series, x: number, y: number, width: number, height: number, cache: SampleCache): PlatformNode {
+export function paintSample(
+  surface: Surface,
+  key: string,
+  series: Series,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  cache: SampleCache,
+): PlatformNode {
   let renderers = 0;
   for (const r of series) if (r instanceof SeriesRenderer) renderers++;
   const last = cache.get(key);
-  if (!last || last.series !== series || last.renderers !== renderers) { surface.removePrefix(key); cache.set(key, { series, renderers }); }
+  if (!last || last.series !== series || last.renderers !== renderers) {
+    surface.removePrefix(key);
+    cache.set(key, { series, renderers });
+  }
   const group = surface.node(key, 'g');
   surface.set(group, 'transform', `translate(${Math.round(x * 100) / 100} ${Math.round(y * 100) / 100})`);
   series.sample(surface, group, key, width, height);

@@ -8,9 +8,9 @@ import assert from 'node:assert/strict';
 import { chromium } from './tools/browser.mjs';
 import { test } from 'vite-plus/test';
 
-test("png", async () => {
-const here = (p) => fileURLToPath(new URL(p, import.meta.url));
-const app = `
+test('png', async () => {
+  const here = (p) => fileURLToPath(new URL(p, import.meta.url));
+  const app = `
 import { Axis, CartesianPlane, Chart, DOMPlatform, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme, toPng } from 'inkplot';
 const make = () => new Chart({ theme: lightTheme, width: 400, height: 250 }, new CartesianPlane({}, new Axis({}, new LinearScale()), new Axis({}, new LinearScale()),
   new DomainSeries({}, new FlatDataSource({ data: [1, 3, 2, 5, 4] }), new LinePath({}, new LinearCurve()))));
@@ -29,22 +29,33 @@ window.run = async () => {
   return { a, b };
 };
 `;
-const bundled = await build({
-  stdin: { contents: app, resolveDir: here('./'), loader: 'ts' }, bundle: true, write: false, format: 'iife', platform: 'browser', target: 'es2022', logLevel: 'error',
-  alias: { inkplot: here('./src/index.ts') },
-});
-const dir = mkdtempSync(tmpdir() + '/inkplot-png-');
-writeFileSync(`${dir}/index.html`, `<!doctype html><meta charset="utf-8"><body style="margin:0"><div id="host" style="width:400px;height:250px"></div><script>${bundled.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')}</script>`);
-const browser = await chromium.launch();
-const page = await browser.newPage();
-const problems = [];
-page.on('pageerror', (e) => problems.push(e.message));
-await page.goto(pathToFileURL(`${dir}/index.html`).href);
-const { a, b } = await page.evaluate(() => window.run());
-await browser.close();
-assert.deepEqual(problems, []);
-assert.equal(a.type, 'image/png'); assert.deepEqual([a.width, a.height], [800, 500], 'live chart at scale 2');
-assert(a.ink > 500 && a.clear > 1000, `transparent with ink: ${a.ink} / ${a.clear}`);
-assert.deepEqual([b.width, b.height], [400, 250], 'detached chart at its own size');
-assert.deepEqual(b.corner, [255, 255, 255, 255], 'the background is painted'); assert.equal(b.clear, 0);
+  const bundled = await build({
+    stdin: { contents: app, resolveDir: here('./'), loader: 'ts' },
+    bundle: true,
+    write: false,
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2022',
+    logLevel: 'error',
+    alias: { inkplot: here('./src/index.ts') },
+  });
+  const dir = mkdtempSync(tmpdir() + '/inkplot-png-');
+  writeFileSync(
+    `${dir}/index.html`,
+    `<!doctype html><meta charset="utf-8"><body style="margin:0"><div id="host" style="width:400px;height:250px"></div><script>${bundled.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')}</script>`,
+  );
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  const problems = [];
+  page.on('pageerror', (e) => problems.push(e.message));
+  await page.goto(pathToFileURL(`${dir}/index.html`).href);
+  const { a, b } = await page.evaluate(() => window.run());
+  await browser.close();
+  assert.deepEqual(problems, []);
+  assert.equal(a.type, 'image/png');
+  assert.deepEqual([a.width, a.height], [800, 500], 'live chart at scale 2');
+  assert(a.ink > 500 && a.clear > 1000, `transparent with ink: ${a.ink} / ${a.clear}`);
+  assert.deepEqual([b.width, b.height], [400, 250], 'detached chart at its own size');
+  assert.deepEqual(b.corner, [255, 255, 255, 255], 'the background is painted');
+  assert.equal(b.clear, 0);
 });

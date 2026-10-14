@@ -64,11 +64,22 @@ export interface Ruler {
  * A place for a title: a point, the unit vector pointing away from the plot there, and whether the title belongs past
  * the axis' own ticks and labels (the point is on the axis line) or the point is already where the title starts.
  */
-export interface TitleSpot { x: number; y: number; nx: number; ny: number; beyond: boolean }
+export interface TitleSpot {
+  x: number;
+  y: number;
+  nx: number;
+  ny: number;
+  beyond: boolean;
+}
 
 /** What an axis has before its plane has placed it. */
 const UNPLACED: Ruler = {
-  length: 1, tickSpacing: 70, horizontal: true, line: '', at: () => [0, 0, 0, 1], title: () => ({ x: 0, y: 0, nx: 0, ny: 1, beyond: true }),
+  length: 1,
+  tickSpacing: 70,
+  horizontal: true,
+  line: '',
+  at: () => [0, 0, 0, 1],
+  title: () => ({ x: 0, y: 0, nx: 0, ny: 1, beyond: true }),
 };
 
 export interface AxisAttributes extends DimensionAttributes {
@@ -101,7 +112,13 @@ export interface AxisAttributes extends DimensionAttributes {
 
 /** A spatial dimension, drawn along a ruler its plane gives it. Needs one scale child: `new Axis({}, new LinearScale())`. */
 export class Axis extends Dimension<Plane, AxisAttributes> {
-  static override attrTypes = { ...Dimension.attrTypes, titlePosition: STRING, titleDirection: STRING, crossesAt: NUMBER, crossAxis: STRING } satisfies AttrTypesFor<AxisAttributes>;
+  static override attrTypes = {
+    ...Dimension.attrTypes,
+    titlePosition: STRING,
+    titleDirection: STRING,
+    crossesAt: NUMBER,
+    crossAxis: STRING,
+  } satisfies AttrTypesFor<AxisAttributes>;
 
   #orientation: AxisOrientation = 'bottom';
   #slot = 0;
@@ -112,19 +129,33 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
   #labelCount = 0;
   #labelWidth = 0;
 
-  get orientation(): AxisOrientation { return this.#orientation; }
+  get orientation(): AxisOrientation {
+    return this.#orientation;
+  }
   /** The curve it is drawn along. Valid after arrange. */
-  get ruler(): Ruler { return this.#ruler; }
+  get ruler(): Ruler {
+    return this.#ruler;
+  }
   /** Position in the stack for its side, 0 being the one nearest the plot. */
-  get slot(): number { return this.#slot; }
+  get slot(): number {
+    return this.#slot;
+  }
   /** Space it needs perpendicular to the plot edge. Valid after it has been measured. */
-  get thickness(): number { return this.#thickness; }
+  get thickness(): number {
+    return this.#thickness;
+  }
   /** Room a title needs at the edge of the plot, when it is not part of the axis' own thickness. Valid after it has been measured. */
-  get titleThickness(): number { return this.#titleThickness; }
+  get titleThickness(): number {
+    return this.#titleThickness;
+  }
   /** The edge of the plot the title is at. */
-  get titleSide(): Side { return this.attrs.titlePosition ?? cartesianSide(this.#orientation); }
+  get titleSide(): Side {
+    return this.attrs.titlePosition ?? cartesianSide(this.#orientation);
+  }
   /** Half the width of the widest label: how far the first or last label may stick out past the plot. */
-  get labelOverhang(): number { return this.#labelWidth / 2; }
+  get labelOverhang(): number {
+    return this.#labelWidth / 2;
+  }
 
   // ─── Engine protocol: the plane says where the axis goes. ───
 
@@ -134,7 +165,9 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
     this.#slot = slot;
   }
   /** The curve to draw along. The plane sets it before measuring, and again once the plot is settled. */
-  setRuler(ruler: Ruler): void { this.#ruler = ruler; }
+  setRuler(ruler: Ruler): void {
+    this.#ruler = ruler;
+  }
 
   protected override tickCountFor(length: number): number {
     return Math.max(2, Math.min(12, Math.floor(length / this.#ruler.tickSpacing)));
@@ -156,7 +189,7 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
       case EVENT_ATTACH:
-        this.surface.wrapper();   // the text style below is inherited by every label
+        this.surface.wrapper(); // the text style below is inherited by every label
         break;
       case EVENT_MEASURE:
         this.measure(ev);
@@ -172,7 +205,8 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
    * `titleThickness` (room for a title that sits at the plot's edge instead), and answers the MEASURE request.
    */
   private measure(ev: MeasureEvent): void {
-    const s = this.look(), ruler = this.#ruler;
+    const s = this.look(),
+      ruler = this.#ruler;
     const chart = this.chart;
     // 'inherit' means whatever the SVG gives; measuring needs a concrete family, so a generic one stands in.
     const font = (r: TextProps): FontSpec => ({ family: r.family === 'inherit' ? 'sans-serif' : r.family, size: r.size, weight: r.weight });
@@ -184,13 +218,19 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
     if (widest > this.#labelWidth || widest < this.#labelWidth - s.labels.size * 1.5) this.#labelWidth = widest;
 
     // The title takes room across the edge it is at: its height, or its length when it runs along the way it is stacked.
-    const title = this.attrs.title, spot = ruler.title(this.attrs.titlePosition);
+    const title = this.attrs.title,
+      spot = ruler.title(this.attrs.titlePosition);
     let across = 0;
     if (title) {
       across = this.titleRotated(spot) ? measureText(title, font(s.title)).width : s.title.size * 1.2;
       this.#titleAcross = across;
     }
-    this.#thickness = s.metrics.tickLength + s.metrics.labelGap + this.labelsAcross(s.labels.size) + (title && spot.beyond ? s.metrics.spacing + across : 0) + s.metrics.spacing;
+    this.#thickness =
+      s.metrics.tickLength +
+      s.metrics.labelGap +
+      this.labelsAcross(s.labels.size) +
+      (title && spot.beyond ? s.metrics.spacing + across : 0) +
+      s.metrics.spacing;
     this.#titleThickness = title && !spot.beyond ? across + s.metrics.spacing : 0;
     ev.request = ruler.horizontal
       ? { min: { width: 0, height: this.#thickness }, max: { width: Infinity, height: this.#thickness } }
@@ -203,14 +243,21 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
     return asked ? asked === 'vertical' : Math.abs(spot.nx) > Math.abs(spot.ny);
   }
   /** True when the text runs across the edge it is at, so its length is what takes room there. */
-  private titleRotated(spot: TitleSpot): boolean { return this.titleVertical(spot) === (Math.abs(spot.ny) >= Math.abs(spot.nx)); }
+  private titleRotated(spot: TitleSpot): boolean {
+    return this.titleVertical(spot) === Math.abs(spot.ny) >= Math.abs(spot.nx);
+  }
 
   /** How much room the labels take in the direction away from the plot. */
-  private labelsAcross(fontSize: number): number { return this.#ruler.horizontal ? fontSize * 1.15 : this.#labelWidth; }
+  private labelsAcross(fontSize: number): number {
+    return this.#ruler.horizontal ? fontSize * 1.15 : this.#labelWidth;
+  }
 
   /** The line, a mark and a label at each tick, each facing away from the plot, then the title. */
   private paint(): void {
-    const s = this.look(), surface = this.surface, ruler = this.#ruler, fs = s.labels.size;
+    const s = this.look(),
+      surface = this.surface,
+      ruler = this.#ruler,
+      fs = s.labels.size;
     let d = ruler.line;
     const labels: { text: string; x: number; y: number; nx: number }[] = [];
     for (const t of this.getTicks(ruler.length)) {
@@ -246,10 +293,16 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
 
     // The title is centred in the room it has: past the labels beside the axis line, or past whatever else is at the edge.
     const title = this.attrs.title;
-    if (!title) { surface.remove('title'); return; }
+    if (!title) {
+      surface.remove('title');
+      return;
+    }
     const spot = ruler.title(this.attrs.titlePosition);
-    const distance = (spot.beyond ? s.metrics.tickLength + s.metrics.labelGap + this.labelsAcross(fs) + s.metrics.spacing : s.metrics.spacing / 2) + this.#titleAcross / 2;
-    const cx = spot.x + spot.nx * distance, cy = spot.y + spot.ny * distance;
+    const distance =
+      (spot.beyond ? s.metrics.tickLength + s.metrics.labelGap + this.labelsAcross(fs) + s.metrics.spacing : s.metrics.spacing / 2) +
+      this.#titleAcross / 2;
+    const cx = spot.x + spot.nx * distance,
+      cy = spot.y + spot.ny * distance;
     const n = surface.node('title', 'text');
     applyText(surface, n, s.title, 'middle');
     surface.set(n, 'x', 0);
