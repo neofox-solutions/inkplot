@@ -4836,7 +4836,14 @@ demos.push({
           : [new L.LinePath({ strokeWidth: 2 }, new L.LinearCurve()), new L.CircleMarker({ size: 5 })];
     const makeSeries = () => new L.DomainSeries({ name: 'Level', domainAxis: 'x', valueAxis: 'y' }, source, ...renderers());
     let series = makeSeries();
-    const plane = new L.CartesianPlane({ frame: true }, x, y, series);
+    const plane = new L.CartesianPlane(
+      { frame: true },
+      x,
+      y,
+      series,
+      new L.BoxZoom({ axes: ['y'], mode: 'y' }),
+      new L.PanZoom({ axes: ['y'], pan: false }),
+    );
     const chart = new L.Chart({ theme: chartTheme(), onFlush: ctx.onFlush }, plane);
     const read = ui.readout();
     const apply = () => {
@@ -4922,8 +4929,8 @@ demos.push({
             reload();
           },
         ],
-        ['Zoom the value axis', () => y.setAttributes({ min: 4, max: 10 })],
-        ['Reset zoom', apply],
+        ['Zoom the value axis', () => L.moveView(y, { min: 4, max: 10 })],
+        ['Reset zoom', () => L.moveView(y, null)],
       ),
       ui.toggle({
         label: 'fixed value axis (0 to 14)',
@@ -4935,7 +4942,7 @@ demos.push({
       }),
       read,
       ui.note(
-        'New values eases the shapes to where the data now is. Add a point and Remove a point change how many bars or points there are, so the shape cannot morph and snaps. Zooming is never eased. With the value axis not fixed, new data rescales it: the ticks change at once while the shapes glide, which is why the axis is fixed by default here. Path morphing needs the CSS d property (Chrome and Firefox, not Safari), and prefers-reduced-motion switches it off. Colours and widths ease in every browser.',
+        'New values eases the shapes to where the data now is. Add a point and Remove a point change how many bars or points there are, so the shape cannot morph and snaps. A zoom that jumps on purpose (the button, shift-drag to box zoom, double-click to reset) eases over the same time; a wheel turn follows your hand and is never eased. With the value axis not fixed, new data rescales it: the ticks change at once while the shapes glide, which is why the axis is fixed by default here. Path morphing needs the CSS d property (Chrome and Firefox, not Safari), and prefers-reduced-motion switches it off. Colours and widths ease in every browser.',
       ),
     );
     return { chart };

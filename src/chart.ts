@@ -11,7 +11,7 @@
  * Mapped dimensions (ColorAxis/SizeAxis) are children of the chart rather than a plane, so they use `flushCount` to
  * recognise a new pass and reset what they gathered from the planes.
  */
-import { type AttrTypesFor, AUTO, NUMBER, STRING } from './attrs.ts';
+import { type AttrTypesFor, AUTO, BOOLEAN, NUMBER, STRING } from './attrs.ts';
 import { writeAria } from './aria.ts';
 import { type AnyElement, type BaseAttributes, ChartElement, fail } from './element.ts';
 import { type ChartEvent, type ChartEventInit, EVENT_PAINT } from './events.ts';
@@ -82,8 +82,11 @@ export interface ChartAttributes extends BaseAttributes {
    * (default `'ease-out'`). Off by default. Only a change to the data eases: panning, zooming, resizing and the cursor are
    * immediate, and an interaction during a transition ends it. A shape morphs only if it keeps its structure, so a different
    * number of points or bars snaps. Switched off by `prefers-reduced-motion`. Nothing in an exported SVG changes.
+   *
+   * It also eases the changes of view that jump on purpose (a box zoom, a double-click that puts an axis back, `PanZoom.reset()`, and
+   * `moveView`), over the same time and easing, unless `views` is false. A drag, wheel turn or pinch follows the hand and never eases.
    */
-  transition?: { duration?: number; easing?: string };
+  transition?: { duration?: number; easing?: string; views?: boolean };
   /** Called after every flush with its statistics. */
   onFlush?: (stats: FlushStats) => void;
 }
@@ -108,7 +111,7 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     ...ChartElement.attrTypes,
     measureText: AUTO,
     onFlush: AUTO,
-    transition: { duration: NUMBER, easing: STRING },
+    transition: { duration: NUMBER, easing: STRING, views: BOOLEAN },
     locale: STRING,
   } satisfies AttrTypesFor<ChartAttributes>;
   override get chart(): Chart {

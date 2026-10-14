@@ -21,6 +21,7 @@ import { InteractiveElement } from './input.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_PAINT, EVENT_POINTER } from './events.ts';
 import { f2 } from './geometry.ts';
 import type { Plane } from './plane.ts';
+import { moveView } from './viewtween.ts';
 
 export interface BoxZoomAttributes extends BaseAttributes {
   /** The axes it may zoom, as elements or ids. Default: all of the plane's that can be followed along (not the rim of a polar plane). */
@@ -133,7 +134,7 @@ export class BoxZoom extends InteractiveElement<Plane, [], BoxZoomAttributes> {
       const v0 = axis.denormalize(ruler.fractionAt(from.x, from.y)),
         v1 = axis.denormalize(ruler.fractionAt(to.x, to.y));
       if (v0 !== v0 || v1 !== v1 || v0 === v1) continue;
-      axis.setViewRange({ min: Math.min(v0, v1), max: Math.max(v0, v1) });
+      moveView(axis, { min: Math.min(v0, v1), max: Math.max(v0, v1) });
     }
     this.attrs.onZoom?.({ x: Math.min(from.x, to.x), y: Math.min(from.y, to.y), width: w, height: h });
   }

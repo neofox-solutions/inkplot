@@ -17,6 +17,7 @@ import {
 import { drawFocusRing, makeTabStop } from './focus.ts';
 import type { Extent } from './geometry.ts';
 import type { Plane } from './plane.ts';
+import { moveView, naturalRange } from './viewtween.ts';
 import type { PlatformNode } from './platform.ts';
 
 /** What a key can do. */
@@ -167,7 +168,7 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
   /** Put every controlled axis back to the range its data asks for. */
   reset(): void {
     this.#stopCoast();
-    for (const { axis } of this.controlled()) axis.setViewRange(null);
+    for (const { axis } of this.controlled()) moveView(axis, null);
   }
 
   /** Marks it for `PointerListener`, which must come before it: it takes presses, so what it claims is not ours. */
@@ -283,7 +284,7 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
       last = this.#lastDown;
     if (this.attrs.resetOnDoubleClick !== false && now - last.time < 350 && Math.hypot(ev.x - last.x, ev.y - last.y) < 6) {
       this.#lastDown = { time: -Infinity, x: 0, y: 0 };
-      for (const { axis } of this.targets(ev.axis)) axis.setViewRange(null);
+      for (const { axis } of this.targets(ev.axis)) moveView(axis, null);
       ev.handled = true;
       return true;
     }
@@ -548,16 +549,7 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
    * (If it were the part in view, zooming one axis would move the limit of the other under your hand.)
    */
   private limitFor(axis: Axis): Extent {
-    let lo = Infinity,
-      hi = -Infinity;
-    for (const series of this.requireParent().series) {
-      const extent = series.extentFor(axis);
-      if (extent) {
-        if (extent.min < lo) lo = extent.min;
-        if (extent.max > hi) hi = extent.max;
-      }
-    }
-    return axis.fit(lo, hi);
+    return naturalRange(axis);
   }
 
   /** Applies the change and sets the axis' view range; a view that covers the natural range is recorded as no view at all. */

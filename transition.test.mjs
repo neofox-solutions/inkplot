@@ -10,7 +10,7 @@ import { chromium } from './tools/browser.mjs';
 import { test } from 'vite-plus/test';
 
 const APP = `
-import { Axis, CartesianPlane, Chart, DOMPlatform, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme } from 'inkplot';
+import { Axis, CartesianPlane, Chart, DOMPlatform, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme, moveView } from 'inkplot';
 const hash = location.hash.slice(1);
 const data = new Float64Array([1, 3, 2, 5, 4]);
 const source = new FlatDataSource({ data, regularDomain: { start: 0, step: 1 } });
@@ -21,7 +21,7 @@ const chart = new Chart(
   new CartesianPlane({}, x, y, new DomainSeries({}, source, new LinePath(new LinearCurve()))),
 );
 chart.attach(new DOMPlatform(document.getElementById('host'), { size: { width: 400, height: 200 }, preciseText: false }));
-Object.assign(window, { chart, source, data, x });
+Object.assign(window, { chart, source, data, x, y, moveView });
 `;
 
 test('transition', async () => {
@@ -99,6 +99,17 @@ test('transition', async () => {
       await frames(page, 3);
       assert.ok(sameShape(await line(page)), 'a view change is immediate');
       assert.equal(await page.evaluate(() => document.querySelector('svg').hasAttribute('data-ink-t')), false);
+    }
+    // A view that jumps on purpose eases too, and arrives exactly.
+    {
+      const page = await open('on');
+      await page.evaluate(() => window.moveView(window.y, { min: 2, max: 4 }));
+      await frames(page, 3);
+      await page.waitForTimeout(250);
+      const mid = await page.evaluate(() => window.y.range);
+      assert.ok(mid.min > 0 && mid.min < 2 && mid.max < 12 && mid.max > 4, `partway the range is between: ${JSON.stringify(mid)}`);
+      await page.waitForTimeout(1000);
+      assert.deepEqual(await page.evaluate(() => window.y.range), { min: 2, max: 4 });
     }
     // No `transition`: nothing is written for it and nothing eases.
     {
