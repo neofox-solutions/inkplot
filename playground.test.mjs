@@ -677,6 +677,42 @@ test('playground', async () => {
   await settle();
   assert.equal(await yside(), 'right');
 
+  // ── The headline: the spiral plays, scrubs from the slider and from the ring, and the stripes dim the years to come.
+  await page.evaluate(() => window.playground.select('hero'));
+  await page.waitForTimeout(900); // it starts playing a moment after it is shown
+  const heroText = () => page.evaluate(() => [...document.querySelectorAll('#host svg text')].map((t) => t.textContent).join('|'));
+  const stripePaths = () =>
+    page.evaluate(() => {
+      const L = window.inkplot;
+      const bars = L.firstDescendantOfType(window.playground.current.chart, L.BarPath);
+      return bars.bindings.length;
+    });
+  assert.equal(await stripePaths(), 2, 'the stripes bind a fill and an opacity');
+  const stripeNodes = () =>
+    page.evaluate(
+      () =>
+        [...document.querySelectorAll('#host svg path')].filter(
+          (p) => p.getAttribute('opacity') === '0.14' || p.getAttribute('opacity') === '1',
+        ).length,
+    );
+  const slider = page.locator('#controls input[type=range]').first();
+  await slider.evaluate((el) => {
+    el.value = '1950';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await settle();
+  assert((await heroText()).includes('1950'), 'the slider sets the year in the middle');
+  const lit = () =>
+    page.evaluate(() => [...document.querySelectorAll('#host svg path')].filter((p) => p.getAttribute('opacity') === '0.14').length);
+  assert((await lit()) > 0, 'the years still to come are faint');
+  await slider.evaluate((el) => {
+    el.value = '2024';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await settle();
+  assert((await lit()) === 0, 'at the last year nothing is faint');
+  assert((await stripeNodes()) < 150, 'a hundred and forty-five stripes are a few dozen paths');
+
   // ── The SVG tab follows the chart.
   await page.evaluate(() => window.playground.select('stack'));
   await settle();

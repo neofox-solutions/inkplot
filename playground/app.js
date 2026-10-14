@@ -626,6 +626,390 @@ const PALETTE = ['#2a6fdb', '#d9534f', '#2e9e6b', '#e0a030', '#8a5cd0', '#17a2b8
 
 const demos = [];
 
+// ── 0. Headline: the warming spiral ──────────────────────────────────────────
+// One chart, two polar planes laid over each other. Inside, each year is a ring of twelve months, coloured by the year's anomaly.
+// Outside, the same years are a ring of stripes: bars on a polar plane whose fill is bound to a colour axis and whose opacity is
+// bound to a function of the year, so the years still to come dim as the spiral plays. The numbers are made up for the demo, in
+// the shape of a real record, and the page says so.
+const HERO = { FIRST: 1880, LAST: 2024 };
+const heroData = (() => {
+  let s = 20241;
+  const rand = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-9)) * Math.cos(2 * Math.PI * rand());
+  // The slow trend, as knots joined by straight lines.
+  const knots = [
+    [1880, -0.2],
+    [1900, -0.3],
+    [1910, -0.42],
+    [1940, 0.02],
+    [1975, -0.08],
+    [1990, 0.3],
+    [2005, 0.68],
+    [2015, 0.95],
+    [2024, 1.28],
+  ];
+  const trend = (y) => {
+    for (let k = 1; k < knots.length; k++)
+      if (y <= knots[k][0])
+        return knots[k - 1][1] + ((y - knots[k - 1][0]) / (knots[k][0] - knots[k - 1][0])) * (knots[k][1] - knots[k - 1][1]);
+    return knots[knots.length - 1][1];
+  };
+  const months = [];
+  let wobble = 0;
+  for (let y = HERO.FIRST; y <= HERO.LAST; y++) {
+    wobble = 0.55 * wobble + 0.2 * gauss(); // a year-long swing, like El Niño
+    const row = [];
+    for (let m = 0; m < 12; m++) {
+      const winter = 0.5 + 0.5 * Math.cos(((m + 0.5) / 12) * 2 * Math.PI); // 1 in January, 0 in July: winters warm faster
+      const scale = 0.8 + 0.5 * winter * Math.min(1, Math.max(0, (y - 1930) / 70));
+      row.push(trend(y) * scale + wobble + 0.1 * gauss() + 0.04 * Math.sin(m + y));
+    }
+    months.push(row);
+  }
+  const annual = months.map((r) => r.reduce((a, b) => a + b, 0) / 12);
+  return { months, annual };
+})();
+
+demos.push({
+  id: 'hero',
+  title: 'Warming spiral',
+  blurb: 'A century and a half of anomalies: bound bars on a polar plane, 145 rings, a callout in the middle, played from outside',
+  setup(ctx) {
+    const { FIRST, LAST } = HERO;
+    const { months, annual } = heroData;
+    const N = LAST - FIRST + 1;
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const S = { year: LAST, pinned: LAST, trail: 0, speed: 14, playing: false };
+    const fg = () => (isDark() ? '#eef3f6' : '#1b2a33');
+    const signed = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + ' °C';
+    const hottest = annual.indexOf(Math.max(...annual)) + FIRST;
+    const coldest = annual.indexOf(Math.min(...annual)) + FIRST;
+
+    // The ramp both rings share: a colour axis, whose `valueAt` also colours each spiral ring (a line has no binding).
+    const LIM = 1.5;
+    const heat = new L.ColorAxis(
+      {
+        id: 'heat',
+        title: 'Annual anomaly (°C)',
+        ramp: ['#2c5aa0', '#4a90c8', '#9ecae1', '#e8eef2', '#f6c58d', '#e8744f', '#b3202a', '#6e0b1f'],
+        min: -LIM,
+        max: LIM,
+        format: (v) => (v > 0 ? '+' : '') + v.toFixed(1),
+      },
+      new L.LinearScale(),
+    );
+    const colourOf = (a) => heat.valueAt((a + LIM) / (2 * LIM));
+
+    // ── The outer ring: one wedge a year, all the same height, coloured and dimmed by the data.
+    const stripes = new L.BarPath({ id: 'stripes', width: 1, stroke: 'none', maxNodes: 2500 });
+    const ringSeries = new L.DomainSeries(
+      { domainAxis: 'yr', valueAxis: 'one' },
+      new L.ObjectDataSource({
+        source: annual.map((a, i) => ({ year: FIRST + i, centre: FIRST + i + 0.5, one: 1, a })),
+        domain: 'centre',
+        value: 'one',
+        isSorted: true,
+        channels: { a: 'a', year: 'year' },
+      }),
+      stripes,
+    );
+    const ringNotes = new L.PointAnnotations({ anchor: 'stripes', shape: 'text', contain: false, offset: 6, text: () => null });
+    const ring = new L.PolarPlane(
+      { innerRadius: 0.9, gridlines: false },
+      new L.Axis(
+        {
+          id: 'yr',
+          orientation: 'angle',
+          min: FIRST,
+          max: LAST + 1,
+          ticks: [1900, 1920, 1940, 1960, 1980, 2000, 2020],
+          format: (v) => String(v),
+        },
+        new L.LinearScale(),
+      ),
+      new L.Axis({ id: 'one', orientation: 'radius', min: 0, max: 1, visible: false }, new L.LinearScale()),
+      ringSeries,
+      ringNotes,
+    );
+
+    // ── The spiral: a ring of twelve months for each year.
+    const R_MIN = -2.2,
+      R_MAX = 3.9;
+    const rings = months.map((row, i) => {
+      const y = FIRST + i;
+      const data = [...row, months[i + 1]?.[0] ?? row[11]]; // January again, to close the ring
+      const line = new L.LinePath(
+        { stroke: colourOf(annual[i]), strokeWidth: 0.6 + (i / (N - 1)) * 0.9, opacity: 0.2 + 0.55 * (i / (N - 1)) },
+        new L.CatmullRomCurve(),
+      );
+      return {
+        y,
+        line,
+        series: new L.DomainSeries(
+          { domainAxis: 'month', valueAxis: 'anomaly' },
+          new L.FlatDataSource({ data, regularDomain: { start: 0, step: 1 } }),
+          line,
+        ),
+        shown: true,
+      };
+    });
+    const nowSource = new L.FlatDataSource({ data: [...months[N - 1], months[N - 1][0]], regularDomain: { start: 0, step: 1 } });
+    const nowLine = new L.LinePath({ id: 'now', strokeWidth: 2.6, stroke: fg() }, new L.CatmullRomCurve());
+    const nowDots = new L.CircleMarker({ size: 3, fill: fg(), stroke: 'none' });
+    const nowSeries = new L.DomainSeries({ domainAxis: 'month', valueAxis: 'anomaly' }, nowSource, nowLine, nowDots);
+    // The month names ride on a series of twelve invisible points, so they are notes like any other.
+    const names = new L.DomainSeries(
+      { domainAxis: 'month', valueAxis: 'anomaly' },
+      new L.FlatDataSource({ data: new Array(12).fill(2.55), regularDomain: { start: 0.5, step: 1 } }),
+      new L.DotMarker({ id: 'names', size: 0, opacity: 0 }),
+    );
+    const monthNotes = new L.PointAnnotations({
+      anchor: 'names',
+      shape: 'text',
+      contain: false,
+      offset: 0,
+      placement: 'inside',
+      text: (hit) => MONTHS[Math.floor(hit.first)],
+    });
+    const limit = new L.LineAnnotation({
+      value: 1.5,
+      label: '+1.5 °C',
+      stroke: '#e8744f',
+      strokeWidth: 1,
+      style: { annotationLine: { dash: '3 4' } },
+    });
+    const yearNote = new L.CalloutAnnotation({ domain: 0, value: R_MIN, text: String(LAST), dx: 0, dy: -4 });
+    const anomalyNote = new L.CalloutAnnotation({ domain: 0, value: R_MIN, text: signed(annual[N - 1]), dx: 0, dy: 30 });
+    const bare = { callout: { outline: 'none' }, calloutBox: { fill: 'none', stroke: 'none' }, calloutArm: { stroke: 'none' } };
+    const restyle = () => {
+      yearNote.setAttribute('style', { ...bare, calloutText: { size: 46, weight: 700, color: fg() } });
+      anomalyNote.setAttribute('style', { ...bare, calloutText: { size: 17, weight: 500, color: fg() } });
+      nowLine.setAttribute('stroke', fg());
+      nowDots.setAttribute('fill', fg());
+    };
+    restyle();
+    ctx.onTheme(restyle);
+    const spiral = new L.PolarPlane(
+      { gridlines: true },
+      new L.Axis({ id: 'month', orientation: 'angle', min: 0, max: 12, tickStep: 1, visible: false }, new L.LinearScale()),
+      new L.Axis(
+        { id: 'anomaly', orientation: 'radius', min: R_MIN, max: R_MAX, ticks: [0, 1, 2], format: (v) => (v === 0 ? '0 °C' : `+${v}`) },
+        new L.LinearScale(),
+      ),
+      ...rings.map((r) => r.series),
+      limit,
+      nowSeries,
+      names,
+      monthNotes,
+      yearNote,
+      anomalyNote,
+    );
+
+    const chart = new L.Chart(
+      {
+        theme: chartTheme(),
+        onFlush: ctx.onFlush,
+        padding: 26,
+        meta: { title: 'Warming spiral', description: 'Illustrative monthly temperature anomalies, 1880 to 2024' },
+      },
+      heat,
+      spiral,
+      ring,
+      new L.ChartTitle({ text: 'A century and a half of warming', role: 'title' }),
+      new L.ChartTitle({ text: 'Each ring is a year, January at the top; the stripes outside are the same years', role: 'subtitle' }),
+      new L.ChartTitle({ text: 'Illustrative data, made up for this demo', role: 'caption' }),
+      new L.ColorKey({ dimension: heat, side: 'bottom' }),
+    );
+    chart.setAttribute('style', { chartTitle: { align: 'middle' }, chartSubtitle: { align: 'middle' }, chartCaption: { align: 'middle' } });
+
+    // ── What changes as the year moves.
+    const show = () => {
+      const yr = Math.round(S.year),
+        i = yr - FIRST;
+      for (const r of rings) {
+        const age = yr - r.y;
+        const on = age >= 0 && (S.trail === 0 || age < S.trail);
+        if (on !== r.shown) {
+          r.series.setAttribute('visible', on);
+          r.shown = on;
+        }
+        if (on && S.trail) r.line.setAttribute('opacity', Math.max(0.12, 1 - age / S.trail));
+      }
+      if (!S.trail) for (const r of rings) r.line.setAttribute('opacity', 0.2 + 0.55 * ((r.y - FIRST) / (N - 1)));
+      nowSource.setAttributes({ data: [...months[i], months[i][0]], regularDomain: { start: 0, step: 1 } });
+      yearNote.setAttribute('text', String(yr));
+      anomalyNote.setAttribute('text', signed(annual[i]));
+      // The years to come are faint: a function of the year makes it, and a new one each time says the answer has changed.
+      stripes.setAttribute('bind', {
+        fill: { axis: heat, channel: 'a' },
+        opacity: { channel: 'year', map: (y) => (y <= yr ? 1 : 0.14) },
+      });
+      ringNotes.setAttribute('text', (hit) => {
+        const y = Math.floor(hit.first);
+        return y === yr
+          ? String(y)
+          : Math.abs(y - yr) < 9
+            ? null
+            : y === hottest && y < yr
+              ? `hottest, ${y}`
+              : y === coldest && y < yr
+                ? `coldest, ${y}`
+                : null;
+      });
+      if (yearSlider) yearSlider.set(yr);
+    };
+
+    // ── Playing it.
+    let raf = 0,
+      last = 0,
+      playButton = null,
+      yearSlider = null;
+    const frame = (now) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      const before = Math.round(S.year);
+      S.year = Math.min(LAST, S.year + dt * S.speed);
+      if (Math.round(S.year) !== before) show();
+      if (S.year >= LAST) {
+        S.pinned = LAST;
+        return stop();
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    const play = () => {
+      if (S.year >= LAST) S.year = FIRST;
+      S.playing = true;
+      last = performance.now();
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(frame);
+      show();
+      refreshButton();
+    };
+    const stop = () => {
+      S.playing = false;
+      cancelAnimationFrame(raf);
+      refreshButton();
+    };
+    const refreshButton = () => {
+      if (playButton) playButton.textContent = S.playing ? 'Pause' : S.year >= LAST ? 'Replay' : 'Play';
+    };
+
+    playButton = h('button', { type: 'button', onclick: () => (S.playing ? stop() : play()) }, 'Replay');
+    yearSlider = (() => {
+      const f = ui.slider({
+        label: 'year',
+        min: FIRST,
+        max: LAST,
+        value: LAST,
+        format: (v) => String(v),
+        onChange: (v) => {
+          stop();
+          S.pinned = S.year = v;
+          show();
+          refreshButton();
+        },
+      });
+      const input = f.querySelector('input'),
+        out = f.querySelector('output');
+      return {
+        el: f,
+        set: (v) => {
+          input.value = v;
+          out.textContent = String(v);
+        },
+      };
+    })();
+    ctx.add(
+      h('div', { class: 'field' }, h('div', { class: 'seg' }, playButton)),
+      yearSlider.el,
+      ui.seg({
+        label: 'rings shown',
+        options: [
+          [0, 'all so far'],
+          [40, '40 years'],
+          [15, '15 years'],
+        ],
+        value: 0,
+        onChange: (v) => {
+          S.trail = v;
+          show();
+        },
+      }),
+      ui.seg({
+        label: 'speed',
+        options: [
+          [6, 'slow'],
+          [14, 'medium'],
+          [40, 'fast'],
+        ],
+        value: 14,
+        onChange: (v) => (S.speed = v),
+      }),
+      ui.note(
+        'Hover the stripes to scrub the spiral; click one to pin its year. One chart with two polar planes. The outer ring is a bar series on a polar plane whose fill is bound to a colour axis and whose opacity is bound to a function of the year (the years to come dim). Each spiral ring is a series coloured from the same axis; the month names are notes on twelve invisible points; the year in the middle is a callout with no box. The data are invented for this demo.',
+      ),
+    );
+    // Hover the stripes (when nothing is playing) and the spiral follows the pointer; off them it goes back to the pinned year. A click pins it.
+    // The two planes share one box, so the pointer is read here, against the ring's own circle.
+    const yearAt = (ev) => {
+      const box = ctx.host.getBoundingClientRect(),
+        r = ring.rect;
+      const dx = ev.clientX - box.left - (r.x + r.width / 2),
+        dy = ev.clientY - box.top - (r.y + r.height / 2);
+      const radius = Math.min(r.width, r.height) / 2,
+        d = Math.hypot(dx, dy);
+      if (d < radius * 0.8 || d > radius * 1.08) return null;
+      const turn = (((Math.atan2(dx, -dy) / (2 * Math.PI)) % 1) + 1) % 1;
+      return FIRST + Math.min(N - 1, Math.floor(turn * N));
+    };
+    const onMove = (ev) => {
+      if (S.playing) return;
+      const y = yearAt(ev);
+      ctx.host.style.cursor = y === null ? '' : 'pointer';
+      const next = y ?? S.pinned;
+      if (next !== S.year) {
+        S.year = next;
+        show();
+      }
+    };
+    const onLeave = () => onMove({ clientX: -1e6, clientY: -1e6 });
+    const onClick = (ev) => {
+      const y = yearAt(ev);
+      if (y === null) return;
+      stop();
+      S.pinned = S.year = y;
+      show();
+    };
+    ctx.host.addEventListener('pointermove', onMove);
+    ctx.host.addEventListener('pointerleave', onLeave);
+    ctx.host.addEventListener('click', onClick);
+
+    // A tall stage: this one is a circle.
+    ctx.host.style.height = '800px';
+    S.year = FIRST;
+    show();
+    // Start it going, once the chart is on the page, unless the visitor would rather things did not move.
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still) {
+      S.year = S.pinned = LAST;
+      show();
+    }
+    const starter = still ? 0 : setTimeout(play, 500);
+    return {
+      chart,
+      dispose: () => {
+        clearTimeout(starter);
+        cancelAnimationFrame(raf);
+        ctx.host.removeEventListener('pointermove', onMove);
+        ctx.host.removeEventListener('pointerleave', onLeave);
+        ctx.host.removeEventListener('click', onClick);
+        ctx.host.style.cursor = '';
+        ctx.host.style.height = '';
+      },
+    };
+  },
+});
+
 // ── 1. Basic line ────────────────────────────────────────────────────────────
 demos.push({
   id: 'basic',
