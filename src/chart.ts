@@ -23,6 +23,7 @@ import type { ColorAxis, SizeAxis } from './mapped.ts';
 import type { ColorKey, SizeKey } from './key.ts';
 import type { Legend } from './legend.ts';
 import type { ChartSummary } from './summary.ts';
+import type { Entrance } from './entrance.ts';
 import { Plane } from './plane.ts';
 import type { BaseTheme } from './theme.ts';
 import { type Platform, StringPlatform, type TextMeasurer, type Unsubscribe, estimateTextWidth } from './platform.ts';
@@ -90,7 +91,7 @@ export interface ChartAttributes extends BaseAttributes {
    * markers are drawn on from the left, a round chart fades in. Default false. Don't combine it with a server-rendered chart, whose
    * first drawing is already on the page.
    */
-  transition?: { duration?: number; easing?: string; views?: boolean; enter?: boolean };
+  transition?: { duration?: number; easing?: string; views?: boolean };
   /** Called after every flush with its statistics. */
   onFlush?: (stats: FlushStats) => void;
 }
@@ -106,6 +107,7 @@ export interface ChartChildMap {
   sizeKey: SizeKey;
   legend: Legend;
   summary: ChartSummary;
+  entrance: Entrance;
 }
 export type ChartChildren = ChartChildMap[keyof ChartChildMap][];
 
@@ -115,7 +117,7 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     ...ChartElement.attrTypes,
     measureText: AUTO,
     onFlush: AUTO,
-    transition: { duration: NUMBER, easing: STRING, views: BOOLEAN, enter: BOOLEAN },
+    transition: { duration: NUMBER, easing: STRING, views: BOOLEAN },
     locale: STRING,
   } satisfies AttrTypesFor<ChartAttributes>;
   override get chart(): Chart {
@@ -225,7 +227,6 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     this.#dataChanged = false;
     const spec = { duration: a.transition?.duration ?? 250, easing: a.transition?.easing ?? 'ease-out' };
     platform.setTransition?.(eased ? spec : null);
-    if (a.transition?.enter && this.#flushCount === 1) platform.prepareEnter?.(spec);
     const size = platform.size();
     const width = a.width ?? size.width,
       height = a.height ?? size.height;

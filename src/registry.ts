@@ -28,6 +28,7 @@ import { BoxZoom } from './boxzoom.ts';
 import { Density } from './density.ts';
 import { Brush } from './brush.ts';
 import { PanZoom } from './panzoom.ts';
+import { Entrance } from './entrance.ts';
 import { ChartSummary } from './summary.ts';
 import { CartesianPlane } from './plane.ts';
 import { PointerListener } from './pointer.ts';
@@ -46,6 +47,7 @@ export const registry: ElementRegistry = {
   ChartTitle,
   ChartTooltip,
   ChartSummary,
+  Entrance,
   Cursor,
   Crosshair,
   Legend,

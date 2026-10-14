@@ -10,7 +10,7 @@ import { chromium } from './tools/browser.mjs';
 import { test } from 'vite-plus/test';
 
 const APP = `
-import { Axis, CartesianPlane, Chart, DOMPlatform, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, BarPath, lightTheme, moveView } from 'inkplot';
+import { Axis, CartesianPlane, Chart, DOMPlatform, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, BarPath, Entrance, lightTheme, moveView } from 'inkplot';
 const hash = location.hash.slice(1);
 const data = new Float64Array([1, 3, 2, 5, 4]);
 const source = new FlatDataSource({ data, regularDomain: { start: 0, step: 1 } });
@@ -19,8 +19,9 @@ const y = new Axis({ orientation: 'left', min: 0, max: 12 }, new LinearScale());
 const enter = hash.startsWith('enter');
 const renderer = hash === 'enter-bars' ? new BarPath({}) : new LinePath(new LinearCurve());
 const chart = new Chart(
-  { theme: lightTheme, ...(hash === 'off' ? {} : { transition: { duration: 800, easing: 'linear', ...(enter ? { enter: true } : {}) } }) },
+  { theme: lightTheme, ...(hash === 'off' ? {} : { transition: { duration: 800, easing: 'linear' } }) },
   new CartesianPlane({}, x, y, new DomainSeries({}, source, renderer)),
+  ...(enter ? [new Entrance({ duration: 800, easing: 'linear' })] : []),
 );
 chart.attach(new DOMPlatform(document.getElementById('host'), { size: { width: 400, height: 200 }, preciseText: false }));
 Object.assign(window, { chart, source, data, x, y, moveView });

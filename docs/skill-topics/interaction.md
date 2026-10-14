@@ -154,4 +154,15 @@ Calls your functions on hover, click and drag.
 | `onClick` | `(info: PointerInfo) => void` | A press and release in the same place: on a point, or `info.hit` null on empty plot. |
 | `onDrag` | `(info: DragInfo) => void` | A drag that began on a point. |
 | `dragThreshold` | `number` | How far in pixels the pointer must travel before a press is a drag and no longer a click. Default 3. |
+
+### Entrance
+
+The series play an entrance when the chart first appears: bars grow, lines draw on, round charts fade in.
+
+**In** Chart · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `duration` | `number` | Milliseconds. Default 400. |
+| `easing` | `string` | A CSS easing: a keyword or `cubic-bezier(…)`. Default 'ease-out'. |
 <!-- api:end -->

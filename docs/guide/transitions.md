@@ -4,7 +4,7 @@ A chart can ease to its new drawing when its data changes, instead of jumping. I
 
 ## Switch it on
 
-Give the `Chart` a `transition` (this switches on the easing of data changes; the [entrance](#entrances) and the [view changes](#moving-the-view) below come with it):
+Give the `Chart` a `transition` (this switches on the easing of data changes and of [view changes](#moving-the-view); an [entrance](#entrances) is a separate element):
 
 ```tsx check title="Easing to new data"
 /** @jsxImportSource inkplot */
@@ -65,14 +65,14 @@ export function showAll(axis: Axis) {
 
 ## Entrances
 
-`enter: true` plays an entrance for each series **when the chart is first drawn**:
+An `Entrance` element, a child of the chart after its planes, plays an entrance for each series **when the chart is first drawn**. It is its own element, so a chart without one carries none of its code:
 
 ```tsx check title="An entrance"
 /** @jsxImportSource inkplot */
-import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, FlatDataSource, LinearScale, lightTheme } from 'inkplot';
+import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, Entrance, FlatDataSource, LinearScale, lightTheme } from 'inkplot';
 
 export const chart = (
-  <Chart theme={lightTheme} transition={{ duration: 600, easing: 'ease-out', enter: true }}>
+  <Chart theme={lightTheme}>
     <CartesianPlane>
       <Axis orientation="bottom"><BandScale categories={['Q1', 'Q2', 'Q3', 'Q4']} /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
@@ -81,6 +81,7 @@ export const chart = (
         <BarPath />
       </DomainSeries>
     </CartesianPlane>
+    <Entrance duration={600} easing="ease-out" />
   </Chart>
 ) as Chart;
 ```
@@ -91,7 +92,7 @@ export const chart = (
 | Lines, areas, markers and anything else | Drawn on from the left. |
 | Anything on a round plane (polar, radar, a pie) | Fade in. |
 
-This is a CSS animation, so it works in every browser. It plays once: a series added later, or a chart redrawn, does not play it again (a series that is hidden and shown again does, because the browser starts its animation afresh). It uses the same `duration` and `easing` as the rest, and is off with `prefers-reduced-motion`.
+This is a CSS animation, so it works in every browser. It plays once: a series added later, or a chart redrawn, does not play it again (a series that is hidden and shown again does, because the browser starts its animation afresh). It has its own `duration` (default 400) and `easing`, needs no `transition` on the chart, and is off with `prefers-reduced-motion`. A chart drawn to a string, an image or a server has no entrance and no markup for one.
 
 Do not combine it with [server rendering](frameworks.md#server-rendering-and-hydration): the chart is already on the page, and the browser's first drawing of it would play the entrance over the top.
 
@@ -103,4 +104,75 @@ Do not combine it with [server rendering](frameworks.md#server-rendering-and-hyd
 
 ## When you need more
 
-CSS can ease what the chart has already drawn, but not the way a whole chart should move when data changes the scale: the old and new ticks, labels and shapes have to move together. That takes a frame loop, and the chart is made for one, since it is a tree you keep and each frame only rewrites what changed. (For the range of an axis this is `moveView`, above.) Tween the numbers you already own (the data array and the axis `min` and `max`) with an animation library and call `source.invalidate()` on each frame.
+CSS can ease what the chart has already drawn, but not the way a whole chart should move when data changes the scale: the old and new ticks, labels and shapes have to move together. That takes a frame loop, and the chart is made for one, since it is a tree you keep and each frame only rewrites what changed. (For the range of an axis this is `moveView`, above.) The recipe is to **tween the numbers you already own**: the data array and the axis `min` and `max`. On each frame set them to the in-between values and call `source.invalidate()`; the chart redraws only what moved.
+
+**Leave the chart's `transition` off** when you do this. Each frame is a data change, so CSS easing would chase every frame and make the chart lag behind your tween.
+
+Here is the whole recipe with no library, which is also the shape of it with any library:
+
+```tsx check title="Tweening data and the axis range"
+import type { Axis, FlatDataSource } from 'inkplot';
+
+/** Move `data` (and the axis range) to new values over `ms`, drawing a frame at a time. Resolves when it arrives. */
+export function tweenTo(
+  source: FlatDataSource,
+  data: Float64Array,
+  target: ArrayLike<number>,
+  axis: Axis,
+  range: { min: number; max: number },
+  ms = 600,
+): Promise<void> {
+  const from = Float64Array.from(data);
+  const min0 = axis.attrs.min ?? range.min,
+    max0 = axis.attrs.max ?? range.max;
+  const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return new Promise((done) => {
+    const start = performance.now();
+    const frame = (now: number) => {
+      const raw = calm ? 1 : Math.min(1, (now - start) / ms);
+      const t = 1 - (1 - raw) ** 3; // ease-out: swap in any easing, it is only a function of 0..1
+      for (let i = 0; i < data.length; i++) data[i] = from[i]! + (target[i]! - from[i]!) * t;
+      axis.setAttributes({ min: min0 + (range.min - min0) * t, max: max0 + (range.max - max0) * t });
+      source.invalidate();
+      if (raw < 1) requestAnimationFrame(frame);
+      else done();
+    };
+    requestAnimationFrame(frame);
+  });
+}
+```
+
+With an animation library you drop the loop and keep the body: the library supplies the clock and the easing, and your callback writes the values. With [Motion](https://motion.dev):
+
+```ts
+import { animate } from 'motion';
+
+const from = Float64Array.from(data);
+animate(0, 1, {
+  duration: 0.6,
+  ease: 'easeOut',
+  onUpdate: (t) => {
+    for (let i = 0; i < data.length; i++) data[i] = from[i] + (target[i] - from[i]) * t;
+    axis.setAttributes({ min: min0 + (max - min0) * t, max: max0 + (max - max0) * t });
+    source.invalidate();
+  },
+});
+```
+
+and with [GSAP](https://gsap.com) the same, driven by a number it tweens:
+
+```ts
+import { gsap } from 'gsap';
+
+const progress = { t: 0 };
+gsap.to(progress, {
+  t: 1,
+  duration: 0.6,
+  ease: 'power2.out',
+  onUpdate: () => {
+    // …the same body, using progress.t
+  },
+});
+```
+
+In React, keep `data` and the source in a ref (or a `useMemo`), start the tween from an effect that runs when your new numbers arrive, and return a cleanup that stops it (`animation.stop()` in Motion, `tween.kill()` in GSAP). The tween writes to the elements directly, so React does not re-render on each frame. Tweening the number of points (a row added or removed) is not smooth for the shapes, so tween the values and change the length once, at the start or the end.

@@ -22,7 +22,8 @@ export type SvgTag =
   | 'title'
   | 'desc'
   | 'linearGradient'
-  | 'stop';
+  | 'stop'
+  | 'style';
 export interface PlatformNode {
   readonly __platformNode: unique symbol;
 }
@@ -111,11 +112,6 @@ export interface Platform {
    * the browser can, the shapes of paths); with null, they should be immediate. Absent on a platform that cannot ease, or draws once.
    */
   setTransition?(spec: TransitionSpec | null): void;
-  /**
-   * Called before the first flush of a chart that asked for `enter`: the platform makes ready the rule that plays a series' entrance (see
-   * `Series`), at this speed. Its presence is also how a series knows the entrance can be played at all.
-   */
-  prepareEnter?(spec: TransitionSpec): void;
   /**
    * What a touch on the chart may do. 'always': the chart takes every touch (the page cannot scroll from it).
    * 'two-finger': a touch with one finger scrolls the page as usual and only two fingers belong to the chart.

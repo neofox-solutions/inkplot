@@ -125,7 +125,7 @@ Attributes of the elements in the Template. An attribute followed by `(required)
 
 The root: a theme, a size, and what is drawn on it.
 
-**In** none (the root) · **Holds** planes, ChartTitle, Legend, Cursor, ColorAxis, SizeAxis, ColorKey, SizeKey, ChartSummary
+**In** none (the root) · **Holds** planes, ChartTitle, Legend, Cursor, ColorAxis, SizeAxis, ColorKey, SizeKey, ChartSummary, Entrance
 
 | Attribute | Type | |
 |---|---|---|
@@ -135,7 +135,7 @@ The root: a theme, a size, and what is drawn on it.
 | `padding` | `number \| Partial<Insets>` | Margin around everything, in pixels: one number for all sides, or any subset of the four. Default 10. |
 | `measureText` | `TextMeasurer` | Replaces the platform's text measurement, e.g. to match a font the platform cannot see. |
 | `locale` | `string` | A BCP 47 tag (`'de'`, `'fr-CA'`) for how numbers and dates are written: digit grouping, the decimal mark, month names. Default: numbers as plain digits with a point, and the runtime's own locale for dates. |
-| `transition` | `{ duration?: number; easing?: string; views?: boolean; …` | Ease the chart to a new drawing when its **data** changes, in the browser: colours, sizes and (in browsers that can morph a path, Chrome and Firefox) the shapes of lines, areas and bars move over `duration` milliseconds (default 250) with a CSS `easing` (default `'ease-out'`). Default false. |
+| `transition` | `{ duration?: number; easing?: string; views?: boolean }` | Ease the chart to a new drawing when its **data** changes, in the browser: colours, sizes and (in browsers that can morph a path, Chrome and Firefox) the shapes of lines, areas and bars move over `duration` milliseconds (default 250) with a CSS `easing` (default `'ease-out'`). Default false. |
 | `onFlush` | `(stats: FlushStats) => void` | Called after every flush with its statistics. |
 
 ### CartesianPlane
@@ -275,7 +275,7 @@ Read the topic that matches the chart; each has examples and the attributes of t
 - **markers-color** (`topics/markers-color.md`): scatter and bubble charts, dots and crosses, colour or size taken from the data, colour and size keys. Elements: XYSeries, DotMarker, CrossMarker, PlusMarker, CircleMarker, SquareMarker, ColorAxis, SizeAxis, ColorKey, SizeKey.
 - **statistics** (`topics/statistics.md`): histograms (a histogram is `Density` + `BarPath`), heat maps, density, box plots, trendlines (linear, polynomial, sinusoidal, loess), error bars and bands. Elements: BoxPath, BoxStats, Density, HeatMap, LinearTrend, PolynomialTrend, SinusoidalTrend, LoessTrend, ErrorBars, ErrorBand.
 - **furniture** (`topics/furniture.md`): a chart title or caption, a legend, reference lines and callouts, notes on chosen points, an accessible name and summary. Elements: ChartTitle, Legend, ChartSummary, LineAnnotation, CalloutAnnotation, PointAnnotations.
-- **interaction** (`topics/interaction.md`): tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch. Elements: ChartTooltip, Cursor, Crosshair, PanZoom, BoxZoom, Brush, PointerListener.
+- **interaction** (`topics/interaction.md`): tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch, an entrance animation. Elements: ChartTooltip, Cursor, Crosshair, PanZoom, BoxZoom, Brush, PointerListener, Entrance.
 - **planes** (`topics/planes.md`): polar and radar charts. Elements: PolarPlane, RadarPlane.
 - **data** (`topics/data.md`): a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table. Elements: CompositeDataSource, SyntheticDataSource, Decimator, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel.
 - **styling-output** (`topics/styling-output.md`): dark and custom themes, styling parts, React, a PNG, chart as JSON, your own element types.

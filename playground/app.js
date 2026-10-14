@@ -4850,13 +4850,17 @@ demos.push({
       new L.BoxZoom({ axes: ['y'], mode: 'y' }),
       new L.PanZoom({ axes: ['y'], pan: false }),
     );
-    const chart = new L.Chart({ theme: chartTheme(), onFlush: ctx.onFlush }, plane);
+    const chart = new L.Chart(
+      { theme: chartTheme(), onFlush: ctx.onFlush },
+      plane,
+      ...(S.enter ? [new L.Entrance({ duration: S.duration, easing: S.easing })] : []),
+    );
     const read = ui.readout();
     const apply = () => {
-      chart.setAttribute('transition', S.on ? { duration: S.duration, easing: S.easing, enter: S.enter } : undefined);
+      chart.setAttribute('transition', S.on ? { duration: S.duration, easing: S.easing } : undefined);
       y.setAttributes(S.fixed ? { min: 0, max: 14, nice: false } : { min: undefined, max: undefined, nice: true });
       read.textContent = S.on
-        ? `transition: { duration: ${S.duration}, easing: '${S.easing}', enter: ${S.enter} }`
+        ? `transition: { duration: ${S.duration}, easing: '${S.easing}' }` + (S.enter ? ', plus an Entrance' : '')
         : 'transition: undefined (a data change is immediate)';
     };
     const reload = () => {

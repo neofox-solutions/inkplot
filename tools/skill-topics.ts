@@ -90,8 +90,8 @@ export const TOPICS: Record<string, Topic> = {
   },
   interaction: {
     file: 'interaction.md',
-    use: 'tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch',
-    elements: ['ChartTooltip', 'Cursor', 'Crosshair', 'PanZoom', 'BoxZoom', 'Brush', 'PointerListener'],
+    use: 'tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch, an entrance animation',
+    elements: ['ChartTooltip', 'Cursor', 'Crosshair', 'PanZoom', 'BoxZoom', 'Brush', 'PointerListener', 'Entrance'],
   },
   planes: { file: 'planes.md', use: 'polar and radar charts', elements: ['PolarPlane', 'RadarPlane'] },
   data: {

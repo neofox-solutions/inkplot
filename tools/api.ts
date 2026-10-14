@@ -11,11 +11,16 @@ const SRC = new URL('../src/', import.meta.url);
 export const STRUCTURE: Record<string, { parent: string; children: string; about: string }> = {
   Chart: {
     parent: 'none (the root)',
-    children: 'planes, ChartTitle, Legend, Cursor, ColorAxis, SizeAxis, ColorKey, SizeKey, ChartSummary',
+    children: 'planes, ChartTitle, Legend, Cursor, ColorAxis, SizeAxis, ColorKey, SizeKey, ChartSummary, Entrance',
     about: 'The root: a theme, a size, and what is drawn on it.',
   },
   ChartTitle: { parent: 'Chart', children: 'none', about: 'Text across the top or bottom: a title, subtitle or caption.' },
   ChartTooltip: { parent: 'Cursor', children: 'none', about: 'A box of text at the cursor.' },
+  Entrance: {
+    parent: 'Chart',
+    children: 'none',
+    about: 'The series play an entrance when the chart first appears: bars grow, lines draw on, round charts fade in.',
+  },
   ChartSummary: { parent: 'Chart', children: 'none', about: 'A spoken summary of the chart, for screen readers (English, replaceable).' },
   Cursor: {
     parent: 'Chart',

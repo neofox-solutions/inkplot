@@ -321,6 +321,7 @@ export {
   type LineAnnotationAttributes,
   type LineAnnotationCommon,
 } from './annotation.ts';
+export { Entrance, type EntranceAttributes } from './entrance.ts';
 export { type PointAnnotationsAttributes, PointAnnotations, type PointWords } from './pointannotations.ts';
 export { LINE_HEIGHT, measureBlock, paintLines } from './text.ts';
 export { type ElementJSON, type ElementRegistry, Refs, type SerializeOptions, applyJSON, fromJSON, toJSON } from './serialize.ts';

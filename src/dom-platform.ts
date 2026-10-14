@@ -149,10 +149,6 @@ export class DOMPlatform implements Platform {
     this.#style(spec);
     svg.setAttribute('data-ink-t', '');
   }
-  /** A series' entrance is a CSS animation on its group (`data-ink-enter`), which plays when the group is first drawn; the same style element and speed. */
-  prepareEnter(spec: TransitionSpec): void {
-    this.#style(spec);
-  }
   /** The style element, once, and the speed it reads. */
   #style(spec: TransitionSpec): void {
     const svg = this.#svg;
@@ -162,16 +158,7 @@ export class DOMPlatform implements Platform {
       const to = (property: string) => `${property} var(--ink-dur) var(--ink-ease)`;
       const properties = ['d', 'fill', 'stroke', 'opacity', 'fill-opacity', 'stroke-opacity', 'stroke-width'].map(to).join(',');
       const targets = ['path', 'rect', 'circle', 'line'].map((tag) => `svg[data-ink-t] ${tag}`).join(',');
-      const play = (kind: string, keyframes: string) =>
-        `@keyframes ink-${kind}{${keyframes}}g[data-ink-enter=${kind}]{animation:ink-${kind} var(--ink-dur) var(--ink-ease) backwards}`;
-      // A sweep names both ends: the group is clipped to the plot, which is not a shape that can be animated to.
-      style.textContent =
-        `@media (prefers-reduced-motion:no-preference){${targets}{transition:${properties}}` +
-        play('sweep', 'from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}') +
-        play('fade', 'from{opacity:0}') +
-        play('grow-y', 'from{transform:scale(1,0)}') +
-        play('grow-x', 'from{transform:scale(0,1)}') +
-        '}';
+      style.textContent = `@media (prefers-reduced-motion:no-preference){${targets}{transition:${properties}}}`;
       svg.insertBefore(style, svg.firstChild);
     }
     svg.style.setProperty('--ink-dur', `${spec.duration}ms`);

@@ -7,6 +7,7 @@ import {
   Chart,
   DomainSeries,
   FlatDataSource,
+  Entrance,
   LinePath,
   LinearCurve,
   LinearScale,
@@ -14,10 +15,9 @@ import {
   StringPlatform,
   lightTheme,
 } from './index.ts';
-import type { TransitionSpec } from './platform.ts';
 import { test } from 'vite-plus/test';
 
-// Which entrance each kind of series is given, and when: only on the first draw, only if asked, only where the platform can play it.
+// Which entrance each kind of series is given, and when: only on the first draw, only with an `Entrance`, only where the platform can play it.
 type Renderer = ConstructorParameters<typeof DomainSeries>[2];
 test('enter', () => {
   const data = () => new FlatDataSource({ data: [3, -2, 5, 4], regularDomain: { start: 0, step: 1 } });
@@ -27,15 +27,11 @@ test('enter', () => {
     renderer: Renderer,
     options: { enter?: boolean; playable?: boolean } = {},
   ) => {
-    const chart = new Chart(
-      { theme: lightTheme, transition: { duration: 300, ...(options.enter !== false && { enter: true }) } },
-      plane(renderer),
-    );
-    const prepared: TransitionSpec[] = [];
+    const chart = new Chart({ theme: lightTheme }, plane(renderer), ...(options.enter === false ? [] : [new Entrance({ duration: 300 })]));
     const platform = new StringPlatform({ width: 300, height: 200 });
-    if (options.playable !== false) Object.assign(platform, { prepareEnter: (spec: TransitionSpec) => void prepared.push(spec) });
+    if (options.playable !== false) Object.assign(platform, { setTransition: () => {} });
     chart.attach(platform).flush();
-    return { chart, platform, prepared, svg: platform.toString() };
+    return { chart, platform, svg: platform.toString() };
   };
   const cartesian = (renderer: Renderer, horizontal = false) =>
     new CartesianPlane(
@@ -47,10 +43,10 @@ test('enter', () => {
 
   // Bars grow, about the foot of the first bar: up and down bars stand on one baseline, so the origin is that line.
   {
-    const { svg, prepared } = draw((r) => cartesian(r), new BarPath({}));
+    const { svg } = draw((r) => cartesian(r), new BarPath({}));
     assert.deepEqual(kinds(svg), ['grow-y']);
     assert.match(svg, /transform-origin:[\d.]+px [\d.]+px/);
-    assert.deepEqual(prepared, [{ duration: 300, easing: 'ease-out' }], 'the platform was told the speed');
+    assert.match(svg, /<style>[^<]*ink-grow-y 300ms ease-out/, 'the rule carries the speed');
   }
   // Bars that run sideways grow sideways.
   assert.deepEqual(kinds(draw((r) => cartesian(r, true), new BarPath({})).svg), ['grow-x']);
@@ -68,7 +64,7 @@ test('enter', () => {
     assert.deepEqual(kinds(draw(polar, new LinePath(new LinearCurve())).svg), ['fade']);
   }
 
-  // Not asked for, or nowhere to play it (a string platform has no `prepareEnter`): no mark in the drawing at all.
+  // Not asked for, or nowhere to play it (a string platform cannot animate): no mark in the drawing at all.
   assert.deepEqual(kinds(draw((r) => cartesian(r), new BarPath({}), { enter: false }).svg), []);
   assert.deepEqual(kinds(draw((r) => cartesian(r), new BarPath({}), { playable: false }).svg), []);
 

@@ -55,6 +55,12 @@ const SCENARIOS = [
   { name: 'Cursor + crosshair', imports: ['Cursor', 'Crosshair'], chartKids: ['new Cursor({}, new Crosshair({}))'] },
   { name: 'Legend', imports: ['Legend'], chartKids: ['new Legend({})'] },
   { name: 'Screen-reader summary', imports: ['ChartSummary'], chartKids: ['new ChartSummary({})'] },
+  {
+    name: 'Entrance animation (with the DOM platform)',
+    imports: ['Entrance', 'DOMPlatform'],
+    chartKids: ['new Entrance({})'],
+    out: 'return chart.attach(new DOMPlatform(el));',
+  },
   { name: 'Line annotation', imports: ['LineAnnotation'], planeKids: ['new LineAnnotation({ value: 1 })'] },
   { name: 'Callout annotation', imports: ['CalloutAnnotation'], planeKids: [`new CalloutAnnotation({ domain: 1, value: 1, text: 't' })`] },
   {
