@@ -51,6 +51,8 @@ export default () => (
 
 ## Right to left
 
+(Part of [Locales and languages](i18n.md).)
+
 `direction="rtl"` mirrors the chart's layout for Arabic, Hebrew and the other right-to-left scripts. It changes only the **defaults** that depend on which way the page reads:
 
 - the first vertical axis is on the **right** (the second on the left), and a horizontal axis runs **from the right**, so the first category or the earliest date is at the right edge;

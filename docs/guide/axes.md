@@ -173,6 +173,8 @@ An axis can also be asked things, after a flush:
 
 ## Locale
 
+The whole picture, with right to left and an i18n-framework recipe, is in [Locales and languages](i18n.md).
+
 Set `locale` on the chart and every axis writes its numbers that language's way, and every time scale its dates; the tooltip's readings follow, since they come from the same axes. `locale` on an axis or a time scale beats the chart's, and a `format` function beats both.
 
 ```tsx live title="One locale for the whole chart" height=240

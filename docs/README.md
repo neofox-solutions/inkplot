@@ -57,6 +57,7 @@ One page per part of the library, from the user's point of view.
 | [Interaction](guide/interaction.md) | Cursor, crosshair, tooltip, pan and zoom, pointer callbacks, hit testing. |
 | [Styling](guide/styling.md) | Themes, selectors, `style` blocks, palettes, dark mode. |
 | [Accessibility](guide/accessibility.md) | `meta`, summaries, keyboard, announcements. |
+| [Locales and languages](guide/i18n.md) | Number and date formats, time zones, right to left, and wiring up an i18n framework. |
 | [Transitions](guide/transitions.md) | Easing a chart to new data, with CSS transitions. Off by default. |
 | [JSX, React and Web Components](guide/frameworks.md) | The adapters. |
 | [AI agents](guide/ai-agents.md) | Install the inkplot skills in Claude, ChatGPT, Codex, VS Code, Cursor and Gemini CLI, with `npx inkplot install-skill`. |
