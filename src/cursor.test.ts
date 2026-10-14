@@ -182,7 +182,8 @@ const polar = (t: ReturnType<typeof build>, turns: number, radius: number) => {
   assert.equal(s.hits[0]!.series, t.one);
   assert.equal(s.hits[0]!.index, 0, 'at the first point of the first series');
   assert.equal(t.platform.announced.length, 1, 'what the box says is spoken');
-  assert(t.platform.announced[0]!.includes('One'), t.platform.announced[0]);
+  const spoken = t.platform.announced[0]!;
+  assert(spoken.includes('One'), spoken);
   assert(withAttr(t.platform, 'stroke', '#0b57d0').filter((n) => n.attrs.get('display') === 'inline').length === 1, 'with a ring round the plot');
   assert.equal(t.platform.key('ArrowRight'), true);
   t.chart.flush();
