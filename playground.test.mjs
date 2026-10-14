@@ -41,6 +41,18 @@ test('playground', async () => {
     console.log(id.padEnd(8), JSON.stringify(info));
   }
 
+  // ── The transitions demo's shape switch replaces the series: each shape draws, and nothing throws (a page error fails the test below).
+  await page.evaluate(() => window.playground.select('transitions'));
+  await settle();
+  for (const shape of ['line', 'area', 'bars']) {
+    await page.getByRole('button', { name: shape, exact: true }).click();
+    await settle();
+    const drawn = await page.evaluate(() => document.querySelectorAll('#host svg path').length);
+    assert(drawn >= 4, `transitions: ${shape} is drawn (${drawn} paths)`);
+  }
+  await page.getByRole('button', { name: 'New values' }).click();
+  await settle();
+
   // ── The heat map demo on a polar plane: the same cells, placed as wedges, with nothing NaN.
   await page.evaluate(() => window.playground.select('heatmap'));
   await settle();

@@ -4827,14 +4827,18 @@ demos.push({
     const band = new L.BandScale({ categories: months.slice(0, S.n) });
     const x = new L.Axis({ id: 'x', orientation: 'bottom' }, band);
     const y = new L.Axis({ id: 'y', orientation: 'left', min: 0, max: 14, nice: false, title: 'Level' }, new L.LinearScale());
-    const source = new L.FlatDataSource({ data, regularDomain: { start: 0, step: 1 } });
+    // A source belongs to one series, so each series gets a new one made from the current data.
+    let source = null;
     const renderers = () =>
       S.shape === 'bars'
         ? [new L.BarPath({})]
         : S.shape === 'area'
           ? [new L.AreaPath({}, new L.LinearCurve())]
           : [new L.LinePath({ strokeWidth: 2 }, new L.LinearCurve()), new L.CircleMarker({ size: 5 })];
-    const makeSeries = () => new L.DomainSeries({ name: 'Level', domainAxis: 'x', valueAxis: 'y' }, source, ...renderers());
+    const makeSeries = () => {
+      source = new L.FlatDataSource({ data, regularDomain: { start: 0, step: 1 } });
+      return new L.DomainSeries({ name: 'Level', domainAxis: 'x', valueAxis: 'y' }, source, ...renderers());
+    };
     let series = makeSeries();
     const plane = new L.CartesianPlane(
       { frame: true },
