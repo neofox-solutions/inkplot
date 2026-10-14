@@ -15,6 +15,9 @@ import type { TransitionSpec } from './platform.ts';
 import { test } from 'vite-plus/test';
 
 // What a chart asks its platform for at each flush: easing only after a change to the data, and only if `transition` is set.
+// `Array.prototype.at` is newer than the oldest runtime these tests run on.
+const last = <T>(list: T[]): T | undefined => list[list.length - 1];
+
 test('transition', () => {
   const make = (transition?: { duration?: number; easing?: string }) => {
     const source = new FlatDataSource({ data: [1, 3, 2], regularDomain: { start: 0, step: 1 } });
@@ -40,24 +43,24 @@ test('transition', () => {
   assert.deepEqual(asked, [null], 'the first draw has nothing to move from');
   source.invalidate();
   chart.flush();
-  assert.deepEqual(asked.at(-1), { duration: 250, easing: 'ease-out' }, 'a data change eases, with the defaults');
+  assert.deepEqual(last(asked), { duration: 250, easing: 'ease-out' }, 'a data change eases, with the defaults');
   chart.flush();
-  assert.equal(asked.at(-1), null, 'one change eases one flush');
+  assert.equal(last(asked), null, 'one change eases one flush');
   source.invalidate();
   x.setAttribute('min', 0.5);
   chart.flush();
-  assert.notEqual(asked.at(-1), null, 'a data change with a view change eases');
+  assert.notEqual(last(asked), null, 'a data change with a view change eases');
   x.setAttribute('max', 1.5);
   chart.flush();
-  assert.equal(asked.at(-1), null, 'a view change alone does not');
+  assert.equal(last(asked), null, 'a view change alone does not');
 
   const custom = make({ duration: 90, easing: 'linear' });
   custom.source.invalidate();
   custom.chart.flush();
-  assert.deepEqual(custom.asked.at(-1), { duration: 90, easing: 'linear' });
+  assert.deepEqual(last(custom.asked), { duration: 90, easing: 'linear' });
 
   const off = make();
   off.source.invalidate();
   off.chart.flush();
-  assert.equal(off.asked.at(-1), null, 'without `transition` nothing eases');
+  assert.equal(last(off.asked), null, 'without `transition` nothing eases');
 });
