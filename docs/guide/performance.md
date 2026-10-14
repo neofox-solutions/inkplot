@@ -4,26 +4,26 @@ Two different costs: what a page **downloads** (code), and what a chart **does**
 
 ## Bundle size
 
-Everything is an element in its own module, and nothing imports an element it does not use. A bundler therefore includes only the classes you name. Measured with esbuild (minified, ESM), gzipped:
+Everything is an element in its own module, and nothing imports an element it does not use. A bundler therefore includes only the classes you name. Measured with Rolldown (minified, ESM), gzipped:
 
 | What | gzip KB | On top of a minimal chart |
 |---|---:|---:|
-| Minimal line chart, drawn to an SVG string | 15.1 | |
-| …drawn in a browser (`DOMPlatform`, instead of the string) | 16.0 | +0.9 |
-| Pan and zoom | 18.7 | +3.7 |
-| Legend | 17.5 | +2.5 |
-| Circle markers | 16.4 | +1.4 |
-| Cursor with a crosshair | 20.8 | +5.7 |
-| Cursor with a tooltip | 22.5 | +7.4 |
-| A time axis (`Date` and `Intl`) | 16.9 | +1.8 |
-| A log scale | 15.4 | +0.3 |
-| A dark theme as well as the light one | 15.3 | +0.2 |
-| Colour axis, key and markers | 18.7 | +3.6 |
-| Vanilla JSX (runtime and attribute expansion) | 15.7 | +0.6 |
-| React wrappers (React itself not counted) | 17.3 | +2.2 |
-| Web Components (the tags defined) | 17.7 | +2.6 |
-| Every feature above, in one chart | 36.1 | +21.0 |
-| `import * as inkplot` (the whole barrel, as a worst case) | 64.7 | |
+| Minimal line chart, drawn to an SVG string | 14.9 |  |
+| …drawn in a browser (`DOMPlatform`, instead of the string) | 15.6 | +0.7 |
+| Pan and zoom | 18.4 | +3.5 |
+| Legend | 17.3 | +2.3 |
+| Circle markers | 16.2 | +1.3 |
+| Cursor with a crosshair | 20.5 | +5.6 |
+| Cursor with a tooltip | 22.0 | +7.1 |
+| A time axis (`Date` and `Intl`) | 16.7 | +1.8 |
+| A log scale | 15.2 | +0.3 |
+| A dark theme as well as the light one | 15.1 | +0.2 |
+| Colour axis, key and markers | 18.4 | +3.5 |
+| Vanilla JSX (runtime and attribute expansion) | 15.6 | +0.6 |
+| React wrappers (React itself not counted) | 16.9 | +2.0 |
+| Web Components (the tags defined) | 17.3 | +2.4 |
+| Every feature above, in one chart | 34.9 | +20.0 |
+| `import * as inkplot` (the whole barrel, as a worst case) | 62.5 |  |
 
 `tools/size.mjs` regenerates the table, with many more rows.
 
@@ -32,7 +32,7 @@ Input costs only where it is used: the code that routes the pointer, keys and fo
 To keep it small:
 
 - **Import by name** (`import { Chart, LinePath } from 'inkplot'`) and never `import * as`. The React components are the same: `import { Chart, Axis } from 'inkplot/react'` bundles only those two and what they need.
-- **Avoid `registry`** unless you need JSON. It names every class, so it pulls in the whole library (about 54 KB gzipped to read and write JSON with it). For configuration-driven charts, build a registry of just the classes you allow: `{ Chart, CartesianPlane, Axis, … }`. That version costs about 17 KB.
+- **Avoid `registry`** unless you need JSON. It names every class, so it pulls in the whole library (about 58 KB gzipped to read and write JSON with it). For configuration-driven charts, build a registry of just the classes you allow: `{ Chart, CartesianPlane, Axis, … }`. That version costs about 17 KB.
 - **Name one theme.** A `Chart` requires its `theme`, so the bundle holds exactly the ones you import.
 - **The core has no words.** Nothing in the core is English or any other language; text lives in opt-in components (`ChartSummary`, tooltip formats) and your own `format` functions.
 - **Time axes are two classes.** `IntlTimeScale` uses `Date` and `Intl`; `TemporalTimeScale` uses `Temporal`. Import the one you want.

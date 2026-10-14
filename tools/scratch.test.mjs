@@ -37,8 +37,7 @@ test('scratch', async () => {
   }
   // What npm would fetch beside them: linked from this repository's own install.
   const png = existsSync(join(root, 'node_modules/@resvg/resvg-wasm/index_bg.wasm'));
-  for (const dep of ['typescript', 'esbuild', '@esbuild', ...(png ? ['@resvg'] : [])])
-    symlinkSync(join(root, 'node_modules', dep), join(nm, dep));
+  for (const dep of ['typescript', 'rolldown', ...(png ? ['@resvg'] : [])]) symlinkSync(join(root, 'node_modules', dep), join(nm, dep));
 
   const run = (args) => spawnSync(process.execPath, [join(nm, 'inkplot-scratch/bin.mjs'), ...args], { cwd: ws, encoding: 'utf8' });
   const write = (name, text) => writeFileSync(join(ws, name), text);
@@ -225,6 +224,15 @@ export default [own, { name: 'Plain', interactive: false, chart: box() }, { name
   assert.equal(r.status, 1);
   assert.match(r.stderr, /error: Cannot read properties of undefined/);
   assert.match(r.stderr, /boom\.ts:2/, 'the frame is the .ts line, not the bundle');
+  // A module that cannot be bundled is reported with where it was asked for, before anything runs.
+  write('missingdep.ts', `import x from 'no-such-package';\nexport default [x];\n`);
+  r = run(['missingdep.ts', '--no-typecheck']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /Could not resolve 'no-such-package'/, r.stderr);
+  write('syntax.ts', `export default [;\n`);
+  r = run(['syntax.ts', '--no-typecheck']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /syntax\.ts:1:\d+/, r.stderr);
   write('nodefault.ts', `export const chart = 1;\n`);
   r = run(['nodefault.ts']);
   assert.equal(r.status, 1);

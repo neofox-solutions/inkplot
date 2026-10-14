@@ -1,6 +1,6 @@
 // Touch, trackpad pinch and axis strips in headless Chromium, with real pointer, touch and wheel events.
 //   node touch.test.mjs
-import { build } from 'esbuild';
+import { bundle } from './tools/bundle.ts';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -10,20 +10,16 @@ import { test } from 'vite-plus/test';
 
 test('touch', async () => {
   const here = (p) => fileURLToPath(new URL(p, import.meta.url));
-  const bundled = await build({
-    entryPoints: [here('./playground/touch-test/app.ts')],
-    bundle: true,
-    write: false,
+  const bundled = await bundle({
+    entry: here('./playground/touch-test/app.ts'),
     format: 'iife',
     platform: 'browser',
-    target: 'es2022',
-    logLevel: 'error',
     alias: { inkplot: here('./src/index.ts') },
   });
   const dir = mkdtempSync(tmpdir() + '/inkplot-touch-');
   writeFileSync(
     `${dir}/index.html`,
-    `<!doctype html><meta charset="utf-8"><body style="margin:0"><div id="host" style="width:800px;height:400px"></div><script>${bundled.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')}</script>`,
+    `<!doctype html><meta charset="utf-8"><body style="margin:0"><div id="host" style="width:800px;height:400px"></div><script>${bundled.code.replace(/<\/script/gi, '<\\/script')}</script>`,
   );
 
   const browser = await chromium.launch();

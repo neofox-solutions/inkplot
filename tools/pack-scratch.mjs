@@ -1,6 +1,6 @@
 // Builds inkplot-scratch, the command that turns a module of charts into SVG, PNG, JSON or an HTML app, as a tarball.
 //   node tools/pack-scratch.mjs [outdir]       prints the path of the tarball (the inkplot one is beside it)
-import { build } from 'esbuild';
+import { bundle } from './bundle.ts';
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -22,17 +22,13 @@ const dev = JSON.parse(readFileSync(root + 'package.json', 'utf8'));
 // The two packages release together: the scratch tool depends on exactly the library it was tested with.
 if (version !== dev.version || manifest.dependencies.inkplot !== dev.version)
   throw new Error(`versions differ: inkplot ${dev.version}, inkplot-scratch ${version} (needs inkplot ${manifest.dependencies.inkplot})`);
-await build({
-  entryPoints: [src + 'src/cli.ts'],
-  outfile: pkg + 'bin.mjs',
-  bundle: true,
+const cli = await bundle({
+  entry: src + 'src/cli.ts',
   format: 'esm',
   platform: 'node',
-  target: 'node22',
-  external: ['esbuild', '@resvg/resvg-wasm', 'inkplot'],
-  legalComments: 'none',
-  minify: false,
+  external: ['rolldown', '@resvg/resvg-wasm', 'inkplot'],
 });
+writeFileSync(pkg + 'bin.mjs', cli.code);
 // The sources the page and the figures are built from at run time, against the workspace's own copy of inkplot.
 for (const f of ['figures.ts', 'app.ts', 'interact.ts', 'template.html']) cpSync(src + 'src/' + f, pkg + 'src/' + f);
 cpSync(src + 'fonts', pkg + 'fonts', { recursive: true });

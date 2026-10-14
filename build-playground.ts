@@ -3,7 +3,7 @@
 //   node build-playground.ts
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
-import { transformSync } from 'esbuild';
+import { transformSync } from 'rolldown/utils';
 
 const here = (p: string) => new URL(p, import.meta.url);
 const read = (p: string) => readFileSync(here(p), 'utf8');
@@ -29,11 +29,9 @@ for (const file of files) {
 }
 
 // The page's JSX demo: compiled here against the library's JSX runtime, and loaded like a library module.
-const jsxDemo = transformSync(read('./playground/jsx-demo.jsx'), {
-  loader: 'jsx',
-  jsx: 'automatic',
-  jsxImportSource: 'inkplot',
-  format: 'esm',
+const jsxDemo = transformSync('jsx-demo.jsx', read('./playground/jsx-demo.jsx'), {
+  lang: 'jsx',
+  jsx: { runtime: 'automatic', importSource: 'inkplot' },
   target: 'es2022',
 }).code;
 if (/<\/script|<!--/i.test(jsxDemo)) throw new Error('the JSX demo contains a sequence that would end its script element');

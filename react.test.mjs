@@ -1,6 +1,6 @@
-// The React adapter in headless Chromium: a small React app is bundled with the library (esbuild) and driven through its buttons.
+// The React adapter in headless Chromium: a small React app is bundled with the library (Rolldown) and driven through its buttons.
 //   node react.test.mjs
-import { build } from 'esbuild';
+import { bundle } from './tools/bundle.ts';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -10,16 +10,12 @@ import { test } from 'vite-plus/test';
 
 test('react', async () => {
   const here = (p) => fileURLToPath(new URL(p, import.meta.url));
-  const bundled = await build({
-    entryPoints: [here('./playground/react-test/app.tsx')],
-    bundle: true,
-    write: false,
+  const bundled = await bundle({
+    entry: here('./playground/react-test/app.tsx'),
     format: 'iife',
     platform: 'browser',
-    target: 'es2022',
-    jsx: 'automatic',
+    jsx: 'react',
     define: { 'process.env.NODE_ENV': '"development"' },
-    logLevel: 'error',
     alias: {
       inkplot: here('./src/index.ts'),
       'inkplot/react': here('./src/react.ts'),
@@ -30,7 +26,7 @@ test('react', async () => {
   const dir = mkdtempSync(tmpdir() + '/inkplot-react-');
   writeFileSync(
     `${dir}/index.html`,
-    `<!doctype html><meta charset="utf-8"><div id="app"></div><script>${bundled.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')}</script>`,
+    `<!doctype html><meta charset="utf-8"><div id="app"></div><script>${bundled.code.replace(/<\/script/gi, '<\\/script')}</script>`,
   );
 
   const browser = await chromium.launch();

@@ -1,7 +1,7 @@
 // The Web Components adapter in headless Chromium, with the page written as plain HTML (what pre-rendering gives):
 // the library is bundled once, the tags are defined, and the markup draws, follows attribute changes and DOM edits, and emits events.
 //   node webcomponents.test.mjs
-import { build } from 'esbuild';
+import { bundle } from './tools/bundle.ts';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -11,24 +11,18 @@ import { test } from 'vite-plus/test';
 
 test('webcomponents', async () => {
   const here = (p) => fileURLToPath(new URL(p, import.meta.url));
-  const bundled = await build({
-    stdin: {
-      resolveDir: here('./'),
-      loader: 'js',
-      contents: `
+  const bundled = await bundle({
+    resolveDir: here('./'),
+    type: 'js',
+    contents: `
       import * as L from './src/index.ts';
       import { defineElements } from './src/web-components.ts';
       defineElements({ Chart: L.Chart, ChartTitle: L.ChartTitle, CartesianPlane: L.CartesianPlane, Axis: L.Axis, LinearScale: L.LinearScale, LogScale: L.LogScale,
         DomainSeries: L.DomainSeries, FlatDataSource: L.FlatDataSource, LinePath: L.LinePath, LinearCurve: L.LinearCurve, PointerListener: L.PointerListener, Legend: L.Legend }, { prefix: 'ch' });
       document.querySelector('ch-chart').props = { theme: L.lightTheme };
       window.ready = true;`,
-    },
-    bundle: true,
-    write: false,
     format: 'iife',
     platform: 'browser',
-    target: 'es2022',
-    logLevel: 'error',
   });
   const html = `<!doctype html><meta charset="utf-8">
 <style>ch-chart { display: block; width: 600px; height: 280px }</style>
@@ -45,7 +39,7 @@ test('webcomponents', async () => {
   </ch-cartesian-plane>
   <ch-legend></ch-legend>
 </ch-chart>
-<script>${bundled.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')}</script>`;
+<script>${bundled.code.replace(/<\/script/gi, '<\\/script')}</script>`;
   const dir = mkdtempSync(tmpdir() + '/inkplot-wc-');
   writeFileSync(`${dir}/index.html`, html);
 

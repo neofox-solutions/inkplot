@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { build } from 'esbuild';
+import { bundle } from './bundle.ts';
 import { blocksOf } from './docs.ts';
 import { convertCode, convertInline, jsxFlavour, typeScriptFlavour } from './jsx-to-new.mjs';
 import { test } from 'vite-plus/test';
@@ -102,19 +102,16 @@ test('skill-ts', async () => {
     const entry = `import * as example_ from 'example'; import { Chart, toSvgString } from 'inkplot';
     if (!(example_.chart instanceof Chart)) throw new Error('export const chart is not a Chart');
     export const svg = toSvgString(example_.chart, { width: ${b.width ?? 640}, height: ${b.height} });`;
-    const result = await build({
-      stdin: { contents: entry, resolveDir: out, loader: 'js' },
-      bundle: true,
-      write: false,
+    const result = await bundle({
+      contents: entry,
+      resolveDir: out,
+      type: 'js',
       format: 'esm',
-      target: 'es2022',
-      logLevel: 'silent',
       platform: 'node',
       alias: { inkplot: join(root, 'src/index.ts'), example: join(out, `${b.id}.${ext(b)}`) },
-      loader: { '.ts': 'ts' },
     }).catch((e) => assert.fail(`${where}: ${e.message}`));
     const file = join(out, `${b.id}.mjs`);
-    writeFileSync(file, result.outputFiles[0].text);
+    writeFileSync(file, result.code);
     const { svg } = await import(pathToFileURL(file).href);
     assert.match(svg, /^<svg[\s>]/, `${where}: draws an svg`);
     assert.ok(/<(path|rect|circle|line|text)\b/.test(svg) && !/NaN|Infinity/.test(svg), `${where}: the chart drew nothing, or NaN`);

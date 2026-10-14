@@ -1,6 +1,6 @@
 // toPng in headless Chromium: a live chart and a detached one both come out as real PNGs of the right size with ink in them.
 //   node png.test.mjs
-import { build } from 'esbuild';
+import { bundle } from './tools/bundle.ts';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -29,20 +29,17 @@ window.run = async () => {
   return { a, b };
 };
 `;
-  const bundled = await build({
-    stdin: { contents: app, resolveDir: here('./'), loader: 'ts' },
-    bundle: true,
-    write: false,
+  const bundled = await bundle({
+    contents: app,
+    resolveDir: here('./'),
     format: 'iife',
     platform: 'browser',
-    target: 'es2022',
-    logLevel: 'error',
     alias: { inkplot: here('./src/index.ts') },
   });
   const dir = mkdtempSync(tmpdir() + '/inkplot-png-');
   writeFileSync(
     `${dir}/index.html`,
-    `<!doctype html><meta charset="utf-8"><body style="margin:0"><div id="host" style="width:400px;height:250px"></div><script>${bundled.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')}</script>`,
+    `<!doctype html><meta charset="utf-8"><body style="margin:0"><div id="host" style="width:400px;height:250px"></div><script>${bundled.code.replace(/<\/script/gi, '<\\/script')}</script>`,
   );
   const browser = await chromium.launch();
   const page = await browser.newPage();

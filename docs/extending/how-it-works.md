@@ -12,7 +12,7 @@ The source is in three layers, and `tools/deps.test.ts` holds the import graph t
 | **Core** | `chart`, `plane`, `axis`, `dimension`, `series`, `renderer`, `curve`, `scale`, `data` | What every chart pulls in: the skeleton of chart → plane → axes and series → data and renderers. |
 | **Features** | Everything else: `legend`, `cursor`, `panzoom`, `annotation`, `marker`, `bars`, `curves`, `steps`, `stack`, `radial`, `mapped`, `key`, `decimation`, `time*`, `summary`, the adapters… | Independent of one another, except for a short list of declared uses (an annotation uses `callout`; a cursor uses `hit`). |
 
-Features are **opt-in by import**: a chart that draws no markers carries no marker code. That is how a minimal chart is under 15 KB gzipped while the whole library is about 50 KB.
+Features are **opt-in by import**: a chart that draws no markers carries no marker code. That is how a minimal chart is under 15 KB gzipped while the whole library is about 60 KB.
 
 ## The tree
 

@@ -50,7 +50,7 @@ Point your compiler's JSX at the library. In `tsconfig.json`:
 { "compilerOptions": { "jsx": "react-jsx", "jsxImportSource": "inkplot" } }
 ```
 
-With esbuild: `jsx: 'automatic', jsxImportSource: 'inkplot'`. Or per file: `/** @jsxImportSource inkplot */`. TypeScript checks each tag's attributes. It cannot check the hyphenated ones (`regularDomain-start`) or which children go where; those are checked when the chart is built, with errors that name the element.
+With esbuild, Rolldown or Vite: `jsx: 'automatic', jsxImportSource: 'inkplot'`. Or per file: `/** @jsxImportSource inkplot */`. TypeScript checks each tag's attributes. It cannot check the hyphenated ones (`regularDomain-start`) or which children go where; those are checked when the chart is built, with errors that name the element.
 
 ## Putting it on a page
 

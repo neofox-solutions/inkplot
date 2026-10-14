@@ -408,24 +408,16 @@ test('react', async () => {
 
   // ── Tree-shaking: a page that uses two built-ins gets those and what they need, not the other 54 and their classes.
   {
-    const { build } = await import('esbuild');
+    const { bundle } = await import('../tools/bundle.ts');
     const src = (f: string) => new URL(f, import.meta.url).pathname;
-    const out = await build({
-      stdin: {
-        contents: `import { Axis, LinearScale } from 'inkplot/react'; export default [Axis, LinearScale];`,
-        resolveDir: src('.'),
-        loader: 'ts',
-      },
-      bundle: true,
-      write: false,
-      minify: false,
+    const out = await bundle({
+      contents: `import { Axis, LinearScale } from 'inkplot/react'; export default [Axis, LinearScale];`,
+      resolveDir: src('.'),
       format: 'esm',
       external: ['react'],
-      treeShaking: true,
-      logLevel: 'error',
       alias: { 'inkplot/react': src('react.ts'), inkplot: src('index.ts') },
     });
-    const text = out.outputFiles[0]!.text;
+    const text = out.code;
     assert.ok(/(var|class) Axis\b/.test(text) && /(var|class) LinearScale\b/.test(text));
     for (const gone of ['RadarPlane', 'BarPath', 'TemporalTimeScale', 'CalloutAnnotation', 'Legend'])
       assert.ok(!new RegExp(`(var|class) ${gone}\\b`).test(text), `${gone} should be shaken out`);

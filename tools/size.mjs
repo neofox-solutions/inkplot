@@ -1,9 +1,9 @@
 // Bundle size per scenario: each is a small program that uses the library the way a page would, bundled through the barrel
-// with esbuild (minified, ESM, tree-shaken), then measured raw, gzip and brotli. Deltas are against the minimal chart, so
+// with Rolldown (minified, ESM, tree-shaken), then measured raw, gzip and brotli. Deltas are against the minimal chart, so
 // a row says what its feature costs on top of a chart that already draws a line.
 //   node tools/size.mjs            the table
 //   node tools/size.mjs --modules  also the cost of each source module in the kitchen-sink bundle
-import { build } from 'esbuild';
+import { bundle as build } from './bundle.ts';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -203,16 +203,15 @@ export function make() {
   { name: 'Everything the barrel exports (`import * as L`)', whole: true },
 ];
 
-async function bundle(s, wantMeta = false) {
+async function bundle(s) {
   const contents = s.whole ? `import * as L from 'inkplot'; globalThis.L = L;` : (s.source ?? program(s));
   const r = await build({
-    stdin: { contents, resolveDir: root, loader: s.jsx ? 'jsx' : 'js' },
-    bundle: true,
+    contents,
+    resolveDir: root,
+    type: s.jsx ? 'jsx' : 'js',
     minify: true,
     format: 'esm',
-    target: 'es2022',
-    write: false,
-    ...(s.jsx ? { jsx: 'automatic', jsxImportSource: s.reactJsx ? 'react' : 'inkplot' } : {}),
+    ...(s.jsx ? { jsx: s.reactJsx ? 'react' : 'inkplot' } : {}),
     ...(s.external ? { external: s.external } : {}),
     alias: {
       inkplot: src('index.ts'),
@@ -220,13 +219,9 @@ async function bundle(s, wantMeta = false) {
       'inkplot/react': src('react.ts'),
       'inkplot/web-components': src('web-components.ts'),
     },
-    metafile: wantMeta,
-    legalComments: 'none',
-    logLevel: 'error',
-    treeShaking: true,
   });
-  const code = r.outputFiles[0].contents;
-  return { raw: code.length, gzip: gzipSync(code, { level: 9 }).length, brotli: brotliCompressSync(code).length, meta: r.metafile };
+  const code = Buffer.from(r.code);
+  return { raw: code.length, gzip: gzipSync(code, { level: 9 }).length, brotli: brotliCompressSync(code).length, meta: r.modules };
 }
 
 const kb = (n) => (n / 1024).toFixed(1);
@@ -253,10 +248,10 @@ let modules = '';
 if (process.argv.includes('--modules')) {
   for (const prefix of ['Minimal', 'Kitchen']) {
     const sc = SCENARIOS.find((s) => s.name.startsWith(prefix));
-    const m = await bundle(sc, true);
-    const inputs = Object.entries(m.meta.outputs)
-      .flatMap(([, o]) => Object.entries(o.inputs))
-      .map(([f, v]) => [f.replace(/^.*src\//, ''), v.bytesInOutput])
+    const m = await bundle(sc);
+    const inputs = Object.entries(m.meta)
+      .filter(([f]) => f.includes('/src/'))
+      .map(([f, bytes]) => [f.replace(/^.*src\//, ''), bytes])
       .filter(([, b]) => b > 0)
       .sort((a, b) => b[1] - a[1]);
     const total = inputs.reduce((a, [, b]) => a + b, 0);

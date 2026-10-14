@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { build } from 'esbuild';
+import { bundle } from './bundle.ts';
 import { STRUCTURE, load, reference } from './api.ts';
 import { allBlocks, anchorOf, blocksOf, linkProblems, markdownFiles, parseInfo, type DocBlock } from './docs.ts';
 import { test } from 'vite-plus/test';
@@ -124,15 +124,12 @@ test('docs', async () => {
       const chart = typeof example_.default === 'function' ? example_.default() : example_.chart;
       if (!(chart instanceof Chart)) throw new Error('the default export must return a Chart, not ' + String(chart && chart.constructor && chart.constructor.name));
       export const svg = toSvgString(chart, { width: ${b.width ?? 640}, height: ${b.height} });`;
-      const result = await build({
-        stdin: { contents: entry, resolveDir: out, loader: 'js' },
-        bundle: true,
-        write: false,
+      const result = await bundle({
+        contents: entry,
+        resolveDir: out,
+        type: 'js',
         format: 'esm',
-        target: 'es2022',
-        logLevel: 'silent',
-        jsx: 'automatic',
-        jsxImportSource: 'inkplot',
+        jsx: 'inkplot',
         platform: 'node',
         alias: {
           inkplot: src('index.ts'),
@@ -140,11 +137,9 @@ test('docs', async () => {
           'inkplot/jsx-dev-runtime': src('jsx-dev-runtime.ts'),
           example: join(out, `${b.id}.${b.language}`),
         },
-        plugins: [],
-        loader: { '.tsx': 'tsx', '.ts': 'ts' },
       }).catch((e: Error) => assert.fail(`${where}: does not compile: ${e.message}`));
       const file = join(out, `${b.id}.mjs`);
-      writeFileSync(file, result.outputFiles[0]!.text);
+      writeFileSync(file, result.code);
       let svg: string;
       try {
         ({ svg } = (await import(pathToFileURL(file).href)) as { svg: string });

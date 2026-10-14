@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { type BuildOptions, type Plugin, build, formatMessages } from 'esbuild';
+import { type Plugin, rolldown } from 'rolldown';
 
 const USAGE = `inkplot-scratch <source.ts|tsx> [options]
 
@@ -138,40 +138,58 @@ if (!on.has('--no-typecheck')) {
 // ── 2. bundle the source (one copy of inkplot, the one in the workspace) and run it ──
 const oneInkplot = (): Plugin => ({
   name: 'one-inkplot',
-  setup(b) {
-    b.onResolve({ filter: /^inkplot(\/|$)/ }, async (args) => {
-      if (args.pluginData === 'inkplot') return undefined;
-      const r = await b.resolve(args.path, { resolveDir: workspace, kind: args.kind, pluginData: 'inkplot' });
-      return r.errors.length
-        ? { errors: [{ text: `cannot find "${args.path}" from ${workspace}. Run: npm i inkplot` }] }
-        : { path: r.path };
-    });
+  async resolveId(id, _importer, options) {
+    if (!/^inkplot(\/|$)/.test(id)) return null;
+    const found = await this.resolve(id, join(workspace, 'x.js'), { ...options, skipSelf: true });
+    if (!found) throw new Error(`cannot find "${id}" from ${workspace}. Run: npm i inkplot`);
+    return found;
   },
 });
-const common: BuildOptions = {
-  bundle: true,
-  write: false,
-  jsx: 'automatic',
-  jsxImportSource: 'inkplot',
-  plugins: [oneInkplot()],
-  logLevel: 'silent',
-  target: 'es2022',
-  loader: { '.csv': 'text', '.tsv': 'text', '.txt': 'text' },
-  absWorkingDir: workspace,
+// oxlint-disable-next-line eslint/no-control-regex -- an escape character is what colour codes start with
+const ANSI = /\u001b\[[0-9;]*m/g;
+/** Rolldown's errors carry a printed code frame, with colour codes. */
+const messagesOf = (e: unknown): string => {
+  const errors = e instanceof Error && 'errors' in e && Array.isArray(e.errors) ? e.errors : [e];
+  return errors.map((x: unknown) => (x instanceof Error ? x.message : String(x)).replace(ANSI, '').trimEnd()).join('\n\n');
 };
-const bundle = async (extra: BuildOptions, entry: string): Promise<string> => {
+type Bundling = { platform: 'node' | 'browser'; format: 'esm' | 'iife'; sourcemap?: boolean; compact?: boolean };
+const bundle = async (how: Bundling, entry: string): Promise<string> => {
+  // The entry has a path, though not a file: its imports resolve from the source's folder.
+  const entryId = join(dirname(source), 'inkplot-scratch-entry.ts');
+  const unresolved: string[] = [];
   try {
-    const out = await build({
-      ...common,
-      ...extra,
-      stdin: { contents: entry, resolveDir: dirname(source), loader: 'ts', sourcefile: 'inkplot-scratch-entry.ts' },
+    const build = await rolldown({
+      input: entryId,
+      cwd: workspace,
+      platform: how.platform,
+      logLevel: 'warn',
+      // An import that cannot be found is an error, not an external to fail on at run time.
+      onLog: (_level, log) => {
+        if (log.code === 'UNRESOLVED_IMPORT') unresolved.push(log.message.replace(ANSI, ''));
+      },
+      transform: { jsx: { runtime: 'automatic', importSource: 'inkplot' }, target: 'es2022' },
+      moduleTypes: { '.csv': 'text', '.tsv': 'text', '.txt': 'text' },
+      plugins: [
+        oneInkplot(),
+        {
+          name: 'entry',
+          resolveId: (id) => (id === entryId ? id : null),
+          load: (id) => (id === entryId ? { code: entry, moduleType: 'ts' } : null),
+        },
+      ],
     });
-    return out.outputFiles?.[0]?.text ?? fail('esbuild produced no output');
+    const out = await build.generate({
+      format: how.format,
+      codeSplitting: false,
+      ...(how.sourcemap ? { sourcemap: 'inline' as const, sourcemapExcludeSources: true } : {}),
+      // Whitespace and syntax are minified, names are not: an error that says which element it wanted is worth a few KB.
+      ...(how.compact ? { minify: { mangle: false, compress: true, codegen: { removeWhitespace: true } } } : {}),
+    });
+    await build.close();
+    if (unresolved.length) return fail(unresolved.join('\n\n'));
+    return out.output[0].code;
   } catch (e) {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- esbuild's build failure carries `errors`, which its types do not declare on `Error`
-    const errors = (e as { errors?: Parameters<typeof formatMessages>[0] }).errors;
-    if (!errors) throw e;
-    return fail((await formatMessages(errors, { kind: 'error', color: false, terminalWidth: 100 })).join('\n'));
+    return fail(messagesOf(e));
   }
 };
 const q = JSON.stringify;
@@ -179,7 +197,7 @@ const tmp = mkdtempSync(join(tmpdir(), 'inkplot-scratch-'));
 process.on('exit', () => rmSync(tmp, { recursive: true, force: true }));
 
 const nodeCode = await bundle(
-  { platform: 'node', format: 'esm', sourcemap: 'inline', sourcesContent: false },
+  { platform: 'node', format: 'esm', sourcemap: true },
   `import * as user from ${q(source)};\nimport { checkText, figuresOf, factsOf, svgOf } from ${q(join(assets, 'figures.ts'))};\nexport { checkText, factsOf, svgOf };\nexport const figures = figuresOf(user);\n`,
 );
 const file = join(tmp, 'run.mjs');
@@ -276,7 +294,7 @@ if (htmlPath !== undefined) {
   const title = values.get('--title') ?? basename(source, extname(source));
   // Whitespace and syntax are minified, names are not: an error that says which element it wanted is worth a few KB.
   const script = await bundle(
-    { platform: 'browser', format: 'iife', minifyWhitespace: true, minifySyntax: true },
+    { platform: 'browser', format: 'iife', compact: true },
     `import * as user from ${q(source)};\nimport { mount } from ${q(join(assets, 'app.ts'))};\nmount(user, ${q(title)}, { interactive: ${on.has('--static') ? 'false' : 'true'} });\n`,
   );
   const template = readFileSync(join(assets, 'template.html'), 'utf8');

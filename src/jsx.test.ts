@@ -1,6 +1,6 @@
-// JSX runtime: tags build elements directly, hyphenated attributes nest, children flatten, and real JSX compiled by esbuild gives the same chart as `new`.
+// JSX runtime: tags build elements directly, hyphenated attributes nest, children flatten, and real JSX compiled by Rolldown gives the same chart as `new`.
 import assert from 'node:assert/strict';
-import { build } from 'esbuild';
+import { bundle } from '../tools/bundle.ts';
 import {
   Axis,
   CartesianPlane,
@@ -100,7 +100,7 @@ test('jsx', async () => {
   })();
   assert.equal((nested!.match(/f\.tsx/g) ?? []).length, 1, 'the innermost position only');
 
-  // The same chart three ways: with `new`, with direct calls, and with JSX that esbuild compiled against this runtime.
+  // The same chart three ways: with `new`, with direct calls, and with JSX that Rolldown compiled against this runtime.
   const rows = Array.from({ length: 30 }, (_, i) => ({ t: i, v: Math.sin(i / 4) }));
   const withNew = () =>
     new Chart(
@@ -121,11 +121,10 @@ test('jsx', async () => {
   const expectedSvg = toSvgString(reference),
     expectedJson = JSON.stringify(toJSON(reference, registry));
 
-  const bundled = await build({
-    stdin: {
-      loader: 'tsx',
-      resolveDir: import.meta.dirname,
-      contents: `
+  const bundled = await bundle({
+    type: 'tsx',
+    resolveDir: import.meta.dirname,
+    contents: `
       import { Axis, CartesianPlane, Chart, ChartTitle, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme, registry, toJSON, toSvgString } from './index.ts';
       const rows = ${JSON.stringify(rows)};
       const stroke = '#36c';
@@ -145,16 +144,11 @@ test('jsx', async () => {
       export const svg = toSvgString(chart);
       export const json = JSON.stringify(toJSON(chart, registry));
     `,
-    },
-    bundle: true,
-    write: false,
     format: 'esm',
     platform: 'node',
-    jsx: 'automatic',
-    jsxImportSource: import.meta.dirname,
-    logLevel: 'silent',
+    jsx: import.meta.dirname,
   });
-  const mod = await import('data:text/javascript;base64,' + Buffer.from(bundled.outputFiles[0]!.text).toString('base64'));
+  const mod = await import('data:text/javascript;base64,' + Buffer.from(bundled.code).toString('base64'));
   // (Clip ids come from a counter each copy of the library has for itself.)
   const sameIds = (svg: string) => svg.replace(/clip\d+/g, 'clip');
   assert.ok(sameIds(mod.svg) === sameIds(expectedSvg), 'JSX gives the chart `new` gives');

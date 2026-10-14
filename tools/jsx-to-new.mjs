@@ -1,7 +1,7 @@
 // The skill in plain TypeScript: JSX examples turned into `new Element(attributes, ...children)`, so the same documentation
 // can be given to a reader who writes charts without JSX (where tsc checks child order and every attribute, nested ones included).
 //
-//   convertCode(code)            one JSX module as TypeScript (babel for the syntax, prettier for the layout)
+//   convertCode(code)            one JSX module as TypeScript (babel for the syntax, oxfmt for the layout)
 //   convertInline(markdown)      the same for the snippets in prose (`<Axis min={0} />`, `meta-title`)
 //   typeScriptFlavour(markdown)  a whole page: <!-- ts --> text kept and <!-- jsx --> text dropped, code blocks and snippets converted
 //
@@ -11,7 +11,7 @@ import { parse } from '@babel/parser';
 import _generate from '@babel/generator';
 import * as t from '@babel/types';
 import _traverse from '@babel/traverse';
-import * as prettier from 'prettier';
+import { format } from 'oxfmt';
 
 const traverse = _traverse.default ?? _traverse,
   generate = _generate.default ?? _generate;
@@ -104,10 +104,10 @@ function newOf(node) {
   return t.newExpression(nameOf(nameNode), args);
 }
 
-const PRETTIER = { parser: 'typescript', singleQuote: true, printWidth: 118, semi: true, trailingComma: 'all', objectWrap: 'collapse' };
+const LAYOUT = { singleQuote: true, printWidth: 118, semi: true, trailingComma: 'all', objectWrap: 'collapse' };
 
 /** One JSX module as TypeScript. `width` is the line width to lay out for (a snippet in prose wants it long). */
-export async function convertCode(code, width = PRETTIER.printWidth) {
+export async function convertCode(code, width = LAYOUT.printWidth) {
   code = code.replace(/\/\*\*\s*@jsxImportSource\s+\S+\s*\*\/\n?/, '');
   const ast = parse(code, { sourceType: 'module', plugins: ['jsx', 'typescript'] });
   traverse(ast, {
@@ -129,7 +129,9 @@ export async function convertCode(code, width = PRETTIER.printWidth) {
     },
   });
   const printed = generate(ast, { comments: true, jsescOption: { quotes: 'single' } }).code;
-  const text = (await prettier.format(printed, { ...PRETTIER, printWidth: width })).replace(/\n+$/, '\n');
+  const formatted = await format('example.ts', printed, { ...LAYOUT, printWidth: width });
+  if (formatted.errors.length) throw new Error(`the converted example does not parse: ${formatted.errors[0]?.message}`);
+  const text = formatted.code.replace(/\n+$/, '\n');
   // Statements come out without the blank lines the source had: put one after the imports and before an `export`.
   const lines = text.split('\n'),
     out = [];
