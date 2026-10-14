@@ -85,8 +85,12 @@ export interface ChartAttributes extends BaseAttributes {
    *
    * It also eases the changes of view that jump on purpose (a box zoom, a double-click that puts an axis back, `PanZoom.reset()`, and
    * `moveView`), over the same time and easing, unless `views` is false. A drag, wheel turn or pinch follows the hand and never eases.
+   *
+   * With `enter: true` each series plays an entrance when the chart is first drawn: bars grow from their baseline, lines, areas and
+   * markers are drawn on from the left, a round chart fades in. Default false. Don't combine it with a server-rendered chart, whose
+   * first drawing is already on the page.
    */
-  transition?: { duration?: number; easing?: string; views?: boolean };
+  transition?: { duration?: number; easing?: string; views?: boolean; enter?: boolean };
   /** Called after every flush with its statistics. */
   onFlush?: (stats: FlushStats) => void;
 }
@@ -111,7 +115,7 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     ...ChartElement.attrTypes,
     measureText: AUTO,
     onFlush: AUTO,
-    transition: { duration: NUMBER, easing: STRING, views: BOOLEAN },
+    transition: { duration: NUMBER, easing: STRING, views: BOOLEAN, enter: BOOLEAN },
     locale: STRING,
   } satisfies AttrTypesFor<ChartAttributes>;
   override get chart(): Chart {
@@ -219,7 +223,9 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     // Only a flush that follows a change to the data eases, and not the first (nothing is there to move from).
     const eased = a.transition && this.#dataChanged && this.#flushCount > 1;
     this.#dataChanged = false;
-    platform.setTransition?.(eased ? { duration: a.transition?.duration ?? 250, easing: a.transition?.easing ?? 'ease-out' } : null);
+    const spec = { duration: a.transition?.duration ?? 250, easing: a.transition?.easing ?? 'ease-out' };
+    platform.setTransition?.(eased ? spec : null);
+    if (a.transition?.enter && this.#flushCount === 1) platform.prepareEnter?.(spec);
     const size = platform.size();
     const width = a.width ?? size.width,
       height = a.height ?? size.height;

@@ -181,6 +181,11 @@ export abstract class SeriesRenderer<
   shapes?(): PolygonSet | null;
   /** Where a label for each point should sit, if this knows better than the point itself (a bar: the middle of its far end). Default none. */
   anchors?(): AnchorSet | null;
+  /**
+   * For a renderer whose marks grow from a line when the chart first appears (bars): which way they grow (`grow-y` upwards or downwards,
+   * `grow-x` sideways) and a point on the line they stand on, in plot pixels. Null: nothing to grow from, so the series is drawn on instead.
+   */
+  enterFrom?(): { kind: 'grow-y' | 'grow-x'; x: number; y: number } | null;
   /** The path this draws as a line (or the top of a shape), if it is not the straight one through the points. Hits and readings follow it. Default none. */
   trace?(): Trace | null;
   /**

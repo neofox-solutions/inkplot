@@ -134,7 +134,7 @@ export class DOMPlatform implements Platform {
   setCursor(cursor: string): void {
     this.#svg.style.cursor = cursor;
   }
-  #eased = false;
+  #styled = false;
   /**
    * Easing is a rule in a `<style>` inside the svg, which applies while the svg carries `data-ink-t`: a flush that eases sets the attribute and
    * the speed (as custom properties) before it writes, and any other flush takes the attribute off, which also ends a transition in flight. The
@@ -146,18 +146,36 @@ export class DOMPlatform implements Platform {
       svg.removeAttribute('data-ink-t');
       return;
     }
-    if (!this.#eased) {
-      this.#eased = true;
+    this.#style(spec);
+    svg.setAttribute('data-ink-t', '');
+  }
+  /** A series' entrance is a CSS animation on its group (`data-ink-enter`), which plays when the group is first drawn; the same style element and speed. */
+  prepareEnter(spec: TransitionSpec): void {
+    this.#style(spec);
+  }
+  /** The style element, once, and the speed it reads. */
+  #style(spec: TransitionSpec): void {
+    const svg = this.#svg;
+    if (!this.#styled) {
+      this.#styled = true;
       const style = this.#document.createElementNS(SVG_NS, 'style');
       const to = (property: string) => `${property} var(--ink-dur) var(--ink-ease)`;
       const properties = ['d', 'fill', 'stroke', 'opacity', 'fill-opacity', 'stroke-opacity', 'stroke-width'].map(to).join(',');
       const targets = ['path', 'rect', 'circle', 'line'].map((tag) => `svg[data-ink-t] ${tag}`).join(',');
-      style.textContent = `@media (prefers-reduced-motion:no-preference){${targets}{transition:${properties}}}`;
+      const play = (kind: string, keyframes: string) =>
+        `@keyframes ink-${kind}{${keyframes}}g[data-ink-enter=${kind}]{animation:ink-${kind} var(--ink-dur) var(--ink-ease) backwards}`;
+      // A sweep names both ends: the group is clipped to the plot, which is not a shape that can be animated to.
+      style.textContent =
+        `@media (prefers-reduced-motion:no-preference){${targets}{transition:${properties}}` +
+        play('sweep', 'from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}') +
+        play('fade', 'from{opacity:0}') +
+        play('grow-y', 'from{transform:scale(1,0)}') +
+        play('grow-x', 'from{transform:scale(0,1)}') +
+        '}';
       svg.insertBefore(style, svg.firstChild);
     }
     svg.style.setProperty('--ink-dur', `${spec.duration}ms`);
     svg.style.setProperty('--ink-ease', spec.easing);
-    svg.setAttribute('data-ink-t', '');
   }
   #touchMode: 'always' | 'two-finger' = 'always';
   #listening = false;

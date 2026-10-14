@@ -213,6 +213,27 @@ export abstract class BarRenderer<A extends BarRendererAttributes = BarRendererA
     const shapes = this.outline();
     return shapes ? barAnchors(shapes) : null;
   }
+  /** The first bar that is there says which way bars grow (its anchor's direction) and, by the middle of its foot, where the baseline is. */
+  override enterFrom(): { kind: 'grow-y' | 'grow-x'; x: number; y: number } | null {
+    const shapes = this.outline();
+    if (!shapes) return null;
+    const { data, perShape, count } = shapes,
+      half = perShape / 2,
+      anchors = barAnchors(shapes).data;
+    for (let i = 0; i < count; i++) {
+      const nx = anchors[i * 4 + 2]!,
+        ny = anchors[i * 4 + 3]!;
+      if (nx !== nx || ny !== ny) continue;
+      let x = 0,
+        y = 0;
+      for (let v = 0; v < half; v++) {
+        x += data[(i * perShape + v) * 2]!;
+        y += data[(i * perShape + v) * 2 + 1]!;
+      }
+      return { kind: Math.abs(ny) >= Math.abs(nx) ? 'grow-y' : 'grow-x', x: x / half, y: y / half };
+    }
+    return null;
+  }
 }
 
 export interface BarPathAttributes extends BarRendererAttributes {}

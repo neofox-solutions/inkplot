@@ -28,7 +28,7 @@ import { type DataNode, DataSource, DataTransform, type PlanContext, type PointB
 import { type AnyElement, type BaseAttributes, ChartElement, type ElementRef, fail, resolveRef } from './element.ts';
 import { writeAria } from './aria.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_PAINT } from './events.ts';
-import type { Extent, Size } from './geometry.ts';
+import { type Extent, type Size, f2 } from './geometry.ts';
 import type { Plane } from './plane.ts';
 import type { PlatformNode } from './platform.ts';
 import type { Surface } from './surface.ts';
@@ -263,9 +263,38 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
         const clip = this.plane.clipUrl;
         if (clip) this.surface.set(this.surface.wrapper(), 'clip-path', clip);
         writeAria(this.surface, this.surface.wrapper(), this.attrs.meta, { role: 'group' });
+        const chart = this.chart;
+        if (chart?.attrs.transition?.enter && chart.flushCount === 1 && chart.platform?.prepareEnter) this.#markEntrance();
         break;
       }
     }
+  }
+
+  /**
+   * Mark the group as one that plays an entrance (the platform's rule does the rest, and only in a browser, whose platform has one):
+   * a series on a round plane fades in, bars grow from their baseline (they say where it is: `enterFrom`), anything else is drawn on from the left.
+   */
+  #markEntrance(): void {
+    const s = this.surface,
+      group = s.wrapper();
+    let kind = this.plane.axes.some((axis) => this.plane.cyclic(axis)) ? 'fade' : 'sweep';
+    if (kind === 'sweep') {
+      let grow: ReturnType<NonNullable<SeriesRenderer['enterFrom']>> = null;
+      for (const r of this)
+        if (r instanceof SeriesRenderer) {
+          const from = r.enterFrom?.() ?? null;
+          if (!from) {
+            grow = null;
+            break;
+          }
+          grow ??= from;
+        }
+      if (grow) {
+        kind = grow.kind;
+        s.set(group, 'style', `transform-origin:${f2(grow.x)}px ${f2(grow.y)}px`);
+      }
+    }
+    s.set(group, 'data-ink-enter', kind);
   }
 
   /**

@@ -4805,12 +4805,14 @@ demos.push({
 });
 
 // ── Transitions ──────────────────────────────────────────────────────────────
+// What the demo's controls say, kept between visits so that "Replay" can build the chart again with the same settings.
+const transitionState = { shape: 'bars', on: true, enter: true, duration: 600, easing: 'ease-out', fixed: true, n: 8, seed: 1 };
 demos.push({
   id: 'transitions',
   title: 'Transitions',
   blurb: 'Ease to new data with CSS transitions: off by default, data changes only, not for pan or zoom',
   setup(ctx) {
-    const S = { shape: 'bars', on: true, duration: 500, easing: 'ease-out', fixed: true, n: 8, seed: 1 };
+    const S = transitionState;
     const EASINGS = [
       ['ease-out', 'ease-out'],
       ['linear', 'linear'],
@@ -4851,10 +4853,10 @@ demos.push({
     const chart = new L.Chart({ theme: chartTheme(), onFlush: ctx.onFlush }, plane);
     const read = ui.readout();
     const apply = () => {
-      chart.setAttribute('transition', S.on ? { duration: S.duration, easing: S.easing } : undefined);
+      chart.setAttribute('transition', S.on ? { duration: S.duration, easing: S.easing, enter: S.enter } : undefined);
       y.setAttributes(S.fixed ? { min: 0, max: 14, nice: false } : { min: undefined, max: undefined, nice: true });
       read.textContent = S.on
-        ? `transition: { duration: ${S.duration}, easing: '${S.easing}' }`
+        ? `transition: { duration: ${S.duration}, easing: '${S.easing}', enter: ${S.enter} }`
         : 'transition: undefined (a data change is immediate)';
     };
     const reload = () => {
@@ -4876,6 +4878,14 @@ demos.push({
           plane.remove(series);
           series = makeSeries();
           plane.append(series);
+        },
+      }),
+      ui.toggle({
+        label: 'entrance (on the first draw)',
+        value: S.enter,
+        onChange: (v) => {
+          S.enter = v;
+          select('transitions');
         },
       }),
       ui.toggle({
@@ -4935,6 +4945,7 @@ demos.push({
         ],
         ['Zoom the value axis', () => L.moveView(y, { min: 4, max: 10 })],
         ['Reset zoom', () => L.moveView(y, null)],
+        ['Replay the entrance', () => select('transitions')],
       ),
       ui.toggle({
         label: 'fixed value axis (0 to 14)',
@@ -4946,7 +4957,7 @@ demos.push({
       }),
       read,
       ui.note(
-        'New values eases the shapes to where the data now is. Add a point and Remove a point change how many bars or points there are, so the shape cannot morph and snaps. A zoom that jumps on purpose (the button, shift-drag to box zoom, double-click to reset) eases over the same time; a wheel turn follows your hand and is never eased. With the value axis not fixed, new data rescales it: the ticks change at once while the shapes glide, which is why the axis is fixed by default here. Path morphing needs the CSS d property (Chrome and Firefox, not Safari), and prefers-reduced-motion switches it off. Colours and widths ease in every browser.',
+        'New values eases the shapes to where the data now is. Add a point and Remove a point change how many bars or points there are, so the shape cannot morph and snaps. A zoom that jumps on purpose (the button, shift-drag to box zoom, double-click to reset) eases over the same time; a wheel turn follows your hand and is never eased. With the value axis not fixed, new data rescales it: the ticks change at once while the shapes glide, which is why the axis is fixed by default here. Path morphing needs the CSS d property (Chrome and Firefox, not Safari), and prefers-reduced-motion switches it off. Colours and widths ease in every browser. The entrance (bars grow from their baseline, lines are drawn on) plays only when the chart is first drawn, so Replay builds the chart again.',
       ),
     );
     return { chart };

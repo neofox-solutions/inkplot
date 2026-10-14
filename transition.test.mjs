@@ -10,15 +10,17 @@ import { chromium } from './tools/browser.mjs';
 import { test } from 'vite-plus/test';
 
 const APP = `
-import { Axis, CartesianPlane, Chart, DOMPlatform, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme, moveView } from 'inkplot';
+import { Axis, CartesianPlane, Chart, DOMPlatform, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, BarPath, lightTheme, moveView } from 'inkplot';
 const hash = location.hash.slice(1);
 const data = new Float64Array([1, 3, 2, 5, 4]);
 const source = new FlatDataSource({ data, regularDomain: { start: 0, step: 1 } });
 const x = new Axis({ orientation: 'bottom', min: 0, max: 4 }, new LinearScale());
 const y = new Axis({ orientation: 'left', min: 0, max: 12 }, new LinearScale());
+const enter = hash.startsWith('enter');
+const renderer = hash === 'enter-bars' ? new BarPath({}) : new LinePath(new LinearCurve());
 const chart = new Chart(
-  { theme: lightTheme, ...(hash === 'off' ? {} : { transition: { duration: 800, easing: 'linear' } }) },
-  new CartesianPlane({}, x, y, new DomainSeries({}, source, new LinePath(new LinearCurve()))),
+  { theme: lightTheme, ...(hash === 'off' ? {} : { transition: { duration: 800, easing: 'linear', ...(enter ? { enter: true } : {}) } }) },
+  new CartesianPlane({}, x, y, new DomainSeries({}, source, renderer)),
 );
 chart.attach(new DOMPlatform(document.getElementById('host'), { size: { width: 400, height: 200 }, preciseText: false }));
 Object.assign(window, { chart, source, data, x, y, moveView });
@@ -110,6 +112,34 @@ test('transition', async () => {
       assert.ok(mid.min > 0 && mid.min < 2 && mid.max < 12 && mid.max > 4, `partway the range is between: ${JSON.stringify(mid)}`);
       await page.waitForTimeout(1000);
       assert.deepEqual(await page.evaluate(() => window.y.range), { min: 2, max: 4 });
+    }
+    // An entrance: a line is drawn on from the left (a clip that opens), bars grow from their baseline (a scale from nothing); both end
+    // on the drawing itself, and no `enter` means no entrance.
+    {
+      const group = (page) =>
+        page.evaluate(() => {
+          const g = document.querySelector('svg g[data-ink-enter]');
+          if (!g) return null;
+          const c = getComputedStyle(g);
+          return { kind: g.getAttribute('data-ink-enter'), clip: c.clipPath, transform: c.transform, attr: g.getAttribute('clip-path') };
+        });
+      const line = await open('enter');
+      const start = await group(line);
+      assert.equal(start?.kind, 'sweep');
+      assert.ok(start.clip.startsWith('inset('), `the clip is opening: ${start.clip}`);
+      await line.waitForTimeout(1100);
+      const after = await group(line);
+      assert.ok(after.clip.startsWith('url('), `and has given way to the plot's own clip: ${after.clip}`);
+
+      const bars = await open('enter-bars');
+      const grow = await group(bars);
+      assert.equal(grow?.kind, 'grow-y');
+      assert.notEqual(grow.transform, 'none', `bars start scaled: ${grow.transform}`);
+      await bars.waitForTimeout(1100);
+      assert.equal((await group(bars)).transform, 'none', 'and end at full size');
+
+      const plain = await open('on');
+      assert.equal(await group(plain), null, 'without `enter` there is no entrance');
     }
     // No `transition`: nothing is written for it and nothing eases.
     {

@@ -4,7 +4,7 @@ A chart can ease to its new drawing when its data changes, instead of jumping. I
 
 ## Switch it on
 
-Give the `Chart` a `transition`:
+Give the `Chart` a `transition` (this switches on the easing of data changes; the [entrance](#entrances) and the [view changes](#moving-the-view) below come with it):
 
 ```tsx check title="Easing to new data"
 /** @jsxImportSource inkplot */
@@ -62,6 +62,38 @@ export function showAll(axis: Axis) {
 ```
 
 `moveView` sets the view at once if the chart has no `transition`, if `transition.views` is `false`, or if the visitor prefers reduced motion. It asks the platform for frames, so a chart on a platform that has none (an SVG string) jumps too.
+
+## Entrances
+
+`enter: true` plays an entrance for each series **when the chart is first drawn**:
+
+```tsx check title="An entrance"
+/** @jsxImportSource inkplot */
+import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, FlatDataSource, LinearScale, lightTheme } from 'inkplot';
+
+export const chart = (
+  <Chart theme={lightTheme} transition={{ duration: 600, easing: 'ease-out', enter: true }}>
+    <CartesianPlane>
+      <Axis orientation="bottom"><BandScale categories={['Q1', 'Q2', 'Q3', 'Q4']} /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <DomainSeries name="Revenue">
+        <FlatDataSource data={[4, 7, 5, 9]} regularDomain-start={0} regularDomain-step={1} />
+        <BarPath />
+      </DomainSeries>
+    </CartesianPlane>
+  </Chart>
+) as Chart;
+```
+
+| Series | Entrance |
+|---|---|
+| Bars (including stacked and horizontal) | Grow from their baseline: the line they stand on stays where it is. |
+| Lines, areas, markers and anything else | Drawn on from the left. |
+| Anything on a round plane (polar, radar, a pie) | Fade in. |
+
+This is a CSS animation, so it works in every browser. It plays once: a series added later, or a chart redrawn, does not play it again (a series that is hidden and shown again does, because the browser starts its animation afresh). It uses the same `duration` and `easing` as the rest, and is off with `prefers-reduced-motion`.
+
+Do not combine it with [server rendering](frameworks.md#server-rendering-and-hydration): the chart is already on the page, and the browser's first drawing of it would play the entrance over the top.
 
 ## Browsers, reduced motion and exports
 
