@@ -2,7 +2,7 @@
 import { LinearCurve } from './curve.ts';
 import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import {
   Chart, CartesianPlane, Axis, LinearScale, Series, DomainSeries, LinePath, FlatDataSource, ObjectDataSource,
   Decimator, MinMaxKernel, M4Kernel, CircleMarker, LttbKernel, StrideKernel, StringPlatform, lineSeries,
@@ -134,6 +134,7 @@ assert(c.platform.toString().length < 40_000, 'the path is small');
 // The value axis saw the true extremes, not a sample of them.
 let trueMax = -Infinity; for (let i = 0; i < N; i++) trueMax = Math.max(trueMax, big.data[i]!);
 assert(c.level.range.max >= trueMax && c.level.range.max < trueMax + 1, 'value axis covers the true maximum');
+mkdirSync(new URL('../out/', import.meta.url), { recursive: true });
 writeFileSync(new URL('../out/out-decimated.svg', import.meta.url).pathname, c.platform.toString());
 
 // Nothing changed: cached. Style change: no refill. Kernel swap: one refill.

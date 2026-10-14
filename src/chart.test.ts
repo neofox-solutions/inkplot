@@ -2,7 +2,7 @@
 import { LinearCurve } from './curve.ts';
 import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import {
   Chart, CartesianPlane, Axis, LinearScale, Series, DomainSeries, LinePath, ObjectDataSource, FlatDataSource, ChartElement, Scale, DataSource, DataTransform,
   StringPlatform, toSvgString, resolveRef, firstDescendantOfType, EVENT_POINTER, inputOf,
@@ -28,6 +28,7 @@ const chart = new Chart(
 const platform = new StringPlatform({ width: 640, height: 360 });
 chart.attach(platform);
 const first = chart.flush();
+mkdirSync(new URL('../out/', import.meta.url), { recursive: true }); // `out/` is not in a fresh checkout
 writeFileSync(new URL('../out/out.svg', import.meta.url).pathname, platform.toString());
 
 assert(first.filled === 1 && first.projected === 1, 'first flush fills and projects once');
