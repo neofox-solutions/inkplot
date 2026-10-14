@@ -58,7 +58,7 @@ export function Trend({ values }: { values: number[] }) {
 |---|---|
 | A PNG | Browser: `await toPng(chart, { scale: 2, background: '#fff' })` (a `Blob`). Server: `toSvgString` then a WASM renderer with a font (`@resvg/resvg-wasm`; recipe "Make a PNG on a server") |
 | Chart as JSON | `toJSON(chart, registry, { refs })`, `fromJSON(json, registry, { refs })` |
-| Custom element that listens to the pointer, keys or focus | declare `static takesInput = inputOf` (from `inkplot`) on the class, or the chart never routes input to it |
+| Custom element that listens to the pointer, keys or focus | extend `InteractiveElement` (from `inkplot`) instead of `ChartElement`, or the chart never routes input to it |
 | Show gridlines or a frame | `<CartesianPlane gridlines={false} frame>` |
 | Accessible name | `meta-title`, `meta-description` on the `Chart`; `<ChartSummary />` for an automatic one |
 

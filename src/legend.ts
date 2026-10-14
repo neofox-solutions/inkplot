@@ -21,7 +21,7 @@ import { type AttrTypesFor, STRING } from './attrs.ts';
 import type { Chart } from './chart.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
 import { hideFromAssistive, writeAria } from './aria.ts';
-import { inputOf } from './input.ts';
+import { InteractiveElement, inputOf } from './input.ts';
 import {
   type ChartEvent,
   EVENT_ARRANGE,
@@ -68,8 +68,7 @@ interface Item {
   width: number;
 }
 
-export class Legend extends ChartElement<Chart, [], LegendAttributes> {
-  static override takesInput = inputOf;
+export class Legend extends InteractiveElement<Chart, [], LegendAttributes> {
   static override attrTypes = { ...ChartElement.attrTypes, title: STRING } satisfies AttrTypesFor<LegendAttributes>;
   #rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
   #items: Item[] = [];

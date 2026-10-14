@@ -13,7 +13,7 @@ import {
   LinePath,
   ObjectDataSource,
   FlatDataSource,
-  ChartElement,
+  InteractiveElement,
   Scale,
   DataSource,
   DataTransform,
@@ -22,7 +22,6 @@ import {
   resolveRef,
   firstDescendantOfType,
   EVENT_POINTER,
-  inputOf,
   type RawPointer,
   type ChartEvent,
   type BaseAttributes,
@@ -207,9 +206,8 @@ test('chart', () => {
   // ═══ Scheduling, resize and pointer routing (no browser needed) ═══
   {
     /** Records what the plane's children see. */
-    class Probe extends ChartElement<CartesianPlane, [], BaseAttributes & { claim?: boolean }> {
+    class Probe extends InteractiveElement<CartesianPlane, [], BaseAttributes & { claim?: boolean }> {
       seen: { kind: string; x: number; y: number }[] = [];
-      static override takesInput = inputOf; // an element that takes input declares it
       override onEvent(ev: ChartEvent): void {
         if (ev.type === EVENT_POINTER) {
           this.seen.push({ kind: ev.kind, x: ev.x, y: ev.y });

@@ -10,7 +10,7 @@ import {
   FlatDataSource,
   LinePath,
   LinearCurve,
-  ChartElement,
+  InteractiveElement,
   EVENT_FOCUS,
   EVENT_KEY,
   EVENT_POINTER,
@@ -23,12 +23,11 @@ import { FakePlatform } from './fake-platform.ts';
 import { test } from 'vite-plus/test';
 
 test('input', () => {
-  class Listener extends ChartElement<CartesianPlane> {
+  class Listener extends InteractiveElement<CartesianPlane> {
     pointer: string[] = [];
     keys: string[] = [];
     focus: boolean[] = [];
     node: unknown = null;
-    static override takesInput = inputOf;
     override onEvent(ev: ChartEvent): void {
       if (ev.type === EVENT_POINTER)
         this.pointer.push(`${ev.kind}${ev.pointerType === 'touch' ? ':touch' : ''}${ev.outside ? ':outside' : ''}`);

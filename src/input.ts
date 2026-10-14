@@ -10,7 +10,7 @@
  * the one under the pointer (over its plot, or over the strip an axis takes beside it, which is what lets an axis be zoomed
  * alone). A plane the pointer has left is told so. Everything inside the plane sees the event.
  */
-import type { AnyElement } from './element.ts';
+import { type AnyElement, type BaseAttributes, ChartElement, type MountContext } from './element.ts';
 import { type ChartPointerEvent, EVENT_FOCUS, EVENT_HOVER, EVENT_KEY, EVENT_POINTER, type ChartKeyEvent } from './events.ts';
 import { contains } from './geometry.ts';
 import type { Chart } from './chart.ts';
@@ -228,4 +228,22 @@ export function inputOf(chart: Chart): InputHost {
     host.start();
   }
   return host;
+}
+
+/**
+ * The base for an element that takes pointer, key or focus input. As it joins a chart, the chart is made to listen for input
+ * (`inputOf`), before the element's own ATTACH handler runs. It lives here, with the host, so that extending it is what brings the
+ * input code into a bundle: a chart with no such element never carries it. An element that cannot extend it (it has another base)
+ * asks `inputOf(chart)` itself as it attaches.
+ */
+export abstract class InteractiveElement<
+  Parent extends AnyElement | null = AnyElement | null,
+  Children extends readonly AnyElement[] = [],
+  Attrs extends BaseAttributes = BaseAttributes,
+> extends ChartElement<Parent, Children, Attrs> {
+  protected override mount(ctx: MountContext): void {
+    const chart = this.chart;
+    if (chart) inputOf(chart);
+    super.mount(ctx);
+  }
 }

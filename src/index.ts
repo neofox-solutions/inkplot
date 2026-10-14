@@ -226,7 +226,7 @@ export { type ChartFacts, ChartSummary, type ChartSummaryAttributes, englishSumm
 export { type AriaDefaults, hideFromAssistive, writeAria } from './aria.ts';
 export { drawFocusRing, makeTabStop, pressesButton } from './focus.ts';
 export { type Table, type TableOptions, readTable } from './table.ts';
-export { InputHost, inputOf } from './input.ts';
+export { InputHost, InteractiveElement, inputOf } from './input.ts';
 export {
   Chart,
   type ChartAttributes,

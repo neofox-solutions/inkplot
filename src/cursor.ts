@@ -32,7 +32,7 @@ import { type AttrTypesFor, AUTO, STRING } from './attrs.ts';
 import { writeAria } from './aria.ts';
 import type { Chart } from './chart.ts';
 import { type BaseAttributes, ChartElement, type ElementRef, resolveRef } from './element.ts';
-import { inputOf } from './input.ts';
+import { InteractiveElement, inputOf } from './input.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_FOCUS, EVENT_HOVER, EVENT_KEY, EVENT_PAINT, type Hit } from './events.ts';
 import { drawFocusRing, makeTabStop } from './focus.ts';
 import { hitAcross, hitPlane, interpolate, interpolateAll, pointHit } from './hit.ts';
@@ -95,8 +95,7 @@ export type CursorChildren = CursorChildMap[keyof CursorChildMap][];
 
 const JUMP = 0.1;
 
-export class Cursor extends ChartElement<Chart, CursorChildren, CursorAttributes> {
-  static override takesInput = inputOf;
+export class Cursor extends InteractiveElement<Chart, CursorChildren, CursorAttributes> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     plane: STRING,

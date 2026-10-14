@@ -30,7 +30,7 @@ const chart = (
 | Learn a part in depth | [Guide](#guide) |
 | Add your own element, renderer, scale, data source or platform | [Extending](#extending) |
 | Look something up | [Reference](#reference) |
-| Brief an LLM to write inkplot code | [SKILL.md](SKILL.md) |
+| Brief an LLM to write inkplot code | [SKILL.md](SKILL.md), and [installing it](guide/ai-agents.md) |
 
 Code blocks marked `live` are real examples that a docs site can run inline; to any other reader they are ordinary code blocks. Every one is compiled and run by the test suite. The format is described in [Writing documentation](authoring.md).
 
@@ -58,6 +58,7 @@ One page per part of the library, from the user's point of view.
 | [Styling](guide/styling.md) | Themes, selectors, `style` blocks, palettes, dark mode. |
 | [Accessibility](guide/accessibility.md) | `meta`, summaries, keyboard, announcements. |
 | [JSX, React and Web Components](guide/frameworks.md) | The adapters. |
+| [AI agents](guide/ai-agents.md) | Install the inkplot skills in Claude, ChatGPT, Codex, VS Code, Cursor and Gemini CLI. |
 | [Serialization](guide/serialization.md) | Charts as JSON: `toJSON`, `fromJSON`, `applyJSON`, `Refs`. |
 | [Rendering](guide/rendering.md) | Platforms, scheduling, SVG on a server, text measurement, testing. |
 | [Performance and bundle size](guide/performance.md) | What a feature costs; how to keep charts fast. |

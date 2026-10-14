@@ -94,7 +94,7 @@ export type ClassFor<T> = T extends unknown ? abstract new (...args: AnyArgs) =>
 export type ElementRef<T extends AnyElement = AnyElement> = T | string;
 
 /** What an attached element needs from the chart: where to draw, and the counters Surface reports into. */
-interface MountContext {
+export interface MountContext {
   platform: Platform;
   counters: Counters;
 }
@@ -126,12 +126,6 @@ export abstract class ChartElement<
   Attrs extends BaseAttributes = BaseAttributes,
 > {
   /** How HTML attributes of this element become values; see attrs.ts. Subclasses repeat these by spreading and add their own. */
-  /**
-   * For an element that takes pointer, key or focus input: set this to `inputOf` (from input.ts), and the chart is made to listen for
-   * input as the element joins it, before the element's own ATTACH handler runs. It is the function and not a flag so that
-   * declaring it brings the input code into a bundle, which a chart with no such element never carries.
-   */
-  static takesInput: ((chart: Chart) => unknown) | null = null;
   static attrTypes = { id: STRING, meta: { title: STRING, description: STRING, role: STRING } } satisfies AttrTypesFor<BaseAttributes>;
 
   /**
@@ -413,9 +407,6 @@ export abstract class ChartElement<
   /** Put this tree on the platform. The root calls it; elements added later are mounted by their parent. */
   protected mount(ctx: MountContext): void {
     this.#ctx = ctx;
-    const takes = (this.constructor as typeof ChartElement).takesInput,
-      chart = this.chart;
-    if (takes && chart) takes(chart);
     this.receive(makeEvent({ type: EVENT_ATTACH, platform: ctx.platform }, this));
     for (let c = this.#first; c; c = c.#next) c.mount(ctx);
   }

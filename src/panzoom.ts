@@ -4,7 +4,7 @@ import { type AttrTypesFor, AUTO, NUMBER, BOOLEAN } from './attrs.ts';
 import { writeAria } from './aria.ts';
 import { Axis } from './axis.ts';
 import { type BaseAttributes, ChartElement, type ElementRef, resolveRef } from './element.ts';
-import { inputOf } from './input.ts';
+import { InteractiveElement, inputOf } from './input.ts';
 import {
   type ChartEvent,
   type ChartKeyEvent,
@@ -144,8 +144,7 @@ type ViewChange = { snap: Extent; scale: number; anchor: number; shift: number }
  * It does not know what a plane looks like. Each axis' `Ruler` says how far along it a plot position is (`fractionAt`),
  * so dragging along a spoke or a rectangle's edge is the same code; an axis whose ruler cannot say (the rim) is left alone.
  */
-export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
-  static override takesInput = inputOf;
+export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     keyStep: NUMBER,

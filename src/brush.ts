@@ -16,7 +16,7 @@
 import { type AttrTypesFor, AUTO, BOOLEAN, NUMBER } from './attrs.ts';
 import { Axis } from './axis.ts';
 import { type BaseAttributes, ChartElement, type ElementRef, fail, resolveRef } from './element.ts';
-import { inputOf } from './input.ts';
+import { InteractiveElement } from './input.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_PAINT, EVENT_POINTER } from './events.ts';
 import { f2 } from './geometry.ts';
 import type { Plane } from './plane.ts';
@@ -49,8 +49,7 @@ export interface BrushAttributes extends BaseAttributes {
   onBrush?: (selection: BrushSelection | null) => void;
 }
 
-export class Brush extends ChartElement<Plane, [], BrushAttributes> {
-  static override takesInput = inputOf;
+export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     minSize: NUMBER,

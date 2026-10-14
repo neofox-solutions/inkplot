@@ -17,7 +17,7 @@
 import { type AttrTypesFor, AUTO, NUMBER } from './attrs.ts';
 import { Axis } from './axis.ts';
 import { type BaseAttributes, ChartElement, type ElementRef, fail, resolveRef } from './element.ts';
-import { inputOf } from './input.ts';
+import { InteractiveElement } from './input.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_PAINT, EVENT_POINTER } from './events.ts';
 import { f2 } from './geometry.ts';
 import type { Plane } from './plane.ts';
@@ -35,8 +35,7 @@ export interface BoxZoomAttributes extends BaseAttributes {
   onZoom?: (box: { x: number; y: number; width: number; height: number }) => void;
 }
 
-export class BoxZoom extends ChartElement<Plane, [], BoxZoomAttributes> {
-  static override takesInput = inputOf;
+export class BoxZoom extends InteractiveElement<Plane, [], BoxZoomAttributes> {
   static override attrTypes = { ...ChartElement.attrTypes, minSize: NUMBER, onZoom: AUTO } satisfies AttrTypesFor<BoxZoomAttributes>;
   #from: { x: number; y: number } | null = null;
   #to = { x: 0, y: 0 };

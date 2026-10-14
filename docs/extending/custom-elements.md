@@ -232,20 +232,19 @@ The dimension is bound by `id` exactly like a `ColorAxis`, and `bind` is type-ch
 
 ## Interaction
 
-Input reaches an element as an event, in the element's own coordinates. It comes through the chart's **input host** (`InputHost`), which a chart only has once something in it asks: a chart with no interactive element never listens to the platform's input, so a browser leaves the page its touches and wheel, and a bundle for it holds none of the routing code. **An element that takes input declares it:** `static override takesInput = inputOf;` on the class (`inputOf` is exported from `inkplot`). It is the function and not a flag so that naming it brings the input code into a bundle. Forget it and the element simply never receives an event.
+Input reaches an element as an event, in the element's own coordinates. It comes through the chart's **input host** (`InputHost`), which a chart only has once something in it asks: a chart with no interactive element never listens to the platform's input, so a browser leaves the page its touches and wheel, and a bundle for it holds none of the routing code. **An element that takes input extends `InteractiveElement`** instead of `ChartElement` (same type parameters; exported from `inkplot`). As it joins a chart, the chart starts listening. Extending it is what brings the input code into a bundle, which is why `ChartElement` itself does not do it. If your element must have another base class, ask for the host yourself when it attaches: `inputOf(chart)`.
 
 **Pointer.** A plane child receives `EVENT_POINTER` with `kind` (`move`, `down`, `up`, `leave`, `wheel`), `x` and `y` in plot pixels, `buttons`, and the modifiers. Set `ev.handled = true` when you used it, so the browser does not also act (scrolling on a wheel turn). `unplace` turns the pixel position into data terms; the hit-testing functions in `hit.ts` (`hitPlane`, `hitAcross`, `interpolate`) find the series point near it.
 
 ```ts check title="A plane child that reacts to the pointer"
-import { ChartElement, EVENT_POINTER, inputOf } from 'inkplot';
+import { EVENT_POINTER, InteractiveElement } from 'inkplot';
 import type { BaseAttributes, ChartEvent, Plane } from 'inkplot';
 
 interface ProbeAttributes extends BaseAttributes {
   onProbe?: (domain: number, value: number) => void;
 }
 
-export class Probe extends ChartElement<Plane, [], ProbeAttributes> {
-  static override takesInput = inputOf;   // this takes input: the chart has to listen for it
+export class Probe extends InteractiveElement<Plane, [], ProbeAttributes> {   // takes input: the chart listens for it
   override onEvent(ev: ChartEvent): void {
     if (ev.type !== EVENT_POINTER || ev.kind !== 'down') return;
     const plane = this.requireParent();
@@ -258,7 +257,7 @@ export class Probe extends ChartElement<Plane, [], ProbeAttributes> {
 }
 ```
 
-**Pointer outside a plane.** An element in the chart that follows the pointer (a tooltip) asks `inputOf(chart).watchPointer(this)` when it attaches (and declares `takesInput`) and receives `EVENT_HOVER` with the plane the pointer is over.
+**Pointer outside a plane.** An element in the chart that follows the pointer (a tooltip) is an `InteractiveElement` and asks `inputOf(chart).watchPointer(this)` when it attaches and receives `EVENT_HOVER` with the plane the pointer is over.
 
 **Under a `Cursor`.** The `Cursor` finds what the pointer or keyboard is on; an element inside it (a `Crosshair`, a `ChartTooltip`, yours) reads `parent.state` when it paints and draws from it. It implements `CursorChild` (`follows`: whether it is drawn at the pointer's own place, so the cursor must redraw on every move).
 

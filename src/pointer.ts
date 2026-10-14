@@ -19,7 +19,7 @@
  */
 import { type AttrTypesFor, AUTO, NUMBER } from './attrs.ts';
 import { type BaseAttributes, ChartElement, fail } from './element.ts';
-import { inputOf } from './input.ts';
+import { InteractiveElement } from './input.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_POINTER, type Hit } from './events.ts';
 import { hitPlane } from './hit.ts';
 import type { Plane } from './plane.ts';
@@ -63,8 +63,7 @@ export interface PointerListenerAttributes extends BaseAttributes {
 const same = (a: Hit | null, b: Hit | null) =>
   a === b || (!!a && !!b && a.series === b.series && (a.row ?? a.index) === (b.row ?? b.index));
 
-export class PointerListener extends ChartElement<Plane, [], PointerListenerAttributes> {
-  static override takesInput = inputOf;
+export class PointerListener extends InteractiveElement<Plane, [], PointerListenerAttributes> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     dragThreshold: NUMBER,
