@@ -53,7 +53,7 @@ Every release has `inkplot-playground-<version>.html` attached: one self-contain
 
 ## Developing
 
-Node 26 or later and [pnpm](https://pnpm.io) (the version is pinned in `package.json`; `corepack enable` picks it up). `pnpm install`, then `pnpm run all` runs the type check, lint, tests, docs checks, and the browser, PNG and packaging tests that CI runs.
+Node 26 or later and [pnpm](https://pnpm.io) (the version is pinned in `package.json`; `corepack enable` picks it up). `pnpm install`, then `pnpm vp run all` runs the type check, lint, format check, tests, docs checks, and the browser, PNG and packaging tests that CI runs (the tasks are in `vite.config.ts`; `pnpm vp run fmt` formats, and `pnpm vp run` lists them).
 
 ## Licence
 

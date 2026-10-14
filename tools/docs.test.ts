@@ -1,10 +1,10 @@
 // The documentation's code is real: every `live` and `check` block is type-checked against the library, and every `live` block
 // is compiled, run, and has to draw a chart. A change that breaks the documented API breaks this test, naming the page and line.
 //
-//   pnpm run docs                           check everything
-//   INKPLOT_DOCS_SHEET=1 pnpm run docs      also write out/docs-sheet.html: every live example drawn, to look at
-//   INKPLOT_DOCS_SHEET=planes pnpm run docs only the pages whose path contains that
-//   INKPLOT_DOCS_LINKS=0 pnpm run docs      do not check that links resolve (while writing)
+//   pnpm vp run docs                           check everything
+//   INKPLOT_DOCS_SHEET=1 pnpm vp run docs      also write out/docs-sheet.html: every live example drawn, to look at
+//   INKPLOT_DOCS_SHEET=planes pnpm vp run docs only the pages whose path contains that
+//   INKPLOT_DOCS_LINKS=0 pnpm vp run docs      do not check that links resolve (while writing)
 import assert from 'node:assert/strict';
 import { expected as expectedSkillFiles, coverage as skillCoverage, TOPICS as SKILL_TOPICS } from './skill-topics.ts';
 import { spawnSync } from 'node:child_process';

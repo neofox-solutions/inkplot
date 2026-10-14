@@ -26,7 +26,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       # Type check, lint, unit tests, docs, types, and the browser, PNG and packaging tests.
-      - run: pnpm run all
+      # Two tasks at a time: a few tests run against the clock, and CI cores are shared.
+      - run: pnpm exec vp run --concurrency-limit 2 all
       # The tarballs a release would publish, so a packaging problem shows up on the pull request.
       - run: node tools/pack-scratch.mjs out/release
       - run: node tools/pack-skill-zip.mjs out/release/skill

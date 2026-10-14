@@ -1,5 +1,5 @@
 // Opens playground.html in headless Chromium, walks every demo, and fails on any console or page error.
-//   pnpm run playground:test     (screenshots go to $INKPLOT_SHOTS, default ./shots)
+//   pnpm vp run playground:test     (screenshots go to $INKPLOT_SHOTS, default ./shots)
 import { mkdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';

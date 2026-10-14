@@ -29,7 +29,7 @@ jobs:
           version=$(node -p "require('./package.json').version")
           scratch=$(node -p "require('./scratch/package.json').version")
           [ "v$version" = "$GITHUB_REF_NAME" ] && [ "$scratch" = "$version" ] || { echo "tag $GITHUB_REF_NAME, inkplot $version, inkplot-scratch $scratch"; exit 1; }
-      - run: pnpm run all
+      - run: pnpm exec vp run --concurrency-limit 2 all
 
   publish:
     needs: verify
@@ -89,6 +89,6 @@ jobs:
         run: |
           version=$(node -p "require('./package.json').version")
           zip=$(node tools/pack-skill-zip.mjs out/skill)
-          pnpm run playground
+          pnpm exec vp run playground
           cp playground.html "out/inkplot-playground-$version.html"
           gh release upload "$GITHUB_REF_NAME" "$zip" "out/inkplot-playground-$version.html" --clobber

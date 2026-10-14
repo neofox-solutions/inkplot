@@ -1,6 +1,6 @@
 // The "Make a PNG on a server" recipe, run as written: the js block under that heading in docs/start/recipes.md is
 // extracted, pointed at the repo's own source and a font on this machine, and its output checked to be a real PNG with ink in it.
-//   pnpm run png-server:test
+//   pnpm vp run png-server:test
 // Needs `@resvg/resvg-wasm` (a devDependency; or RESVG_WASM_DIR=/path/to/package) and a TTF (or INKPLOT_TEST_FONT); skips, saying so, when either is missing.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
