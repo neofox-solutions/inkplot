@@ -4804,6 +4804,297 @@ demos.push({
   },
 });
 
+// ── Transitions ──────────────────────────────────────────────────────────────
+demos.push({
+  id: 'transitions',
+  title: 'Transitions',
+  blurb: 'Ease to new data with CSS transitions: off by default, data changes only, not for pan or zoom',
+  setup(ctx) {
+    const S = { shape: 'bars', on: true, duration: 500, easing: 'ease-out', fixed: true, n: 8, seed: 1 };
+    const EASINGS = [
+      ['ease-out', 'ease-out'],
+      ['linear', 'linear'],
+      ['ease-in-out', 'ease-in-out'],
+      ['cubic-bezier(.34,1.56,.64,1)', 'overshoot'],
+    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
+    let data = new Float64Array(S.n);
+    const fill = () => {
+      const r = rng(S.seed);
+      data = Float64Array.from({ length: S.n }, (_, i) => Math.round((3 + r() * 7 + Math.sin(i / 1.4) * 1.5) * 10) / 10);
+    };
+    fill();
+    const band = new L.BandScale({ categories: months.slice(0, S.n) });
+    const x = new L.Axis({ id: 'x', orientation: 'bottom' }, band);
+    const y = new L.Axis({ id: 'y', orientation: 'left', min: 0, max: 14, nice: false, title: 'Level' }, new L.LinearScale());
+    const source = new L.FlatDataSource({ data, regularDomain: { start: 0, step: 1 } });
+    const renderers = () =>
+      S.shape === 'bars'
+        ? [new L.BarPath({})]
+        : S.shape === 'area'
+          ? [new L.AreaPath({}, new L.LinearCurve())]
+          : [new L.LinePath({ strokeWidth: 2 }, new L.LinearCurve()), new L.CircleMarker({ size: 5 })];
+    const makeSeries = () => new L.DomainSeries({ name: 'Level', domainAxis: 'x', valueAxis: 'y' }, source, ...renderers());
+    let series = makeSeries();
+    const plane = new L.CartesianPlane({ frame: true }, x, y, series);
+    const chart = new L.Chart({ theme: chartTheme(), onFlush: ctx.onFlush }, plane);
+    const read = ui.readout();
+    const apply = () => {
+      chart.setAttribute('transition', S.on ? { duration: S.duration, easing: S.easing } : undefined);
+      y.setAttributes(S.fixed ? { min: 0, max: 14, nice: false } : { min: undefined, max: undefined, nice: true });
+      read.textContent = S.on
+        ? `transition: { duration: ${S.duration}, easing: '${S.easing}' }`
+        : 'transition: undefined (a data change is immediate)';
+    };
+    const reload = () => {
+      band.setAttribute('categories', months.slice(0, S.n));
+      source.setAttributes({ data, regularDomain: { start: 0, step: 1 } });
+    };
+    apply();
+    ctx.add(
+      ui.seg({
+        label: 'shape',
+        options: [
+          ['bars', 'bars'],
+          ['line', 'line'],
+          ['area', 'area'],
+        ],
+        value: S.shape,
+        onChange: (v) => {
+          S.shape = v;
+          plane.remove(series);
+          series = makeSeries();
+          plane.append(series);
+        },
+      }),
+      ui.toggle({
+        label: 'transition on',
+        value: S.on,
+        onChange: (v) => {
+          S.on = v;
+          apply();
+        },
+      }),
+      ui.slider({
+        label: 'duration (ms)',
+        min: 50,
+        max: 2000,
+        step: 50,
+        value: S.duration,
+        onChange: (v) => {
+          S.duration = v;
+          apply();
+        },
+      }),
+      ui.seg({
+        label: 'easing',
+        options: EASINGS,
+        value: S.easing,
+        onChange: (v) => {
+          S.easing = v;
+          apply();
+        },
+      }),
+      ui.buttons(
+        [
+          'New values',
+          () => {
+            S.seed++;
+            fill();
+            reload();
+          },
+        ],
+        [
+          'Add a point',
+          () => {
+            if (S.n >= months.length) return;
+            S.n++;
+            fill();
+            reload();
+          },
+        ],
+        [
+          'Remove a point',
+          () => {
+            if (S.n <= 3) return;
+            S.n--;
+            fill();
+            reload();
+          },
+        ],
+        ['Zoom the value axis', () => y.setAttributes({ min: 4, max: 10 })],
+        ['Reset zoom', apply],
+      ),
+      ui.toggle({
+        label: 'fixed value axis (0 to 14)',
+        value: S.fixed,
+        onChange: (v) => {
+          S.fixed = v;
+          apply();
+        },
+      }),
+      read,
+      ui.note(
+        'New values eases the shapes to where the data now is. Add a point and Remove a point change how many bars or points there are, so the shape cannot morph and snaps. Zooming is never eased. With the value axis not fixed, new data rescales it: the ticks change at once while the shapes glide, which is why the axis is fixed by default here. Path morphing needs the CSS d property (Chrome and Firefox, not Safari), and prefers-reduced-motion switches it off. Colours and widths ease in every browser.',
+      ),
+    );
+    return { chart };
+  },
+});
+
+// ── Point annotations and the pie shortcut ───────────────────────────────────
+demos.push({
+  id: 'point-annotations',
+  title: 'Point annotations',
+  blurb: 'A note beside each point you pick: negative bars called out, labels on a pie',
+  setup(ctx) {
+    const S = { view: 'bars', shape: 'callout', placement: 'outside', contain: true, aria: 'hidden', limit: 0, hole: 0.5, seed: 1 };
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const profit = () => {
+      const r = rng(S.seed);
+      return Float64Array.from({ length: 12 }, () => Math.round((r() * 22 - 8) * 10) / 10);
+    };
+    let values = profit();
+    const share = new Intl.NumberFormat('en', { style: 'percent' });
+    const slices = [
+      { name: 'Mobile', value: 60 },
+      { name: 'Desktop', value: 28 },
+      { name: 'Tablet', value: 8 },
+      { name: 'Other', value: 4 },
+    ];
+    let source, notes;
+    const barsPlane = () => {
+      source = new L.FlatDataSource({ data: values, regularDomain: { start: 0, step: 1 } });
+      notes = new L.PointAnnotations({
+        anchor: 'bars',
+        shape: S.shape,
+        placement: S.placement,
+        contain: S.contain,
+        aria: S.aria,
+        text: (hit, words) => (hit.second < S.limit ? `${words.second}\n${months[hit.first]}` : null),
+      });
+      return new L.CartesianPlane(
+        { frame: true },
+        new L.Axis({ orientation: 'bottom' }, new L.BandScale({ categories: months })),
+        new L.Axis({ orientation: 'left', min: -18, max: 20, title: 'Profit' }, new L.LinearScale()),
+        new L.DomainSeries({ name: 'Profit' }, source, new L.BarPath({ id: 'bars' })),
+        notes,
+      );
+    };
+    const piePlane = () => L.pie(slices, { innerRadius: S.hole, label: (slice, fraction) => `${slice.name} ${share.format(fraction)}` });
+    let shown = barsPlane();
+    const chart = new L.Chart({ theme: chartTheme(), padding: 60, onFlush: ctx.onFlush }, shown);
+    const read = ui.readout();
+    const report = () => {
+      read.textContent =
+        S.view === 'bars' ? `notes drawn for ${values.filter((v) => v < S.limit).length} of 12 bars; omitted: ${notes.omitted}` : '';
+    };
+    const show = () => {
+      chart.remove(shown);
+      shown = S.view === 'bars' ? barsPlane() : piePlane();
+      chart.append(shown);
+      report();
+    };
+    ctx.add(
+      ui.seg({
+        label: 'chart',
+        options: [
+          ['bars', 'bars'],
+          ['pie', 'pie()'],
+        ],
+        value: S.view,
+        onChange: (v) => {
+          S.view = v;
+          show();
+        },
+      }),
+      ui.seg({
+        label: 'shape',
+        options: [
+          ['callout', 'callout'],
+          ['box', 'box'],
+          ['text', 'text'],
+        ],
+        value: S.shape,
+        onChange: (v) => {
+          S.shape = v;
+          notes?.setAttribute('shape', v);
+        },
+      }),
+      ui.seg({
+        label: 'placement',
+        options: [
+          ['outside', 'outside'],
+          ['inside', 'inside'],
+          ['auto', 'auto'],
+        ],
+        value: S.placement,
+        onChange: (v) => {
+          S.placement = v;
+          notes?.setAttribute('placement', v);
+        },
+      }),
+      ui.slider({
+        label: 'a note on bars below',
+        min: -8,
+        max: 14,
+        value: S.limit,
+        onChange: (v) => {
+          S.limit = v;
+          notes?.invalidate();
+          report();
+        },
+      }),
+      ui.toggle({
+        label: 'keep notes in the plot',
+        value: S.contain,
+        onChange: (v) => {
+          S.contain = v;
+          notes?.setAttribute('contain', v);
+        },
+      }),
+      ui.seg({
+        label: 'aria',
+        options: [
+          ['hidden', 'hidden'],
+          ['text', 'text'],
+        ],
+        value: S.aria,
+        onChange: (v) => {
+          S.aria = v;
+          notes?.setAttribute('aria', v);
+        },
+      }),
+      ui.slider({
+        label: 'doughnut hole',
+        min: 0,
+        max: 0.8,
+        step: 0.1,
+        value: S.hole,
+        onChange: (v) => {
+          S.hole = v;
+          if (S.view === 'pie') show();
+        },
+      }),
+      ui.buttons([
+        'New values',
+        () => {
+          S.seed++;
+          values = profit();
+          if (S.view === 'bars') source.setAttributes({ data: values, regularDomain: { start: 0, step: 1 } });
+          report();
+        },
+      ]),
+      read,
+      ui.note(
+        'PointAnnotations is for tens of points: each note is real nodes and measured text. The text function gets the point and its two coordinates already written by the axes, and returns null for a point that gets no note. The pie is the pie() shortcut, which builds a polar plane, a normalized stack and one PointAnnotations per slice from the same pieces.',
+      ),
+    );
+    report();
+    return { chart };
+  },
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation, theme
 // ─────────────────────────────────────────────────────────────────────────────
