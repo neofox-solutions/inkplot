@@ -2,10 +2,12 @@
 // skill is, holding its SKILL.md. Prints the path. node tools/pack-skill-zip.mjs [outdir]    (needs the `zip` command)
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const out = process.argv[2] ? process.argv[2].replace(/\/?$/, '/') : root + 'out/skill-zip/';
+// Absolute: `zip` runs inside the staging folder, where a relative path would point somewhere else.
+const out = (process.argv[2] ? resolve(process.argv[2]) : root + 'out/skill-zip').replace(/\/?$/, '/');
 const source = root + 'scratch/skill/SKILL.md';
 const name = /^name: (.+)$/m.exec(readFileSync(source, 'utf8'))?.[1]?.trim();
 if (!name) throw new Error('scratch/skill/SKILL.md has no name in its front matter');
