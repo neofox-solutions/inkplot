@@ -70,9 +70,10 @@ export class ChartTitle extends ChartElement<Chart, [], ChartTitleAttributes> {
           r = this.#rect,
           look = this.look;
         s.set(s.wrapper(), 'transform', `translate(${f2(r.x)} ${f2(r.y)})`);
-        applyText(s, s.wrapper(), look);
-        // The anchor is the text's own: start, middle or end of the band.
-        const x = look.align === 'start' ? 0 : look.align === 'middle' ? r.width / 2 : r.width;
+        // The anchor is the text's own: start, middle or end of the band (the start is on the right when the chart reads that way).
+        const align = this.chart?.rtl && look.align !== 'middle' ? (look.align === 'start' ? 'end' : 'start') : look.align;
+        applyText(s, s.wrapper(), look, align);
+        const x = align === 'start' ? 0 : align === 'middle' ? r.width / 2 : r.width;
         this.#lines = paintLines(s, 'line-', this.attrs.text, x, BAND_PADDING / 2, look, this.#lines);
         break;
       }

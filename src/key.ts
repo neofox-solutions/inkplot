@@ -94,7 +94,7 @@ export abstract class Key<
     return resolveRef(this.attrs.dimension, this) as Dimension;
   }
   get side(): Side {
-    return this.attrs.side ?? 'right';
+    return this.attrs.side ?? (this.chart?.rtl ? 'left' : 'right');
   }
   get vertical(): boolean {
     return (this.attrs.orientation ?? (this.side === 'left' || this.side === 'right' ? 'vertical' : 'horizontal')) === 'vertical';

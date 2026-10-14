@@ -70,7 +70,7 @@ Lists the named series; click to hide or show.
 
 | Attribute | Type | |
 |---|---|---|
-| `side` | `Side` | The edge of the chart it sits along. Default 'right'. |
+| `side` | `Side` | The edge of the chart it sits along. Default 'right' ('left' in a chart that reads right to left). |
 | `orientation` | `'vertical' \| 'horizontal'` | Entries in a column or a row. Default: along its side, so a column on the left and right, a row on the top and bottom. |
 | `title` | `string` | A heading above the entries. |
 | `toggle` | `boolean` | Clicking an entry hides or shows its series. Default true. |

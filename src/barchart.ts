@@ -37,11 +37,12 @@ export interface BarChartOptions extends ChartShortcutOptions {
 export function barChart(series: SeriesInput | readonly SeriesInput[], options: BarChartOptions): Chart {
   const { categories, stack, horizontal, gap, domainAxis, valueAxis, domainScale, valueScale, extras, ...chartAttributes } = options;
   if (!domainScale && !categories) throw new Error('barChart: give the `categories` (one label for each bar), or a `domainScale`');
+  // No sides given: the plane puts the first axis below and the second beside the plot (mirrored for a chart that reads right to left).
   const d = new Axis(
-    { ...domainAxis, orientation: horizontal ? 'left' : 'bottom' },
+    { id: 'domain', ...domainAxis },
     domainScale ?? new BandScale({ categories: categories ?? [], ...(gap !== undefined && { gap }) }),
   );
-  const v = new Axis({ ...valueAxis, orientation: horizontal ? 'bottom' : 'left' }, valueScale ?? new LinearScale());
+  const v = new Axis({ id: 'value', ...valueAxis }, valueScale ?? new LinearScale());
   const list = isMany(series) ? series : [series];
   const made = list.map((input) => {
     const { source, name, color } = seriesParts(input);

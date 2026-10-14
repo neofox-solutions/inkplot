@@ -40,7 +40,7 @@ import type { PlatformNode } from './platform.ts';
 import { LINE_HEIGHT, applyText, measureBlock } from './text.ts';
 
 export interface LegendAttributes extends BaseAttributes {
-  /** The edge of the chart it sits along. Default 'right'. */
+  /** The edge of the chart it sits along. Default 'right' ('left' in a chart that reads right to left). */
   side?: Side;
   /** Entries in a column or a row. Default: along its side, so a column on the left and right, a row on the top and bottom. */
   orientation?: 'vertical' | 'horizontal';
@@ -82,7 +82,7 @@ export class Legend extends InteractiveElement<Chart, [], LegendAttributes> {
   readonly #samples: SampleCache = new Map();
 
   get side(): Side {
-    return this.attrs.side ?? 'right';
+    return this.attrs.side ?? (this.chart?.rtl ? 'left' : 'right');
   }
   get horizontal(): boolean {
     return (this.attrs.orientation ?? (this.side === 'top' || this.side === 'bottom' ? 'horizontal' : 'vertical')) === 'horizontal';

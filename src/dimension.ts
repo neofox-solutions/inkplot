@@ -192,16 +192,22 @@ export abstract class Dimension<
     this.attrs.onViewChange?.(range);
   }
 
+  /** Whether the axis runs the other way because the chart reads right to left (set by an axis the plane has put on a horizontal side). */
+  protected mirrored = false;
+  /** Whether the axis runs from its high end: `inverted` if it says, else the way the chart reads. */
+  get flipped(): boolean {
+    return this.attrs.inverted ?? this.mirrored;
+  }
   /** In place over an interleaved buffer (the hot path), applying `inverted` after the scale. */
   normalize(buffer: Float64Array, count: number, stride: number, offset: number): void {
     this.scale.normalize(buffer, count, stride, offset, this.range);
-    if (this.attrs.inverted) {
+    if (this.flipped) {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
       for (let k = 0, i = offset; k < count; k++, i += stride) buffer[i] = 1 - buffer[i]!;
     }
   }
   denormalize(fraction: number): number {
-    return this.scale.denormalize(this.attrs.inverted ? 1 - fraction : fraction, this.range);
+    return this.scale.denormalize(this.flipped ? 1 - fraction : fraction, this.range);
   }
   /** Position of one value along the dimension, 0..1. */
   fractionOf(value: number): number {

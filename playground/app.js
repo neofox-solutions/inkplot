@@ -4984,6 +4984,71 @@ demos.push({
   },
 });
 
+// ── Right to left, and the bar chart shortcut ───────────────────────────────
+const rtlState = { rtl: true, horizontal: false, stack: 'group', legend: true };
+demos.push({
+  id: 'rtl',
+  title: 'Right to left',
+  blurb: 'direction="rtl" mirrors the layout: the axes, the legend and the title; built with the barChart shortcut',
+  setup(ctx) {
+    const S = rtlState;
+    const rows = (d) => new L.FlatDataSource({ data: d, regularDomain: { start: 0, step: 1 } });
+    const chart = L.barChart(
+      [
+        { name: 'المبيعات', source: rows([4, 7, 5, 9]) },
+        { name: 'المصروفات', source: rows([3, 4, 6, 2]) },
+      ],
+      {
+        theme: chartTheme(),
+        onFlush: ctx.onFlush,
+        direction: S.rtl ? 'rtl' : 'ltr',
+        categories: ['الربع الأول', 'الربع الثاني', 'الربع الثالث', 'الربع الرابع'],
+        stack: S.stack,
+        horizontal: S.horizontal,
+        domainAxis: { title: 'الفترة' },
+        valueAxis: { title: 'مليون ريال' },
+        extras: [new L.ChartTitle({ text: 'المبيعات حسب الربع' }), ...(S.legend ? [new L.Legend({})] : [])],
+      },
+    );
+    const again = () => select('rtl');
+    ctx.add(
+      ui.toggle({
+        label: 'right to left (direction)',
+        value: S.rtl,
+        onChange: (v) => {
+          S.rtl = v;
+          chart.setAttribute('direction', v ? 'rtl' : 'ltr');
+        },
+      }),
+      ui.toggle({
+        label: 'horizontal bars',
+        value: S.horizontal,
+        onChange: (v) => {
+          S.horizontal = v;
+          again();
+        },
+      }),
+      ui.seg({
+        label: 'two series',
+        options: [
+          ['group', 'side by side'],
+          ['stack', 'stacked'],
+          ['normalize', '100%'],
+        ],
+        value: S.stack,
+        onChange: (v) => {
+          S.stack = v;
+          again();
+        },
+      }),
+      ui.note(
+        'Everything placed by default mirrors: the first vertical axis, the legend, the title. The Arabic text itself is set right to left by the browser either way. What you place by hand (an axis orientation, a legend side) stays where you put it.',
+      ),
+    );
+    return { chart };
+  },
+});
+
 // ── Point annotations and the pie shortcut ───────────────────────────────────
 demos.push({
   id: 'point-annotations',

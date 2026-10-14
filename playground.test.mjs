@@ -660,6 +660,23 @@ test('playground', async () => {
   await settle();
   assert.equal(await bars(), unweighted, 'histogram: clearing the weights restores them');
 
+  // ── Right to left: the vertical axis moves to the right, and back.
+  await page.evaluate(() => window.playground.select('rtl'));
+  await settle();
+  const yside = () =>
+    page.evaluate(() => {
+      const L = window.inkplot;
+      const plane = L.firstDescendantOfType(window.playground.current.chart, L.CartesianPlane);
+      return plane.axes.find((a) => a.attrs.title === 'مليون ريال').orientation;
+    });
+  assert.equal(await yside(), 'right', 'the demo starts right to left, so the vertical axis is on the right');
+  await page.getByLabel('right to left').uncheck();
+  await settle();
+  assert.equal(await yside(), 'left');
+  await page.getByLabel('right to left').check();
+  await settle();
+  assert.equal(await yside(), 'right');
+
   // ── The SVG tab follows the chart.
   await page.evaluate(() => window.playground.select('stack'));
   await settle();

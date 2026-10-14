@@ -42,7 +42,7 @@ export interface LineChartOptions extends ChartShortcutOptions {
 }
 
 /**
- * A line chart in one call: one line per series (a source, or `{ source, name, color }`), on a plane with a bottom and a left axis. A curve
+ * A line chart in one call: one line per series (a source, or `{ source, name, color }`), on a plane with the horizontal axis below and the vertical one beside it (on the left, or on the right in a chart that reads right to left). A curve
  * can be shared by lines only if it is stateless, which the built-in ones are; the options are applied to every series.
  */
 export function lineChart(series: SeriesInput | readonly SeriesInput[], options: LineChartOptions): Chart {
@@ -60,8 +60,8 @@ export function lineChart(series: SeriesInput | readonly SeriesInput[], options:
     extras,
     ...chartAttributes
   } = options;
-  const x = new Axis({ ...domainAxis, orientation: 'bottom' }, domainScale ?? new LinearScale());
-  const y = new Axis({ ...valueAxis, orientation: 'left' }, valueScale ?? new LinearScale());
+  const x = new Axis({ id: 'domain', ...domainAxis }, domainScale ?? new LinearScale());
+  const y = new Axis({ id: 'value', ...valueAxis }, valueScale ?? new LinearScale());
   const list = isMany(series) ? series : [series];
   const made = list.map((input) => {
     const { source, name, color } = seriesParts(input);

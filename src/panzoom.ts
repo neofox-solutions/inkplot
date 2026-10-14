@@ -564,7 +564,7 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
    */
   private viewFor(axis: Axis, { snap, scale: k, anchor, shift }: ViewChange): Extent | 'natural' | null {
     const scale = axis.scale,
-      inverted = axis.attrs.inverted === true;
+      inverted = axis.flipped;
     const map = (u: number) => {
       const d = inverted ? 1 - u : u;
       const moved = anchor + (d - anchor) * k + shift;

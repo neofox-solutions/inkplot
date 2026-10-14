@@ -66,6 +66,13 @@ export interface ChartAttributes extends BaseAttributes {
   width?: number;
   /** Height of the drawing. Default: whatever the platform reports. When set on the chart it beats the size a platform reports, including the one given to `toSvgString`. */
   height?: number;
+  /**
+   * 'rtl' lays the chart out for a right-to-left script: the first vertical axis is on the right, a horizontal axis runs from the
+   * right, a legend or key is on the left and a title starts at the right. Text is drawn as it is (a label in Arabic or Hebrew is
+   * set right to left by the browser whatever this says). Anything you place yourself (`orientation`, `inverted`, `side`) stays where
+   * you put it. Default 'ltr'.
+   */
+  direction?: 'ltr' | 'rtl';
   /** Margin around everything, in pixels: one number for all sides, or any subset of the four. Default 10. */
   padding?: number | Partial<Insets>;
   /** Replaces the platform's text measurement, e.g. to match a font the platform cannot see. */
@@ -119,9 +126,14 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     onFlush: AUTO,
     transition: { duration: NUMBER, easing: STRING, views: BOOLEAN },
     locale: STRING,
+    direction: STRING,
   } satisfies AttrTypesFor<ChartAttributes>;
   override get chart(): Chart {
     return this;
+  }
+  /** Whether the chart is laid out right to left (`direction`). */
+  get rtl(): boolean {
+    return this.attrs.direction === 'rtl';
   }
   #platform: Platform | null = null;
   #lastFlush: FlushStats | null = null;

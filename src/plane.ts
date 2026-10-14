@@ -216,6 +216,8 @@ let clipCounter = 0;
 export const nextClipId = () => `clip${++clipCounter}`;
 /** Where axes go when they do not say, in the order they are added: the familiar x-below, y-left, then the mirrors. */
 const DEFAULT_SIDES: CartesianOrientation[] = ['bottom', 'left', 'top', 'right'];
+/** The same for a chart that reads right to left: the mirror image. */
+const RTL_SIDES: CartesianOrientation[] = ['bottom', 'right', 'top', 'left'];
 /** The least room left round a plot, whatever the axes need. */
 export const MIN_INSET = 8;
 
@@ -426,7 +428,7 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
   private arrange(available: Rect): void {
     const axes = this.axes,
       series = this.series;
-    this.assignAxes(DEFAULT_SIDES, cartesianSide);
+    this.assignAxes(this.chart?.rtl ? RTL_SIDES : DEFAULT_SIDES, cartesianSide);
     // 80 and 40: roughly a y-axis's labels and an x-axis's labels. Only a guess for decimation; the real plot is set below.
     const estimate = { width: Math.max(1, available.width - 80), height: Math.max(1, available.height - 40) };
     this.setRulers(estimate.width, estimate.height);

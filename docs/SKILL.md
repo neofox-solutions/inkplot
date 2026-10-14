@@ -132,6 +132,7 @@ The root: a theme, a size, and what is drawn on it.
 | `theme` (required) | `BaseTheme` | Every default look: required, so a chart bundles exactly the theme it names (`lightTheme`, `darkTheme`, or your own). |
 | `width` | `number` | Width of the drawing. Default: whatever the platform reports, followed as it changes. |
 | `height` | `number` | Height of the drawing. Default: whatever the platform reports. |
+| `direction` | `'ltr' \| 'rtl'` | 'rtl' lays the chart out for a right-to-left script: the first vertical axis is on the right, a horizontal axis runs from the right, a legend or key is on the left and a title starts at the right. Default 'ltr'. |
 | `padding` | `number \| Partial<Insets>` | Margin around everything, in pixels: one number for all sides, or any subset of the four. Default 10. |
 | `measureText` | `TextMeasurer` | Replaces the platform's text measurement, e.g. to match a font the platform cannot see. |
 | `locale` | `string` | A BCP 47 tag (`'de'`, `'fr-CA'`) for how numbers and dates are written: digit grouping, the decimal mark, month names. Default: numbers as plain digits with a point, and the runtime's own locale for dates. |

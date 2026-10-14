@@ -49,9 +49,12 @@ export function pieChart(slices: readonly Slice[], options: PieChartOptions): Ch
     total += s.value;
   }
   const { innerRadius, startAngle, label, extras, ...chartAttributes } = options;
-  const share = new Axis({ orientation: 'angle', min: 0, max: 1, visible: false }, new LinearScale());
-  const ring = new Axis({ orientation: 'radius', visible: false }, new BandScale({ categories: [''] }));
-  const parts = slices.map((slice) => ({ slice, bar: new BarPath(slice.color === undefined ? {} : { fill: slice.color }) }));
+  const share = new Axis({ id: 'share', orientation: 'angle', min: 0, max: 1, visible: false }, new LinearScale());
+  const ring = new Axis({ id: 'ring', orientation: 'radius', visible: false }, new BandScale({ categories: [''] }));
+  const parts = slices.map((slice, i) => ({
+    slice,
+    bar: new BarPath({ id: `slice-${i}`, ...(slice.color !== undefined && { fill: slice.color }) }),
+  }));
   const series = parts.map(
     ({ slice, bar }) =>
       new DomainSeries(

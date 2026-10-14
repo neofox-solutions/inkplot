@@ -163,6 +163,7 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
   assign(orientation: AxisOrientation, slot: number): void {
     this.#orientation = orientation;
     this.#slot = slot;
+    this.mirrored = (this.chart?.rtl ?? false) && isHorizontal(orientation);
   }
   /** The curve to draw along. The plane sets it before measuring, and again once the plot is settled. */
   setRuler(ruler: Ruler): void {
