@@ -81,6 +81,7 @@ export default defineConfig({
     singleQuote: true,
     ignorePatterns: [
       'out/**',
+      'coverage/**',
       'types/**',
       'shots/**',
       'node_modules/**',
