@@ -70,6 +70,12 @@ export interface RawFocus {
   visible: boolean;
 }
 
+/** How the nodes of a chart move to what a data change draws: milliseconds, and a CSS timing function (`'ease-out'`, `'cubic-bezier(…)'`). */
+export interface TransitionSpec {
+  duration: number;
+  easing: string;
+}
+
 export interface Platform {
   readonly name: string;
   /** The node the chart draws into. */
@@ -100,6 +106,11 @@ export interface Platform {
   measureText?: TextMeasurer;
   /** The mouse cursor over the chart, as a CSS cursor name; an empty string for the default. */
   setCursor?(cursor: string): void;
+  /**
+   * Called at the start of every flush: with a spec, the changes this flush writes should be eased over that time (colour, size and, where
+   * the browser can, the shapes of paths); with null, they should be immediate. Absent on a platform that cannot ease, or draws once.
+   */
+  setTransition?(spec: TransitionSpec | null): void;
   /**
    * What a touch on the chart may do. 'always': the chart takes every touch (the page cannot scroll from it).
    * 'two-finger': a touch with one finger scrolls the page as usual and only two fingers belong to the chart.

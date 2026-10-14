@@ -11,7 +11,7 @@
  * Mapped dimensions (ColorAxis/SizeAxis) are children of the chart rather than a plane, so they use `flushCount` to
  * recognise a new pass and reset what they gathered from the planes.
  */
-import { type AttrTypesFor, AUTO, STRING } from './attrs.ts';
+import { type AttrTypesFor, AUTO, NUMBER, STRING } from './attrs.ts';
 import { writeAria } from './aria.ts';
 import { type AnyElement, type BaseAttributes, ChartElement, fail } from './element.ts';
 import { type ChartEvent, type ChartEventInit, EVENT_PAINT } from './events.ts';
@@ -76,6 +76,14 @@ export interface ChartAttributes extends BaseAttributes {
    * come from the components that say them, which take your words.
    */
   locale?: string;
+  /**
+   * Ease the chart to a new drawing when its **data** changes, in the browser: colours, sizes and (in browsers that can morph a path,
+   * Chrome and Firefox) the shapes of lines, areas and bars move over `duration` milliseconds (default 250) with a CSS `easing`
+   * (default `'ease-out'`). Off by default. Only a change to the data eases: panning, zooming, resizing and the cursor are
+   * immediate, and an interaction during a transition ends it. A shape morphs only if it keeps its structure, so a different
+   * number of points or bars snaps. Switched off by `prefers-reduced-motion`. Nothing in an exported SVG changes.
+   */
+  transition?: { duration?: number; easing?: string };
   /** Called after every flush with its statistics. */
   onFlush?: (stats: FlushStats) => void;
 }
@@ -100,6 +108,7 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     ...ChartElement.attrTypes,
     measureText: AUTO,
     onFlush: AUTO,
+    transition: { duration: NUMBER, easing: STRING },
     locale: STRING,
   } satisfies AttrTypesFor<ChartAttributes>;
   override get chart(): Chart {
@@ -108,6 +117,7 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
   #platform: Platform | null = null;
   #lastFlush: FlushStats | null = null;
   #needsFlush = false;
+  #dataChanged = false;
   #flushCount = 0;
   private readonly counts: Counters = newCounters();
   private unschedule: Unsubscribe | null = null;
@@ -168,6 +178,11 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     }
   }
 
+  /** A data node changed: the next flush is the kind that may ease (see `transition`). Called by the data stages, not by apps. */
+  noteDataChange(): void {
+    this.#dataChanged = true;
+  }
+
   /** Put every axis of every plane back to the range its data asks for. */
   resetViews(): void {
     for (const c of this) if (c instanceof Plane) c.resetViews();
@@ -198,6 +213,10 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
 
     const a = this.attrs,
       surface = this.surface;
+    // Only a flush that follows a change to the data eases, and not the first (nothing is there to move from).
+    const eased = a.transition && this.#dataChanged && this.#flushCount > 1;
+    this.#dataChanged = false;
+    platform.setTransition?.(eased ? { duration: a.transition?.duration ?? 250, easing: a.transition?.easing ?? 'ease-out' } : null);
     const size = platform.size();
     const width = a.width ?? size.width,
       height = a.height ?? size.height;

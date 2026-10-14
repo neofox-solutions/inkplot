@@ -10,6 +10,7 @@ import {
   estimateTextWidth,
   type SvgTag,
   type TextMeasurer,
+  type TransitionSpec,
   type Unsubscribe,
 } from './platform.ts';
 
@@ -132,6 +133,31 @@ export class DOMPlatform implements Platform {
   }
   setCursor(cursor: string): void {
     this.#svg.style.cursor = cursor;
+  }
+  #eased = false;
+  /**
+   * Easing is a rule in a `<style>` inside the svg, which applies while the svg carries `data-ink-t`: a flush that eases sets the attribute and
+   * the speed (as custom properties) before it writes, and any other flush takes the attribute off, which also ends a transition in flight. The
+   * rule is inside a media query so that `prefers-reduced-motion` switches it off without a script.
+   */
+  setTransition(spec: TransitionSpec | null): void {
+    const svg = this.#svg;
+    if (!spec) {
+      svg.removeAttribute('data-ink-t');
+      return;
+    }
+    if (!this.#eased) {
+      this.#eased = true;
+      const style = this.#document.createElementNS(SVG_NS, 'style');
+      const to = (property: string) => `${property} var(--ink-dur) var(--ink-ease)`;
+      const properties = ['d', 'fill', 'stroke', 'opacity', 'fill-opacity', 'stroke-opacity', 'stroke-width'].map(to).join(',');
+      const targets = ['path', 'rect', 'circle', 'line'].map((tag) => `svg[data-ink-t] ${tag}`).join(',');
+      style.textContent = `@media (prefers-reduced-motion:no-preference){${targets}{transition:${properties}}}`;
+      svg.insertBefore(style, svg.firstChild);
+    }
+    svg.style.setProperty('--ink-dur', `${spec.duration}ms`);
+    svg.style.setProperty('--ink-ease', spec.easing);
+    svg.setAttribute('data-ink-t', '');
   }
   #touchMode: 'always' | 'two-finger' = 'always';
   #listening = false;

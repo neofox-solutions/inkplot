@@ -331,6 +331,7 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   /** Any change to the data bumps the version, which is what discards cached fills. */
   override invalidate(): void {
     this.#version++;
+    this.chart?.noteDataChange();
     super.invalidate();
   }
 
