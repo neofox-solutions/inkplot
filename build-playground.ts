@@ -37,6 +37,11 @@ const jsxDemo = transformSync('jsx-demo.jsx', read('./playground/jsx-demo.jsx'),
 if (/<\/script|<!--/i.test(jsxDemo)) throw new Error('the JSX demo contains a sequence that would end its script element');
 scripts += `<script type="text/plain" data-module="playground/jsx-demo">${jsxDemo}</script>\n`;
 
+// The record behind the headline chart: plain data, loaded like a library module.
+const gistemp = read('./playground/gistemp.js');
+if (/<\/script|<!--/i.test(gistemp)) throw new Error('the temperature record contains a sequence that would end its script element');
+scripts += `<script type="text/plain" data-module="playground/gistemp">${gistemp}</script>\n`;
+
 const app = read('./playground/app.js');
 if (/<\/script/i.test(app)) throw new Error('the app contains </script');
 

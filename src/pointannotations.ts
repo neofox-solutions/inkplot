@@ -58,10 +58,10 @@ export interface PointAnnotationsAttributes extends BaseAttributes {
   shape?: 'text' | 'box' | 'callout';
   /**
    * Where a note goes from its anchor. 'outside' (the default) beyond it, away from what is drawn there (above the end of a bar
-   * that grows up, below one that grows down); 'inside' at it, towards the foot; 'auto' tries the eight directions round the point
+   * that grows up, below one that grows down); 'inside' at it, towards the foot; 'center' with the middle of the note on the anchor (for a name on a point, a value in a segment); 'auto' tries the eight directions round the point
    * and takes the spot with the least in the way, as a `CalloutAnnotation` does.
    */
-  placement?: 'outside' | 'inside' | 'auto';
+  placement?: 'outside' | 'inside' | 'center' | 'auto';
   /** Pixels between a note and its anchor. Default: the callout's own `offset`. */
   offset?: number;
   /** The most notes drawn; further points that have one are left out (`omitted` says how many). Default 40. */
@@ -112,14 +112,22 @@ export class PointAnnotations extends ChartElement<Plane, [], PointAnnotationsAt
   }
 
   /** Every point of the series with a place for its note: x, y and the direction away, from the renderer or else the point. */
-  private placeAnchors(renderer: AnySeriesRenderer | undefined, points: Readonly<PointBuffer>): AnchorSet {
+  private placeAnchors(renderer: AnySeriesRenderer | undefined, points: Readonly<PointBuffer>, plane: Plane, series: Series): AnchorSet {
     const found = renderer?.anchors?.();
     if (found && found.count === points.count) return found;
     const out = new Float64Array(points.count * 4);
+    // A point has no foot to lead away from, so away is up the page: or, where the value runs along the radius, out from the middle.
+    const radial = plane.curved && series.secondAxis.orientation === 'radius',
+      cx = plane.rect.width / 2,
+      cy = plane.rect.height / 2;
     for (let i = 0; i < points.count; i++) {
-      out[4 * i] = points.data[i * points.stride]!;
-      out[4 * i + 1] = points.data[i * points.stride + 1]!;
-      out[4 * i + 3] = -1; // up
+      const x = points.data[i * points.stride]!,
+        y = points.data[i * points.stride + 1]!;
+      out[4 * i] = x;
+      out[4 * i + 1] = y;
+      const len = radial ? Math.hypot(x - cx, y - cy) : 0;
+      out[4 * i + 2] = len > 1e-9 ? (x - cx) / len : 0;
+      out[4 * i + 3] = len > 1e-9 ? (y - cy) / len : -1;
     }
     return { data: out, count: points.count };
   }
@@ -149,7 +157,7 @@ export class PointAnnotations extends ChartElement<Plane, [], PointAnnotationsAt
       shape === 'text'
         ? { ...base, box: { ...base.box, fill: 'none', stroke: 'none' }, metrics: { ...base.metrics, outline: 'none' } }
         : base;
-    const anchors = this.placeAnchors(renderer, points);
+    const anchors = this.placeAnchors(renderer, points, plane, series);
     const measure = this.requireChart().measureText;
     const first = series.firstAxis,
       second = series.secondAxis;
@@ -175,7 +183,16 @@ export class PointAnnotations extends ChartElement<Plane, [], PointAnnotationsAt
       // How far the middle of the box is from the anchor along (nx, ny) so that its near edge is `offset` away.
       const reach = Math.abs(nx) * (w / 2) + Math.abs(ny) * (h / 2) + offset;
       let box: Rect;
-      if (placement === 'auto') {
+      // A note kept on the plot stays a pixel in from its edge, or the outline would be cut by it.
+      const contain = (b: Rect) => {
+        if (a.contain === false) return;
+        b.x = Math.min(Math.max(b.x, 1), Math.max(1, room.width - w - 1));
+        b.y = Math.min(Math.max(b.y, 1), Math.max(1, room.height - h - 1));
+      };
+      if (placement === 'center') {
+        box = place(x, y);
+        contain(box);
+      } else if (placement === 'auto') {
         let best = Infinity;
         box = place(x, y);
         DIRECTIONS.forEach(([ux, uy], k) => {
@@ -189,12 +206,8 @@ export class PointAnnotations extends ChartElement<Plane, [], PointAnnotationsAt
       } else {
         const sign = placement === 'inside' ? -1 : 1;
         box = place(x + sign * nx * reach, y + sign * ny * reach);
-        // A bar that reaches the edge of the plot leaves no room beyond it: the note stays on the plot, over the bar. (A pixel is
-        // kept back, or the outline would be cut by the plot's edge.)
-        if (a.contain !== false) {
-          box.x = Math.min(Math.max(box.x, 1), Math.max(1, room.width - w - 1));
-          box.y = Math.min(Math.max(box.y, 1), Math.max(1, room.height - h - 1));
-        }
+        // A bar that reaches the edge of the plot leaves no room beyond it: the note stays on the plot, over the bar.
+        contain(box);
       }
       this.#boxes.push(box);
       kept.set(

@@ -1,5 +1,6 @@
 import * as L from 'inkplot';
 import { Wave, jsxChart } from 'playground/jsx-demo';
+import { gistemp } from 'playground/gistemp';
 
 document.getElementById('build-info').textContent = '__BUILD_INFO__';
 
@@ -629,51 +630,19 @@ const demos = [];
 // ── 0. Headline: the warming spiral ──────────────────────────────────────────
 // One chart, two polar planes laid over each other. Inside, each year is a ring of twelve months, coloured by the year's anomaly.
 // Outside, the same years are a ring of stripes: bars on a polar plane whose fill is bound to a colour axis and whose opacity is
-// bound to a function of the year, so the years still to come dim as the spiral plays. The numbers are made up for the demo, in
-// the shape of a real record, and the page says so.
-const HERO = { FIRST: 1880, LAST: 2024 };
-const heroData = (() => {
-  let s = 20241;
-  const rand = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-9)) * Math.cos(2 * Math.PI * rand());
-  // The slow trend, as knots joined by straight lines.
-  const knots = [
-    [1880, -0.2],
-    [1900, -0.3],
-    [1910, -0.42],
-    [1940, 0.02],
-    [1975, -0.08],
-    [1990, 0.3],
-    [2005, 0.68],
-    [2015, 0.95],
-    [2024, 1.28],
-  ];
-  const trend = (y) => {
-    for (let k = 1; k < knots.length; k++)
-      if (y <= knots[k][0])
-        return knots[k - 1][1] + ((y - knots[k - 1][0]) / (knots[k][0] - knots[k - 1][0])) * (knots[k][1] - knots[k - 1][1]);
-    return knots[knots.length - 1][1];
-  };
-  const months = [];
-  let wobble = 0;
-  for (let y = HERO.FIRST; y <= HERO.LAST; y++) {
-    wobble = 0.55 * wobble + 0.2 * gauss(); // a year-long swing, like El Niño
-    const row = [];
-    for (let m = 0; m < 12; m++) {
-      const winter = 0.5 + 0.5 * Math.cos(((m + 0.5) / 12) * 2 * Math.PI); // 1 in January, 0 in July: winters warm faster
-      const scale = 0.8 + 0.5 * winter * Math.min(1, Math.max(0, (y - 1930) / 70));
-      row.push(trend(y) * scale + wobble + 0.1 * gauss() + 0.04 * Math.sin(m + y));
-    }
-    months.push(row);
-  }
-  const annual = months.map((r) => r.reduce((a, b) => a + b, 0) / 12);
-  return { months, annual };
-})();
+// bound to a function of the year, so the years still to come dim as the spiral plays. The numbers are the real record: NASA GISS
+// GISTEMP v4 (see playground/gistemp.js for the source), and the page's caption credits it.
+const HERO = { FIRST: gistemp.first, LAST: gistemp.first + gistemp.months.length - 1 };
+const heroData = {
+  months: gistemp.months,
+  annual: gistemp.months.map((r) => r.reduce((x, y) => x + y, 0) / 12),
+};
 
 demos.push({
   id: 'hero',
   title: 'Warming spiral',
-  blurb: 'A century and a half of anomalies: bound bars on a polar plane, 145 rings, a callout in the middle, played from outside',
+  blurb:
+    'A century and a half of the NASA global temperature record: bound bars on a polar plane, 146 rings, a callout in the middle, played from outside',
   setup(ctx) {
     const { FIRST, LAST } = HERO;
     const { months, annual } = heroData;
@@ -768,7 +737,7 @@ demos.push({
       shape: 'text',
       contain: false,
       offset: 0,
-      placement: 'inside',
+      placement: 'center',
       text: (hit) => MONTHS[Math.floor(hit.first)],
     });
     const limit = new L.LineAnnotation({
@@ -810,14 +779,20 @@ demos.push({
         theme: chartTheme(),
         onFlush: ctx.onFlush,
         padding: 26,
-        meta: { title: 'Warming spiral', description: 'Illustrative monthly temperature anomalies, 1880 to 2024' },
+        meta: {
+          title: 'Warming spiral',
+          description: 'Global monthly temperature anomalies relative to 1951–1980, 1880 to 2025 (NASA GISS GISTEMP v4)',
+        },
       },
       heat,
       spiral,
       ring,
       new L.ChartTitle({ text: 'A century and a half of warming', role: 'title' }),
       new L.ChartTitle({ text: 'Each ring is a year, January at the top; the stripes outside are the same years', role: 'subtitle' }),
-      new L.ChartTitle({ text: 'Illustrative data, made up for this demo', role: 'caption' }),
+      new L.ChartTitle({
+        text: 'Data: NASA GISS Surface Temperature Analysis (GISTEMP v4), global land-ocean anomalies vs 1951–1980 · NASA GISS/GISTEMP',
+        role: 'caption',
+      }),
       new L.ColorKey({ dimension: heat, side: 'bottom' }),
     );
     chart.setAttribute('style', { chartTitle: { align: 'middle' }, chartSubtitle: { align: 'middle' }, chartCaption: { align: 'middle' } });
@@ -946,7 +921,7 @@ demos.push({
         onChange: (v) => (S.speed = v),
       }),
       ui.note(
-        'Hover the stripes to scrub the spiral; click one to pin its year. One chart with two polar planes. The outer ring is a bar series on a polar plane whose fill is bound to a colour axis and whose opacity is bound to a function of the year (the years to come dim). Each spiral ring is a series coloured from the same axis; the month names are notes on twelve invisible points; the year in the middle is a callout with no box. The data are invented for this demo.',
+        'Hover the stripes to scrub the spiral; click one to pin its year. One chart with two polar planes. The outer ring is a bar series on a polar plane whose fill is bound to a colour axis and whose opacity is bound to a function of the year (the years to come dim). Each spiral ring is a series coloured from the same axis; the month names are notes on twelve invisible points; the year in the middle is a callout with no box. The data are NASA GISS GISTEMP v4 global land-ocean anomalies against 1951–1980, 1880–2025 (source and citation in playground/gistemp.js).',
       ),
     );
     // Hover the stripes (when nothing is playing) and the spiral follows the pointer; off them it goes back to the pinned year. A click pins it.

@@ -706,12 +706,12 @@ test('playground', async () => {
     page.evaluate(() => [...document.querySelectorAll('#host svg path')].filter((p) => p.getAttribute('opacity') === '0.14').length);
   assert((await lit()) > 0, 'the years still to come are faint');
   await slider.evaluate((el) => {
-    el.value = '2024';
+    el.value = '2025';
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await settle();
   assert((await lit()) === 0, 'at the last year nothing is faint');
-  assert((await stripeNodes()) < 150, 'a hundred and forty-five stripes are a few dozen paths');
+  assert((await stripeNodes()) < 150, 'a hundred and forty-six stripes are a few dozen paths');
 
   // ── The SVG tab follows the chart.
   await page.evaluate(() => window.playground.select('stack'));

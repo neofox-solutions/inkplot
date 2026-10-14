@@ -201,4 +201,37 @@ test('pointannotations', () => {
       'outside is further from the middle than inside, for every ring',
     );
   }
+
+  // Notes on plain points of a polar plane: 'outside' leads out from the middle, 'inside' in, and 'center' sits on the point.
+  {
+    const spokes = (placement: 'outside' | 'inside' | 'center') => {
+      const notes = new PointAnnotations({ anchor: 'dots', text: () => 'Jan', placement, shape: 'text', contain: false, offset: 4 });
+      const plane = new PolarPlane(
+        {},
+        new Axis({ orientation: 'angle', min: 0, max: 4, visible: false }, new LinearScale()),
+        new Axis({ orientation: 'radius', min: 0, max: 10, visible: false }, new LinearScale()),
+        new DomainSeries(
+          {},
+          new FlatDataSource({ data: [6, 6, 6, 6], regularDomain: { start: 0.5, step: 1 } }),
+          new CircleMarker({ id: 'dots', size: 0, opacity: 0 }),
+        ),
+        notes,
+      );
+      const chart = new Chart({ theme: lightTheme, width: WIDTH, height: HEIGHT }, plane);
+      const platform = new StringPlatform({ width: WIDTH, height: HEIGHT });
+      chart.attach(platform).flush();
+      const mid = { x: plane.rect.width / 2, y: plane.rect.height / 2 };
+      return boxesIn(platform.toString()).map((b) => ({ ...b, r: Math.hypot(b.cx - mid.x, b.cy - mid.y) }));
+    };
+    const out = spokes('outside'),
+      inn = spokes('inside'),
+      mid = spokes('center');
+    assert.equal(mid.length, 4, 'a note on each point');
+    assert.ok(
+      out.every((b, i) => b.r > mid[i]!.r && mid[i]!.r > inn[i]!.r),
+      'outside is further from the middle than centred, and inside is nearer, at every spoke',
+    );
+    const radii = mid.map((b) => b.r);
+    assert.ok(Math.max(...radii) - Math.min(...radii) < 1, 'centred notes all sit on the one ring of their points');
+  }
 });

@@ -142,7 +142,7 @@ A `CalloutAnnotation` is one note at a point you name. `PointAnnotations` writes
 | `anchor` | The renderer that says where each point is, by `id`: a bar's note goes beyond the far end of the bar, a marker's beside the marker, a ring segment's on its rim. It also says which series. |
 | `series` | A series, by `id`, when there is no `anchor` (the notes go beside its points). Default: the anchor's series, else the plane's first. |
 | `shape` | `'box'` (default), `'text'` for the words alone, or `'callout'` for a box with an arm to the point. |
-| `placement` | `'outside'` (default) beyond the anchor, away from what is drawn there; `'inside'` towards the foot; `'auto'` tries the eight directions and takes the clearest. |
+| `placement` | `'outside'` (default) beyond the anchor, away from what is drawn there (on a polar plane, a plain point leads out from the middle); `'inside'` towards the foot; `'center'` with the middle of the note on the anchor (a name on a point, a value in a segment); `'auto'` tries the eight directions and takes the clearest. |
 | `offset`, `contain` | Pixels from the anchor; and whether a note is kept within the plot (default) or may spill into the chart's padding. |
 | `maxCount` | The most notes drawn. The `omitted` property says how many points had one and were left out. |
 | `aria` | `'hidden'` (default) keeps the notes from assistive technology, for when they repeat what the chart's table and summary say; `'text'` lets them be read, for when `text` carries something those do not. |
