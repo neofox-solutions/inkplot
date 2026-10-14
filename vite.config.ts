@@ -11,6 +11,15 @@ export default defineConfig({
     pool: 'forks',
     execArgv: ['--max-old-space-size=768'],
     isolate: true,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/fake-platform.ts'],
+      // `json-summary` is what the CI report reads; `json` gives it the per-file detail.
+      reporter: ['text-summary', 'json-summary', 'json', 'html'],
+      reportsDirectory: 'coverage',
+      reportOnFailure: true,
+    },
     // Some tests run against the clock (a flick is a speed over real milliseconds), so in CI, with its shared and
     // slower cores, fewer files run at once and a failure is tried once more before it counts.
     maxWorkers: process.env.CI ? 2 : undefined,
@@ -29,7 +38,8 @@ export default defineConfig({
       },
       fmt: { command: 'vp fmt', cache: false },
       'fmt:check': { command: 'vp fmt --check' },
-      test: { command: 'vp test run src/' },
+      // Coverage is recorded on every run (it is cheap), so the CI report always has it.
+      test: { command: 'vp test run src/ --coverage', cache: false },
       deps: { command: 'vp test run tools/deps.test.ts' },
       docs: { command: 'vp test run tools/docs.test.ts tools/skill-ts.test.mjs', cache: false },
       types: { command: 'rm -rf types && tsc -p tsconfig.types.json', cache: false },
@@ -98,7 +108,7 @@ export default defineConfig({
       node: true,
       es2022: true,
     },
-    ignorePatterns: ['out/**', 'types/**', 'shots/**', 'node_modules/**', 'playground.html'],
+    ignorePatterns: ['out/**', 'coverage/**', 'types/**', 'shots/**', 'node_modules/**', 'playground.html'],
     rules: {
       'typescript/no-explicit-any': 'error',
       'typescript/ban-ts-comment': [
