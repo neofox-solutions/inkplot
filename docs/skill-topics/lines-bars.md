@@ -31,7 +31,7 @@ Stacked or side by side: wrap several `DomainSeries` in `<Stack mode="stack">` (
 
 - `Stack` `mode`: `'stack'`, `'group'`, `'normalize'`, `'center'`.
 - `BarPath` bars start at `baseline` (default 0, and the axis includes it); the tallest bar touches the top of the plot, so add `padding={0.05}` (a fraction of the span) to the value `Axis` for headroom.
-- Floating bars (a waterfall's steps, a candlestick's body and wick): put each bar's start in a data channel and name it with `from="start"` on `BarPath` or `BarLinePath`; the series' value is the end. Draw one series per colour (a row of another kind has `NaN` for its value), a `StepCurve` line under the bars for connectors, and a `BarLinePath` from `low` to `high` under `BarPath` bodies from `open` to `close` for a candlestick. Both are worked in the recipes page.
+- Floating bars (a waterfall's steps, a candlestick's body and wick): put each bar's start in a data channel and name it with `from="start"` on `BarPath` or `BarLinePath`; the series' value is the end. Draw one series per colour (a row of another kind has `NaN` for its value), a `StepCurve` line under the bars for connectors, and a `BarLinePath` from `low` to `high` under `BarPath` bodies from `open` to `close` for a candlestick. Colour bars by data with `bind={{ fill: { channel: 'kind', map: (v) => … } }}` (a function of a channel; `BarLinePath` binds `stroke`), so up and down need no separate series. Both are worked in the recipes page.
 - Curves: `LinearCurve`, `MonotoneCurve`, `StepCurve`, `NaturalCurve`, `CardinalCurve`, `CatmullRomCurve`, `BasisCurve`, `BumpCurve`, `QuadraticCurve`, `ArcCurve`.
 - `hit` on a series: `'point'`, `'line'`, `'area'`, `'shape'` or `false`. `gaps`: `'break'` (default), `'connect'`, `'zero'`.
 

@@ -19,7 +19,7 @@ import type { HitMode } from './hit.ts';
 import { Curve } from './curve.ts';
 import { type AnyElement, type BaseAttributes, ChartElement } from './element.ts';
 import { type ChartEvent, EVENT_PAINT } from './events.ts';
-import type { Bindings, MappedDimension } from './mapped.ts';
+import type { BoundDimension, Bindings } from './mapped.ts';
 import type { PlatformNode } from './platform.ts';
 import type { Series } from './series.ts';
 import type { Surface } from './surface.ts';
@@ -79,7 +79,7 @@ export interface Spread {
 export interface ResolvedBinding {
   readonly property: string;
   readonly channel: string;
-  readonly axis: MappedDimension<unknown>;
+  readonly axis: BoundDimension;
   /** True when the value varies per path (and so is quantized), false when it goes into the path data. */
   readonly stylistic: boolean;
 }

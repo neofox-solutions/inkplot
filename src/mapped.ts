@@ -153,10 +153,17 @@ export class SizeAxis extends MappedDimension<number, SizeAxisAttributes> {
   }
 }
 
-/** One attribute fed from one channel of the data through a mapped dimension. */
-export interface Binding<Out> {
-  axis: ElementRef<MappedDimension<Out>>;
-  channel: string;
+/** What a renderer needs of whatever turns a channel into a look: a `MappedDimension`, or the stand-in for a function (`ValueMap`, in bucket.ts). */
+export interface BoundDimension<Out = unknown> {
+  contribute(min: number, max: number): void;
+  normalize(buffer: Float64Array, count: number, stride: number, offset: number): void;
+  valueAt(fraction: number): Out;
+  readonly missing: Out;
 }
+
+/** One attribute fed from one channel of the data through a mapped dimension, or through a function of the channel's values. */
+export type Binding<Out> =
+  | { axis: ElementRef<MappedDimension<Out>>; channel: string; map?: undefined }
+  | { map: (value: number) => Out; channel: string; axis?: undefined };
 /** The bindings a renderer may declare: only the attributes in `Bindable`, each with a dimension of the matching output type. */
 export type Bindings<Bindable extends object> = { [K in keyof Bindable]?: Binding<Bindable[K]> };

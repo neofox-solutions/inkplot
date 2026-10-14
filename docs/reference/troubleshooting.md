@@ -30,7 +30,7 @@ Find the symptom, read the cause, apply the fix. Errors are thrown by the elemen
 | `add a PointerListener before PanZoom in a plane` | `PanZoom` is first among siblings. | Put the `PointerListener` before it: it has to see a press first to claim it. |
 | `maxNodes N leaves fewer than 2 steps for K bound styles` | Too few `maxNodes` for the number of bound styles. | Raise `maxNodes`, or bind fewer styles. |
 | `a linear colour ramp takes #rgb or #rrggbb stops, not "…"` | A CSS colour name in a linearly interpolated ramp. | Use hex colours, or `interpolation="step"`. |
-| `LinePath bindings is not implemented yet` (also `AreaPath`, `BarPath`, `BarLinePath`) | `bind` on a renderer that cannot yet vary by data. | Bind on a marker instead. |
+| `LinePath bindings is not implemented yet` (also `AreaPath`) | `bind` on a line or an area, which are one stroke or region and cannot vary along it. | Bind on a marker, a bar renderer or a heat map, or use several series. |
 | `unknown type "X"` (JSON) | A `type` that is not in the registry; the message suggests near matches. | Spell it right, or add your class: `{ ...registry, X }`. |
 | `X is not in the registry: add it, as in { ...registry, X }` | `toJSON` met a class of your own. | Add it to the registry you pass. |
 | `refers to "name", and no refs were given to look it up in` / `no ref named "name"` | JSON has a `{ "$ref" }` and `fromJSON` got no `Refs`, or a table that lacks it. | Pass the same `Refs` you wrote with. |

@@ -31,7 +31,7 @@ export default () => (
 
 ## Bindings
 
-`bind` is an attribute of a renderer: an object of `{ attribute: { axis, channel } }`.
+`bind` is an attribute of a renderer: an object of `{ attribute: { axis, channel } }`, or, for a rule of your own, `{ attribute: { channel, map } }` ([below](#a-function-instead-of-a-dimension)).
 
 ```tsx
 <CircleMarker bind={{ fill: { axis: heat, channel: 'temperature' }, size: { axis: weight, channel: 'mass' } }} />
@@ -41,10 +41,20 @@ export default () => (
 - `channel` is a channel of the series' data ([Data](data.md#the-model-domain-value-channels)).
 - The plain attribute (`fill`, `strokeWidth`…) stays as the **fallback**, so `{ strokeWidth: 0.5, bind: { stroke: … } }` mixes fixed and bound freely.
 - A renderer lists what it lets you bind: a `CircleMarker` takes `stroke`, `strokeWidth`, `fill`, `opacity` and `size`; a `DotMarker` takes `stroke`, `size` and `opacity`. In TypeScript, binding something the renderer cannot vary, or a dimension of the wrong kind (a colour axis for `size`), is a compile error.
-- **Markers only, for now.** `LinePath`, `AreaPath` and the bar renderers accept `bind` in their types, but throw `… bindings is not implemented yet` when drawn, so that a half-supported option cannot be relied on by accident. To colour by data, use a marker (or several series).
+- **Where it works.** Markers, `BarPath` (`stroke`, `strokeWidth`, `fill`, `opacity`), `BarLinePath` (`stroke`, `strokeWidth`, `opacity`) and `HeatMap`. `LinePath` and `AreaPath` accept `bind` in their types, but throw `… bindings is not implemented yet` when drawn, so that a half-supported option cannot be relied on by accident: a line is one stroke, so to colour parts of it by data, use several series.
 - Several renderers on a series can each bind.
 
 **Geometric versus stylistic.** A bound property is either *geometric*, going into the path data (a marker's `size` on a `CircleMarker`, which costs the same however much it varies), or *stylistic*, which has to vary per path (a colour, a stroke width, an opacity). A stylistic binding is **quantized** into steps so that points with the same look share one path: with `maxNodes` of 1000 (the default) and one stylistic binding there are 1000 colours at most; with two, 31 steps each. That bound on path count is what keeps a scatter of a hundred thousand coloured points fast. The cost is that a colour is the nearest step. Marker `merge={false}` gives every point its own node, exact value and blending, and is for small data.
+
+### A function instead of a dimension
+
+For a rule that is not a ramp (red below zero and green above, a colour for each status, a thin stroke for the old data), give the binding a `map`, a function from the channel's value to the look, in place of an `axis`:
+
+```tsx
+<BarPath bind={{ fill: { channel: 'change', map: (v) => (v < 0 ? '#d1495b' : '#3a9d6e') } }} />
+```
+
+Each different result is one look, and the shapes that share it are drawn as one path, so it is meant for **a handful of results** (the signs of a number, the values of a rating or status), not a different one for every row: the number of looks is held to what `maxNodes` allows, and a binding that returns more than a few dozen different results is better written as a `ColorAxis`. `map` is called once for each row of the channel on every draw, so keep it cheap and give it the same identity each time (in React, memoize it). It sees only finite values; a row with no number is given what `map(NaN)` returns, so write it so that it answers. There is no key for a function, since it has no range to show; if you need a legend, add one by hand, or use a stepped `ColorAxis` (`ramp` of two colours, `interpolation="step"`, `min` and `max` either side of the threshold), which is the same split with a dimension a `ColorKey` can describe.
 
 The mapped axis fits itself to **all** the data bound to it (not just the part in view), so colours and sizes stay put while you zoom.
 

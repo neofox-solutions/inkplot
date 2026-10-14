@@ -109,7 +109,7 @@ Every renderer shares these attributes:
 | Attribute | Meaning |
 |---|---|
 | `stroke`, `strokeWidth`, `fill`, `opacity` | The look. Each is a [style](styling.md) property set directly; it beats the theme and any `style` block. Default: the theme's look, with the series' palette colour. |
-| `bind` | Attributes fed from data instead of fixed (markers only for now; see [Mapped dimensions](mapped.md)). |
+| `bind` | Attributes fed from data instead of fixed (markers, bars and the heat map; see [Mapped dimensions](mapped.md)). |
 | `maxNodes` | Most paths this renderer may create when styles are bound (default 1000). |
 
 | Renderer | Draws | Children | Notes |

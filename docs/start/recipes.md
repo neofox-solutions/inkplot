@@ -672,7 +672,7 @@ export default () =>
 
 A waterfall shows how a start and an end are joined by the steps between them. Each step is a bar that **floats**: it starts where the last one ended. A bar normally grows from the baseline, so tell it where to start instead with `from`, the name of a data channel that holds each bar's start; the series' value is where it ends. The value axis reaches both, and a running total that crosses zero needs nothing extra.
 
-Work out each row's start and end once (a total starts at zero), then draw one series for each kind of bar, so the three colours are three series: a row that is not of that kind has `NaN` for its value and leaves a gap. A step line under the bars (`StepCurve` with `mode="after"`) joins the end of each bar to the start of the next, and a `PointAnnotations` on the increases and the decreases writes the amount of each step.
+Work out each row's start and end once (a total starts at zero) and give it a `kind`: `1` for an increase, `-1` for a decrease, `0` for a total. The colour of a bar is then a **binding**, a function of that channel (`bind` takes `{ channel, map }`: see [Mapped dimensions](../guide/mapped.md#a-function-instead-of-a-dimension)). A step line under the bars (`StepCurve` with `mode="after"`) joins the end of each bar to the start of the next, and `PointAnnotations` writes the amount of each step.
 
 ```tsx live title="A profit bridge, from revenue to profit" height=340
 import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, LinePath, LinearScale, ObjectDataSource, PointAnnotations, StepCurve, lightTheme } from 'inkplot';
@@ -693,48 +693,44 @@ const rows = items.map((it, x) => {
   const start = it.total ? 0 : run;
   const end = it.total && it.amount ? it.amount : run + it.amount;
   run = end;
-  const kind = it.total ? 'total' : end >= start ? 'up' : 'down';
-  const pick = (k: string) => (kind === k ? end : NaN);
-  return { x, start, end, up: pick('up'), down: pick('down'), total: pick('total') };
+  return { x, start, end, kind: it.total ? 0 : end >= start ? 1 : -1 };
 });
 
-const fmt = (v: number) => (v > 0 ? `+${v}` : `${v}`);
-const bars = (name: string, value: 'up' | 'down' | 'total', fill: string) => (
-  <DomainSeries name={name}>
-    <ObjectDataSource source={rows} domain="x" value={value} isSorted channels={{ start: 'start' }} />
-    <BarPath id={value} from="start" fill={fill} />
-  </DomainSeries>
-);
+const colour = (kind: number) => (kind === 0 ? '#4c78a8' : kind > 0 ? '#3a9d6e' : '#d1495b');
+const note = (hit: { first: number; second: number }) => {
+  const row = rows[hit.first]!;
+  return row.kind === 0 ? `${row.end}` : `${row.kind > 0 ? '+' : ''}${row.end - row.start}`;
+};
 
 export default () => (
   <Chart theme={lightTheme} padding={20}>
     <CartesianPlane>
       <Axis orientation="bottom"><BandScale categories={items.map((i) => i.name)} /></Axis>
-      <Axis orientation="left" title="k" padding={0.05}><LinearScale /></Axis>
+      <Axis orientation="left" title="k" padding={0.1}><LinearScale /></Axis>
       <DomainSeries name="Running total">
         <ObjectDataSource source={rows} domain="x" value="end" isSorted />
         <LinePath stroke="#8a8f98" strokeWidth={1}><StepCurve mode="after" /></LinePath>
       </DomainSeries>
-      {bars('Total', 'total', '#4c78a8')}
-      {bars('Increase', 'up', '#3a9d6e')}
-      {bars('Decrease', 'down', '#d1495b')}
-      <PointAnnotations anchor="up" shape="text" text={(hit) => fmt(hit.second - rows[hit.first]!.start)} />
-      <PointAnnotations anchor="down" shape="text" text={(hit) => fmt(hit.second - rows[hit.first]!.start)} />
+      <DomainSeries name="Steps">
+        <ObjectDataSource source={rows} domain="x" value="end" isSorted channels={{ start: 'start', kind: 'kind' }} />
+        <BarPath id="bars" from="start" bind={{ fill: { channel: 'kind', map: colour } }} />
+      </DomainSeries>
+      <PointAnnotations anchor="bars" shape="text" text={note} />
     </CartesianPlane>
   </Chart>
 );
 ```
 
-The annotations read the step as the bar's end less its start, so their words (and number format) are yours. The bars have `id`s so that each `PointAnnotations` can name them as its `anchor`. A stack is the other way to build this, with a hidden first series for the running total, but it cannot cross zero, which is why `from` exists.
+The bars are one path for each colour, however many steps there are. The annotations read the step as the bar's end less its start, so their words (and number format) are yours; the bars have an `id` so that `PointAnnotations` can name them as its `anchor`. A stack is the other way to build this, with a hidden first series for the running total, but it cannot cross zero, which is why `from` exists.
 
 ## Draw a candlestick chart
 
-A candlestick shows four prices for each period: open, high, low and close. The body runs from the open to the close, and the wick from the low to the high. Both are bars that float (see above), so a candlestick is three series over the same rows: the wick (`BarLinePath`, a stem from `low` to `high`) and a body for each direction (`BarPath`, from `open` to `close`), which keep the up and down colours apart.
+A candlestick shows four prices for each period: open, high, low and close. The body runs from the open to the close, and the wick from the low to the high. Both are bars that float (see above), so a candlestick is two series over the same rows: the wick (`BarLinePath`, a stem from `low` to `high`) and the body (`BarPath`, from `open` to `close`). A `direction` channel (`1` when the price rose, `-1` when it fell) colours both through bindings.
 
 ```tsx live title="Thirty days of prices" height=340
 import { Axis, BandScale, BarLinePath, BarPath, CartesianPlane, Chart, DomainSeries, LinearScale, ObjectDataSource, lightTheme } from 'inkplot';
 
-// Thirty days of made-up prices: open, high, low, close.
+// Thirty days of made-up prices: open, high, low and close.
 let price = 100,
   seed = 7;
 const noise = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 6;
@@ -744,16 +740,11 @@ const days = Array.from({ length: 30 }, (_, x) => {
   price = close;
   const high = Math.max(open, close) + Math.abs(noise()) / 2,
     low = Math.min(open, close) - Math.abs(noise()) / 2;
-  return { x, open, high, low, close, up: close >= open ? close : NaN, down: close < open ? close : NaN };
+  return { x, open, high, low, close, direction: close >= open ? 1 : -1 };
 });
 
 const labels = days.map((d) => `${d.x + 1} Mar`);
-const body = (name: string, value: 'up' | 'down', fill: string) => (
-  <DomainSeries name={name}>
-    <ObjectDataSource source={days} domain="x" value={value} isSorted channels={{ open: 'open' }} />
-    <BarPath from="open" fill={fill} width={0.6} />
-  </DomainSeries>
-);
+const colour = (direction: number) => (direction > 0 ? '#3a9d6e' : '#d1495b');
 
 export default () => (
   <Chart theme={lightTheme} padding={20}>
@@ -761,11 +752,13 @@ export default () => (
       <Axis orientation="bottom" tickStep={5}><BandScale categories={labels} /></Axis>
       <Axis orientation="left" title="Price"><LinearScale /></Axis>
       <DomainSeries name="Range">
-        <ObjectDataSource source={days} domain="x" value="high" isSorted channels={{ low: 'low' }} />
-        <BarLinePath from="low" stroke="#555" strokeWidth={1.5} />
+        <ObjectDataSource source={days} domain="x" value="high" isSorted channels={{ low: 'low', direction: 'direction' }} />
+        <BarLinePath from="low" strokeWidth={1.5} bind={{ stroke: { channel: 'direction', map: colour } }} />
       </DomainSeries>
-      {body('Up', 'up', '#3a9d6e')}
-      {body('Down', 'down', '#d1495b')}
+      <DomainSeries name="Body">
+        <ObjectDataSource source={days} domain="x" value="close" isSorted channels={{ open: 'open', direction: 'direction' }} />
+        <BarPath from="open" width={0.6} bind={{ fill: { channel: 'direction', map: colour } }} />
+      </DomainSeries>
     </CartesianPlane>
   </Chart>
 );

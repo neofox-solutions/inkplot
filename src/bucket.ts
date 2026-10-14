@@ -5,8 +5,59 @@
  * every shape with the same key joins one path. The number of paths is then bounded by `maxNodes`, not by the data.
  */
 import { type ElementRef, fail, resolveRef } from './element.ts';
-import type { MappedDimension } from './mapped.ts';
+/* oxlint-disable typescript/no-non-null-assertion -- the value map reads and writes typed-array columns by loop index, bounded by the count, which `noUncheckedIndexedAccess` cannot see */
+import type { BoundDimension, MappedDimension } from './mapped.ts';
 import type { ResolvedBinding } from './renderer.ts';
+
+/**
+ * A function in place of a dimension: `{ channel: 'change', map: (v) => (v < 0 ? 'red' : 'green') }`. The values of the channel go
+ * through `map`, and each different result is a look of its own (one path for all the shapes that share it), so it is meant for a
+ * few results (a colour for each sign, each rating, each status), not a different one for every row. The most is what `maxNodes`
+ * allows. It carries no range and has no key to show: it is only what a renderer calls.
+ */
+export class ValueMap<Out> implements BoundDimension<Out> {
+  #outputs: Out[] = [];
+  readonly map: (value: number) => Out;
+  constructor(map: (value: number) => Out) {
+    this.map = map;
+  }
+  contribute(): void {}
+  /** Each value becomes the middle of its result's cell among the results met so far, in the order they were first met. */
+  normalize(buffer: Float64Array, count: number, stride: number, offset: number): void {
+    const seen = new Map<Out, number>(),
+      outputs: Out[] = [];
+    const at = new Int32Array(count);
+    for (let i = 0, j = offset; i < count; i++, j += stride) {
+      const v = buffer[j]!;
+      if (!Number.isFinite(v)) {
+        at[i] = -1;
+        continue;
+      }
+      const out = this.map(v);
+      let k = seen.get(out);
+      if (k === undefined) seen.set(out, (k = outputs.push(out) - 1));
+      at[i] = k;
+    }
+    this.#outputs = outputs;
+    for (let i = 0, j = offset; i < count; i++, j += stride) buffer[j] = at[i]! < 0 ? NaN : (at[i]! + 0.5) / outputs.length;
+  }
+  valueAt(fraction: number): Out {
+    const n = this.#outputs.length;
+    return n === 0 || !(fraction >= 0 && fraction <= 1) ? this.missing : this.#outputs[Math.min(n - 1, Math.floor(fraction * n))]!;
+  }
+  /** What a row with no number for the channel looks like: what `map` says of NaN. */
+  get missing(): Out {
+    return this.map(NaN);
+  }
+}
+
+// One `ValueMap` for each function, so asking for the bindings again and again does not make new ones.
+const valueMaps = new WeakMap<(value: number) => unknown, ValueMap<unknown>>();
+function valueMap(map: (value: number) => unknown): ValueMap<unknown> {
+  let m = valueMaps.get(map);
+  if (!m) valueMaps.set(map, (m = new ValueMap(map)));
+  return m;
+}
 
 /** The bound properties of `attrs.bind` with their dimensions resolved from `from`. */
 export function resolveBindings(
@@ -15,12 +66,16 @@ export function resolveBindings(
   isGeometric: (property: string) => boolean,
 ): ResolvedBinding[] {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- the `bind` attribute, typed here as the shape this element reads
-  const map = bind as Record<string, { axis: ElementRef<MappedDimension<unknown>>; channel: string } | undefined> | undefined;
+  const map = bind as
+    | Record<string, { axis?: ElementRef<MappedDimension<unknown>>; map?: (value: number) => unknown; channel: string } | undefined>
+    | undefined;
   if (!map) return [];
   const out: ResolvedBinding[] = [];
   for (const property in map) {
     const b = map[property];
-    if (b) out.push({ property, channel: b.channel, axis: resolveRef(b.axis, from), stylistic: !isGeometric(property) });
+    if (!b) continue;
+    const axis = b.map ? valueMap(b.map) : b.axis ? resolveRef(b.axis, from) : fail(`the binding of ${property} needs an axis or a map`);
+    out.push({ property, channel: b.channel, axis, stylistic: !isGeometric(property) });
   }
   return out;
 }

@@ -22,6 +22,8 @@
  */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
+import { fractionsOf, lookKey, lookValues, resolveBindings, stepsFor } from './bucket.ts';
+import { EVENT_ATTACH, type ChartEvent } from './events.ts';
 import { f2 } from './geometry.ts';
 import type { HitMode } from './hit.ts';
 import type { PlatformNode } from './platform.ts';
@@ -29,13 +31,14 @@ import {
   type AnchorSet,
   type PolygonSet,
   SeriesRenderer,
+  type ResolvedBinding,
   type SeriesRendererAttributes,
   type Spread,
+  type StyleBindable,
   type SpreadView,
   paintBox,
 } from './renderer.ts';
 import type { Series } from './series.ts';
-import { notImplemented } from './stub.ts';
 import type { Surface } from './surface.ts';
 
 /** How far outside the axes' range a bar may reach before it is cut short: only to keep the numbers sane, the clip does the rest. */
@@ -204,20 +207,20 @@ export function stemLines(series: Series, options: BarOptions = {}): PolygonSet 
   return { data: out, perShape: 2, count: n };
 }
 
-export interface BarRendererAttributes extends SeriesRendererAttributes, BarOptions {}
+export interface BarRendererAttributes<Bindable extends object = StyleBindable> extends SeriesRendererAttributes<Bindable>, BarOptions {}
 
 /**
  * What every bar renderer shares: where bars start and how wide they are (`BarOptions`), that the value axis has to reach
  * the baseline, and that a pointer hit is measured against the geometry it draws. A subclass says what that geometry is
  * (`outline`) and how to draw it.
  */
-export abstract class BarRenderer<A extends BarRendererAttributes = BarRendererAttributes> extends SeriesRenderer<A> {
+export abstract class BarRenderer<A extends BarRendererAttributes<object> = BarRendererAttributes> extends SeriesRenderer<A> {
   static override attrTypes = {
     ...SeriesRenderer.attrTypes,
     baseline: NUMBER,
     from: STRING,
     width: NUMBER,
-  } satisfies Partial<AttrTypesFor<BarRendererAttributes>>;
+  } satisfies Partial<AttrTypesFor<Omit<BarRendererAttributes, 'bind'>>>;
   protected abstract outline(): PolygonSet | null;
   override get includes(): readonly number[] {
     return this.attrs.from === undefined ? [this.attrs.baseline ?? 0] : [];
@@ -256,6 +259,72 @@ export abstract class BarRenderer<A extends BarRendererAttributes = BarRendererA
     const shapes = this.outline();
     return shapes ? barAnchors(shapes) : null;
   }
+  /** The bound properties, with their dimensions (or functions) resolved. Every one varies per path. */
+  override get bindings(): readonly ResolvedBinding[] {
+    return resolveBindings(this.attrs.bind, this, () => false);
+  }
+  override get stepsPerBinding(): number {
+    return stepsFor(this.bindings, this.attrs.maxNodes ?? 1000);
+  }
+  override onEvent(ev: ChartEvent): void {
+    if (ev.type === EVENT_ATTACH) void this.stepsPerBinding; // throws now rather than at the first paint
+    super.onEvent(ev);
+  }
+
+  // The nodes written by the last draw, so the ones a look no longer needs can be removed.
+  #nodes = new Set<string>();
+  /**
+   * Draw `count` shapes (`path(i)` is the path data of the i-th, empty for a gap) as one node for each look the bindings give them:
+   * with none, a single node called `name`. `write` sets a node's attributes from `v`, which starts as `base` and has the bound
+   * values written over it. Returns the length of the path data, for the counters.
+   */
+  protected paint(
+    count: number,
+    path: (i: number) => string,
+    base: Record<string, string | number>,
+    write: (node: PlatformNode, v: Record<string, string | number>) => void,
+    name: string,
+  ): number {
+    const s = this.surface,
+      series = this.requireParent(),
+      d = series.drawn,
+      steps = this.stepsPerBinding;
+    const styled = d
+      ? this.bindings.map((b) => ({
+          b,
+          f: fractionsOf(b, d.raw, d.stride - d.channels.length + d.channels.indexOf(b.channel), d.stride, count),
+        }))
+      : [];
+    const paths = new Map<number, string>();
+    let bytes = 0;
+    for (let i = 0; i < count; i++) {
+      const p = path(i);
+      if (!p) continue;
+      bytes += p.length;
+      const key = steps ? lookKey(styled, i, steps) : 0;
+      paths.set(key, (paths.get(key) ?? '') + p);
+    }
+    const names = new Set<string>();
+    const v: Record<string, string | number> = {};
+    // With nothing bound there is one node, named plainly, even when it has no bars.
+    if (!steps && paths.size === 0) paths.set(0, '');
+    for (const [key, p] of paths) {
+      Object.assign(v, base);
+      if (steps)
+        lookValues(key, styled, steps, (property, value) => {
+          v[property] = value;
+        });
+      const node = steps ? `${name}${key}` : name;
+      names.add(node);
+      const n = s.node(node, 'path');
+      s.set(n, 'd', p);
+      write(n, v);
+    }
+    for (const old of this.#nodes) if (!names.has(old)) s.remove(old);
+    this.#nodes = names;
+    return bytes;
+  }
+
   /** The first bar that is there says which way bars grow (its anchor's direction) and, by the middle of its foot, where the baseline is. */
   override enterFrom(): { kind: 'grow-y' | 'grow-x'; x: number; y: number } | null {
     const shapes = this.outline();
@@ -332,8 +401,8 @@ export class BarPath extends BarRenderer<BarPathAttributes> {
       { fill: this.requireParent().accentColor },
     );
   }
-  override get swatch(): string {
-    return this.look().fill;
+  override get swatch(): string | null {
+    return this.attrs.bind?.fill ? null : this.look().fill;
   }
   protected outline(): PolygonSet | null {
     return barShapes(this.requireParent(), this.attrs);
@@ -343,38 +412,41 @@ export class BarPath extends BarRenderer<BarPathAttributes> {
   }
 
   protected draw(): void {
-    const counters = this.counters,
-      s = this.surface,
-      a = this.attrs;
-    if (a.bind) notImplemented('BarPath bindings');
+    const counters = this.counters;
     const look = this.look();
     const t0 = performance.now();
     const shapes = this.outline();
-    let d = '';
-    if (shapes) {
-      const { data, perShape, count } = shapes;
-      for (let i = 0, k = 0; i < count; i++, k += perShape * 2) {
-        const x = data[k]!,
-          y = data[k + 1]!;
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-        d += 'M' + f2(x) + ' ' + f2(y) + 'L';
-        for (let j = 1; j < perShape; j++) d += (j > 1 ? ' ' : '') + f2(data[k + 2 * j]!) + ' ' + f2(data[k + 2 * j + 1]!);
-        d += 'Z';
-      }
-    }
+    const path = (i: number): string => {
+      if (!shapes) return '';
+      const { data, perShape } = shapes,
+        k = i * perShape * 2;
+      const x = data[k]!,
+        y = data[k + 1]!;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return '';
+      let d = 'M' + f2(x) + ' ' + f2(y) + 'L';
+      for (let j = 1; j < perShape; j++) d += (j > 1 ? ' ' : '') + f2(data[k + 2 * j]!) + ' ' + f2(data[k + 2 * j + 1]!);
+      return d + 'Z';
+    };
+    const bytes = this.paint(
+      shapes?.count ?? 0,
+      path,
+      { fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth, opacity: look.opacity },
+      (n, v) => {
+        const s = this.surface;
+        s.set(n, 'fill', String(v.fill));
+        s.set(n, 'stroke', String(v.stroke));
+        s.set(n, 'stroke-width', Number(v.strokeWidth));
+        s.set(n, 'stroke-linejoin', 'round');
+        s.set(n, 'opacity', Number(v.opacity));
+      },
+      'bars',
+    );
     counters.stages.path += performance.now() - t0;
-    counters.pathBytes += d.length;
-    const n = s.node('bars', 'path');
-    s.set(n, 'd', d);
-    s.set(n, 'fill', look.fill);
-    s.set(n, 'stroke', look.stroke);
-    s.set(n, 'stroke-width', look.strokeWidth);
-    s.set(n, 'stroke-linejoin', 'round');
-    s.set(n, 'opacity', look.opacity);
+    counters.pathBytes += bytes;
   }
 }
 
-export interface BarLinePathAttributes extends BarRendererAttributes {
+export interface BarLinePathAttributes extends BarRendererAttributes<Omit<StyleBindable, 'fill'>> {
   /** How the end of a stem is finished: 'butt' (flat, at the value), 'round' or 'square' (both reach half a width past). Default 'butt'. */
   cap?: 'butt' | 'round' | 'square';
 }
@@ -394,8 +466,8 @@ export class BarLinePath extends BarRenderer<BarLinePathAttributes> {
       { color: this.requireParent().accentColor },
     );
   }
-  override get swatch(): string {
-    return this.look().color;
+  override get swatch(): string | null {
+    return this.attrs.bind?.stroke ? null : this.look().color;
   }
   protected outline(): PolygonSet | null {
     return stemLines(this.requireParent(), this.attrs);
@@ -417,31 +489,35 @@ export class BarLinePath extends BarRenderer<BarLinePathAttributes> {
 
   protected draw(): void {
     const counters = this.counters,
-      s = this.surface,
-      a = this.attrs;
-    if (a.bind) notImplemented('BarLinePath bindings');
+      cap = this.attrs.cap ?? 'butt';
     const look = this.look();
     const t0 = performance.now();
     const stems = this.outline();
-    let d = '';
-    if (stems) {
-      const { data, count } = stems;
-      for (let i = 0, k = 0; i < count; i++, k += 4) {
-        const x = data[k]!,
-          y = data[k + 1]!;
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-        d += 'M' + f2(x) + ' ' + f2(y) + 'L' + f2(data[k + 2]!) + ' ' + f2(data[k + 3]!);
-      }
-    }
+    const path = (i: number): string => {
+      if (!stems) return '';
+      const { data } = stems,
+        k = i * 4;
+      const x = data[k]!,
+        y = data[k + 1]!;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return '';
+      return 'M' + f2(x) + ' ' + f2(y) + 'L' + f2(data[k + 2]!) + ' ' + f2(data[k + 3]!);
+    };
+    const bytes = this.paint(
+      stems?.count ?? 0,
+      path,
+      { stroke: look.color, strokeWidth: look.width, opacity: look.opacity },
+      (n, v) => {
+        const s = this.surface;
+        s.set(n, 'fill', 'none');
+        s.set(n, 'stroke', String(v.stroke));
+        s.set(n, 'stroke-width', Number(v.strokeWidth));
+        s.set(n, 'stroke-linecap', cap);
+        s.set(n, 'opacity', Number(v.opacity));
+        s.set(n, 'stroke-dasharray', look.dash);
+      },
+      'stems',
+    );
     counters.stages.path += performance.now() - t0;
-    counters.pathBytes += d.length;
-    const n = s.node('stems', 'path');
-    s.set(n, 'd', d);
-    s.set(n, 'fill', 'none');
-    s.set(n, 'stroke', look.color);
-    s.set(n, 'stroke-width', look.width);
-    s.set(n, 'stroke-linecap', a.cap ?? 'butt');
-    s.set(n, 'opacity', look.opacity);
-    s.set(n, 'stroke-dasharray', look.dash);
+    counters.pathBytes += bytes;
   }
 }
