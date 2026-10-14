@@ -136,6 +136,7 @@ export {
   type AreaPathAttributes,
   LinePath,
   type LinePathAttributes,
+  type AnchorSet,
   type PolygonSet,
   type ResolvedBinding,
   type Trace,
@@ -320,6 +321,7 @@ export {
   type LineAnnotationAttributes,
   type LineAnnotationCommon,
 } from './annotation.ts';
+export { type PointAnnotationsAttributes, PointAnnotations, type PointWords } from './pointannotations.ts';
 export { LINE_HEIGHT, measureBlock, paintLines } from './text.ts';
 export { type ElementJSON, type ElementRegistry, Refs, type SerializeOptions, applyJSON, fromJSON, toJSON } from './serialize.ts';
 export { registry } from './registry.ts';

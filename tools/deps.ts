@@ -56,6 +56,7 @@ export const CORE = ['chart', 'plane', 'axis', 'dimension', 'series', 'renderer'
 export const FEATURE_USES: Record<string, string[]> = {
   annotation: ['callout'],
   furniture: ['callout'],
+  pointannotations: ['callout', 'hit'],
   cursor: ['hit', 'input'],
   legend: ['input'],
   panzoom: ['input'],
@@ -81,6 +82,7 @@ export const FEATURE_USES: Record<string, string[]> = {
     'trend',
     'errors',
     'annotation',
+    'pointannotations',
     'bars',
     'crosshair',
     'cursor',

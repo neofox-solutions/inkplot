@@ -16,7 +16,7 @@ import { type AnyElement, type BaseAttributes, ChartElement, type ElementRef, fa
 import { type ChartEvent, EVENT_ATTACH, EVENT_PAINT } from './events.ts';
 import { type Rect, f2 } from './geometry.ts';
 import type { Plane } from './plane.ts';
-import { type CalloutLook, calloutSize, clearCallout, paintCallout } from './callout.ts';
+import { type CalloutLook, DIRECTIONS, boxTrouble, calloutSize, clearCallout, paintCallout } from './callout.ts';
 import { applyText } from './text.ts';
 
 /** Points used to trace a line that has to bend with the plane (a circle, a diagonal on a log axis), per sweep. */
@@ -249,20 +249,6 @@ export interface CalloutAnnotationAttributes extends BaseAttributes {
   dy?: number;
 }
 
-/** The eight places an automatically placed box may go, as the direction from the point, in order of preference. */
-const DIRECTIONS: readonly (readonly [number, number])[] = [
-  [1, -1],
-  [-1, -1],
-  [1, 0],
-  [-1, 0],
-  [1, 1],
-  [-1, 1],
-  [0, -1],
-  [0, 1],
-];
-/** The most series points looked at when judging a spot: more are skipped evenly. */
-const MAX_PROBES = 2000;
-
 /**
  * A note attached to a data point by an arm. Its look is four selectors (the text, the box, the arm and the callout's
  * own metrics), and `outline` (in `callout`) chooses between a full border, only the edge the arm meets, or none.
@@ -298,30 +284,14 @@ export class CalloutAnnotation extends ChartElement<Plane, [], CalloutAnnotation
     return x >= 0 && x <= r.width && y >= 0 && y <= r.height ? [x, y] : null;
   }
 
-  /** How bad a box is as a place for a callout: lower is better. */
+  /** How bad a box is as a place for a callout: lower is better. Earlier callouts in the plane count as taken. */
   private trouble(plane: Plane, box: Rect, order: number): number {
-    const r = plane.rect;
-    // Outside the plot: by how much of its area.
-    const inX = Math.max(0, Math.min(box.x + box.width, r.width) - Math.max(box.x, 0));
-    const inY = Math.max(0, Math.min(box.y + box.height, r.height) - Math.max(box.y, 0));
-    let score = (1 - (inX * inY) / (box.width * box.height)) * 1000;
-    // Series points under it.
-    for (const s of plane.series) {
-      const { data, count, stride } = s.points,
-        step = Math.max(1, Math.ceil(count / MAX_PROBES));
-      for (let i = 0; i < count; i += step) {
-        const x = data[i * stride]!,
-          y = data[i * stride + 1]!;
-        if (x >= box.x - 2 && x <= box.x + box.width + 2 && y >= box.y - 2 && y <= box.y + box.height + 2) score += step;
-      }
-    }
-    // Earlier callouts: much worse than a point.
+    const taken: Rect[] = [];
     for (const c of plane) {
       if (c === this) break;
-      const o = c instanceof CalloutAnnotation ? c.box : null;
-      if (o && box.x < o.x + o.width && box.x + box.width > o.x && box.y < o.y + o.height && box.y + box.height > o.y) score += 500;
+      if (c instanceof CalloutAnnotation && c.box) taken.push(c.box);
     }
-    return score + order * 0.01;
+    return boxTrouble(plane, box, order, taken);
   }
 
   override onEvent(ev: ChartEvent): void {

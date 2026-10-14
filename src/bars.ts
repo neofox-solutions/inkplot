@@ -24,7 +24,7 @@
 import { f2 } from './geometry.ts';
 import type { HitMode } from './hit.ts';
 import type { PlatformNode } from './platform.ts';
-import { type PolygonSet, SeriesRenderer, type SeriesRendererAttributes, paintBox } from './renderer.ts';
+import { type AnchorSet, type PolygonSet, SeriesRenderer, type SeriesRendererAttributes, paintBox } from './renderer.ts';
 import type { Series } from './series.ts';
 import { notImplemented } from './stub.ts';
 import type { Surface } from './surface.ts';
@@ -209,9 +209,54 @@ export abstract class BarRenderer<A extends BarRendererAttributes = BarRendererA
   override shapes(): PolygonSet | null {
     return this.outline();
   }
+  override anchors(): AnchorSet | null {
+    const shapes = this.outline();
+    return shapes ? barAnchors(shapes) : null;
+  }
 }
 
 export interface BarPathAttributes extends BarRendererAttributes {}
+
+/**
+ * Anchors for the bars of `shapes` (see `barShapes`): each outline runs along the foot of a bar and back along its far end, so the
+ * anchor is the middle of the far end and the direction leads from the middle of the foot to it. That is up for a bar above its
+ * baseline and down for one below it, out along the radius for a polar bar, and out to the rim for a ring segment.
+ */
+export function barAnchors(shapes: PolygonSet): AnchorSet {
+  const { data, perShape, count } = shapes,
+    half = perShape / 2;
+  const out = new Float64Array(count * 4);
+  // The middle of one edge of `half` points, taken along the edge (an arc is cut where it is half way round, not at its mean).
+  const middle = (k: number, from: number, into: number): void => {
+    const at = (half - 1) / 2,
+      lo = Math.floor(at),
+      f = at - lo;
+    const i0 = k + 2 * (from + lo),
+      i1 = k + 2 * (from + Math.min(half - 1, lo + 1));
+    out[into] = data[i0]! + (data[i1]! - data[i0]!) * f;
+    out[into + 1] = data[i0 + 1]! + (data[i1 + 1]! - data[i0 + 1]!) * f;
+  };
+  const foot = new Float64Array(2);
+  for (let i = 0; i < count; i++) {
+    const k = i * perShape * 2,
+      o = i * 4;
+    if (!Number.isFinite(data[k]!)) {
+      out.fill(NaN, o, o + 4);
+      continue;
+    }
+    middle(k, 0, o); // the foot's middle, for now
+    foot[0] = out[o]!;
+    foot[1] = out[o + 1]!;
+    middle(k, half, o);
+    const dx = out[o]! - foot[0],
+      dy = out[o + 1]! - foot[1],
+      len = Math.hypot(dx, dy);
+    // A bar of no length (a value at its baseline) leaves the label above it.
+    out[o + 2] = len > 1e-9 ? dx / len : 0;
+    out[o + 3] = len > 1e-9 ? dy / len : -1;
+  }
+  return { data: out, count };
+}
 
 /** One path holding every bar of the series: the cost of a bar chart is its path text, not a node for each bar. */
 export class BarPath extends BarRenderer<BarPathAttributes> {

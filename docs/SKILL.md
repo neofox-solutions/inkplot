@@ -141,7 +141,7 @@ The root: a theme, a size, and what is drawn on it.
 
 A rectangular plot (x and y).
 
-**In** Chart · **Holds** Axis, series, Stack, LineAnnotation, CalloutAnnotation, PanZoom, BoxZoom, Brush, PointerListener
+**In** Chart · **Holds** Axis, series, Stack, LineAnnotation, CalloutAnnotation, PointAnnotations, PanZoom, BoxZoom, Brush, PointerListener
 
 | Attribute | Type | |
 |---|---|---|
@@ -273,7 +273,7 @@ Read the topic that matches the chart; each has examples and the attributes of t
 - **lines-bars** (`topics/lines-bars.md`): bars (grouped, stacked), areas, smooth and stepped lines, curves, gaps in the data, several series sharing a plane. Elements: Stack, AreaPath, MonotoneCurve, NaturalCurve, CardinalCurve, CatmullRomCurve, BasisCurve, BumpCurve, QuadraticCurve, ArcCurve, StepCurve, BarPath, BarLinePath.
 - **markers-color** (`topics/markers-color.md`): scatter and bubble charts, dots and crosses, colour or size taken from the data, colour and size keys. Elements: XYSeries, DotMarker, CrossMarker, PlusMarker, CircleMarker, SquareMarker, ColorAxis, SizeAxis, ColorKey, SizeKey.
 - **statistics** (`topics/statistics.md`): histograms (a histogram is `Density` + `BarPath`), heat maps, density, box plots, trendlines (linear, polynomial, sinusoidal, loess), error bars and bands. Elements: BoxPath, BoxStats, Density, HeatMap, LinearTrend, PolynomialTrend, SinusoidalTrend, LoessTrend, ErrorBars, ErrorBand.
-- **furniture** (`topics/furniture.md`): a chart title or caption, a legend, reference lines and callouts, an accessible name and summary. Elements: ChartTitle, Legend, ChartSummary, LineAnnotation, CalloutAnnotation.
+- **furniture** (`topics/furniture.md`): a chart title or caption, a legend, reference lines and callouts, notes on chosen points, an accessible name and summary. Elements: ChartTitle, Legend, ChartSummary, LineAnnotation, CalloutAnnotation, PointAnnotations.
 - **interaction** (`topics/interaction.md`): tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch. Elements: ChartTooltip, Cursor, Crosshair, PanZoom, BoxZoom, Brush, PointerListener.
 - **planes** (`topics/planes.md`): polar and radar charts. Elements: PolarPlane, RadarPlane.
 - **data** (`topics/data.md`): a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table. Elements: CompositeDataSource, SyntheticDataSource, Decimator, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel.

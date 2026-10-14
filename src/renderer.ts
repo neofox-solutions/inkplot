@@ -92,6 +92,16 @@ export interface PolygonSet {
 }
 
 /**
+ * Where a label for each point of a series belongs: for every point, in the order of the series' points, the place on what is
+ * drawn for it that a label should sit beside (the end of a bar, the rim of a wedge) and the direction that leads away from it,
+ * as four numbers `x, y, nx, ny` (plot pixels; a unit vector). A gap leaves NaN.
+ */
+export interface AnchorSet {
+  readonly data: Float64Array;
+  readonly count: number;
+}
+
+/**
  * The line a renderer actually draws, when it is not the straight one through the series' points (steps, curves): the
  * path of placed points that a pointer is measured against, so that a hit or a reading is on what is on the screen.
  */
@@ -169,6 +179,8 @@ export abstract class SeriesRenderer<
   }
   /** The shapes this draws, one for each point of the series in the same order, for a 'shape' hit. Default none. */
   shapes?(): PolygonSet | null;
+  /** Where a label for each point should sit, if this knows better than the point itself (a bar: the middle of its far end). Default none. */
+  anchors?(): AnchorSet | null;
   /** The path this draws as a line (or the top of a shape), if it is not the straight one through the points. Hits and readings follow it. Default none. */
   trace?(): Trace | null;
   /**

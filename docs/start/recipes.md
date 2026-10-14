@@ -638,7 +638,7 @@ export default () => (
 );
 ```
 
-Both axes are hidden (the share is read off the legend and the rings off their order), and `gridlines={false}` leaves only the segments. With one point per series the result is a pie. Showing each segment's value on it is not built in: a *value marker*, a child of a renderer that paints something (a label, a callout) at each point, is a possible future element.
+Both axes are hidden (the share is read off the legend and the rings off their order), and `gridlines={false}` leaves only the segments. With one point per series the result is a pie. To show each segment's value on it, add a [`PointAnnotations`](../guide/labels.md#pointannotations-notes-on-chosen-points) for each series (it is a plane child after the stack, anchored to the segment's bars), as in the example there.
 
 ## Use a polar or radar chart
 

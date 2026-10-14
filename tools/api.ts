@@ -26,7 +26,7 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   Legend: { parent: 'Chart', children: 'none', about: 'Lists the named series; click to hide or show.' },
   CartesianPlane: {
     parent: 'Chart',
-    children: 'Axis, series, Stack, LineAnnotation, CalloutAnnotation, PanZoom, BoxZoom, Brush, PointerListener',
+    children: 'Axis, series, Stack, LineAnnotation, CalloutAnnotation, PointAnnotations, PanZoom, BoxZoom, Brush, PointerListener',
     about: 'A rectangular plot (x and y).',
   },
   PolarPlane: { parent: 'Chart', children: 'as CartesianPlane', about: 'A disc: angle and radius.' },
@@ -109,6 +109,7 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   ArcCurve: { parent: 'LinePath or AreaPath', children: 'none', about: 'Circular arcs.' },
   LineAnnotation: { parent: 'a plane', children: 'none', about: 'A reference line in data terms.' },
   CalloutAnnotation: { parent: 'a plane', children: 'none', about: 'A note attached to a data point.' },
+  PointAnnotations: { parent: 'a plane', children: 'none', about: 'A note beside each chosen point: its words, a box or a callout.' },
   PanZoom: { parent: 'a plane', children: 'none', about: 'Drag, wheel, pinch, touch and keys change the view.' },
   Brush: {
     parent: 'a plane',

@@ -26,6 +26,7 @@ import { writeAria } from './aria.ts';
 import { type ChartEvent, EVENT_ARRANGE, EVENT_ATTACH, EVENT_PAINT } from './events.ts';
 import type { CalloutAnnotation, LineAnnotation } from './annotation.ts';
 import { type Insets, type Rect, type Side, type Size, f2 } from './geometry.ts';
+import type { PointAnnotations } from './pointannotations.ts';
 import type { BoxZoom } from './boxzoom.ts';
 import type { Brush } from './brush.ts';
 import type { PanZoom } from './panzoom.ts';
@@ -46,6 +47,7 @@ export interface PlaneChildMap {
   stack: Stack;
   lineAnnotation: LineAnnotation;
   calloutAnnotation: CalloutAnnotation;
+  pointAnnotations: PointAnnotations;
   panZoom: PanZoom;
   boxZoom: BoxZoom;
   brush: Brush;

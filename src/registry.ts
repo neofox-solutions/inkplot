@@ -4,6 +4,7 @@
  * that builds its charts in code never needs it. To add classes of your own: `{ ...registry, MyScale }`.
  */
 import { CalloutAnnotation, LineAnnotation } from './annotation.ts';
+import { PointAnnotations } from './pointannotations.ts';
 import { Axis } from './axis.ts';
 import { BarLinePath, BarPath } from './bars.ts';
 import { BoxPath } from './boxplot.ts';
@@ -105,6 +106,7 @@ export const registry: ElementRegistry = {
   SquareMarker,
   LineAnnotation,
   CalloutAnnotation,
+  PointAnnotations,
   PanZoom,
   BoxZoom,
   Brush,

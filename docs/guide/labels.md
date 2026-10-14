@@ -129,3 +129,84 @@ export default () => (
 ```
 
 Both are plane children, so they are drawn above the series that come before them and below those after: put them last to have them on top.
+
+### `PointAnnotations`: notes on chosen points
+
+A `CalloutAnnotation` is one note at a point you name. `PointAnnotations` writes a note beside **each point of a series that you choose**, with the words and the choice both in your hands: the value and month on every negative bar of a report, the share on every segment of a pie.
+
+**What it is for:** flexible labels on a small number of points. Each note is drawn from nodes of its own with its text measured, so it is meant for tens of points, and `maxCount` (default 40) stops it there. **What it is not for:** labelling every point of a large series (that is what a [tooltip](interaction.md) is for), or a layout that promises notes never touch (`placement="auto"` looks for a clear place; nothing more).
+
+| Attribute | Meaning |
+|---|---|
+| `text` | **Required.** A function from a point to its note: `(hit, words) => string`. Return `null` (or an empty string) for a point that gets no note: that is how you filter. `hit` is what a tooltip's `format` is given (`hit.first`, `hit.second`, `hit.row` for the source row, `hit.channels`, `hit.series`) and `words` is its two coordinates written by their axes (`words.first`, `words.second`). A `'\n'` starts another line. |
+| `anchor` | The renderer that says where each point is, by `id`: a bar's note goes beyond the far end of the bar, a marker's beside the marker, a ring segment's on its rim. It also says which series. |
+| `series` | A series, by `id`, when there is no `anchor` (the notes go beside its points). Default: the anchor's series, else the plane's first. |
+| `shape` | `'box'` (default), `'text'` for the words alone, or `'callout'` for a box with an arm to the point. |
+| `placement` | `'outside'` (default) beyond the anchor, away from what is drawn there; `'inside'` towards the foot; `'auto'` tries the eight directions and takes the clearest. |
+| `offset`, `contain` | Pixels from the anchor; and whether a note is kept within the plot (default) or may spill into the chart's padding. |
+| `maxCount` | The most notes drawn. The `omitted` property says how many points had one and were left out. |
+| `aria` | `'hidden'` (default) keeps the notes from assistive technology, for when they repeat what the chart's table and summary say; `'text'` lets them be read, for when `text` carries something those do not. |
+
+It is a plane child, so it goes after the series and draws over all of them. It looks like a callout (`calloutText`, `calloutBox`, `calloutArm`, `callout`). `text` is called for every point of the series on each draw, so keep it cheap, and return the same function each time (in React, memoize it).
+
+```tsx live title="Negative bars called out with their value and month" height=320
+import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, FlatDataSource, LinearScale, PointAnnotations, lightTheme } from 'inkplot';
+
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+const profit = [12, -4, 9, -7, 15, 6, -2, 11];
+
+export default () => (
+  <Chart theme={lightTheme} padding={20}>
+    <CartesianPlane>
+      <Axis orientation="bottom"><BandScale categories={months} /></Axis>
+      <Axis orientation="left" min={-12} max={18}><LinearScale /></Axis>
+      <DomainSeries name="Profit">
+        <FlatDataSource data={profit} regularDomain-start={0} regularDomain-step={1} />
+        <BarPath id="bars" />
+      </DomainSeries>
+      <PointAnnotations
+        anchor="bars"
+        shape="callout"
+        text={(hit, words) => (hit.second < 0 ? `${words.second}\n${months[hit.first]}` : null)}
+      />
+    </CartesianPlane>
+  </Chart>
+);
+```
+
+For a pie or ring chart, one `PointAnnotations` per series puts each segment's value on its rim. The chart needs padding for labels outside the circle, and `contain={false}` lets them leave the plot:
+
+```tsx live title="A pie with the share on each segment" height=340
+import { Axis, BandScale, BarPath, Chart, DomainSeries, FlatDataSource, LinearScale, PointAnnotations, PolarPlane, Stack, lightTheme } from 'inkplot';
+
+const shares = { Mobile: 60, Desktop: 28, Other: 12 };
+
+const segment = (name: keyof typeof shares) => (
+  <DomainSeries name={name} domainAxis="ring" valueAxis="share">
+    <FlatDataSource data={[shares[name]]} regularDomain-start={0} regularDomain-step={1} />
+    <BarPath id={name} />
+  </DomainSeries>
+);
+const label = (name: keyof typeof shares) => (
+  <PointAnnotations anchor={name} shape="text" contain={false} text={(hit) => `${name} ${hit.second}%`} />
+);
+
+export default () => (
+  <Chart theme={lightTheme} padding={70}>
+    <PolarPlane gridlines={false}>
+      <Axis id="share" orientation="angle" min={0} max={1} visible={false}><LinearScale /></Axis>
+      <Axis id="ring" orientation="radius" visible={false}><BandScale categories={['2024']} /></Axis>
+      <Stack mode="normalize">
+        {segment('Mobile')}
+        {segment('Desktop')}
+        {segment('Other')}
+      </Stack>
+      {label('Mobile')}
+      {label('Desktop')}
+      {label('Other')}
+    </PolarPlane>
+  </Chart>
+);
+```
+
+`PointAnnotations`, like the plane's other annotations, is built from smaller parts that stay available: a renderer's `anchors()` (where each point's note goes), the callout drawing, and the tooltip's `Hit`. It is a convenience for the common case, not the only way to put words on a chart.

@@ -85,8 +85,8 @@ export const TOPICS: Record<string, Topic> = {
   },
   furniture: {
     file: 'furniture.md',
-    use: 'a chart title or caption, a legend, reference lines and callouts, an accessible name and summary',
-    elements: ['ChartTitle', 'Legend', 'ChartSummary', 'LineAnnotation', 'CalloutAnnotation'],
+    use: 'a chart title or caption, a legend, reference lines and callouts, notes on chosen points, an accessible name and summary',
+    elements: ['ChartTitle', 'Legend', 'ChartSummary', 'LineAnnotation', 'CalloutAnnotation', 'PointAnnotations'],
   },
   interaction: {
     file: 'interaction.md',

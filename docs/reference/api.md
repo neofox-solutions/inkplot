@@ -8,7 +8,7 @@ Every element class the library ships, in the order of the registry: where it go
 
 ## Contents
 
-[Chart](#chart) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [SizeAxis](#sizeaxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [BarLinePath](#barlinepath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
+[Chart](#chart) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [SizeAxis](#sizeaxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [BarLinePath](#barlinepath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
 
 ## Chart
 
@@ -105,7 +105,7 @@ Lists the named series; click to hide or show.
 
 A rectangular plot (x and y).
 
-**In** Chart · **Holds** Axis, series, Stack, LineAnnotation, CalloutAnnotation, PanZoom, BoxZoom, Brush, PointerListener
+**In** Chart · **Holds** Axis, series, Stack, LineAnnotation, CalloutAnnotation, PointAnnotations, PanZoom, BoxZoom, Brush, PointerListener
 
 | Attribute | Type | |
 |---|---|---|
@@ -879,6 +879,24 @@ A note attached to a data point.
 | `text` (required) | `string` | What it says. |
 | `dx` | `number` | Where the middle of the box is, in pixels from the point. |
 | `dy` | `number` | Pixels down from the point to the text box (negative is up). |
+
+## PointAnnotations
+
+A note beside each chosen point: its words, a box or a callout.
+
+**In** a plane · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `text` (required) | `(hit: Hit, words: PointWords) => string \| null \| undefined` | What a point's note says, or nothing (`null`, `undefined` or an empty string) for a point that gets none. |
+| `anchor` | `ElementRef<AnySeriesRenderer>` | The renderer that says where each point is, and so which series the notes are for: its id, or the element. |
+| `series` | `ElementRef<Series>` | The series, when there is no `anchor` (the notes then go beside the series' points), or to say which series when the anchor is not enough. Default: the anchor's series, else the plane's first. |
+| `contain` | `boolean` | Keep every note within the plot. Default true. |
+| `shape` | `'text' \| 'box' \| 'callout'` | What is drawn: just 'text', 'box' (text in a box, the default) or a 'callout' (a box with an arm to the point). |
+| `placement` | `'outside' \| 'inside' \| 'auto'` | Where a note goes from its anchor. 'outside' (the default) beyond it, away from what is drawn there (above the end of a bar that grows up, below one that grows down); 'inside' at it, towards the foot; 'auto' tries the eight directions round the point and takes the spot with the least in the way, as a `CalloutAnnotation` does. |
+| `offset` | `number` | Pixels between a note and its anchor. Default: the callout's own `offset`. |
+| `maxCount` | `number` | The most notes drawn; further points that have one are left out (`omitted` says how many). Default 40. |
+| `aria` | `'hidden' \| 'text'` | Whether assistive technology reads the notes. 'hidden' (the default) when they repeat what the chart's table and summary say; 'text' when `text` carries something they do not, which is for you to judge. |
 
 ## PanZoom
 
