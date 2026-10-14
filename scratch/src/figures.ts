@@ -26,6 +26,7 @@ export class FigureError extends Error {}
 
 // oxlint-disable-next-line typescript/consistent-type-assertions -- a type guard: the members are probed before use, on a value of unknown type
 const looksLikeChart = (x: unknown): x is Chart => typeof x === 'object' && x !== null && typeof (x as Chart).attach === 'function' && typeof (x as Chart).flush === 'function' && 'attrs' in x;
+// oxlint-disable-next-line typescript/no-base-to-string -- only primitives and functions reach String(x) here: arrays and objects are described above
 const describe = (x: unknown) => (x === null ? 'null' : Array.isArray(x) ? 'an array' : typeof x === 'object' ? `an object${x.constructor?.name && x.constructor.name !== 'Object' ? ` (${x.constructor.name})` : ` with keys ${Object.keys(x).slice(0, 5).join(', ') || '(none)'}`}` : `${typeof x} ${String(x).slice(0, 30)}`);
 const slug = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 

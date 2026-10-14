@@ -107,7 +107,7 @@ export class BoxZoom extends ChartElement<Plane, [], BoxZoomAttributes> {
   #axes(): Axis[] {
     const a = this.attrs;
     const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : [...this.requireParent().axes];
-    return axes.filter((axis) => axis.ruler.fractionAt);
+    return axes.filter((axis) => typeof axis.ruler.fractionAt === 'function');
   }
 
   #zoom(from: { x: number; y: number }, to: { x: number; y: number }): void {
@@ -117,9 +117,9 @@ export class BoxZoom extends ChartElement<Plane, [], BoxZoomAttributes> {
     const alongX = only !== 'y', alongY = only !== 'x';
     if ((alongX && w < min) || (alongY && h < min)) return;
     for (const axis of this.#axes()) {
-      const ruler = axis.ruler, at = ruler.fractionAt;
-      if (!at || (ruler.horizontal ? !alongX : !alongY)) continue;   // `#axes` keeps only rulers that have one
-      const v0 = axis.denormalize(at.call(ruler, from.x, from.y)), v1 = axis.denormalize(at.call(ruler, to.x, to.y));
+      const ruler = axis.ruler;
+      if (typeof ruler.fractionAt !== 'function' || (ruler.horizontal ? !alongX : !alongY)) continue;   // `#axes` keeps only rulers that have one
+      const v0 = axis.denormalize(ruler.fractionAt(from.x, from.y)), v1 = axis.denormalize(ruler.fractionAt(to.x, to.y));
       if (v0 !== v0 || v1 !== v1 || v0 === v1) continue;
       axis.setViewRange({ min: Math.min(v0, v1), max: Math.max(v0, v1) });
     }

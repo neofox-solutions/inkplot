@@ -137,7 +137,7 @@ export abstract class ChartElement<
     let i = 0;
     const first = list[0];
     if (first === undefined || (typeof first === 'object' && first !== null && !(first instanceof ChartElement))) {
-      this.#attrs = { ...(first as object | undefined) } as Attrs;
+      this.#attrs = { ...(first) } as Attrs;
       i = 1;
     } else {
       this.#attrs = {} as Attrs;
@@ -189,7 +189,7 @@ export abstract class ChartElement<
    * is a run-time error that says what was expected and what was found, wherever the tree was built (`new`, JSX, React, markup).
    */
   child<I extends FixedIndex<Children> & keyof Children>(index: I, ...classes: [ClassFor<Children[I]>, ...ClassFor<Children[I]>[]]): Children[I] {
-    const found = this.nth(index as number);
+    const found = this.nth(index);
     const names = classes.map((k) => k.name || 'a different class').join(' or ');
     if (!found) fail(`${this.constructor.name}: has no child ${index as number} (it needs ${names})`);
     if (!classes.some((k) => found instanceof k)) fail(`${this.constructor.name}: child ${index as number} should be ${names}, but is ${found.constructor.name}`);
@@ -292,7 +292,7 @@ export abstract class ChartElement<
   }
   /** Swap one of the fixed children for another of the same kind. */
   setChild<I extends FixedIndex<Children> & keyof Children>(index: I, child: Children[I]): this {
-    const old = this.nth(index as number) ?? fail(`${this.constructor.name}: has no child ${index as number} to replace`);
+    const old = this.nth(index) ?? fail(`${this.constructor.name}: has no child ${index as number} to replace`);
     this.link(child as AnyElement, old);
     old.unmount(true);
     this.unlink(old);
@@ -441,13 +441,13 @@ export function findById<T extends AnyElement = AnyElement>(root: AnyElement, id
 /** Every element below `root` of a class, in tree order. */
 export function descendantsOfType<T extends AnyElement>(root: AnyElement, type: ElementClass<T>): T[] {
   const out: T[] = [];
-  walk(root, (e) => { if (e !== root && e instanceof type) out.push(e as T); });
+  walk(root, (e) => { if (e !== root && e instanceof type) out.push(e); });
   return out;
 }
 /** The first element below `root` of a class, stopping the walk as soon as it is found. */
 export function firstDescendantOfType<T extends AnyElement>(root: AnyElement, type: ElementClass<T>): T | undefined {
   let found: T | undefined;
-  walk(root, (e) => { if (found) return false; if (e !== root && e instanceof type) { found = e as T; return false; } });
+  walk(root, (e) => { if (found) return false; if (e !== root && e instanceof type) { found = e; return false; } });
   return found;
 }
 /** The direct children of a class; use it when the parent's children are mixed (an axis next to series). */
@@ -456,7 +456,7 @@ export function childrenOfType<T extends AnyElement>(parent: AnyElement, type: E
 }
 /** The nearest enclosing element of a class: how a child finds "its" plane or chart without being handed one. */
 export function closestAncestorOfType<T extends AnyElement>(from: AnyElement, type: ElementClass<T>): T | undefined {
-  for (let e = from.parent as AnyElement | null; e; e = e.parent) if (e instanceof type) return e as T;
+  for (let e = from.parent as AnyElement | null; e; e = e.parent) if (e instanceof type) return e;
   return undefined;
 }
 

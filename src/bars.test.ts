@@ -160,7 +160,7 @@ const ys = (shape: Float64Array, from: number, count: number) => Array.from({ le
   assert(Number.isNaN(g.data[12]!), 'a gap has no stem');
   const d = /<path[^>]*d="(M[^"]*L[^"]*)"[^>]*stroke-linecap="butt"/.exec(svg) ?? /<path[^>]*stroke-linecap="butt"[^>]*d="(M[^"]*)"/.exec(svg);
   assert(d, 'one stroked path, butt caps by default');
-  assert.equal((d![1]!.match(/M/g) ?? []).length, 4, 'a stem for every value that is there');
+  assert.equal((d[1]!.match(/M/g) ?? []).length, 4, 'a stem for every value that is there');
   // A stem has to be hit by nearness to its line: along it or at its end, within the radius, and by its x alone with a crosshair.
   const px = stems.points.data[2]!, top = stems.points.data[3]!, foot = stems.baseline(0).data[3]!;
   const along = hitTest(stems, px + 3, (top + foot) / 2)!;

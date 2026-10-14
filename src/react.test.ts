@@ -53,7 +53,7 @@ const page = (props: { min?: number; title?: string; ids?: string[]; log?: boole
   (chart as L.Chart).flush();
   const svg = m.container.querySelector('#host svg');
   assert.ok(svg && svg.querySelectorAll('path').length >= 3, 'the chart is drawn in the host');
-  assert.equal(svg!.getAttribute('width'), '400');
+  assert.equal(svg.getAttribute('width'), '400');
   // Gone with the component.
   await m.unmount();
   assert.ok(!(chart as L.Chart).isAttached, 'detached on unmount');
@@ -65,6 +65,7 @@ const page = (props: { min?: number; title?: string; ids?: string[]; log?: boole
   const m = mount();
   let axis: L.Axis | null = null;
   const writes: string[] = [];
+  // oxlint-disable-next-line typescript/unbound-method -- the original is called back with `this` below
   const original = L.Axis.prototype.setAttributes;
   L.Axis.prototype.setAttributes = function (this: L.Axis, patch: Record<string, unknown>) { writes.push(Object.keys(patch).sort().join()); return original.call(this, patch as never); };
   try {

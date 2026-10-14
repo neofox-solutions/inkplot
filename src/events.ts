@@ -107,6 +107,7 @@ export type ChartEvent =
 
 /** `Omit` applied to each member of a union, so the init of every event keeps its own fields. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+// oxlint-disable-next-line typescript/no-generated-empty-object-type -- an event with no fields of its own has an init of `{}`, which is right
 export type ChartEventInit = DistributiveOmit<ChartEvent, keyof EventBase>;
 
 /** One allocation per event: the init fields are copied onto a fresh base, so subclasses add fields without classes. */

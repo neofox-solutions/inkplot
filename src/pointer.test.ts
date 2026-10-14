@@ -3,7 +3,7 @@ import { LinearCurve } from './curve.ts';
 import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import {
-  Chart, CartesianPlane, ChartElement, EVENT_HOVER, hitTest, type BaseAttributes, Axis, LinearScale, DomainSeries, LinePath, ObjectDataSource, PanZoom, PointerListener, ChartTooltip, Cursor, Crosshair,
+  Chart, CartesianPlane, ChartElement, EVENT_HOVER, hitTest, Axis, LinearScale, DomainSeries, LinePath, ObjectDataSource, PanZoom, PointerListener, ChartTooltip, Cursor, Crosshair,
   type DragInfo, type PointerInfo, type RawPointer, type PointerListenerAttributes, type ChartTooltipAttributes, type Hit,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
@@ -133,7 +133,7 @@ function near(a: number, b: number, tol = 0.05) { assert(Math.abs(a - b) <= tol,
 
 // ── The chart only tells elements about the pointer when they asked, and does no hit testing of its own.
 {
-  class Probe extends ChartElement<Chart, [], BaseAttributes> {
+  class Probe extends ChartElement<Chart> {
     seen = 0;
     override onEvent(ev: { type: number }): void { if (ev.type === EVENT_HOVER) this.seen++; }
   }

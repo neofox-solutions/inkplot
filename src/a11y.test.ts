@@ -25,7 +25,7 @@ function build(options: { bare?: boolean; chart?: object; plane?: object; pan?: 
   const chart = new Chart({ theme: lightTheme, ...options.chart }, plane, ...legend, ...summary);
   const platform = new FakePlatform({ width: 500, height: 300 });
   chart.attach(platform).flush();
-  return { chart, platform, plane, rate, cost, x, y, pan: pan[0] as PanZoom | undefined, legend: legend[0] as Legend | undefined, svg: () => platform.toString() };
+  return { chart, platform, plane, rate, cost, x, y, pan: pan[0], legend: legend[0], svg: () => platform.toString() };
 }
 
 // ── Nothing said, nothing announced; the core has no words of its own.

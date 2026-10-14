@@ -16,10 +16,10 @@ const build = (chart: { locale?: string }, axis: { locale?: string; format?: (v:
 
 {
   const plain = build({});
-  assert(plain.labels.includes('2000') || plain.labels.includes('2500'), `plain digits: ${plain.labels}`);
+  assert(plain.labels.includes('2000') || plain.labels.includes('2500'), `plain digits: ${plain.labels.join()}`);
   assert(plain.y.formatValue(1234.5) === '1234.5');
   const de = build({ locale: 'de' });
-  assert(de.labels.some((l) => /\d\.\d{3}/.test(l)), `German grouping with a point: ${de.labels}`);
+  assert(de.labels.some((l) => /\d\.\d{3}/.test(l)), `German grouping with a point: ${de.labels.join()}`);
   assert.equal(de.y.formatValue(1234.5), '1.234,5', 'readings too');
   assert.equal(de.y.formatValue(1234567.8), '1.234.568');
   assert.equal(build({ locale: 'de' }, { locale: 'en' }).y.formatValue(1234.5), '1,234.5', 'the axis beats the chart');

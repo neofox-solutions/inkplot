@@ -82,7 +82,7 @@ const pathD = (svg: string, _key: string) => [...svg.matchAll(/<path[^>]*? d="([
   assert.match(svg, /<path[^>]* d="M[^"]*A[^"]*"/, 'the rim is an arc');
   assert.match(svg, /clipPath/);
   const labels = [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
-  assert(labels.includes('0') && labels.includes('90') || labels.includes('100'), `tick labels around the rim: ${labels}`);
+  assert(labels.includes('0') && labels.includes('90') || labels.includes('100'), `tick labels around the rim: ${labels.join()}`);
   assert.throws(() => render(new PolarPlane({}, new Axis({ orientation: 'bottom' }, lin()))), /CartesianPlane/);
   assert.throws(() => render(new CartesianPlane({}, new Axis({ orientation: 'angle' }, lin()))), /PolarPlane/);
 }

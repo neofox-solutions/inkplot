@@ -287,7 +287,7 @@ function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: 
 export function applyJSON(element: AnyElement, json: ElementJSON, registry: ElementRegistry, options: SerializeOptions = {}): void {
   const w: Writing = { registry, refs: options.refs, limit: options.inlineLimit ?? 1000 };
   if (json === null || typeof json !== 'object') fail('an element is an object { type, attrs?, children? }');
-  if (nameOf(element.constructor, registry, '') !== json.type) fail(`the root is a ${element.constructor.name}: JSON for a "${String(json.type)}" cannot be applied to it`);
+  if (nameOf(element.constructor, registry, '') !== json.type) fail(`the root is a ${element.constructor.name}: JSON for a "${json.type}" cannot be applied to it`);
   const ops: (() => void)[] = [];
   plan(element, json, '', w, ops);
   for (const op of ops) op();

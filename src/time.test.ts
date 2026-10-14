@@ -20,7 +20,7 @@ for (const [name, make] of Object.entries(factories) as [string, Make][]) {
   // ── Minutes read as a time, and the tick that begins a day reads as a date.
   {
     const l = labelsOf(utc, T(2024, 6, 11, 22), T(2024, 6, 11, 22, 50));
-    assert(l.every((x) => /^22:\d\d$/.test(x)), `${name}: ${l}`);
+    assert(l.every((x) => /^22:\d\d$/.test(x)), `${name}: ${l.join()}`);
     assert.deepEqual(l.slice(0, 3), ['22:00', '22:05', '22:10']);
     assert.deepEqual(labelsOf(utc, T(2024, 6, 10, 22), T(2024, 6, 12, 22)), ['Jun 11', '06:00', '12:00', '18:00', 'Jun 12', '06:00', '12:00', '18:00'], `${name}: hours with midnights`);
     assert.deepEqual(labelsOf(utc, T(2024, 1, 1), T(2025, 1, 1)), ['2024', 'Apr', 'Jul', 'Oct', '2025'], `${name}: months, and the new year`);
@@ -34,7 +34,7 @@ for (const [name, make] of Object.entries(factories) as [string, Make][]) {
   // ── Weeks start on the day they are told to.
   {
     const mondays = ticksOf(utc, T(2024, 6, 3), T(2024, 7, 8), 5);
-    assert(mondays.length >= 4 && mondays.every((t) => new Date(t).getUTCDay() === 1), `${name}: ${mondays.map((t) => new Date(t).toISOString())}`);
+    assert(mondays.length >= 4 && mondays.every((t) => new Date(t).getUTCDay() === 1), `${name}: ${mondays.map((t) => new Date(t).toISOString()).join()}`);
     assert(ticksOf(make({ weekStart: 0 }), T(2024, 6, 3), T(2024, 7, 8), 5).every((t) => new Date(t).getUTCDay() === 0), 'Sundays');
   }
 
@@ -54,7 +54,7 @@ for (const [name, make] of Object.entries(factories) as [string, Make][]) {
     assert.deepEqual(labelsOf(make({ timeZone: 'Asia/Kathmandu' }), T(2024, 6, 11, 0), T(2024, 6, 11, 6), 6)[0], '06:00', 'a +05:45 zone');
 
     const lord = make({ timeZone: 'Australia/Lord_Howe' }), lh = ticksOf(lord, T(2024, 4, 6, 12), T(2024, 4, 6, 18), 6);   // the clocks go back half an hour on 7 April
-    assert(lord.labels(lh).every((x) => /^(\d\d:00|Apr 7)$/.test(x)), `${name}: ${lord.labels(lh)}`);
+    assert(lord.labels(lh).every((x) => /^(\d\d:00|Apr 7)$/.test(x)), `${name}: ${lord.labels(lh).join()}`);
     assert(lh.every((v, i) => i === 0 || v > lh[i - 1]!), 'in order');
     assert(make({ timeZone: 'local' }).labels([T(2024, 6, 11)]).length === 1, 'local is accepted');
   }
@@ -109,7 +109,7 @@ for (const [name, make] of Object.entries(factories) as [string, Make][]) {
   chart.flush();
   const ticks = x.getTicks(500);
   assert(ticks.length >= 4 && ticks.every((tk) => tk.value >= x.range.min && tk.value <= x.range.max));
-  assert(ticks.some((tk) => tk.label === 'Jun 11'), `a midnight (London, BST) says its date: ${ticks.map((tk) => tk.label)}`);
+  assert(ticks.some((tk) => tk.label === 'Jun 11'), `a midnight (London, BST) says its date: ${ticks.map((tk) => tk.label).join()}`);
   assert(ticks.some((tk) => /^\d\d:00$/.test(tk.label)));
   assert(platform.toString().includes('>Jun 11<'), 'drawn');
   assert.equal(x.formatValue(T(2024, 6, 11, 12)), 'Jun 11, 2024, 13:00:00 GMT+1', 'a reading is in the zone');

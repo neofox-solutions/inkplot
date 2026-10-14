@@ -209,7 +209,7 @@ function rect(ys: number[], renderer: AnySeriesRenderer, attrs: object = {}) {
   const w = plane.rect.height;
   near(h.py, (1 - 3 / 8) * w, 1e-6);   // drawn at 1 + 2
   const sharp = hitTest(b, plane.rect.width * 0.25, (1 - 3 / 8) * w, 3);
-  assert.equal(sharp?.index, 0); near(sharp!.lift!, 1);
+  assert.equal(sharp?.index, 0); near(sharp.lift!, 1);
 }
 
 // ── On a polar plane the reading follows the arc, and a hit is inside the wedge.

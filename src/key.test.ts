@@ -84,7 +84,7 @@ assert(!/linearGradient/.test(none.svg()));
   assert.equal(ys[0]![0], ys[1]![0], 'one column');
   assert.equal(ys[0]![1], 10, 'the first at the top of the chart padding');
   const first = 18 + 140 + 12;
-  assert.equal(ys[1]![1]! - ys[0]![1]!, first + 8, 'the second below the first, a gap between');
+  assert.equal(ys[1]![1]! - ys[0]![1], first + 8, 'the second below the first, a gap between');
   near(none.plane.rect.width - k.plane.rect.width, 72 + 8, 'one strip for both');
 }
 

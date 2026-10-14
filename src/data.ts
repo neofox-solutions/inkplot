@@ -135,8 +135,7 @@ const identity = (i: number) => i;
 /** The extent of an empty column: min above max, so any real value replaces it and `min <= max` tests emptiness. */
 export const NO_POINTS: Extent = { min: Infinity, max: -Infinity };
 /** Shared with sources.ts. Missing values become NaN, which every stage treats as a gap. */
-// oxlint-disable-next-line typescript/consistent-type-assertions -- `+v` is how any value is coerced to a number, whatever its type
-export const num = (v: unknown): number => (v === null || v === undefined ? NaN : +(v as number));
+export const num = (v: unknown): number => (v === null || v === undefined ? NaN : +v);
 
 /** The first and last finite values of `n` readings, which for an ascending domain are its extent. */
 export function endsOf(n: number, at: (i: number) => number): Extent | null {

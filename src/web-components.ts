@@ -191,7 +191,7 @@ function makeBase() {
       if (!element) return;   // only when disconnected, and this is the callback for connecting
       let ancestor = this.parentElement;
       while (ancestor && !(ancestor instanceof Wrapper)) ancestor = ancestor.parentElement;
-      this.#parent = ancestor as InkplotElement | null;
+      this.#parent = ancestor;
       if (this.#parent) {
         const host = this.#parent.element;
         if (!host) return;

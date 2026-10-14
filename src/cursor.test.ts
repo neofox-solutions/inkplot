@@ -90,17 +90,17 @@ const polar = (t: ReturnType<typeof build>, turns: number, radius: number) => {
   t.send('move', px, py);
   const s = t.cursor.state!;
   assert.deepEqual(s.hits.map((h) => h.series.attrs.name), ['Two', 'One']);
-  assert(s.hits.every((h) => Math.abs(h.first - 3) <= 0.51), `nearest in angle (a quarter of 12 is 3): ${s.hits.map((h) => h.first)}`);
+  assert(s.hits.every((h) => Math.abs(h.first - 3) <= 0.51), `nearest in angle (a quarter of 12 is 3): ${s.hits.map((h) => h.first).join()}`);
   // The old, pixel way: asking for the nearest in screen x puts the pointer at x=px and finds the same point only by luck; here, probe a place where x and angle disagree.
   const [qx, qy] = polar(t, 0.75, 0.8);   // nine o'clock, near the rim
   const across = hitAcross(t.plane, qx, qy);
-  assert(across.every((h) => Math.abs(h.first - 9) <= 0.51), `at nine o'clock the nearest by angle is 9: ${across.map((h) => h.first)}`);
+  assert(across.every((h) => Math.abs(h.first - 9) <= 0.51), `at nine o'clock the nearest by angle is 9: ${across.map((h) => h.first).join()}`);
   const [nx, ny] = polar(t, 0.9, 0.5);
   assert(hitAcross(t.plane, nx, ny).every((h) => Math.abs(h.first - 10.8) <= 0.51), 'any angle');
   // Wrapping: just before the start of the sweep is the end of the data (12 is 0 again).
   const [wx, wy] = polar(t, 0.998, 0.5);
   const wrap = hitAcross(t.plane, wx, wy);
-  assert(wrap.every((h) => h.first >= 11 || h.first <= 0.5), `wraps round the start: ${wrap.map((h) => h.first)}`);
+  assert(wrap.every((h) => h.first >= 11 || h.first <= 0.5), `wraps round the start: ${wrap.map((h) => h.first).join()}`);
   // Guides: a spoke from the middle, and a circle (arcs), not a vertical and a horizontal line.
   t.send('move', px, py);
   const all = paths(t.platform);
@@ -127,7 +127,7 @@ const polar = (t: ReturnType<typeof build>, turns: number, radius: number) => {
   const t = build('radar', { cursor: { mode: 'shared' }, crosshair: {} });
   t.send('move', ...polar(t, 0.5, 0.5));
   const s = t.cursor.state!;
-  assert(s.hits.length === 2 && s.hits.every((h) => Math.abs(h.first - 6) <= 0.51), `${s.hits.map((h) => h.first)}`);
+  assert(s.hits.length === 2 && s.hits.every((h) => Math.abs(h.first - 6) <= 0.51), s.hits.map((h) => h.first).join());
   const d = paths(t.platform).find((p) => /^M[\d.]+ [\d.]+L[\d.]+ [\d.]+M[\d.]+ [\d.]+L/.test(p))!;
   assert(d, 'a spoke, then a polygon through the spokes');
   assert(!d.includes('A'), 'the ring is straight chords');

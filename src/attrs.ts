@@ -79,7 +79,7 @@ export interface ExpandOptions {
 export function expandAttributes(flat: Readonly<Obj>, options: ExpandOptions = {}): Obj {
   const out: Obj = {};
   /** The objects made here, as opposed to ones the caller passed, which must not be written into. */
-  const made = new WeakSet<object>();
+  const made = new WeakSet();
   for (const key of Object.keys(flat)) {
     const raw = key.split('-');
     const path: string[] = [];

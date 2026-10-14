@@ -108,9 +108,9 @@ export class Brush extends ChartElement<Plane, [], BrushAttributes> {
   #cover(from: { x: number; y: number }, to: { x: number; y: number }): BrushRange[] {
     const out: BrushRange[] = [];
     for (const axis of this.#axes()) {
-      const ruler = axis.ruler, at = ruler.fractionAt;
-      if (!at) continue;   // `#axes` keeps only rulers that have one
-      const v0 = axis.denormalize(at.call(ruler, from.x, from.y)), v1 = axis.denormalize(at.call(ruler, to.x, to.y));
+      const ruler = axis.ruler;
+      if (typeof ruler.fractionAt !== 'function') continue;   // `#axes` keeps only rulers that have one
+      const v0 = axis.denormalize(ruler.fractionAt(from.x, from.y)), v1 = axis.denormalize(ruler.fractionAt(to.x, to.y));
       if (v0 !== v0 || v1 !== v1) continue;
       out.push({ axis, min: Math.min(v0, v1), max: Math.max(v0, v1) });
     }

@@ -60,10 +60,10 @@ export async function svgToPng(svg: string, options: PngOptions = {}, host: PngH
   const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   const { width: w, height: h, image } = await host.loadImage(url);
   const width = Math.max(1, Math.round((options.size?.width ?? w) * scale)), height = Math.max(1, Math.round((options.size?.height ?? h) * scale));
-  const { context, blob } = host.canvas(width, height);
+  const canvas = host.canvas(width, height), context = canvas.context;
   if (options.background) { context.fillStyle = options.background; context.fillRect(0, 0, width, height); }
   context.drawImage(image, 0, 0, width, height);
-  return blob();
+  return canvas.blob();
 }
 
 /** The chart as a PNG: what is showing if it is on the page, else a rendering of it. */

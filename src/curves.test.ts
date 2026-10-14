@@ -234,7 +234,7 @@ assert.equal(curveOf({ curve: 'natural' }).path([0, 0, 10, 10], 'M'), 'M0 0L10 1
     assert(nearestSegment(mono.series.trace()!.line, r.px, r.py)!.distance < 1e-6, 'on the drawn curve');
   }
   const swing = interpolate(series, 1.5)!;
-  assert(Math.abs(swing.second - 3) > 0.05, `the natural curve is not the chord's ${3}: ${swing.second}`);
+  assert(Math.abs(swing.second - 3) > 0.05, `the natural curve is not the chord's 3: ${swing.second}`);
   assert(interpolate(series, 2.5)!.second > 3, 'it reads the height of the curve');
 
   // The area: inside is under the curve, not under the chords.

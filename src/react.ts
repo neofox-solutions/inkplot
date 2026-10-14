@@ -135,7 +135,6 @@ function useAttached(chart: AnyElement, hostRef: { current: HTMLDivElement | nul
       platform.dispose();
     };
     // The platform is made again only for a change that needs a new one.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chart, size?.width, size?.height, options?.preciseText, options?.schedule]);
 }
 

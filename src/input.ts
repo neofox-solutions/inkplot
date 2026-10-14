@@ -10,7 +10,6 @@
  * the one under the pointer (over its plot, or over the strip an axis takes beside it, which is what lets an axis be zoomed
  * alone). A plane the pointer has left is told so. Everything inside the plane sees the event.
  */
-import type { Axis } from './axis.ts';
 import type { AnyElement } from './element.ts';
 import { type ChartPointerEvent, EVENT_FOCUS, EVENT_HOVER, EVENT_KEY, EVENT_POINTER, type ChartKeyEvent } from './events.ts';
 import { contains } from './geometry.ts';
@@ -113,8 +112,7 @@ export class InputHost {
       // oxlint-disable-next-line typescript/consistent-type-assertions -- `deliver` returns the event union; a pointer event comes back as one
       return (chart.deliver({
         type: EVENT_POINTER, kind, x, y, buttons: p.buttons, deltaY: p.deltaY, deltaX: p.deltaX ?? 0, scale: p.scale ?? 1,
-        // oxlint-disable-next-line typescript/consistent-type-assertions -- `axisAt` returns an element, and the axis it found is an `Axis` or null
-        id: p.id ?? 0, pointerType: p.pointerType ?? 'mouse', axis: kind === 'leave' ? null : plane.axisAt(x, y) as Axis | null, outside: kind !== 'leave' && !contains(r, p.x, p.y),
+        id: p.id ?? 0, pointerType: p.pointerType ?? 'mouse', axis: kind === 'leave' ? null : plane.axisAt(x, y), outside: kind !== 'leave' && !contains(r, p.x, p.y),
         shift: p.shift, ctrl: p.ctrl, handled: false,
       }, plane) as ChartPointerEvent).handled;
     };

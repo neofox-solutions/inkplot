@@ -5,7 +5,7 @@ import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import {
   Chart, CartesianPlane, Axis, LinearScale, DomainSeries, Stack, LinePath, AreaPath, BarPath, BarLinePath, CircleMarker, DotMarker, CrossMarker, FlatDataSource,
-  Legend, ChartTooltip, Cursor, fromJSON, toJSON, registry, type RawPointer, type Series,
+  Legend, ChartTooltip, Cursor, fromJSON, toJSON, registry, type Series,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
 
@@ -143,7 +143,7 @@ const words = (svg: string) => [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].
   assert(dashes >= 3, `the dashed line's look reaches the plot, the legend and the tooltip (${dashes})`);
 }
 function platformMove(t: { platform: FakePlatform; chart: Chart }, x: number, y: number) {
-  t.platform.pointer!({ kind: 'move', x, y, buttons: 0, deltaY: 0, shift: false, ctrl: false } as RawPointer);
+  t.platform.pointer!({ kind: 'move', x, y, buttons: 0, deltaY: 0, shift: false, ctrl: false });
   t.chart.flush();
 }
 

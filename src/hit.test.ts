@@ -56,7 +56,7 @@ const flat = (ys: number[]) => new FlatDataSource({ data: Float64Array.from(ys),
 
   const mid = hitTest(line, px(0.5), py(5));   // halfway along the first segment of the line
   assert(mid && mid.distance < 1, 'on the line between points');
-  assert.equal(mid!.series, line);
+  assert.equal(mid.series, line);
   assert.equal(hitTest(dots, px(0.5), py(5)), null, 'a point series is not hit between its points');
   assert.equal(hitTest(dots, px(1) + 3, py(5))!.index, 1, 'within the radius of a point');
   assert.equal(hitTest(dots, px(1) + 6, py(5)), null, 'beyond it');

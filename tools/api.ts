@@ -138,14 +138,14 @@ function members(body: string): Member[] {
 
 function parseFile(text: string, into: Map<string, Decl>): void {
   for (const m of text.matchAll(/export interface (\w+)(?:<(?:[^<>{]|<[^<>]*>)*>)?(?:\s+extends\s+([^{]+?))?\s*\{/g)) {
-    const open = m.index! + m[0].length - 1;
+    const open = m.index + m[0].length - 1;
     const { body } = balanced(text, open);
     const ext = (m[2] ?? '').split(',').map((s) => s.trim().replace(/<.*$/s, '')).filter(Boolean);
     into.set(m[1]!, { extends: ext, members: members(body), refs: [] });
   }
   for (const m of text.matchAll(/export type (\w+Attributes)(?:<[^=]*>)?\s*=\s*/g)) {
     // A type alias made of interfaces and object types: collect the object-type members and the named parts.
-    let end = m.index! + m[0].length, depth = 0;
+    let end = m.index + m[0].length, depth = 0;
     for (; end < text.length; end++) {
       const c = text[end]!;
       if ('({[<'.includes(c)) depth++;
@@ -153,7 +153,7 @@ function parseFile(text: string, into: Map<string, Decl>): void {
       else if (')}]>'.includes(c)) depth--;
       else if (c === ';' && depth <= 0) break;
     }
-    const expr = text.slice(m.index! + m[0].length, end);
+    const expr = text.slice(m.index + m[0].length, end);
     const parts: Member[] = [], refs: string[] = [];
     for (const r of expr.matchAll(/\b([A-Z]\w*)\b(?=\s*[&|)]|\s*$)/g)) refs.push(r[1]!);
     for (let k = 0; k < expr.length; k++) if (expr[k] === '{') { const { body, end: e } = balanced(expr, k); parts.push(...members(body)); k = e; }

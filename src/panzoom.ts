@@ -397,9 +397,9 @@ export class PanZoom extends ChartElement<Plane, [], PanZoomAttributes> {
     const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : [...this.requireParent().axes];
     const out: Moving[] = [];
     for (const axis of axes) {
-      const at = axis.ruler.fractionAt;
-      if (at && (only === 'both' || axis.ruler.horizontal === (only === 'horizontal'))) {
-        out.push({ axis, at: at.bind(axis.ruler), snap: { ...(axis.viewRange ?? axis.range) } });
+      const ruler = axis.ruler;
+      if (typeof ruler.fractionAt === 'function' && (only === 'both' || ruler.horizontal === (only === 'horizontal'))) {
+        out.push({ axis, at: ruler.fractionAt.bind(ruler), snap: { ...(axis.viewRange ?? axis.range) } });
       }
     }
     return out;

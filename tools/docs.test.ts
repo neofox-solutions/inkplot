@@ -71,7 +71,7 @@ if (blocks.length) {
     const text = (tsc.stdout + tsc.stderr).split('\n').map((l) => {
       const m = /^(?:out\/docs-check\/|)([\w-]+)\.tsx?\((\d+),(\d+)\): (.*)$/.exec(l);
       const b = m && byId.get(m[1]!);
-      return b ? `${b.file}:${b.line + Number(m![2]) - header(b).split('\n').length + 1}:${m![3]}  [${b.id}] ${m![4]}` : l;
+      return b ? `${b.file}:${b.line + Number(m[2]) - header(b).split('\n').length + 1}:${m[3]}  [${b.id}] ${m[4]}` : l;
     }).join('\n');
     assert.fail(`documentation code does not compile:\n${text}`);
   }

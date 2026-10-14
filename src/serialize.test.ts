@@ -37,7 +37,7 @@ const same = (svg: string) => svg.replace(/clip\d+/g, 'clip').replace(/grad\d+/g
   assert.equal(refs.nameOf(f), 'f', 'the first name stands, the second also reads back');
   assert.equal(refs.get('alias'), f);
   assert.throws(() => refs.set('f', o), /already names something else/);
-  assert.throws(() => refs.set('n', 3 as unknown as object), /only objects and functions/);
+  assert.throws(() => refs.set('n', 3), /only objects and functions/);
   assert.throws(() => refs.get('nope'), /no ref named "nope" \(known: f, alias\)/);
   assert.equal(refs.adopt(o, 'rows'), 'rows');
   assert.equal(refs.adopt(o, 'other'), 'rows', 'a value is only named once');

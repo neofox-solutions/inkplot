@@ -129,7 +129,7 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
         const k = i * 8 + slot * 2;
         pts[k] = clamp(pts[k]!);
         pts[k + 1] = clamp(pts[k + 1]!);
-        if (!domain) pts[k] = pts[k]! + shift;
+        if (!domain) pts[k] = pts[k] + shift;
       }
       // The two along points step the cap's way: along the domain for a value error, along the value for a domain one.
       for (const slot of [2, 3]) { const k = i * 8 + slot * 2; if (domain) pts[k + 1] = pts[k + 1]! + TANGENT; else pts[k] = pts[k]! + TANGENT; }

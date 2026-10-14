@@ -29,7 +29,7 @@ await settle();
 const lines = () => page.evaluate(() => [...document.querySelectorAll('#react svg path[stroke-width="3"]')].map((p) => p.getAttribute('stroke')));
 const labels = () => page.evaluate(() => [...document.querySelectorAll('#react svg text')].map((t) => t.textContent));
 assert.deepEqual(await lines(), ['#2a6fdb', '#d9534f'], 'two series from state');
-assert.ok((await labels()).includes('Index') === false, 'the axis title is not drawn unless `title` is set; meta-title is its name for assistive technology');
+assert.ok(!(await labels()).includes('Index'), 'the axis title is not drawn unless `title` is set; meta-title is its name for assistive technology');
 assert.equal(await page.evaluate(() => document.querySelector('#react svg [aria-label="Index"]') !== null), true, 'meta-title reached the DOM');
 
 await page.click('#add'); await settle();

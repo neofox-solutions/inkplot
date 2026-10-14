@@ -175,6 +175,7 @@ export function resolveStyle<R extends keyof Roots>(
 export function extendTheme<B extends BaseTheme>(base: B, patch: Theme & { palette?: readonly string[] }): B {
   const out: Record<string, unknown> = { ...base };
   for (const [selector, props] of Object.entries(patch)) {
+    // oxlint-disable-next-line typescript/no-misused-spread -- a selector holds an object of properties; only `palette` is an array, and it is not spread
     out[selector] = selector === 'palette' ? props : { ...(base as Record<string, object | undefined>)[selector], ...props };
   }
   return out as B;

@@ -189,10 +189,8 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
       if (steps) lookValues(key, styled, steps, (property, value) => { v[property] = value; });
       const node = s.node(`c${key}`, 'path');
       s.set(node, 'd', path);
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- the style channels are filled for every cell before drawing
-      s.set(node, 'fill', v.fill as string);
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- the style channels are filled for every cell before drawing
-      s.set(node, 'fill-opacity', Math.round((v.opacity as number) * 1000) / 1000);
+      s.set(node, 'fill', v.fill);
+      s.set(node, 'fill-opacity', Math.round((v.opacity) * 1000) / 1000);
       s.set(node, 'stroke', look.stroke);
       s.set(node, 'stroke-width', look.strokeWidth);
       if (!plane.curved) s.set(node, 'shape-rendering', 'crispEdges');

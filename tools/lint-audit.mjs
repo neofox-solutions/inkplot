@@ -1,5 +1,5 @@
 /**
- * The strict-rules audit, for what the everyday lint (`oxlint`, see .oxlintrc.json) cannot say on its own.
+ * The strict-rules audit, for what the everyday lint (`vp lint`, configured in vite.config.ts) cannot say on its own.
  *
  * Non-null assertions. The lint forbids `!` everywhere and lets a file or a line opt out with a comment that gives the reason, which is
  * how the reads of the form `a[i]!` in numeric kernels are owned: `noUncheckedIndexedAccess` types every indexed read as possibly
@@ -13,24 +13,26 @@
  * Run `node tools/lint-audit.mjs --list` to print every site.
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
-const dir = mkdtempSync(join(tmpdir(), 'lint-audit-'));
+// Inside the repository (out/ is ignored), because `vp` only runs where it can find its workspace.
+mkdirSync(join(root, 'out'), { recursive: true });
+const dir = mkdtempSync(join(root, 'out', 'lint-audit-'));
 let json;
 try {
   writeFileSync(join(dir, 'oxlintrc.json'), JSON.stringify({
     plugins: ['typescript'],
     rules: { 'typescript/no-non-null-assertion': 'error', 'typescript/consistent-type-assertions': ['error', { assertionStyle: 'never' }] },
   }));
-  // A copy of the sources with the opt-out comments taken out.
-  const bare = join(dir, 'bare');
+  // A copy of the sources with the opt-out comments taken out. The files are named one by one: a folder inside the ignored out/ would be skipped.
+  const bare = join(dir, 'bare'), listed = [];
   for (const sub of ['src', 'scratch/src']) {
     cpSync(join(root, sub), join(bare, sub), { recursive: true });
     for (const name of readdirSync(join(bare, sub))) {
       if (!/\.tsx?$/.test(name)) continue;
+      listed.push(`${sub}/${name}`);
       const file = join(bare, sub, name);
       writeFileSync(file, readFileSync(file, 'utf8')
         .replace(/\/\* oxlint-disable[^*]*\*\/\n/g, '\n')
@@ -38,9 +40,9 @@ try {
     }
   }
   let text;
-  try { text = execFileSync(join(root, 'node_modules/.bin/oxlint'), ['-c', join(dir, 'oxlintrc.json'), '-f', 'json', 'src', 'scratch/src'], { cwd: bare, encoding: 'utf8', maxBuffer: 1 << 28 }); }
+  try { text = execFileSync(join(root, 'node_modules/.bin/vp'), ['lint', '-c', join(dir, 'oxlintrc.json'), '-f', 'json', ...listed], { cwd: bare, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] }); }
   catch (e) { text = e.stdout; }
-  if (!text) throw new Error('oxlint printed nothing: is it installed? (npm install)');
+  if (!text) throw new Error('`vp lint` printed nothing: is it installed? (pnpm install)');
   json = { diagnostics: JSON.parse(text).diagnostics, bare };
 } catch (e) { rmSync(dir, { recursive: true, force: true }); throw e; }
 

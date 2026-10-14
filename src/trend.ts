@@ -383,7 +383,7 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
   protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
     const s = this.attrs.smoothness ?? 0.5, kernel = this.attrs.kernel ?? 'tricube';
     if (!(s >= 0 && s <= 1)) fail(`LoessTrend: smoothness is from 0 to 1 (got ${s})`);
-    if (kernel !== 'tricube' && kernel !== 'gaussian') fail(`LoessTrend: kernel is 'tricube' or 'gaussian' (got "${kernel}")`);
+    if (kernel !== 'tricube' && kernel !== 'gaussian') fail(`LoessTrend: kernel is 'tricube' or 'gaussian' (got "${String(kernel)}")`);
     const n = xs.length, span = xs[n - 1]! - xs[0]!;
     if (!(span > 0)) return null;
     if (s === 1) return leastSquares(xs, ys);

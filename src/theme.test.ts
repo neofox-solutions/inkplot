@@ -2,7 +2,6 @@
 import { LinearCurve } from './curve.ts';
 import assert from 'node:assert/strict';
 import { Axis, CartesianPlane, Chart, ChartElement, CircleMarker, DomainSeries, FlatDataSource, LinePath, LinearScale, StringPlatform, darkTheme, extendTheme, lightTheme, resolveStyle } from './index.ts';
-import type { BaseAttributes } from './index.ts';
 
 // ── resolveStyle on its own, with no chart: a property comes from the first place that names it.
 {
@@ -79,7 +78,7 @@ function render(chartAttrs: object, planeAttrs: object, ...series: DomainSeries[
 }
 
 // A new kind of element joins the system with its own selector (declared once, by augmentation).
-class Box extends ChartElement<Chart, [], BaseAttributes> {
+class Box extends ChartElement<Chart> {
   look() { return this.styleFor(['boxLabel', 'text']); }
 }
 declare module './theme.ts' { interface Selectors { boxLabel: TextProps } }

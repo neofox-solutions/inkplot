@@ -141,7 +141,7 @@ function compileTimeChecks() {
   // @ts-expect-error unknown attribute
   new Axis({ tickLenght: 3 }, new LinearScale());
   // @ts-expect-error internals are private
-  void (level as Axis)._first;
+  void (level)._first;
   // @ts-expect-error an axis' scale is fixed: it can be replaced but not removed
   level.remove(level.scale);
   // @ts-expect-error a series' data source is fixed too
@@ -257,7 +257,7 @@ console.log('ok chart', {
 
 // ── Background: none by default; `style.chart.background` or the theme's fills the drawing, beneath everything.
 {
-  const make = (a: Partial<ConstructorParameters<typeof Chart>[0]>) => toSvgString(new Chart({ theme: lightTheme, width: 200, height: 100, ...a } as ConstructorParameters<typeof Chart>[0], new CartesianPlane({})));
+  const make = (a: Partial<ConstructorParameters<typeof Chart>[0]>) => toSvgString(new Chart({ theme: lightTheme, width: 200, height: 100, ...a }, new CartesianPlane({})));
   assert.ok(!/<rect[^>]*width="200"[^>]*height="100"/.test(make({})), 'no background by default');
   const svg = make({ style: { chart: { background: '#fffbe6' } } });
   assert.match(svg, /<rect[^>]*width="200"[^>]*height="100"[^>]*fill="#fffbe6"|<rect[^>]*fill="#fffbe6"[^>]*width="200"/);

@@ -155,8 +155,7 @@ export abstract class Dimension<Parent extends AnyElement = AnyElement, A extend
   fractionOf(value: number): number {
     this.tmp[0] = value;
     this.normalize(this.tmp, 1, 1, 0);
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-    return this.tmp[0]!;
+    return this.tmp[0];
   }
   /**
    * One value as text, the way this dimension would label a tick but with the precision a reading needs: its `format`,
@@ -180,7 +179,7 @@ export abstract class Dimension<Parent extends AnyElement = AnyElement, A extend
   private tickValues(count: number): readonly number[] {
     const a = this.attrs, r = this.range, lo = Math.min(r.min, r.max), hi = Math.max(r.min, r.max);
     const eps = (hi - lo) * 1e-9;
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- the attribute type with its default filled in
+    // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unnecessary-type-assertion -- the attribute type with its default filled in; the type is generic here, and without the assertion it is not narrowed
     const explicit = a.ticks as DimensionAttributes['ticks'];
     if (explicit) {
       const given = typeof explicit === 'function' ? explicit(r) : explicit;
