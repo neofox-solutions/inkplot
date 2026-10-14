@@ -1,5 +1,6 @@
 // toPng and svgToPng, with a fake canvas: what is drawn, how big, on what background, and that an unattached chart is rendered.
 import assert from 'node:assert/strict';
+import { Blob as NodeBlob } from 'node:buffer'; // a global only from Node 18
 import {
   Chart,
   CartesianPlane,
@@ -37,7 +38,7 @@ test('png', async () => {
             log.draws.push([dw, dh]);
           },
         };
-        return { context, blob: async () => new Blob(['png'], { type: 'image/png' }) };
+        return { context, blob: async () => new NodeBlob(['png'], { type: 'image/png' }) as unknown as Blob };
       },
     };
     return { h, log };

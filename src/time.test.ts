@@ -26,12 +26,17 @@ test('time', () => {
   const T = (y: number, mo: number, d = 1, h = 0, mi = 0, s = 0, ms = 0) => Date.UTC(y, mo - 1, d, h, mi, s, ms);
   const HOUR = 3600000,
     DAY = 24 * HOUR;
-  const factories = { Intl: (a: object) => new IntlTimeScale(a), Temporal: (a: object) => new TemporalTimeScale(a) } as const;
-  type Make = (typeof factories)[keyof typeof factories];
+  // `Temporal` is in Node 26 and new browsers; on an older runtime only the `Intl` scale is tested.
+  const hasTemporal = typeof (globalThis as { Temporal?: unknown }).Temporal !== 'undefined';
+  type Make = (a: object) => TimeScale;
+  const factories: Record<string, Make> = {
+    Intl: (a) => new IntlTimeScale(a),
+    ...(hasTemporal ? { Temporal: (a) => new TemporalTimeScale(a) } : {}),
+  };
   const ticksOf = (s: TimeScale, a: number, b: number, n = 6) => s.ticks({ min: a, max: b }, n);
   const labelsOf = (s: TimeScale, a: number, b: number, n = 6) => s.labels(ticksOf(s, a, b, n));
 
-  for (const [name, make] of Object.entries(factories) as [string, Make][]) {
+  for (const [name, make] of Object.entries(factories)) {
     const utc = make({}),
       ny = make({ timeZone: 'America/New_York' });
 
@@ -156,7 +161,7 @@ test('time', () => {
   }
 
   // ── The two agree: the same ticks and the same words, for any zone and any span.
-  {
+  if (hasTemporal) {
     const zones = [
       'UTC',
       'America/New_York',
@@ -267,7 +272,7 @@ test('time', () => {
     (globalThis as { Temporal?: unknown }).Temporal = undefined;
     try {
       assert.throws(() => new TemporalTimeScale({}).ticks({ min: 0, max: DAY }, 5), /no Temporal/);
-      assert.equal(new TemporalTimeScale({ temporal: real as never }).ticks({ min: 0, max: DAY }, 5).length > 0, true);
+      if (real) assert.equal(new TemporalTimeScale({ temporal: real as never }).ticks({ min: 0, max: DAY }, 5).length > 0, true);
     } finally {
       (globalThis as { Temporal?: unknown }).Temporal = real;
     }

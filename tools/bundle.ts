@@ -1,7 +1,19 @@
 // The repository's bundler for tools and tests (Rolldown): one entry, either a file or source text that
 // has a place to resolve its imports from, bundled in memory.
-import { join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { rolldown } from 'rolldown';
+
+/** `import.meta` of a source file, written as where that file is from the bundle (so the repository can be anywhere, if it is whole). */
+function pin(code: string, id: string, bundleDir: string): string {
+  const at = (path: string) => `new URL(${JSON.stringify(relative(bundleDir, path) + (path.endsWith('/') ? '/' : ''))}, import.meta.url)`;
+  return code.replace(/import\.meta\.(url|dirname|filename)/g, (_, what: string) =>
+    what === 'url'
+      ? `${at(id)}.href`
+      : what === 'filename'
+        ? `${at(id)}.pathname`
+        : `${at(dirname(id) + '/')}.pathname.replace(/\\/$/, '')`,
+  );
+}
 
 // oxlint-disable-next-line eslint/no-control-regex -- an escape character is what colour codes start with
 const ANSI = /\u001b\[[0-9;]*m/g;
@@ -23,6 +35,8 @@ export type BundleOptions = {
   /** An import source: JSX is compiled to its automatic runtime. */
   jsx?: string;
   define?: Record<string, string>;
+  /** The folder the bundle will be written to: each file's `import.meta.url`, `dirname` and `filename` then keep pointing at the file, found from there. */
+  pinImportMeta?: string;
 };
 
 /** The bundle's code, and the bytes each module contributed to it. */
@@ -50,6 +64,8 @@ export async function bundle(o: BundleOptions): Promise<{ code: string; modules:
         {
           name: 'bundle-helper',
           resolveId: (id) => (Object.hasOwn(alias, id) ? alias[id] : o.contents !== undefined && id === entryId ? id : null),
+          transform: (code: string, id: string) =>
+            o.pinImportMeta !== undefined && /import\.meta\.(url|dirname|filename)/.test(code) ? pin(code, id, o.pinImportMeta) : null,
           load: (id) => (o.contents !== undefined && id === entryId ? { code: o.contents, moduleType: o.type ?? 'ts' } : null),
         },
       ],

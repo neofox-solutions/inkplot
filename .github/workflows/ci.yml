@@ -37,6 +37,14 @@ jobs:
         continue-on-error: true # a pull request from a fork has a read-only token and cannot comment
         with:
           file-coverage-mode: none
+      # The unit tests, bundled for the `runtimes` job below (the oldest Node, Deno and Bun, which cannot run Vitest).
+      - run: node tools/runtime-tests.ts
+      - uses: actions/upload-artifact@v7
+        with:
+          name: runtime-tests
+          path: out/runtime-tests
+          if-no-files-found: error
+          retention-days: 1
       # The tarballs a release would publish, so a packaging problem shows up on the pull request.
       - run: node tools/pack-scratch.mjs out/release
       - run: node tools/pack-skill-zip.mjs out/release/skill
@@ -50,3 +58,44 @@ jobs:
             playground.html
           if-no-files-found: error
           retention-days: 14
+
+  # The unit tests on the oldest runtime of each kind that the docs name (docs/guide/compatibility.md). Only the tests: no install,
+  # build, lint or browser. Each job sets up only its own runtime.
+  runtimes:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runtime: node, version: '16.0.0', run: node }
+          - { runtime: deno, version: '1.31.3', run: deno run -A } # the first Deno with `node:` imports, which the tests use
+          - { runtime: bun, version: '1.0.0', run: bun }
+    name: ${{ matrix.runtime }} ${{ matrix.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: src # the tests read their neighbours
+      - uses: actions/download-artifact@v8
+        with:
+          name: runtime-tests
+          path: out/runtime-tests
+      - if: matrix.runtime == 'node'
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.version }}
+      - if: matrix.runtime == 'deno'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ matrix.version }}
+      - if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ matrix.version }}
+      - run: |
+          failed=0
+          for f in out/runtime-tests/*.mjs; do
+            ${{ matrix.run }} "$f" > "$RUNNER_TEMP/out.txt" 2>&1 || { echo "::group::FAIL $f"; cat "$RUNNER_TEMP/out.txt"; echo "::endgroup::"; failed=1; }
+          done
+          exit $failed

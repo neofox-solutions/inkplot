@@ -83,7 +83,7 @@ test('brush', () => {
     assert(new RegExp(`height="${plane.rect.height.toFixed(2).replace(/\.?0+$/, '')}"`).test(rects()[0]!), `full height: ${rects()[0]}`);
     send('down', 0.8, 0.5, { buttons: 1 });
     send('up', 0.8, 0.5);
-    assert.equal(heard.at(-1), null);
+    assert.equal(heard[heard.length - 1], null);
     assert.equal(rects().length, 0);
     assert.equal(brush.selection, null);
   }
@@ -98,10 +98,10 @@ test('brush', () => {
     assert.notEqual(rects()[0], before, 'it moved with the axis');
     brush.select([{ axis: x, min: 1, max: 2 }]);
     chart.flush();
-    assert.equal(heard.at(-1)!.x!.min, 1);
+    assert.equal(heard[heard.length - 1]!.x!.min, 1);
     brush.clear();
     chart.flush();
-    assert.equal(heard.at(-1), null);
+    assert.equal(heard[heard.length - 1], null);
     assert.equal(rects().length, 0);
   }
 

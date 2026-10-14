@@ -52,6 +52,7 @@ export default defineConfig({
       'png-server:test': { command: 'vp test run tools/png-server.test.mjs', cache: false },
       'scratch:test': { command: 'vp test run tools/scratch.test.mjs', cache: false },
       'pack:test': { command: 'vp test run tools/pack.test.mjs', cache: false },
+      'runtime-tests': { command: 'node tools/runtime-tests.ts', cache: false },
       runtimes: { command: 'node tools/runtimes.ts', cache: false },
       size: { command: 'node tools/size.mjs --modules', cache: false },
       all: {

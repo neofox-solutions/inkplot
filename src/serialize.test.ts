@@ -2,6 +2,7 @@
 import { LinearCurve } from './curve.ts';
 import { lightTheme, darkTheme } from './themes.ts';
 import assert from 'node:assert/strict';
+import { hasOwn } from './attrs.ts';
 import { readdirSync, readFileSync } from 'node:fs';
 import * as L from './index.ts';
 import {
@@ -50,14 +51,13 @@ test('serialize', () => {
     }
     const missing = Object.entries(L)
       .filter(
-        ([name, v]) =>
-          typeof v === 'function' && v.prototype instanceof ChartElement && !abstract.has(name) && !Object.hasOwn(registry, name),
+        ([name, v]) => typeof v === 'function' && v.prototype instanceof ChartElement && !abstract.has(name) && !hasOwn(registry, name),
       )
       .map(([n]) => n);
     assert.deepEqual(missing, [], 'concrete classes missing from registry.ts');
     for (const [name, ctor] of Object.entries(registry))
       assert.equal((ctor as { name: string }).name, name, `${name} is registered under its own name`);
-    assert(abstract.has('Series') && !Object.hasOwn(registry, 'Series'));
+    assert(abstract.has('Series') && !hasOwn(registry, 'Series'));
   }
 
   const size = { width: 480, height: 320 };
@@ -181,7 +181,7 @@ test('serialize', () => {
     const opts = { refs: new Refs({ t: lightTheme }) };
     assert(fromJSON(ok, registry, opts) instanceof Chart);
     const at = (mutate: (j: ElementJSON) => void) => {
-      const j = structuredClone(ok);
+      const j = JSON.parse(JSON.stringify(ok)) as typeof ok;
       mutate(j);
       return () => fromJSON(j, registry, opts);
     };

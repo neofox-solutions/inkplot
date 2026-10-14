@@ -46,7 +46,8 @@ test('attrs', () => {
   assert.throws(() => expandAttributes(JSON.parse('{"x-__proto__":1}')), /not allowed/);
   assert.equal(({} as Record<string, unknown>).x, undefined, 'nothing leaked onto Object.prototype');
   // Names that exist on every object are ordinary names.
-  assert.deepEqual(expandAttributes({ 'constructor-toString': 1 }), { constructor: { toString: 1 } });
+  // (Compared as JSON: Deno's `deepEqual` before 2 reads an own `constructor` key as the object's class.)
+  assert.equal(JSON.stringify(expandAttributes({ 'constructor-toString': 1 })), '{"constructor":{"toString":1}}');
 
   // The hooks: names are resolved per part with the parts above them, values per full path.
   const seen: string[] = [];

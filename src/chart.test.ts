@@ -262,7 +262,7 @@ test('chart', () => {
     });
     const inside = { x: r.x + 10, y: r.y + 20 };
     assert.equal(platform.pointer!(at('move', inside.x, inside.y)), true, 'a claimed event is reported as handled');
-    assert.deepEqual(probe.seen.at(-1), { kind: 'move', x: 10, y: 20 });
+    assert.deepEqual(probe.seen[probe.seen.length - 1], { kind: 'move', x: 10, y: 20 });
     probe.seen.length = 0;
     assert.equal(platform.pointer!(at('move', 1, 1)), false, 'outside every plane: ignored');
     assert.deepEqual(probe.seen, [{ kind: 'leave', x: 1 - r.x, y: 1 - r.y }], 'the plane the pointer left is told');

@@ -81,11 +81,11 @@ test('input', () => {
     const before = a.pointer.length;
     platform.pointer!({ kind: 'move', x: 1, y: 1, buttons: 0, deltaY: 0, shift: false, ctrl: false });
     assert.equal(a.pointer.length, before + 1, 'the plane the pointer left is told');
-    assert.equal(a.pointer.at(-1), 'leave', 'it is told it left');
+    assert.equal(a.pointer[a.pointer.length - 1], 'leave', 'it is told it left');
     // A press holds the plane until it is released, even when the pointer goes elsewhere.
     send('down', { buttons: 1 });
     platform.pointer!({ kind: 'move', x: 1, y: 1, buttons: 1, deltaY: 0, shift: false, ctrl: false });
-    assert.equal(a.pointer.at(-1), 'move:outside', 'captured: still sent, flagged as outside');
+    assert.equal(a.pointer[a.pointer.length - 1], 'move:outside', 'captured: still sent, flagged as outside');
     send('up');
     // Keys and focus go to the owner of the node.
     const node = chart.platform!.createNode('g');
