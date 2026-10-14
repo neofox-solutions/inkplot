@@ -21,10 +21,19 @@
  * bar is measured against, so what is clicked is exactly what is drawn.
  */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
+import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
 import { f2 } from './geometry.ts';
 import type { HitMode } from './hit.ts';
 import type { PlatformNode } from './platform.ts';
-import { type AnchorSet, type PolygonSet, SeriesRenderer, type SeriesRendererAttributes, paintBox } from './renderer.ts';
+import {
+  type AnchorSet,
+  type PolygonSet,
+  SeriesRenderer,
+  type SeriesRendererAttributes,
+  type Spread,
+  type SpreadView,
+  paintBox,
+} from './renderer.ts';
 import type { Series } from './series.ts';
 import { notImplemented } from './stub.ts';
 import type { Surface } from './surface.ts';
@@ -41,6 +50,11 @@ export interface BarOptions {
   width?: number;
   /** The value bars grow from when there is no stack to say. Default 0. */
   baseline?: number;
+  /**
+   * The channel of the data that holds where each bar starts, for bars that float: a waterfall's steps, a candlestick's body
+   * (the series' value is where it ends). A row with no number there is a gap. A stack's own starts win; the baseline is not used.
+   */
+  from?: string;
 }
 
 /** Everything about a series' bars that does not depend on how they are drawn, in fractions of the axes. */
@@ -62,12 +76,15 @@ export function layoutBars(series: Series, options: BarOptions): BarLayout | nul
     first = series.firstAxis,
     second = series.secondAxis;
   const baseline = options.baseline ?? 0;
+  // The channels come last in a row, in the order of `channels`.
+  const fromAt = options.from === undefined ? -1 : d.channels.indexOf(options.from),
+    fromColumn = fromAt < 0 ? -1 : rs - d.channels.length + fromAt;
   const norm = new Float64Array(n * 3);
   for (let i = 0; i < n; i++) {
     const v = raw[i * rs + d.secondColumn]!,
       ok = Number.isFinite(v);
     norm[3 * i] = raw[i * rs + d.firstColumn]!;
-    norm[3 * i + 1] = ok ? (d.base ? d.base[i]! : baseline) : NaN;
+    norm[3 * i + 1] = ok ? (d.base ? d.base[i]! : fromColumn >= 0 ? raw[i * rs + fromColumn]! : baseline) : NaN;
     norm[3 * i + 2] = ok ? (d.top ? d.top[i]! : v) : NaN;
   }
   first.normalize(norm, n, 3, 0);
@@ -195,9 +212,35 @@ export interface BarRendererAttributes extends SeriesRendererAttributes, BarOpti
  * (`outline`) and how to draw it.
  */
 export abstract class BarRenderer<A extends BarRendererAttributes = BarRendererAttributes> extends SeriesRenderer<A> {
+  static override attrTypes = {
+    ...SeriesRenderer.attrTypes,
+    baseline: NUMBER,
+    from: STRING,
+    width: NUMBER,
+  } satisfies Partial<AttrTypesFor<BarRendererAttributes>>;
   protected abstract outline(): PolygonSet | null;
   override get includes(): readonly number[] {
-    return [this.attrs.baseline ?? 0];
+    return this.attrs.from === undefined ? [this.attrs.baseline ?? 0] : [];
+  }
+  override get channelNames(): readonly string[] {
+    return this.attrs.from === undefined ? [] : [this.attrs.from];
+  }
+  /** Floating bars start where their channel says, which the value axis has to reach as well as the ends. */
+  override spread(view: SpreadView): Spread | null {
+    const c = this.attrs.from === undefined ? -1 : view.channelColumn(this.attrs.from);
+    if (c < 0) return null;
+    let min = Infinity,
+      max = -Infinity;
+    for (let i = 0; i < view.count; i++) {
+      const v = view.raw[i * view.stride + c]!;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    return min <= max ? { second: { min, max } } : null;
+  }
+  override limit(series: Series): Spread | null {
+    const e = this.attrs.from === undefined ? null : series.data.channelExtent(this.attrs.from);
+    return e ? { second: e } : null;
   }
   /** Half of a bar's room: its width, in the gaps between points (a band's own bars fit it already). */
   override get spans(): number {

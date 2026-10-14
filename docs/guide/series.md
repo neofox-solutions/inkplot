@@ -116,15 +116,15 @@ Every renderer shares these attributes:
 |---|---|---|---|
 | `LinePath` | One path through the points. | a curve | A gap lifts the pen. |
 | `AreaPath` | The region between the line and a baseline. | a curve | `baseline` (default 0). No outline unless you give `stroke`. |
-| `BarPath` | One path holding every bar. | | `width`, `baseline`. The cost of a bar chart is its path text, not a node per bar. |
-| `BarLinePath` | Bars as stems: a stroked line from the foot to the value. | | `cap` (`butt`, `round`, `square`), `width`, `baseline`. The stem's width is the stroke's, so it stays the same however many bars there are: the answer for dense data. With a marker, a lollipop. |
+| `BarPath` | One path holding every bar. | | `width`, `baseline`, `from`. The cost of a bar chart is its path text, not a node per bar. |
+| `BarLinePath` | Bars as stems: a stroked line from the foot to the value. | | `cap` (`butt`, `round`, `square`), `width`, `baseline`, `from`. The stem's width is the stroke's, so it stays the same however many bars there are: the answer for dense data. With a marker, a lollipop. |
 | Markers | One small shape per point. | | See [Markers](#markers). |
 
 A series may have any number of renderers. They are drawn in order, so put an `AreaPath` before the `LinePath` that outlines it.
 
 ### Bars
 
-Bars sit on a [`BandScale`](axes.md#band-scales) (categories) or any numeric domain; they grow from `baseline` (default 0), and the value axis always reaches the baseline. `width` is the fraction of the room each bar fills (default: a band's own width, else 0.8). Bars say their hit mode is `'shape'` themselves, so a bar series needs no `hit` setting. On a polar plane a bar is a wedge.
+Bars sit on a [`BandScale`](axes.md#band-scales) (categories) or any numeric domain; they grow from `baseline` (default 0), and the value axis always reaches the baseline. `width` is the fraction of the room each bar fills (default: a band's own width, else 0.8). Bars say their hit mode is `'shape'` themselves, so a bar series needs no `hit` setting. `from` names a channel of the data that holds each bar's start, so bars can **float**: a [waterfall](../start/recipes.md#draw-a-waterfall-chart)'s steps, a [candlestick](../start/recipes.md#draw-a-candlestick-chart)'s body and wick (the value is where the bar ends, and the axis reaches both). It replaces the baseline for that renderer; a stack's own starts still win. On a polar plane a bar is a wedge.
 
 ```tsx live title="Bars as stems, and a lollipop" height=260
 import { Axis, BarLinePath, CartesianPlane, Chart, CircleMarker, DomainSeries, FlatDataSource, LinearScale, lightTheme } from 'inkplot';

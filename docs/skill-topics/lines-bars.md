@@ -31,6 +31,7 @@ Stacked or side by side: wrap several `DomainSeries` in `<Stack mode="stack">` (
 
 - `Stack` `mode`: `'stack'`, `'group'`, `'normalize'`, `'center'`.
 - `BarPath` bars start at `baseline` (default 0, and the axis includes it); the tallest bar touches the top of the plot, so add `padding={0.05}` (a fraction of the span) to the value `Axis` for headroom.
+- Floating bars (a waterfall's steps, a candlestick's body and wick): put each bar's start in a data channel and name it with `from="start"` on `BarPath` or `BarLinePath`; the series' value is the end. Draw one series per colour (a row of another kind has `NaN` for its value), a `StepCurve` line under the bars for connectors, and a `BarLinePath` from `low` to `high` under `BarPath` bodies from `open` to `close` for a candlestick. Both are worked in the recipes page.
 - Curves: `LinearCurve`, `MonotoneCurve`, `StepCurve`, `NaturalCurve`, `CardinalCurve`, `CatmullRomCurve`, `BasisCurve`, `BumpCurve`, `QuadraticCurve`, `ArcCurve`.
 - `hit` on a series: `'point'`, `'line'`, `'area'`, `'shape'` or `false`. `gaps`: `'break'` (default), `'connect'`, `'zero'`.
 
@@ -170,6 +171,7 @@ Bars, in one path.
 | `maxNodes` | `number` | Most paths this renderer may create. Default 1000. |
 | `width` | `number` | Fraction of the room each bar fills. Default: a band's own `bandwidth`, else 0.8. |
 | `baseline` | `number` | The value bars grow from when there is no stack to say. Default 0. |
+| `from` | `string` | The channel of the data that holds where each bar starts, for bars that float: a waterfall's steps, a candlestick's body (the series' value is where it ends). |
 
 ### BarLinePath
 
@@ -188,4 +190,5 @@ Bars drawn as stems.
 | `maxNodes` | `number` | Most paths this renderer may create. Default 1000. |
 | `width` | `number` | Fraction of the room each bar fills. Default: a band's own `bandwidth`, else 0.8. |
 | `baseline` | `number` | The value bars grow from when there is no stack to say. Default 0. |
+| `from` | `string` | The channel of the data that holds where each bar starts, for bars that float: a waterfall's steps, a candlestick's body (the series' value is where it ends). |
 <!-- api:end -->

@@ -27,7 +27,7 @@ import { type PolygonSet, SeriesRenderer, type SeriesRendererAttributes, type Sp
 import type { Series } from './series.ts';
 import type { Surface } from './surface.ts';
 
-export interface BoxPathAttributes extends Omit<SeriesRendererAttributes, 'bind'>, Omit<BarOptions, 'baseline'> {
+export interface BoxPathAttributes extends Omit<SeriesRendererAttributes, 'bind'>, Omit<BarOptions, 'baseline' | 'from'> {
   /** The channel of the lower whisker's end. Default 'min'. */
   low?: string;
   /** The channel of the first quartile (the foot of the box). Default 'q1'. */
