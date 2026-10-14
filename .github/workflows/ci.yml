@@ -36,5 +36,6 @@ jobs:
             out/release/inkplot-lib/inkplot/*.tgz
             out/release/inkplot-scratch/*.tgz
             out/release/skill/*.zip
+            playground.html
           if-no-files-found: error
           retention-days: 14

@@ -36,6 +36,10 @@ The same chart can be written without JSX (`new Chart(attrs, ...children)`), and
 
 [The longer version, with the numbers](https://github.com/neofox-solutions/inkplot/blob/main/docs/start/why-inkplot.md).
 
+## Try it
+
+Every release has `inkplot-playground-<version>.html` attached: one self-contained page, no server needed, with every feature and component live. Open it in a browser from the [latest release](https://github.com/neofox-solutions/inkplot/releases).
+
 ## Documentation
 
 - [Quick start](https://github.com/neofox-solutions/inkplot/blob/main/docs/start/quick-start.md): install, your first chart, and the three ways to write one.

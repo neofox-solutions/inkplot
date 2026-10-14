@@ -65,21 +65,27 @@ jobs:
           done
           echo "Staged. Approve each version on npmjs.com (Staged Packages), or: npm stage list <package>; npm stage approve <stage-id>" >> "$GITHUB_STEP_SUMMARY"
 
-  # The skill for Claude (Customize > Skills > Upload a skill) goes on the release page, whether or not the npm versions are approved yet.
-  skill:
+  # The files that go on the release page, whether or not the npm versions are approved yet: the skill for Claude
+  # (Customize > Skills > Upload a skill) and the self-contained playground page.
+  assets:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write # to attach the file to the release
+      contents: write # to attach the files to the release
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-      - name: Attach the skill zip to the release
+          cache: npm
+      - run: npm ci
+      - name: Attach the skill zip and the playground to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          version=$(node -p "require('./package.json').version")
           zip=$(node tools/pack-skill-zip.mjs out/skill)
-          gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
+          npm run playground
+          cp playground.html "out/inkplot-playground-$version.html"
+          gh release upload "$GITHUB_REF_NAME" "$zip" "out/inkplot-playground-$version.html" --clobber
