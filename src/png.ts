@@ -51,6 +51,7 @@ const browserHost = (): PngHost => ({
     }),
   canvas: (width, height) => {
     if (typeof OffscreenCanvas !== 'undefined') {
+      // oxlint-disable-next-line baseline-js/use-baseline -- feature-detected above: without OffscreenCanvas this draws on a canvas element
       const c = new OffscreenCanvas(width, height);
       // oxlint-disable-next-line typescript/consistent-type-assertions -- the canvas context is handed to the renderer as the one type it draws on
       return { context: c.getContext('2d') as never, blob: () => c.convertToBlob({ type: 'image/png' }) };

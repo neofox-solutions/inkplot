@@ -1,0 +1,8 @@
+{
+  // The library as it ships, held to the platform in docs/guide/compatibility.md: ES2021 built-ins (the syntax is ES2022),
+  // the DOM, and no Node types. Used by `vp run check`; the Baseline rule in vite.config.ts is the other half.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "lib": ["es2021", "dom", "dom.iterable"], "types": [] },
+  "include": ["src/*.ts"],
+  "exclude": ["src/*.test.ts", "src/fake-platform.ts"]
+}

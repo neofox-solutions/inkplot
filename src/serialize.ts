@@ -34,6 +34,7 @@
  * children are matched by position and type, replaced if the type changed. It works out everything first and changes
  * nothing if the JSON turns out to be unreadable, so a bad edit leaves the chart as it was.
  */
+import { hasOwn } from './attrs.ts';
 import { type AnyArgs, type AnyElement, ChartElement, fail } from './element.ts';
 
 /* oxlint-disable typescript/consistent-type-assertions -- reads untrusted JSON and arbitrary attribute values: each value is checked at runtime (`typeof`, `Array.isArray`, the registry) and then narrowed to the shape just checked */
@@ -262,7 +263,7 @@ function decode(v: unknown, path: string, refs: Refs | undefined): unknown {
 
 function lookup(type: unknown, registry: ElementRegistry, path: string): new (...args: AnyArgs) => AnyElement {
   if (typeof type !== 'string') fail(`${at(path)}every element needs a "type", the name of a class`);
-  if (!Object.hasOwn(registry, type)) {
+  if (!hasOwn(registry, type)) {
     const near = Object.keys(registry).filter(
       (n) => n.toLowerCase().includes(type.toLowerCase()) || type.toLowerCase().includes(n.toLowerCase()),
     );
@@ -308,7 +309,7 @@ function same(a: unknown, b: unknown): boolean {
   const ka = Object.keys(a),
     kb = Object.keys(b);
   if (ka.length !== kb.length) return false;
-  return ka.every((k) => Object.hasOwn(b, k) && same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+  return ka.every((k) => hasOwn(b, k) && same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
 }
 
 function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: (() => void)[]): void {
@@ -326,7 +327,7 @@ function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: 
     changed = true;
   }
   for (const key of Object.keys(have))
-    if (have[key] !== undefined && !Object.hasOwn(wantJson, key)) {
+    if (have[key] !== undefined && !hasOwn(wantJson, key)) {
       patch[key] = undefined;
       changed = true;
     }

@@ -1,5 +1,5 @@
 /** What the adapters (React, Web Components) share: writing only the attributes that differ. */
-import { expandAttributes } from './attrs.ts';
+import { expandAttributes, hasOwn } from './attrs.ts';
 
 type Plain = Record<string, unknown>;
 
@@ -11,7 +11,7 @@ export function same(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => same(v, b[i]));
   if (isPlain(a) && isPlain(b)) {
     const keys = Object.keys(a);
-    return keys.length === Object.keys(b).length && keys.every((k) => Object.hasOwn(b, k) && same(a[k], b[k]));
+    return keys.length === Object.keys(b).length && keys.every((k) => hasOwn(b, k) && same(a[k], b[k]));
   }
   return false;
 }

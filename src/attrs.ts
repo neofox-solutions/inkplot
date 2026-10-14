@@ -17,6 +17,9 @@
 import type { AnyElement } from './element.ts';
 import type { Theme } from './theme.ts';
 
+/** Whether `key` is the object's own (`Object.hasOwn`, which is a year newer than the rest of what the library uses). */
+export const hasOwn = (o: object, key: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(o, key);
+
 /** How an HTML attribute's text becomes a value. AUTO: `true`/`false` and numbers convert, `[…]` and `{…}` are JSON, the rest is text. */
 export const AUTO = 0;
 /** Always text: titles, names, ids, colours. Needed wherever the text might look like a number or a boolean. */
@@ -116,7 +119,7 @@ export function expandAttributes(flat: Readonly<Obj>, options: ExpandOptions = {
     for (let i = 0; i < path.length - 1; i++) {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
       const name = path[i]!;
-      const have = Object.hasOwn(at, name) ? at[name] : undefined;
+      const have = hasOwn(at, name) ? at[name] : undefined;
       if (have === undefined) {
         const next: Obj = {};
         made.add(next);
@@ -132,7 +135,7 @@ export function expandAttributes(flat: Readonly<Obj>, options: ExpandOptions = {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
     const last = path[path.length - 1]!;
     const value = options.value ? options.value(path, flat[key]) : flat[key];
-    if (Object.hasOwn(at, last)) {
+    if (hasOwn(at, last)) {
       // An attribute given as `undefined` means "not set", so it never conflicts with the same key given nested.
       if (value === undefined) continue;
       const have = at[last];

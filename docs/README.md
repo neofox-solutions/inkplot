@@ -61,6 +61,7 @@ One page per part of the library, from the user's point of view.
 | [Serialization](guide/serialization.md) | Charts as JSON: `toJSON`, `fromJSON`, `applyJSON`, `Refs`. |
 | [Rendering](guide/rendering.md) | Platforms, scheduling, SVG on a server, text measurement, testing. |
 | [Performance and bundle size](guide/performance.md) | What a feature costs; how to keep charts fast. |
+| [Browsers and runtimes](guide/compatibility.md) | What a platform needs: Chrome, Firefox, Safari, Node, Deno, Bun. |
 
 ## Extending
 

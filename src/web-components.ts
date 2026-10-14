@@ -125,7 +125,10 @@ function convert(text: string, kind: Coerce, name: string): unknown {
         try {
           return JSON.parse(text);
         } catch (cause) {
-          throw new TypeError(`attribute '${name}': '${text}' is not valid JSON`, { cause });
+          // (The `cause` option of `Error` is a year newer than the rest of what the library uses.)
+          const error = new TypeError(`attribute '${name}': '${text}' is not valid JSON`);
+          Object.defineProperty(error, 'cause', { value: cause, writable: true, configurable: true });
+          throw error;
         }
       }
       return text;

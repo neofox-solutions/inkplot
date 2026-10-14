@@ -29,7 +29,7 @@ export default defineConfig({
   run: {
     // `vp run all` is everything CI runs. Tasks that write files, need a browser, or reach the network are not cached.
     tasks: {
-      check: { command: 'tsc -p .' },
+      check: { command: ['tsc -p .', 'tsc -p tsconfig.lib.json'] },
       lint: {
         command: [
           'vp lint --deny-warnings --report-unused-disable-directives src scratch/src tools *.mjs *.ts',
@@ -52,6 +52,7 @@ export default defineConfig({
       'png-server:test': { command: 'vp test run tools/png-server.test.mjs', cache: false },
       'scratch:test': { command: 'vp test run tools/scratch.test.mjs', cache: false },
       'pack:test': { command: 'vp test run tools/pack.test.mjs', cache: false },
+      runtimes: { command: 'node tools/runtimes.ts', cache: false },
       size: { command: 'node tools/size.mjs --modules', cache: false },
       all: {
         command: 'echo all green',
@@ -99,16 +100,15 @@ export default defineConfig({
   },
   lint: {
     options: { typeAware: true },
+    // The platform the library may assume (see docs/extending/platforms.md): nothing newer than Baseline 2021 in what ships.
+    jsPlugins: ['eslint-plugin-baseline-js'],
     plugins: ['typescript', 'unicorn', 'oxc'],
     categories: {
       correctness: 'error',
       suspicious: 'warn',
     },
-    env: {
-      browser: true,
-      node: true,
-      es2022: true,
-    },
+    // No `env` here: with globals declared, the Baseline rule takes `Object` and `OffscreenCanvas` for the program's own names and
+    // sees nothing. The library is checked without one (TypeScript knows its globals); everything else is given them below.
     ignorePatterns: ['out/**', 'coverage/**', 'types/**', 'shots/**', 'node_modules/**', 'playground.html'],
     rules: {
       'typescript/no-explicit-any': 'error',
@@ -144,6 +144,19 @@ export default defineConfig({
     },
     overrides: [
       {
+        files: ['src/*.test.ts', 'src/*.check.tsx', 'src/fake-platform.ts', 'tools/**', 'scratch/**', '*.mjs', '*.ts'],
+        env: { browser: true, node: true, es2022: true },
+      },
+      {
+        files: ['src/*.ts'],
+        rules: {
+          'baseline-js/use-baseline': [
+            'error',
+            { available: 2021, includeWebApis: { preset: 'auto' }, includeJsBuiltins: { preset: 'auto' } },
+          ],
+        },
+      },
+      {
         files: ['src/*.check.tsx'],
         rules: {
           'eslint/no-constant-binary-expression': 'off',
@@ -153,6 +166,7 @@ export default defineConfig({
         files: ['**/*.test.ts', 'src/*.check.tsx', 'src/fake-platform.ts', 'tools/**'],
         rules: {
           'typescript/no-non-null-assertion': 'off',
+          'baseline-js/use-baseline': 'off',
           'typescript/consistent-type-assertions': 'off',
         },
       },
