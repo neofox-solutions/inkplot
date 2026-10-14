@@ -30,5 +30,12 @@ try {
   assert.equal(tool.version, lib.version);
   assert.equal(tool.dependencies.inkplot, lib.version);
   assert.ok(toolFiles.has('bin.mjs') && toolFiles.has('LICENSE'));
+  // The skill upload: one folder named as the skill is, with its SKILL.md.
+  const skillZip = execFileSync(process.execPath, [join(root, 'tools/pack-skill-zip.mjs'), join(out, 'skill-zip')]).toString().trim();
+  const entries = execFileSync('unzip', ['-Z1', skillZip]).toString().split('\n').filter(Boolean);
+  const skillMd = execFileSync('unzip', ['-p', skillZip, 'inkplot-data-charts/SKILL.md']).toString();
+  assert.deepEqual(entries.filter((e) => !e.endsWith('/')), ['inkplot-data-charts/SKILL.md']);
+  assert.match(skillMd, /^---\nname: inkplot-data-charts\ndescription: .+\n---\n/);
+  assert.match(skillZip, new RegExp(`inkplot-data-charts-${lib.version.replaceAll('.', '\\.')}\\.zip$`));
   console.log(`ok pack (inkplot ${lib.version}: ${have.size} files, inkplot-scratch: ${toolFiles.size} files)`);
 } finally { rmSync(out, { recursive: true, force: true }); }

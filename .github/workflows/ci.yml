@@ -28,11 +28,13 @@ jobs:
       - run: npm run all
       # The tarballs a release would publish, so a packaging problem shows up on the pull request.
       - run: node tools/pack-scratch.mjs out/release
+      - run: node tools/pack-skill-zip.mjs out/release/skill
       - uses: actions/upload-artifact@v7
         with:
           name: tarballs
           path: |
             out/release/inkplot-lib/inkplot/*.tgz
             out/release/inkplot-scratch/*.tgz
+            out/release/skill/*.zip
           if-no-files-found: error
           retention-days: 14

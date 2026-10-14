@@ -36,7 +36,7 @@ The same chart can be written without JSX (`new Chart(attrs, ...children)`), and
 
 ## inkplot-scratch
 
-`inkplot-scratch` is a command-line tool for turning a module that exports inkplot charts into SVG, PNG, JSON facts or a single-file interactive HTML page, with a skill for agents doing data work. See [scratch/](https://github.com/neofox-solutions/inkplot/tree/main/scratch).
+`inkplot-scratch` is a command-line tool for turning a module that exports inkplot charts into SVG, PNG, JSON facts or a single-file interactive HTML page, with a skill for agents doing data work. To use it in Claude, download `inkplot-data-charts-<version>.zip` from the [latest release](https://github.com/neofox-solutions/inkplot/releases) and upload it under Customize → Skills. See [scratch/](https://github.com/neofox-solutions/inkplot/tree/main/scratch).
 
 ## Developing
 
