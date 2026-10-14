@@ -1,8 +1,9 @@
 name: Publish
 
-# Publishes `inkplot` and `inkplot-scratch` to npm when a GitHub release is published.
+# Stages `inkplot` and `inkplot-scratch` on npm when a GitHub release is published (`npm stage publish`); nothing goes live until
+# a maintainer approves each staged version on npmjs.com (or with `npm stage approve <id>`), which asks for 2FA.
 # Authentication is npm Trusted Publishing (OIDC): there is no npm token. Each package must have a trusted publisher
-# configured on npmjs.com for this repository, workflow `publish.yml`, and environment `npm`.
+# configured on npmjs.com for this repository, workflow `publish.yml`, and environment `npm`, with `npm stage publish` allowed.
 on:
   release:
     types: [published]
@@ -44,17 +45,22 @@ jobs:
           node-version: 26
           cache: npm
           registry-url: https://registry.npmjs.org
-      # Trusted Publishing needs npm 11.5.1 or later.
+      # `npm stage publish` needs npm 11.15.0 or later.
       - run: |
           npm --version
-          [ "$(printf '%s\n' 11.5.1 "$(npm --version)" | sort -V | head -n1)" = 11.5.1 ] || npm install -g npm@latest
+          [ "$(printf '%s\n' 11.15.0 "$(npm --version)" | sort -V | head -n1)" = 11.15.0 ] || npm install -g npm@latest
       - run: npm ci
       - run: node tools/pack-scratch.mjs out/release
-      - name: Publish
+      - name: Stage
         run: |
           # A prerelease (1.0.0-beta.1) goes under its own tag, so `npm install inkplot` stays on the last stable release.
           version=$(node -p "require('./package.json').version")
           case "$version" in *-*) tag=$(echo "${version#*-}" | cut -d. -f1 | tr -d '0-9') ; tag=${tag:-next} ;; *) tag=latest ;; esac
-          echo "publishing $version with tag $tag"
-          npm publish out/release/inkplot-lib/inkplot/inkplot-*.tgz --tag "$tag" --access public
-          npm publish out/release/inkplot-scratch/inkplot-scratch-*.tgz --tag "$tag" --access public
+          echo "staging $version with tag $tag"
+          # The packer leaves its tarball in each package folder; staging packs the folder again, so take the tarball out first.
+          # inkplot goes first: inkplot-scratch depends on exactly that version.
+          for dir in out/release/inkplot-lib/inkplot out/release/inkplot-scratch; do
+            rm -f "$dir"/*.tgz
+            (cd "$dir" && npm stage publish --tag "$tag" --access public)
+          done
+          echo "Staged. Approve each version on npmjs.com (Staged Packages), or: npm stage list <package>; npm stage approve <stage-id>" >> "$GITHUB_STEP_SUMMARY"
