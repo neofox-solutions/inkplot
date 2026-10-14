@@ -5007,7 +5007,17 @@ demos.push({
         notes,
       );
     };
-    const piePlane = () => L.pie(slices, { innerRadius: S.hole, label: (slice, fraction) => `${slice.name} ${share.format(fraction)}` });
+    const piePlane = () => {
+      // pieChart makes a whole chart; this demo swaps planes in one chart, so take the plane out of it.
+      const made = L.pieChart(slices, {
+        theme: chartTheme(),
+        innerRadius: S.hole,
+        label: (slice, fraction) => `${slice.name} ${share.format(fraction)}`,
+      });
+      const plane = [...made][0];
+      made.remove(plane);
+      return plane;
+    };
     let shown = barsPlane();
     const chart = new L.Chart({ theme: chartTheme(), padding: 60, onFlush: ctx.onFlush }, shown);
     const read = ui.readout();
@@ -5026,7 +5036,7 @@ demos.push({
         label: 'chart',
         options: [
           ['bars', 'bars'],
-          ['pie', 'pie()'],
+          ['pie', 'pieChart()'],
         ],
         value: S.view,
         onChange: (v) => {

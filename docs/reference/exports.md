@@ -25,8 +25,9 @@ The element classes (with every attribute) are in the [attribute reference](api.
 
 | Export | Is |
 |---|---|
-| `lineSeries(source, options?)` | A `DomainSeries` with a `LinePath` (and optionally a marker, a decimator and a curve) in one call. |
-| `pie(slices, options?)` | A `PolarPlane` for a pie or doughnut, built from the plane, axes, a normalized `Stack` and `PointAnnotations` (a [convenience](../start/recipes.md#the-pie-shortcut)). |
+| `lineChart(series, options)` | A whole `Chart` of lines, with the plane and axes (optionally markers, a decimator and a curve), in one call. See [Chart shortcuts](../guide/series.md#chart-shortcuts). |
+| `barChart(series, options)` | A whole `Chart` of bars, with stacking and an axis swap as options. |
+| `pieChart(slices, options)` | A whole `Chart` for a pie or doughnut, built from the polar plane, axes, a normalized `Stack` and `PointAnnotations` (a [convenience](../start/recipes.md#the-piechart-shortcut)). |
 | `moveView(axis, range)`, `parseEasing(css)` | Ease an axis to a view range (or back to the data's, with `null`) as the chart's `transition` says; and a CSS timing function as `(t) => progress`. See [Transitions](../guide/transitions.md#moving-the-view). |
 | `DataSource`, `DataTransform` | Bases for [a source and a transform of your own](../extending/custom-data-and-scales.md). |
 | `PointBuffer`, `PlanContext`, `FillPlan`, `FillResult` | Types of the data contract. |

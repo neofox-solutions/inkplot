@@ -20,7 +20,7 @@ import {
   LttbKernel,
   StrideKernel,
   StringPlatform,
-  lineSeries,
+  lineChart,
   type DecimationKernel,
   type PointView,
   type Extent,
@@ -273,26 +273,24 @@ test('decimation', () => {
 
   // The one-call form.
   {
-    const t = new Axis({ orientation: 'bottom' }, new LinearScale());
-    const l = new Axis({ orientation: 'left' }, new LinearScale());
     const src = new FlatDataSource({ data: big.data, regularDomain: big.regularDomain!, count: N });
-    const chart = new Chart(
-      { theme: lightTheme, width: 640, height: 360 },
-      new CartesianPlane({}, t, l, lineSeries(src, { stroke: 'teal', decimate: M4Kernel })),
-    );
+    const chart = lineChart(src, { theme: lightTheme, width: 640, height: 360, stroke: 'teal', decimate: M4Kernel });
     chart.attach(new StringPlatform({ width: 640, height: 360 }));
     assert(chart.flush().pointsDrawn <= 4 * 640 + 4);
   }
 
   // The marker class and its stroke.
   {
-    const t = new Axis({ orientation: 'bottom' }, new LinearScale());
-    const l = new Axis({ orientation: 'left' }, new LinearScale());
     const src = new FlatDataSource({ data: big.data, regularDomain: big.regularDomain!, count: N });
-    const chart = new Chart(
-      { theme: lightTheme, width: 640, height: 360 },
-      new CartesianPlane({}, t, l, lineSeries(src, { stroke: 'teal', marker: CircleMarker, markerStroke: 'red', decimate: M4Kernel })),
-    );
+    const chart = lineChart(src, {
+      theme: lightTheme,
+      width: 640,
+      height: 360,
+      stroke: 'teal',
+      marker: CircleMarker,
+      markerStroke: 'red',
+      decimate: M4Kernel,
+    });
     const platform = new StringPlatform({ width: 640, height: 360 });
     chart.attach(platform);
     chart.flush();

@@ -133,11 +133,20 @@ const SCENARIOS = [
     chartKids: ['c', 'new ColorKey({ dimension: c })'],
   },
   {
-    name: 'The `pie` shortcut (a doughnut with labels; replaces the whole chart)',
-    imports: ['pie'],
-    out: `return toSvgString(new Chart({ theme: lightTheme }, pie([{ name: 'a', value: 1 }, { name: 'b', value: 2 }], { label: (s) => s.name })));`,
+    name: 'The `pieChart` shortcut (a doughnut with labels; replaces the whole chart)',
+    imports: ['pieChart'],
+    out: `return toSvgString(pieChart([{ name: 'a', value: 1 }, { name: 'b', value: 2 }], { theme: lightTheme, label: (s) => s.name }));`,
   },
-  { name: 'The `lineSeries` shortcut (replaces DomainSeries + LinePath)', imports: ['lineSeries'], series: `lineSeries(${FLAT})` },
+  {
+    name: 'The `lineChart` shortcut (replaces the whole chart)',
+    imports: ['lineChart'],
+    out: `return toSvgString(lineChart(${FLAT}, { theme: lightTheme }));`,
+  },
+  {
+    name: 'The `barChart` shortcut (replaces the whole chart)',
+    imports: ['barChart'],
+    out: `return toSvgString(barChart(${FLAT}, { theme: lightTheme, categories: ['a'] }));`,
+  },
   {
     name: 'Kitchen sink: every feature above in one chart',
     imports: [

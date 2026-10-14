@@ -1,10 +1,12 @@
 /**
- * A shortcut for a pie or doughnut chart. Like `lineSeries`, it only composes public classes (a polar plane, a normalized
+ * A shortcut for a pie or doughnut chart. Like `lineChart`, it only composes public classes (a polar plane, a normalized
  * stack of one-bar series, and optionally a `PointAnnotations` for each slice), so everything it does can be done, and
  * tuned, with the elements themselves: see the ring-chart recipe. It exists for convenience, not for any ability the
  * elements lack, and a bundle that never calls it carries none of it.
  */
 import { Axis } from './axis.ts';
+import { Chart } from './chart.ts';
+import type { ChartShortcutOptions } from './shortcut.ts';
 import { BarPath } from './bars.ts';
 import { FlatDataSource } from './sources.ts';
 import { fail } from './element.ts';
@@ -23,7 +25,7 @@ export interface Slice {
   color?: string;
 }
 
-export interface PieOptions {
+export interface PieChartOptions extends ChartShortcutOptions {
   /** The fraction of the radius left empty in the middle, which makes a doughnut. Default 0. */
   innerRadius?: number;
   /** Radians clockwise from twelve o'clock where the first slice starts. Default 0. */
@@ -37,17 +39,16 @@ export interface PieOptions {
 }
 
 /**
- * A pie (or, with `innerRadius`, a doughnut) in one call: put it in a `Chart`, with a `Legend` if you want one. It is
- * a `PolarPlane` holding the two hidden axes, a normalized `Stack` of one series per slice, and a `PointAnnotations`
- * for each if there is a `label`.
+ * A pie (or, with `innerRadius`, a doughnut) in one call: a `Chart` holding a `PolarPlane` with the two hidden axes, a
+ * normalized `Stack` of one series per slice, and a `PointAnnotations` for each if there is a `label`. Add a `Legend` in `extras`.
  */
-export function pie(slices: readonly Slice[], options: PieOptions = {}): PolarPlane {
+export function pieChart(slices: readonly Slice[], options: PieChartOptions): Chart {
   let total = 0;
   for (const s of slices) {
-    if (!(s.value >= 0)) fail(`pie: the value of "${s.name}" must be a number that is not negative, not ${s.value}`);
+    if (!(s.value >= 0)) fail(`pieChart: the value of "${s.name}" must be a number that is not negative, not ${s.value}`);
     total += s.value;
   }
-  const { innerRadius, startAngle, label } = options;
+  const { innerRadius, startAngle, label, extras, ...chartAttributes } = options;
   const share = new Axis({ orientation: 'angle', min: 0, max: 1, visible: false }, new LinearScale());
   const ring = new Axis({ orientation: 'radius', visible: false }, new BandScale({ categories: [''] }));
   const parts = slices.map((slice) => ({ slice, bar: new BarPath(slice.color === undefined ? {} : { fill: slice.color }) }));
@@ -70,15 +71,19 @@ export function pie(slices: readonly Slice[], options: PieOptions = {}): PolarPl
           }),
       )
     : [];
-  return new PolarPlane(
-    {
-      gridlines: false,
-      ...(innerRadius !== undefined && { innerRadius }),
-      ...(startAngle !== undefined && { startAngle }),
-    },
-    share,
-    ring,
-    new Stack({ mode: 'normalize' }, ...series),
-    ...notes,
+  return new Chart(
+    chartAttributes,
+    new PolarPlane(
+      {
+        gridlines: false,
+        ...(innerRadius !== undefined && { innerRadius }),
+        ...(startAngle !== undefined && { startAngle }),
+      },
+      share,
+      ring,
+      new Stack({ mode: 'normalize' }, ...series),
+      ...notes,
+    ),
+    ...(extras ?? []),
   );
 }

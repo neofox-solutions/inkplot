@@ -326,8 +326,10 @@ export { type PointAnnotationsAttributes, PointAnnotations, type PointWords } fr
 export { LINE_HEIGHT, measureBlock, paintLines } from './text.ts';
 export { type ElementJSON, type ElementRegistry, Refs, type SerializeOptions, applyJSON, fromJSON, toJSON } from './serialize.ts';
 export { registry } from './registry.ts';
-export { type LineSeriesOptions, lineSeries } from './simple.ts';
-export { type PieOptions, type Slice, pie } from './pie.ts';
+export { type LineChartOptions, lineChart } from './simple.ts';
+export type { ChartShortcutOptions, SeriesInput } from './shortcut.ts';
+export { type BarChartOptions, barChart } from './barchart.ts';
+export { type PieChartOptions, type Slice, pieChart } from './pie.ts';
 export { type MoveViewOptions, moveView, parseEasing } from './viewtween.ts';
 export {
   AUTO,

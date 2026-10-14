@@ -571,24 +571,51 @@ console.log(wave.fit?.period, wave.fit?.amplitude);
 
 `fit` has `n` (the points used), `r2` (the share of the variance explained), `rmse`, and what the kind knows: `coefficients` (a line's `[intercept, slope]`; a polynomial's, lowest power first, in the scaled position `u = (x - center) / scale`; a sinusoid's `[offset, a, b]`), `period`, `amplitude`, or a loess line's `bandwidth`. Points with a gap are left out of the fit. To get the line as a table, see [the recipe](../start/recipes.md#export-the-chart-as-a-table). The channels `lower` and `upper` for a confidence band are not there yet; the fit leaves room for them.
 
-## `lineSeries`
+## Chart shortcuts
 
-For the most common series (a line, perhaps with markers and decimation) there is one call that builds the elements for you:
+For the most common charts there is one call that builds the whole `Chart` for you: `lineChart`, `barChart` and (for [pies](../start/recipes.md#the-piechart-shortcut)) `pieChart`. Each takes the series and the options, and **the options are the `Chart`'s own attributes** (`theme` is required, as for a `Chart`) **plus a few of its own**:
 
-```ts check title="The lineSeries shortcut"
-import { CircleMarker, FlatDataSource, MinMaxKernel, MonotoneCurve, lineSeries } from 'inkplot';
+```ts check title="The lineChart shortcut"
+import { CircleMarker, ChartTitle, FlatDataSource, Legend, MinMaxKernel, MonotoneCurve, darkTheme, lineChart } from 'inkplot';
 
-const source = new FlatDataSource({ data: new Float64Array(10000), regularDomain: { start: 0, step: 1 } });
-export const series = lineSeries(source, {
-  stroke: '#2a6fdb',
-  strokeWidth: 2,
-  curve: new MonotoneCurve(),
-  marker: CircleMarker,        // the class, not an instance
-  decimate: MinMaxKernel,      // likewise
-});
+const data = (n: number) => new FlatDataSource({ data: new Float64Array(n), regularDomain: { start: 0, step: 1 } });
+export const chart = lineChart(
+  [
+    { name: 'Sensor A', source: data(10000) },
+    { name: 'Sensor B', source: data(10000), color: '#d4492e' },
+  ],
+  {
+    theme: darkTheme,
+    height: 320,
+    strokeWidth: 2,
+    curve: new MonotoneCurve(),
+    marker: CircleMarker,        // the class, not an instance
+    decimate: MinMaxKernel,      // likewise
+    domainAxis: { title: 'Time' },
+    valueAxis: { title: 'Level' },
+    extras: [new Legend({}), new ChartTitle({ text: 'Sensors' })],
+  },
+);
 ```
 
-It composes only public classes (a series, a renderer, optionally a decimator and a marker), so everything it does can be done, and tuned, with the elements themselves. Marker and kernel are passed as **classes** so that the shortcut only refers to what you give it: a bundle that never decimates carries no kernel. In React, the shortcuts make ordinary elements, so build the chart with them outside the render and show it with `ChartView` ([Frameworks](frameworks.md#react)).
+A series is a data source, or `{ source, name, color }` (the name is what a legend shows). A list is several series on one plane. `extras` holds the chart's other children (a legend, a title, a cursor), given as elements so that the shortcut refers only to what you use. A source belongs to one chart, so build a fresh one for each.
+
+`barChart` is the same for bars. Give it the `categories` (one label per row of the data), and say how several series sit together with `stack` (`'group'` side by side, the default; `'stack'`; `'normalize'` to 100%; `'center'`), and `horizontal: true` to run the bars sideways:
+
+```ts check title="The barChart shortcut"
+import { FlatDataSource, Legend, barChart, lightTheme } from 'inkplot';
+
+const rows = (data: number[]) => new FlatDataSource({ data, regularDomain: { start: 0, step: 1 } });
+export const chart = barChart(
+  [
+    { name: 'Online', source: rows([4, 7, 5, 9]) },
+    { name: 'In store', source: rows([6, 3, 6, 4]) },
+  ],
+  { theme: lightTheme, categories: ['Q1', 'Q2', 'Q3', 'Q4'], stack: 'stack', horizontal: true, extras: [new Legend({})] },
+);
+```
+
+They are **a convenience, not a capability**. They compose only public classes (a plane, two axes, series, a renderer, a stack, optionally a decimator and a marker), so everything they do can be done, and tuned, with the elements themselves, and a bundle that never calls one carries none of it. Markers and kernels are passed as **classes** for the same reason. `lineChart` also takes `domainScale` and `valueScale` (a time axis is `domainScale: new IntlTimeScale()`), and `barChart` a band `gap`. Because they return a `Chart`, they go straight into `ChartView` in React ([Frameworks](frameworks.md#react)), or onto a page with `chart.attach(...)`.
 
 ## What a series can be asked
 
