@@ -58,7 +58,7 @@ One page per part of the library, from the user's point of view.
 | [Styling](guide/styling.md) | Themes, selectors, `style` blocks, palettes, dark mode. |
 | [Accessibility](guide/accessibility.md) | `meta`, summaries, keyboard, announcements. |
 | [JSX, React and Web Components](guide/frameworks.md) | The adapters. |
-| [AI agents](guide/ai-agents.md) | Install the inkplot skills in Claude, ChatGPT, Codex, VS Code, Cursor and Gemini CLI. |
+| [AI agents](guide/ai-agents.md) | Install the inkplot skills in Claude, ChatGPT, Codex, VS Code, Cursor and Gemini CLI, with `npx inkplot install-skill`. |
 | [Serialization](guide/serialization.md) | Charts as JSON: `toJSON`, `fromJSON`, `applyJSON`, `Refs`. |
 | [Rendering](guide/rendering.md) | Platforms, scheduling, SVG on a server, text measurement, testing. |
 | [Performance and bundle size](guide/performance.md) | What a feature costs; how to keep charts fast. |

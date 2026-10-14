@@ -1,8 +1,8 @@
 // The tarballs a release publishes: every file an `exports` entry points at is in it, the metadata npm shows is present, and the two
 // packages agree on a version. Run on its own: node tools/pack.test.mjs
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,18 +56,81 @@ test('pack', () => {
     assert.equal(tool.version, lib.version);
     assert.equal(tool.dependencies.inkplot, lib.version);
     assert.ok(toolFiles.has('bin.mjs') && toolFiles.has('LICENSE'));
-    // The skill upload: one folder named as the skill is, with its SKILL.md.
-    // Given a relative folder, as CI does, from the repository root.
-    const skillZip = execFileSync(process.execPath, ['tools/pack-skill-zip.mjs', 'out/pack-test-skill'], { cwd: root }).toString().trim();
-    assert.equal(skillZip, join(root, 'out/pack-test-skill', `inkplot-data-charts-${lib.version}.zip`));
-    const entries = execFileSync('unzip', ['-Z1', skillZip]).toString().split('\n').filter(Boolean);
-    const skillMd = execFileSync('unzip', ['-p', skillZip, 'inkplot-data-charts/SKILL.md']).toString();
-    assert.deepEqual(
-      entries.filter((e) => !e.endsWith('/')),
-      ['inkplot-data-charts/SKILL.md'],
+    // The command and the skills it installs.
+    assert.deepEqual(lib.bin, { inkplot: './bin.mjs' });
+    for (const f of [
+      'bin.mjs',
+      'skill/inkplot/SKILL.md',
+      'skill/inkplot/topics/axes.md',
+      'skill/inkplot/reference/exports.md',
+      'skill/inkplot-data-charts/SKILL.md',
+    ])
+      assert.ok(have.has(f), `inkplot: ${f} is missing`);
+    const stamped = (path) => execFileSync('tar', ['-xzOf', inkplotTgz, `package/${path}`]).toString();
+    for (const f of ['skill/inkplot/SKILL.md', 'skill/inkplot-data-charts/SKILL.md']) {
+      assert.match(
+        stamped(f),
+        new RegExp(
+          `^---\\nname: [a-z-]+\\ndescription: .+\\nmetadata:\\n  generator: inkplot\\n  version: "${lib.version.replaceAll('.', '\\.')}"\\n---\\n`,
+        ),
+        f,
+      );
+      assert.ok(!stamped(f).includes('{{version}}'), `${f}: a version marker is left unfilled`);
+    }
+    assert.ok(![...have].some((f) => f.startsWith('skill/') && /\.(tsx|jsx)\b/.test(f)));
+    assert.ok(
+      !/<(Chart|CartesianPlane)\b/.test(stamped('skill/inkplot/SKILL.md')),
+      'the shipped library skill is plain TypeScript, not JSX',
     );
-    assert.match(skillMd, /^---\nname: inkplot-data-charts\ndescription: .+\n---\n/);
-    assert.match(skillZip, new RegExp(`inkplot-data-charts-${lib.version.replaceAll('.', '\\.')}\\.zip$`));
+    // Run the packed command from where npx would: it lists the tools, installs, and reports the version.
+    const ws = mkdtempSync(join(tmpdir(), 'inkplot-bin-'));
+    try {
+      execFileSync('tar', ['-xzf', inkplotTgz, '-C', ws]);
+      const bin = join(ws, 'package/bin.mjs');
+      const cli = (args) => spawnSync(process.execPath, [bin, ...args], { cwd: ws, env: { ...process.env, HOME: ws }, encoding: 'utf8' });
+      assert.equal(cli(['--version']).stdout.trim(), lib.version);
+      const bare = cli([]);
+      assert.equal(bare.status, 2);
+      assert.match(bare.stderr, /install-skill/);
+      assert.match(cli(['install-skill']).stderr, /Tools:[\s\S]*claude-code[\s\S]*Options:/);
+      const installed = cli(['install-skill', 'claude-code', '--all']);
+      assert.equal(installed.status, 0, installed.stderr);
+      assert.match(installed.stdout, new RegExp(`installed inkplot ${lib.version.replaceAll('.', '\\.')} at \\.claude/skills/inkplot`));
+      for (const f of ['inkplot/SKILL.md', 'inkplot/topics/axes.md', 'inkplot-data-charts/SKILL.md'])
+        assert.ok(existsSync(join(ws, '.claude/skills', f)), f);
+      assert.match(cli(['install-skill', 'claude-code', '--all']).stdout, /already installed/);
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+    // The skill uploads: a zip per skill, each holding one folder named as the skill is, marked with the version.
+    // Given a relative folder, as CI does, from the repository root.
+    const zips = execFileSync(process.execPath, ['tools/pack-skill-zip.mjs', 'out/pack-test-skill'], { cwd: root })
+      .toString()
+      .trim()
+      .split('\n');
+    assert.deepEqual(zips, [
+      join(root, 'out/pack-test-skill', `inkplot-data-charts-${lib.version}.zip`),
+      join(root, 'out/pack-test-skill', `inkplot-skill-${lib.version}.zip`),
+    ]);
+    const filesIn = (zip) =>
+      execFileSync('unzip', ['-Z1', zip])
+        .toString()
+        .split('\n')
+        .filter((e) => e && !e.endsWith('/'));
+    assert.deepEqual(filesIn(zips[0]), ['inkplot-data-charts/SKILL.md']);
+    const skillMd = execFileSync('unzip', ['-p', zips[0], 'inkplot-data-charts/SKILL.md']).toString();
+    assert.match(skillMd, /^---\nname: inkplot-data-charts\ndescription: .+\nmetadata:\n  generator: inkplot\n  version: ".+"\n---\n/);
+    assert.ok(
+      skillMd.includes(`npm i inkplot@${lib.version} inkplot-scratch@${lib.version}`),
+      'the data-charts skill installs the version it ships with',
+    );
+    const libraryFiles = filesIn(zips[1]);
+    assert.ok(
+      libraryFiles.includes('inkplot/SKILL.md') &&
+        libraryFiles.includes('inkplot/topics/axes.md') &&
+        libraryFiles.every((f) => f.startsWith('inkplot/')),
+      libraryFiles.join(),
+    );
     console.log(`ok pack (inkplot ${lib.version}: ${have.size} files, inkplot-scratch: ${toolFiles.size} files)`);
   } finally {
     rmSync(out, { recursive: true, force: true });

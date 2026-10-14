@@ -67,8 +67,8 @@ jobs:
           done
           echo "Staged. Approve each version on npmjs.com (Staged Packages), or: npm stage list <package>; npm stage approve <stage-id>" >> "$GITHUB_STEP_SUMMARY"
 
-  # The files that go on the release page, whether or not the npm versions are approved yet: the skill for Claude
-  # (Customize > Skills > Upload a skill) and the self-contained playground page.
+  # The files that go on the release page, whether or not the npm versions are approved yet: the two skills as zips to upload
+  # (Claude: Customize > Skills > Upload a skill; ChatGPT: Skills > Upload) and the self-contained playground page.
   assets:
     needs: verify
     runs-on: ubuntu-latest
@@ -83,12 +83,12 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Attach the skill zip and the playground to the release
+      - name: Attach the skill zips and the playground to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p "require('./package.json').version")
-          zip=$(node tools/pack-skill-zip.mjs out/skill)
+          zips=$(node tools/pack-skill-zip.mjs out/skill) # one path per line, none with a space
           pnpm exec vp run playground
           cp playground.html "out/inkplot-playground-$version.html"
-          gh release upload "$GITHUB_REF_NAME" "$zip" "out/inkplot-playground-$version.html" --clobber
+          gh release upload "$GITHUB_REF_NAME" $zips "out/inkplot-playground-$version.html" --clobber

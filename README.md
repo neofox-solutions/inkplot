@@ -45,11 +45,11 @@ Every release has `inkplot-playground-<version>.html` attached: one self-contain
 - [Quick start](https://github.com/neofox-solutions/inkplot/blob/main/docs/start/quick-start.md): install, your first chart, and the three ways to write one.
 - [Concepts](https://github.com/neofox-solutions/inkplot/blob/main/docs/start/concepts.md) and [recipes](https://github.com/neofox-solutions/inkplot/blob/main/docs/start/recipes.md).
 - [All the docs](https://github.com/neofox-solutions/inkplot/blob/main/docs/README.md): guide, extending and reference.
-- [SKILL.md](https://github.com/neofox-solutions/inkplot/blob/main/docs/SKILL.md): a brief for an LLM that writes inkplot code.
+- [SKILL.md](https://github.com/neofox-solutions/inkplot/blob/main/docs/SKILL.md): a brief for an LLM that writes inkplot code; [install it](https://github.com/neofox-solutions/inkplot/blob/main/docs/guide/ai-agents.md) in Claude, ChatGPT, Codex, VS Code, Cursor or Gemini CLI with `npx inkplot install-skill <tool>`.
 
 ## inkplot-scratch
 
-`inkplot-scratch` is a command-line tool for turning a module that exports inkplot charts into SVG, PNG, JSON facts or a single-file interactive HTML page, with a skill for agents doing data work. To use it in Claude, download `inkplot-data-charts-<version>.zip` from the [latest release](https://github.com/neofox-solutions/inkplot/releases) and upload it under Customize → Skills. See [scratch/](https://github.com/neofox-solutions/inkplot/tree/main/scratch).
+`inkplot-scratch` is a command-line tool for turning a module that exports inkplot charts into SVG, PNG, JSON facts or a single-file interactive HTML page, with a skill for agents doing data work. To use it in Claude or ChatGPT, download `inkplot-data-charts-<version>.zip` from the [latest release](https://github.com/neofox-solutions/inkplot/releases) and upload it as a skill; in a coding tool, run `npx inkplot install-skill <tool>`. Both are in the [AI agents guide](https://github.com/neofox-solutions/inkplot/blob/main/docs/guide/ai-agents.md). See [scratch/](https://github.com/neofox-solutions/inkplot/tree/main/scratch).
 
 ## Developing
 

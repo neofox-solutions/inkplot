@@ -7,5 +7,5 @@
     "noEmit": true, "jsx": "react-jsx", "skipLibCheck": true,
     "paths": { "inkplot": ["./src/index.ts"] }
   },
-  "include": ["src/*.ts", "src/*.tsx", "tools/*.ts", "*.ts", "scratch/src/*.ts"]
+  "include": ["src/*.ts", "src/*.tsx", "tools/*.ts", "*.ts", "scratch/src/*.ts", "cli/*.ts"]
 }

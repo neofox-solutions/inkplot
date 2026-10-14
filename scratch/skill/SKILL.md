@@ -7,15 +7,15 @@ description: Use when the user wants charts, plots or visualisations of their da
 
 You write one TypeScript module that exports the charts; `inkplot-scratch` type-checks it, draws it, and writes an interactive HTML page, SVG files, PNG files or JSON facts. Reading the spreadsheet and building the Word/PowerPoint/PDF file are other skills' jobs: use them.
 
-## 1. Set up (once per workspace; skip if `inkplot-scratch/` exists)
+## 1. Set up (once per workspace; skip if `inkplot-scratch/` exists and `npm ls inkplot` there shows {{version}})
 
 ```sh
-mkdir -p inkplot-scratch && cd inkplot-scratch && npm init -y >/dev/null && npm i inkplot inkplot-scratch
+mkdir -p inkplot-scratch && cd inkplot-scratch && npm init -y >/dev/null && npm i inkplot@{{version}} inkplot-scratch@{{version}}
 ```
 
-Run everything below from that folder. If `npm i` cannot reach the registry, say so and stop: do not hand-write SVG.
+Run everything below from that folder. The versions are the ones this skill was written for: a different version of inkplot may not have the attributes it names. If `npm i` cannot reach the registry, say so and stop: do not hand-write SVG.
 
-Then read `node_modules/inkplot-scratch/skill/inkplot/SKILL.md` (rules, template, attributes of the common elements). Its examples are plain TypeScript, `new Element(attributes, ...children)`, which is how you write charts here. Its **Topics** index names a file in `…/skill/inkplot/topics/` for each kind of chart (histograms, box plots, polar, heat maps, axes, time…): open only the one or two you need.
+Then read `node_modules/inkplot/skill/inkplot/SKILL.md` (rules, template, attributes of the common elements). Its examples are plain TypeScript, `new Element(attributes, ...children)`, which is how you write charts here. Its **Topics** index names a file in `…/skill/inkplot/topics/` for each kind of chart (histograms, box plots, polar, heat maps, axes, time…): open only the one or two you need.
 
 ## 2. Look at the data before charting
 

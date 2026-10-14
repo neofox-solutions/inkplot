@@ -300,14 +300,15 @@ export default [own, { name: 'Plain', interactive: false, chart: box() }, { name
     help = run(['--help']).stdout;
   for (const flag of new Set(skill.match(/--[a-z][a-z-]+/g)))
     assert(help.includes(flag), `SKILL.md mentions ${flag}, which --help does not list`);
-  for (const f of [
-    'skill/inkplot/SKILL.md',
-    'skill/inkplot/topics/statistics.md',
-    'skill/inkplot/reference/exports.md',
-    'fonts/Inter-Regular.otf',
-    'fonts/LICENSE.txt',
-  ])
+  for (const f of ['skill/SKILL.md', 'fonts/Inter-Regular.otf', 'fonts/LICENSE.txt'])
     assert(existsSync(join(nm, 'inkplot-scratch', f)), `the package holds ${f}`);
+  // The library's own skill, which the one above sends the agent to read, comes with inkplot, at the same version.
+  for (const f of ['skill/inkplot/SKILL.md', 'skill/inkplot/topics/statistics.md', 'skill/inkplot/reference/exports.md'])
+    assert(existsSync(join(nm, 'inkplot', f)), `inkplot holds ${f}`);
+  const version = JSON.parse(readFileSync(join(nm, 'inkplot/package.json'), 'utf8')).version;
+  assert(skill.includes(`npm i inkplot@${version} inkplot-scratch@${version}`), 'the skill installs the version it ships with');
+  assert(skill.includes('node_modules/inkplot/skill/inkplot/SKILL.md'), 'and reads the library skill where it is');
+  assert(!skill.includes('{{version}}'), 'every version marker is filled in');
 
   // 8. Usage mistakes exit 2.
   assert.equal(run([]).status, 2);

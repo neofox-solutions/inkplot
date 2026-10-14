@@ -3,7 +3,7 @@ import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', '*.test.mjs', 'tools/**/*.test.{ts,mjs}'],
+    include: ['src/**/*.test.ts', 'cli/**/*.test.ts', '*.test.mjs', 'tools/**/*.test.{ts,mjs}'],
     // Each file is one long script-style test; the heavy ones take seconds, and a CI machine is slower than this one.
     testTimeout: 120_000,
     hookTimeout: 60_000,
@@ -32,7 +32,7 @@ export default defineConfig({
       check: { command: ['tsc -p .', 'tsc -p tsconfig.lib.json'] },
       lint: {
         command: [
-          'vp lint --deny-warnings --report-unused-disable-directives src scratch/src tools *.mjs *.ts',
+          'vp lint --deny-warnings --report-unused-disable-directives src scratch/src cli tools *.mjs *.ts',
           'node tools/lint-audit.mjs',
         ],
       },
@@ -40,6 +40,7 @@ export default defineConfig({
       'fmt:check': { command: 'vp fmt --check' },
       // Coverage is recorded on every run (it is cheap), so the CI report always has it.
       test: { command: 'vp test run src/ --coverage', cache: false },
+      'cli:test': { command: 'vp test run cli/', cache: false },
       deps: { command: 'vp test run tools/deps.test.ts' },
       docs: { command: 'vp test run tools/docs.test.ts tools/skill-ts.test.mjs', cache: false },
       types: { command: 'rm -rf types && tsc -p tsconfig.types.json', cache: false },
@@ -63,6 +64,7 @@ export default defineConfig({
           'lint',
           'fmt:check',
           'test',
+          'cli:test',
           'deps',
           'docs',
           'types',
@@ -145,7 +147,7 @@ export default defineConfig({
     },
     overrides: [
       {
-        files: ['src/*.test.ts', 'src/*.check.tsx', 'src/fake-platform.ts', 'tools/**', 'scratch/**', '*.mjs', '*.ts'],
+        files: ['src/*.test.ts', 'src/*.check.tsx', 'src/fake-platform.ts', 'tools/**', 'scratch/**', 'cli/**', '*.mjs', '*.ts'],
         env: { browser: true, node: true, es2022: true },
       },
       {
@@ -164,7 +166,7 @@ export default defineConfig({
         },
       },
       {
-        files: ['**/*.test.ts', 'src/*.check.tsx', 'src/fake-platform.ts', 'tools/**'],
+        files: ['**/*.test.ts', 'src/*.check.tsx', 'src/fake-platform.ts', 'tools/**', 'cli/**'],
         rules: {
           'typescript/no-non-null-assertion': 'off',
           'baseline-js/use-baseline': 'off',

@@ -1,6 +1,7 @@
 // Builds inkplot-scratch, the command that turns a module of charts into SVG, PNG, JSON or an HTML app, as a tarball.
 //   node tools/pack-scratch.mjs [outdir]       prints the path of the tarball (the inkplot one is beside it)
 import { bundle } from './bundle.ts';
+import { stampSkill } from './stamp-skill.mjs';
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -34,10 +35,11 @@ for (const f of ['figures.ts', 'app.ts', 'interact.ts', 'template.html']) cpSync
 cpSync(src + 'fonts', pkg + 'fonts', { recursive: true });
 cpSync(src + 'package.json', pkg + 'package.json');
 cpSync(root + 'LICENSE', pkg + 'LICENSE');
-cpSync(src + 'skill', pkg + 'skill', { recursive: true });
-// The library's own skill (rules, template, topics) in plain TypeScript, so the docs an agent reads are the ones for the version it installed.
-execFileSync(process.execPath, [root + 'tools/pack-skill.mjs', pkg + 'skill/inkplot', '--ts'], { cwd: root, stdio: 'ignore' });
-writeFileSync(pkg + 'README.md', readFileSync(src + 'skill/SKILL.md', 'utf8'));
+// The skill an agent reads first; the library's own skill (rules, template, topics) comes with `inkplot`, in node_modules/inkplot/skill.
+const skill = stampSkill(readFileSync(src + 'skill/SKILL.md', 'utf8'), version);
+mkdirSync(pkg + 'skill', { recursive: true });
+writeFileSync(pkg + 'skill/SKILL.md', skill);
+writeFileSync(pkg + 'README.md', skill);
 const tgz = execFileSync('npm', ['pack', '--silent'], { cwd: pkg }).toString().trim();
 console.log(pkg + tgz);
 console.error(`inkplot: ${inkplot}\nversion ${version}`);
