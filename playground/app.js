@@ -1711,30 +1711,43 @@ demos.push({
 demos.push({
   id: 'heatmap', title: 'Heat map', blurb: 'A two-dimensional Density and a HeatMap: a coloured rectangle per bin, one path per colour step',
   setup(ctx) {
-    const S = { n: 20000, cw: 0.5, ch: 0.5, channel: 'count', maxNodes: 64, seed: 1, ramp: 'viridis' };
+    const S = { n: 20000, cw: 0.5, ch: 0.5, channel: 'count', maxNodes: 64, seed: 1, ramp: 'viridis', plane: 'cartesian' };
     const rows = () => {
       const r = rng(S.seed), centres = [[-3, -2, 1.2], [2, 2.5, 0.9], [3.5, -2.5, 0.6]];
       return Array.from({ length: S.n }, (_, i) => { const [cx, cy, s] = centres[i % 3]; return { x: cx + gauss(r) * s * 1.4, y: cy + gauss(r) * s, t: (i % 3) * 10 + gauss(r) * 3 }; });
     };
-    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'x', padding: 0.02 }, new L.LinearScale());
-    const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', padding: 0.02 }, new L.LinearScale());
     const heat = new L.ColorAxis({ id: 'heat', title: 'count', ramp: S.ramp }, new L.LinearScale());
     const source = () => new L.ObjectDataSource({ source: rows(), domain: 'x', value: 'y', channels: { t: 't' } });
     const attrs = () => ({ by: ['domain', 'value'], width: [S.cw, S.ch], ...(S.channel === 'mean t' ? { weight: 't' } : {}) });
     const channel = () => (S.channel === 'mean t' ? 'mean' : S.channel);
-    let density = new L.Density(attrs(), source());
-    let cells = new L.HeatMap({ maxNodes: S.maxNodes, bind: { fill: { axis: heat, channel: channel() } } });
-    const series = new L.XYSeries({ x: 'domain' }, density, cells);
-    const plane = new L.CartesianPlane({ frame: true }, x, y, series, new L.PanZoom({ direction: 'both' }));
+    const makeCells = () => new L.HeatMap({ maxNodes: S.maxNodes, bind: { fill: { axis: heat, channel: channel() } } });
+    let density, cells, series, plane;
+    /** The same data and the same cells on either kind of plane: only the plane and its two axes are new. */
+    function build() {
+      const polar = S.plane === 'polar';
+      const x = new L.Axis({ id: 'x', orientation: polar ? 'angle' : 'bottom', ...(polar ? {} : { title: 'x' }), padding: 0.02 }, new L.LinearScale());
+      const y = new L.Axis({ id: 'y', orientation: polar ? 'radius' : 'left', ...(polar ? {} : { title: 'y' }), padding: 0.02 }, new L.LinearScale());
+      density = new L.Density(attrs(), source());
+      cells = makeCells();
+      series = new L.XYSeries({ x: 'domain' }, density, cells);
+      return polar ? new L.PolarPlane({}, x, y, series, new L.PanZoom({ direction: 'both' })) : new L.CartesianPlane({ frame: true }, x, y, series, new L.PanZoom({ direction: 'both' }));
+    }
     const read = ui.readout();
     const chart = new L.Chart({ theme: chartTheme(), onFlush: (st) => {
       ctx.onFlush(st);
       read.textContent = `${density.pointCount} occupied cells\n${host.querySelectorAll('svg path[fill-opacity]').length} paths drawn`;
-    } }, plane, heat, new L.ColorKey({ dimension: heat, side: 'right' }));
+    } }, heat, new L.ColorKey({ dimension: heat, side: 'right' }));
+    function mount() {
+      if (plane) chart.remove(plane);
+      plane = build();
+      chart.insertBefore(plane, heat);
+    }
+    mount();
     const redo = () => { density = new L.Density(attrs(), source()); series.setChild(0, density); };
-    const rebind = () => { const old = cells; cells = new L.HeatMap({ maxNodes: S.maxNodes, bind: { fill: { axis: heat, channel: channel() } } }); series.remove(old); series.append(cells); heat.setAttribute('title', S.channel); };
+    const rebind = () => { const old = cells; cells = makeCells(); series.remove(old); series.append(cells); heat.setAttribute('title', S.channel); };
     ctx.add(
       ui.note('Drag to pan, wheel to zoom.'),
+      ui.seg({ label: 'plane', options: [['cartesian', 'rectangular'], ['polar', 'polar']], value: S.plane, onChange: (v) => { S.plane = v; mount(); chart.flush(); } }),
       ui.slider({ label: 'points', min: 500, max: 5e5, value: S.n, log: true, format: (v) => fmt(v, 0), onChange: (v) => { S.n = v; redo(); } }),
       ui.slider({ label: 'cell width', min: 0.1, max: 2, step: 0.05, value: S.cw, onChange: (v) => { S.cw = v; density.setAttribute('width', [S.cw, S.ch]); } }),
       ui.slider({ label: 'cell height', min: 0.1, max: 2, step: 0.05, value: S.ch, onChange: (v) => { S.ch = v; density.setAttribute('width', [S.cw, S.ch]); } }),
@@ -1743,7 +1756,7 @@ demos.push({
       ui.slider({ label: 'maxNodes (colour steps)', min: 4, max: 400, value: S.maxNodes, log: true, format: (v) => fmt(v, 0), onChange: (v) => { S.maxNodes = v; cells.setAttribute('maxNodes', v); } }),
       read,
       ui.buttons(['New data', () => { S.seed++; redo(); }], ['Download the cells (CSV)', () => saveCsv('heatmap.csv', L.readTable(density))]),
-      ui.note('Each bin is a point at its centre with width and height channels, and HeatMap draws it as the rectangle it is. Cells with the same colour step share a path, so lowering maxNodes shows the bands without changing how many cells there are.'),
+      ui.note('Each bin is a point at its centre with width and height channels, and HeatMap draws it as the rectangle it is. Cells with the same colour step share a path, so lowering maxNodes shows the bands without changing how many cells there are. On a polar plane x is the angle and y the radius, and each cell becomes a wedge with straight edges.'),
     );
     return { chart };
   },
@@ -1964,10 +1977,11 @@ function select(id) {
   const demo = demos.find((d) => d.id === id) ?? demos[0];
   location.hash = demo.id;
   $('demos').querySelectorAll('button').forEach((b) => b.setAttribute('aria-current', String(b.dataset.id === demo.id)));
+  $('blurb').replaceChildren(h('b', {}, demo.title), demo.blurb);
   mount(demo);
 }
 $('demos').replaceChildren(...demos.map((d) =>
-  h('button', { type: 'button', 'data-id': d.id, onclick: () => select(d.id) }, d.title, h('small', {}, d.blurb))));
+  h('button', { type: 'button', 'data-id': d.id, title: d.blurb, onclick: () => select(d.id) }, d.title)));
 $('theme').addEventListener('click', () => {
   const root = document.documentElement;
   root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';

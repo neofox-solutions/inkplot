@@ -27,6 +27,15 @@ const chart = (
 
 The same chart can be written without JSX (`new Chart(attrs, ...children)`), and there are adapters for React (`inkplot/react`) and custom elements (`inkplot/web-components`).
 
+## Why inkplot
+
+- **Small when you want it, big when you need it.** One idea (a tree of parts that fit together) runs from a simple line chart at about 15 KB gzipped, with no dependencies, to composite charts, saved and shared as JSON.
+- **Data and drawing compose.** A histogram is a data step plus a bar drawer; a heat map is the same step in two dimensions plus a cell drawer. Mix and match instead of waiting for a chart type.
+- **Fast.** A million points zooms and pans in about 3 ms, and big scatters stay a bounded number of shapes.
+- **Designed for humans, works with agents.** JSX, plain calls, React or Web Components; and in our tests Claude Haiku, given only the skill file, drew a correct chart in all 95 runs.
+
+[The longer version, with the numbers](https://github.com/neofox-solutions/inkplot/blob/main/docs/start/why-inkplot.md).
+
 ## Documentation
 
 - [Quick start](https://github.com/neofox-solutions/inkplot/blob/main/docs/start/quick-start.md): install, your first chart, and the three ways to write one.

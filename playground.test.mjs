@@ -30,6 +30,22 @@ for (const id of ids) {
   console.log(id.padEnd(8), JSON.stringify(info));
 }
 
+// ── The heat map demo on a polar plane: the same cells, placed as wedges, with nothing NaN.
+await page.evaluate(() => window.playground.select('heatmap'));
+await settle();
+const rectangular = await page.evaluate(() => document.querySelectorAll('#host svg path[fill-opacity]').length);
+await page.getByRole('button', { name: 'polar', exact: true }).click();
+await settle();
+const wedges = await page.evaluate(() => {
+  const L = window.inkplot, c = window.playground.current.chart;
+  const d = [...document.querySelectorAll('#host svg path[fill-opacity]')].map((p) => p.getAttribute('d') ?? '');
+  return { polar: !!L.firstDescendantOfType(c, L.PolarPlane), cartesian: !!L.firstDescendantOfType(c, L.CartesianPlane), paths: d.length, nan: d.some((x) => x.includes('NaN')), cells: L.firstDescendantOfType(c, L.Density).pointCount };
+});
+assert(rectangular > 0 && wedges.polar && !wedges.cartesian && wedges.paths > 0 && !wedges.nan && wedges.cells > 100, `heat map on a polar plane (${JSON.stringify(wedges)})`);
+await page.getByRole('button', { name: 'rectangular', exact: true }).click();
+await settle();
+assert.equal(await page.evaluate(() => !!window.inkplot.firstDescendantOfType(window.playground.current.chart, window.inkplot.CartesianPlane)), true, 'and back to a rectangular plane');
+
 // ── Swapping a fixed child on a live chart changes what is drawn, and swapping back restores it.
 await page.evaluate(() => window.playground.select('tree'));
 await settle();

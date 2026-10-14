@@ -23,6 +23,7 @@ const chart = (
 
 | If you want to… | Go to |
 |---|---|
+| Decide whether inkplot is for you | [Why inkplot](start/why-inkplot.md) |
 | Get a chart on a page | [Quick start](start/quick-start.md) |
 | Understand the model once | [Concepts](start/concepts.md) |
 | Find "how do I…" | [Recipes](start/recipes.md) |
@@ -35,9 +36,10 @@ Code blocks marked `live` are real examples that a docs site can run inline; to 
 
 ## Start
 
-1. [**Quick start**](start/quick-start.md): install, your first chart, and the three ways to write one (`new`, vanilla JSX, framework adapters).
-2. [**Concepts**](start/concepts.md): the six ideas: a chart is a tree you keep; attributes; children; finding elements; platforms and frames; themes.
-3. [**Recipes**](start/recipes.md): 25 "how do I…" answers, each a complete example: data from arrays and objects, bars, areas, stacks, time axes, tooltips, pan and zoom, a million points, polar charts, dark themes, live updates, accessibility, SVG export, React and plain HTML.
+1. [**Why inkplot**](start/why-inkplot.md): what it is for, how small and fast it is, and how well it works with people and with AI agents.
+2. [**Quick start**](start/quick-start.md): install, your first chart, and the three ways to write one (`new`, vanilla JSX, framework adapters).
+3. [**Concepts**](start/concepts.md): the six ideas: a chart is a tree you keep; attributes; children; finding elements; platforms and frames; themes.
+4. [**Recipes**](start/recipes.md): 25 "how do I…" answers, each a complete example: data from arrays and objects, bars, areas, stacks, time axes, tooltips, pan and zoom, a million points, polar charts, dark themes, live updates, accessibility, SVG export, React and plain HTML.
 
 ## Guide
 
