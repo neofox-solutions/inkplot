@@ -1,3 +1,4 @@
+'use client';
 /**
  * The React adapter: a chart written as React components, drawing through the same element tree as any other chart.
  *
@@ -24,6 +25,11 @@
  * - Attributes come from props (`meta-title`, `style-axis-color` nest as in attrs.ts). Plain objects and arrays are compared by content, so
  *   `meta={{ title }}` written in a render does not invalidate the chart each time. Functions are compared by identity: memoize them.
  *
+ * Server rendering (the root's `hydrate` prop): with no effects on the server, the wrappers' elements are linked into one tree
+ * by a trailing component that renders after them, which draws the chart to an SVG string at the size given. The client keeps
+ * that markup as it is, then draws the live chart over it at the same size with the same text estimate, and takes the
+ * markup away. Nothing inside a chart may suspend, since a retried render would list its element twice.
+ *
  * Limits, which follow from the element tree having no idea where React put things:
  * - A chart element that appears through state in a component *between* chart elements joins its parent in the right
  *   place only if the parent renders too; otherwise it goes last. Keep the condition in the component that renders the parent.
@@ -45,11 +51,13 @@ import {
   useImperativeHandle,
   useLayoutEffect,
   useRef,
+  useState,
 } from 'react';
 import type { NestedProps } from './attrs.ts';
 import { attributesOf, difference } from './adapt.ts';
 import { DOMPlatform, type DOMPlatformOptions } from './dom-platform.ts';
 import type { AnyArgs, AnyElement } from './element.ts';
+import type { Size } from './geometry.ts';
 import type { Chart as ChartElement } from './chart.ts';
 import * as annotation_ from './annotation.ts';
 import * as boxplot_ from './boxplot.ts';
@@ -96,6 +104,22 @@ export interface RootProps {
   /** Props for the `<div>` the chart is drawn in. Give it a size: the chart fills it. */
   hostProps?: HTMLAttributes<HTMLDivElement>;
   platformOptions?: DOMPlatformOptions;
+  /**
+   * Render the chart on the server, at exactly this size, and hydrate it without a change. The server draws the chart as SVG
+   * markup; the browser keeps that markup, then draws the live chart over it, at the same size and with the same estimate of
+   * text widths (`preciseText` is off), and removes the markup, so nothing moves. That is why the size is fixed: a chart
+   * measured from its container in the browser would differ from the one the server could draw. The `theme` must be the same
+   * on both sides. See the Frameworks guide.
+   */
+  hydrate?: HydrateOptions;
+}
+/** What a hydrated chart needs: its size, and the function that draws it on the server. */
+export interface HydrateOptions extends Size {
+  /**
+   * `toSvgString` from `'inkplot'`, given here so that this module only refers to what you pass it: a page that never renders
+   * on the server carries none of the string platform.
+   */
+  toSvg: (chart: ChartElement, size: Size) => string;
 }
 /** The props of a wrapped class: its attributes, children, and for a root (anything with `attach`) the host's props. */
 export type WrapperProps<C extends ElementConstructor> = Omit<InstanceType<C>['$props'], 'children'> &
@@ -110,6 +134,31 @@ interface Parent {
   mounted: Set<AnyElement>;
 }
 const ParentContext = createContext<Parent | null>(null);
+/** The `Parent` each wrapper's element reports to its own children with, so a tree can be linked from the root without effects. */
+const selves = new WeakMap<AnyElement, Parent>();
+
+/** Link the elements of a render into one tree, in the order they rendered: what the layout effects do on the client. */
+function assemble(self: Parent): void {
+  for (const child of self.list) {
+    if (child.parent !== self.element) self.element.append(child);
+    const own = selves.get(child);
+    if (own) assemble(own);
+  }
+}
+
+/**
+ * Renders after a root's children, on the server: the whole tree has rendered by then, so the chart can be drawn. Elsewhere
+ * (the browser, which has `document`) it renders an empty place for the markup the server sent, which React is told not to check.
+ */
+function ServerMarkup(props: { self: Parent; hydrate: HydrateOptions }): ReactElement {
+  let html = '';
+  if (typeof document === 'undefined') {
+    assemble(props.self);
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- a root wrapper's element is a chart (only a class with `attach` takes `hydrate`)
+    html = props.hydrate.toSvg(props.self.element as ChartElement, props.hydrate);
+  }
+  return createElement('div', { suppressHydrationWarning: true, dangerouslySetInnerHTML: { __html: html } });
+}
 
 /** Put `element` among the parent's children before the first later sibling in the render list that is already there. */
 function place(parent: Parent, element: AnyElement): void {
@@ -142,7 +191,13 @@ function reorder(self: Parent): void {
 }
 
 /** Attach `chart` to a div and release it again; used by the root wrapper and by `ChartView`. */
-function useAttached(chart: AnyElement, hostRef: { current: HTMLDivElement | null }, options: DOMPlatformOptions | undefined): void {
+function useAttached(
+  chart: AnyElement,
+  hostRef: { current: HTMLDivElement | null },
+  options: DOMPlatformOptions | undefined,
+  /** Draw at once rather than at the next frame, and then call this: the first draw replaces something already on screen. */
+  onDrawn?: () => void,
+): void {
   const size = options?.size;
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -150,6 +205,11 @@ function useAttached(chart: AnyElement, hostRef: { current: HTMLDivElement | nul
     const platform = new DOMPlatform(host, options);
     // oxlint-disable-next-line typescript/consistent-type-assertions -- the ref holds a chart element, which a React ref cannot be typed as
     (chart as ChartElement).attach(platform);
+    if (onDrawn) {
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- as above
+      (chart as ChartElement).flush();
+      onDrawn();
+    }
     return () => {
       // oxlint-disable-next-line typescript/consistent-type-assertions -- the ref holds a chart element, which a React ref cannot be typed as
       (chart as ChartElement).detach();
@@ -179,15 +239,20 @@ export function reactWrapper<C extends ElementConstructor>(
     const state = useRef<{ element: AnyElement; applied: Plain; self: Parent } | null>(null);
 
     // oxlint-disable-next-line typescript/consistent-type-assertions -- the props of a generic component, split into the ones this wrapper owns
-    const { children, hostProps, platformOptions, ...rest } = props as Plain & {
+    const { children, hostProps, platformOptions, hydrate, ...rest } = props as Plain & {
       children?: ReactNode;
       hostProps?: HTMLAttributes<HTMLDivElement>;
       platformOptions?: DOMPlatformOptions;
+      hydrate?: HydrateOptions;
     };
+    // True once a hydrated chart has drawn itself over the server's markup, which can then go.
+    const [drawn, setDrawn] = useState(false);
     const next = attributesOf(rest);
     if (!state.current) {
       const element = new cls(next);
-      state.current = { element, applied: next, self: { element, list: new Set(), mounted: new Set() } };
+      const self = { element, list: new Set<AnyElement>(), mounted: new Set<AnyElement>() };
+      selves.set(element, self);
+      state.current = { element, applied: next, self };
     }
     const s = state.current;
     // Rendering only collects: this render's children report to the list as they render, and this element reports to its parent's.
@@ -212,10 +277,27 @@ export function reactWrapper<C extends ElementConstructor>(
     }, [parent, s.element]);
     useLayoutEffect(() => reorder(s.self));
     // The root is attached last, to a tree that is complete.
-    useAttached(s.element, host, parent ? undefined : platformOptions);
+    // A hydrated chart is the size it was given, with the text estimated as the server estimated it, and draws at once.
+    useAttached(
+      s.element,
+      host,
+      parent
+        ? undefined
+        : hydrate
+          ? { ...platformOptions, size: { width: hydrate.width, height: hydrate.height }, preciseText: false }
+          : platformOptions,
+      !parent && hydrate ? () => setDrawn(true) : undefined,
+    );
 
-    const inside = createElement(ParentContext.Provider, { value: s.self }, children);
-    return parent ? inside : createElement('div', hostPropsOf(hostProps, host), inside);
+    const inside = createElement(
+      ParentContext.Provider,
+      { value: s.self },
+      children,
+      !parent && hydrate && !drawn ? createElement(ServerMarkup, { self: s.self, hydrate }) : null,
+    );
+    if (parent) return inside;
+    const sized = hydrate ? { ...hostProps, style: { width: hydrate.width, height: hydrate.height, ...hostProps?.style } } : hostProps;
+    return createElement('div', hostPropsOf(sized, host), inside);
   });
   Wrapper.displayName = cls.name || 'Element';
   // oxlint-disable-next-line typescript/consistent-type-assertions -- the wrapper is typed per element class by the caller's declaration

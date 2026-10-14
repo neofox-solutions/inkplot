@@ -588,7 +588,7 @@ export const series = lineSeries(source, {
 });
 ```
 
-It composes only public classes (a series, a renderer, optionally a decimator and a marker), so everything it does can be done, and tuned, with the elements themselves. Marker and kernel are passed as **classes** so that the shortcut only refers to what you give it: a bundle that never decimates carries no kernel.
+It composes only public classes (a series, a renderer, optionally a decimator and a marker), so everything it does can be done, and tuned, with the elements themselves. Marker and kernel are passed as **classes** so that the shortcut only refers to what you give it: a bundle that never decimates carries no kernel. In React, the shortcuts make ordinary elements, so build the chart with them outside the render and show it with `ChartView` ([Frameworks](frameworks.md#react)).
 
 ## What a series can be asked
 

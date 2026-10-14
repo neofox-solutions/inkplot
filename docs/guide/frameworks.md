@@ -115,6 +115,61 @@ class Note extends ChartElement<never, [], NoteAttributes> {}
 export const NoteView = reactWrapper(Note);
 ```
 
+### Server rendering and hydration
+
+Give the root a `hydrate` size (and `toSvgString`, which draws it on the server) and the chart is drawn on the server, as SVG in the page's HTML, and takes over in the browser **without a change on screen**.
+
+```tsx check title="A chart rendered on the server" jsx=react
+import { darkTheme, lightTheme, toSvgString } from 'inkplot';
+import { Axis, CartesianPlane, Chart, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale } from 'inkplot/react';
+
+export function Trend({ values, dark }: { values: number[]; dark: boolean }) {
+  return (
+    <Chart theme={dark ? darkTheme : lightTheme} hydrate={{ width: 600, height: 300, toSvg: toSvgString }}>
+      <CartesianPlane>
+        <Axis orientation="bottom"><LinearScale /></Axis>
+        <Axis orientation="left"><LinearScale /></Axis>
+        <DomainSeries name="Trend">
+          <FlatDataSource data={values} regularDomain={{ start: 0, step: 1 }} />
+          <LinePath><LinearCurve /></LinePath>
+        </DomainSeries>
+      </CartesianPlane>
+    </Chart>
+  );
+}
+```
+
+Render it with `renderToString`, `renderToPipeableStream` or a framework as you would any component, and hydrate it with `hydrateRoot`. On the server the chart is drawn once, after its children have rendered, to the SVG that `toSvgString` makes. In the browser React keeps that markup, the live chart is drawn over it in the same commit (at once, not at the next frame), and the markup is removed before the page is painted. The two drawings are the same geometry and the same words, which the library's tests check.
+
+**The contract.** For the live chart to be the one the server drew, the browser must know what the server knew, and nothing more:
+
+- **A fixed size.** `hydrate={{ width, height, toSvg }}` is the chart's size on both sides: the server has no container to measure, and a chart that took its size from the page in the browser would be drawn again at another size, which is visible. So there is **no responsive mode** for a server-rendered chart, and no `'refine'` pass after hydration: moving things once the page is up is the cost this feature exists to avoid. For a chart that fills its container, render it only in the browser (with no `hydrate`, and a placeholder of the right height), or give it a fixed size and scale the host with CSS.
+- **Estimated text.** The server cannot measure text, so both sides use the character-counting estimate (`preciseText` is off for a hydrated chart). The estimate errs wide, so give labels a little room.
+- **The same theme.** `theme` is required on every chart and is never read from the browser, so the library cannot disagree with itself. But the app must pass the **same theme** on the server and on the first client render. A theme that changes *after* hydration is drawn again (a visible redraw, as for any theme change); a theme that differs *during* hydration is not reported, and the live chart then replaces the markup with a different picture.
+- **`toSvg` is passed in**, not imported by `inkplot/react`, so that the page of someone who never renders on the server carries none of the string platform (about 0.9 KB gzipped).
+- **Nothing inside the chart suspends.** A suspended child renders again, which would put its element in the chart twice. Put `Suspense` around the whole chart.
+
+**Knowing the theme on the server.** Pages that follow the visitor's colour scheme already have to know it before the first byte, for the same reason: keep it in a cookie (set by a small script when the visitor changes it) and read it in the request, or on browsers that send it read the `Sec-CH-Prefers-Color-Scheme` request header (ask for it with `Accept-CH: Sec-CH-Prefers-Color-Scheme`). Pass what you found down as above. A first visit that has neither gets your default theme, the same as the page around the chart. The chart takes its theme from your app; it does not pick one itself.
+
+**Server Components.** A chart that never needs to be live needs no hydration: build it with `new` or JSX, write its SVG into the page, and send no chart code to the browser.
+
+```tsx check title="A static chart in a React Server Component" jsx=react
+import { Axis, CartesianPlane, Chart, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme, toSvgString } from 'inkplot';
+
+export function StaticTrend({ values }: { values: number[] }) {
+  const chart = new Chart({ theme: lightTheme },
+    new CartesianPlane({},
+      new Axis({ orientation: 'bottom' }, new LinearScale()),
+      new Axis({ orientation: 'left' }, new LinearScale()),
+      new DomainSeries({},
+        new FlatDataSource({ data: values, regularDomain: { start: 0, step: 1 } }),
+        new LinePath(new LinearCurve()))));
+  return <div dangerouslySetInnerHTML={{ __html: toSvgString(chart, { width: 600, height: 300 }) }} />;
+}
+```
+
+`inkplot` itself imports no React, so this works in a Server Component; `inkplot/react` is marked `'use client'` and is for the live chart.
+
 ### Showing a chart made another way
 
 `ChartView` shows a chart built with `new` or JSX. The chart is attached while the component is mounted and detached when it is not. The attributes and children are yours to change, not React's.

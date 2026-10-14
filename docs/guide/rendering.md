@@ -141,4 +141,4 @@ export function check(chart: Chart): void {
 
 Draw the SVG on the server with `toSvgString` and put it in the page. On the client, build the same chart and attach a `DOMPlatform` to replace the picture with a live one. Both use the same element tree, so one function can make the chart for either.
 
-For React, see `ChartView` ([Frameworks](frameworks.md#react)); a Web Components page can ship the markup and let the tags draw on load.
+For React, the root's `hydrate` size does all of this, with an exact hydration and a stated contract ([Frameworks](frameworks.md#server-rendering-and-hydration)); to show a chart made another way, see `ChartView` ([Frameworks](frameworks.md#showing-a-chart-made-another-way)); a Web Components page can ship the markup and let the tags draw on load.

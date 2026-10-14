@@ -642,7 +642,7 @@ Both axes are hidden (the share is read off the legend and the rings off their o
 
 ### The `pie` shortcut
 
-For a plain pie or doughnut there is a shortcut, `pie(slices, options)`, which builds exactly the elements above (the polar plane, the two hidden axes, the normalized stack of one series per slice, and a `PointAnnotations` for each slice that has a label). It is **a convenience, not a capability**: it only composes the classes you have seen, so anything it does not offer (several rings, a second axis, your own renderer, a different kind of label) you get by writing those elements, and a bundle that never calls it carries none of it. It is used in JSX and in `new` code; the React adapter takes the elements themselves.
+For a plain pie or doughnut there is a shortcut, `pie(slices, options)`, which builds exactly the elements above (the polar plane, the two hidden axes, the normalized stack of one series per slice, and a `PointAnnotations` for each slice that has a label). It is **a convenience, not a capability**: it only composes the classes you have seen, so anything it does not offer (several rings, a second axis, your own renderer, a different kind of label) you get by writing those elements, and a bundle that never calls it carries none of it. It makes ordinary elements, so use it in JSX or `new` code, or in React by building the plane outside the render and showing it with `<ChartView chart={…} />` ([Frameworks](../guide/frameworks.md#react)); the React wrappers themselves take the individual elements.
 
 ```tsx live title="A doughnut from pie()" height=340
 import { Chart, Legend, lightTheme, pie } from 'inkplot';
