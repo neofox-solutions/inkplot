@@ -3,7 +3,9 @@ import { LinearCurve } from './curve.ts';
 import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import { Axis, BandScale, Chart, CartesianPlane, DomainSeries, FlatDataSource, LinePath, LinearScale, LogScale, SqrtScale, StringPlatform } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("scale", () => {
 const near = (a: number, b: number, tol = 1e-9) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 const norm = (s: LinearScale | LogScale | SqrtScale | BandScale, v: number[], r: { min: number; max: number }) => {
   const b = new Float64Array(v); s.normalize(b, b.length, 1, 0, r); return [...b];
@@ -62,4 +64,4 @@ const norm = (s: LinearScale | LogScale | SqrtScale | BandScale, v: number[], r:
   assert.deepEqual([y.range.min, y.range.max], [1, 10000], 'the log axis rounds out to whole decades');
   assert(svg.includes('>1000</text>'), 'and labels its decades');
 }
-console.log('ok scale');
+});

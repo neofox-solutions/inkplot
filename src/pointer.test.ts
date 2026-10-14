@@ -8,7 +8,9 @@ import {
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
 import { inputOf } from './input.ts';
+import { test } from 'vite-plus/test';
 
+test("pointer", () => {
 /** The cursor with a tooltip (and, shared, a crosshair) that the older single-element options meant. */
 type TipOptions = ChartTooltipAttributes & { mode?: 'snap' | 'follow' | 'shared'; interpolate?: boolean };
 function cursorFor(o: TipOptions) {
@@ -242,5 +244,4 @@ function near(a: number, b: number, tol = 0.05) { assert(Math.abs(a - b) <= tol,
   snap.send('move', ...snap.at(5.2, 8));
   assert(words(snap).includes('Week: 5.2') && words(snap).includes('7.84'), 'interpolation belongs to the cursor, so a box beside the point reads the line too');
 }
-
-console.log('ok pointer');
+});

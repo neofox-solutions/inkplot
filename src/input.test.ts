@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, FlatDataSource, LinePath, LinearCurve, ChartElement, EVENT_FOCUS, EVENT_KEY, EVENT_POINTER, inputOf, InputHost, type ChartEvent } from './index.ts';
 import { lightTheme } from './themes.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("input", () => {
 class Listener extends ChartElement<CartesianPlane> {
   pointer: string[] = []; keys: string[] = []; focus: boolean[] = [];
   node: unknown = null;
@@ -71,4 +73,4 @@ const make = (...extra: Listener[]) => {
   assert.equal(chart.input, null); assert.equal(platform.pointer, null); assert.equal(platform.keyHandler, null); assert.equal(platform.focusHandler, null);
   host.stop();
 }
-console.log('ok input');
+});

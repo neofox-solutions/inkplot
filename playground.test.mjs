@@ -1,11 +1,13 @@
 // Opens playground.html in headless Chromium, walks every demo, and fails on any console or page error.
-//   node playground.test.mjs [outDir]     (screenshots go to outDir, default ./shots)
+//   pnpm run playground:test     (screenshots go to $INKPLOT_SHOTS, default ./shots)
 import { mkdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { chromium } from './tools/browser.mjs';
+import { test } from 'vite-plus/test';
 
-const out = process.argv[2] ?? new URL('./shots/', import.meta.url).pathname;
+test("playground", async () => {
+const out = process.env.INKPLOT_SHOTS ?? new URL('./shots/', import.meta.url).pathname;
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1360, height: 1000 } });
@@ -490,4 +492,4 @@ await page.screenshot({ path: `${out}/coverage.png` });
 
 await browser.close();
 assert.deepEqual(problems, [], 'no console errors or warnings');
-console.log('ok playground');
+});

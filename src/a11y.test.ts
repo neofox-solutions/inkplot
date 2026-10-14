@@ -6,7 +6,9 @@ import {
   Axis, CartesianPlane, Chart, type ChartFacts, ChartSummary, DomainSeries, FlatDataSource, LinePath, LinearScale, Legend, PanZoom, type PlatformNode, englishSummary, fromJSON, registry, toJSON,
 } from './index.ts';
 import { lightTheme } from './themes.ts';
+import { test } from 'vite-plus/test';
 
+test("a11y", () => {
 const flat = (ys: number[]) => new FlatDataSource({ data: Float64Array.from(ys), regularDomain: { start: 0, step: 1 } });
 type N = { tag: string; attrs: Map<string, string | number>; children: N[] };
 const walk = (n: N, out: N[] = []): N[] => { out.push(n); for (const c of n.children) walk(c, out); return out; };
@@ -238,4 +240,4 @@ function build(options: { bare?: boolean; chart?: object; plane?: object; pan?: 
   assert.equal(t.platform.keyHandler, null);
   assert.equal(t.platform.focusHandler, null);
 }
-console.log('ok a11y');
+});

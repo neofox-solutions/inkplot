@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, FlatDataSource, LinePath, LinearCurve, svgToPng, toPng, type PngHost } from './index.ts';
 import { lightTheme } from './themes.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("png", async () => {
 function host(natural = { width: 300, height: 200 }) {
   const log: { url?: string; size?: [number, number]; fills: string[]; draws: [number, number][] } = { fills: [], draws: [] };
   const h: PngHost = {
@@ -44,4 +46,4 @@ const make = () => new Chart({ theme: lightTheme, width: 320, height: 180 }, new
   const second = host(); await toPng(attached, { size: { width: 200, height: 100 } }, second.h);
   assert.deepEqual(second.log.size, [200, 100]);
 }
-console.log('ok png');
+});

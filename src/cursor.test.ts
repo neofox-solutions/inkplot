@@ -7,7 +7,9 @@ import {
   fromJSON, hitAcross, registry, toJSON,
 } from './index.ts';
 import { lightTheme } from './themes.ts';
+import { test } from 'vite-plus/test';
 
+test("cursor", () => {
 type N = { tag: string; attrs: Map<string, string | number>; children: N[] };
 const walk = (n: N, out: N[] = []): N[] => { out.push(n); for (const c of n.children) walk(c, out); return out; };
 const nodes = (p: FakePlatform) => walk(p.root as unknown as N);
@@ -285,4 +287,4 @@ const polar = (t: ReturnType<typeof build>, turns: number, radius: number) => {
   back.detach();
   assert.equal(platform.pointer, null);
 }
-console.log('ok cursor');
+});

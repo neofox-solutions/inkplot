@@ -6,7 +6,9 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { chromium } from './tools/browser.mjs';
+import { test } from 'vite-plus/test';
 
+test("react", async () => {
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const bundled = await build({
   entryPoints: [here('./playground/react-test/app.tsx')], bundle: true, write: false, format: 'iife', platform: 'browser', target: 'es2022',
@@ -52,4 +54,4 @@ assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#vanil
 await page.screenshot({ path: new URL('./shots/react.png', import.meta.url).pathname });
 await browser.close();
 assert.deepEqual(problems, [], 'no console errors or warnings');
-console.log('ok react in a browser');
+});

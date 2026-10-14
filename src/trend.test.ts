@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { lightTheme } from './themes.ts';
 import { Axis, CartesianPlane, Chart, DomainSeries, LinePath, LinearCurve, LinearScale, LinearTrend, LoessTrend, ObjectDataSource, PolynomialTrend, SinusoidalTrend, StringPlatform, XYSeries, readTable, registry } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("trend", () => {
 const near = (a: number, b: number, what: string, tol = 1e-6) => assert(Math.abs(a - b) <= tol, `${what}: ${a} vs ${b}`);
 const src = (rows: { t: number; v: number }[], channels = {}) => new ObjectDataSource({ source: rows, domain: 't', value: 'v', channels });
 const line = Array.from({ length: 20 }, (_, i) => ({ t: i, v: 3 + 2 * i }));
@@ -140,4 +142,4 @@ const line = Array.from({ length: 20 }, (_, i) => ({ t: i, v: 3 + 2 * i }));
   // The tags are registered.
   for (const name of ['LinearTrend', 'PolynomialTrend', 'SinusoidalTrend', 'LoessTrend']) assert((registry as Record<string, unknown>)[name], name);
 }
-console.log('ok trend');
+});

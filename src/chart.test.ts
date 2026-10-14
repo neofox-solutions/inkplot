@@ -9,7 +9,9 @@ import {
   type RawPointer, type ChartEvent, type BaseAttributes, type SvgOptions,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("chart", () => {
 // ── Build a chart the way the API sketch does: plain variables for references.
 type Row = { t: number; v: number };
 const rows = (n: number, amp: number): Row[] =>
@@ -286,3 +288,4 @@ console.log('ok chart', {
   assert.match(bare({}), /width="640" height="400"/);
   assert.match(toSvgString(line([1, 3, 2]), { width: 999 }), /width="200" height="120"/, 'the chart\'s own size wins');
 }
+});

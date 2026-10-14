@@ -2,7 +2,16 @@
 import { LinearCurve } from './curve.ts';
 import assert from 'node:assert/strict';
 import { Axis, CartesianPlane, Chart, ChartElement, CircleMarker, DomainSeries, FlatDataSource, LinePath, LinearScale, StringPlatform, darkTheme, extendTheme, lightTheme, resolveStyle } from './index.ts';
+import { test } from 'vite-plus/test';
 
+// A new kind of element joins the system with its own selector (declared once, by augmentation).
+class Box extends ChartElement<Chart> {
+  look() { return this.styleFor(['boxLabel', 'text']); }
+}
+declare module './theme.ts' { interface Selectors { boxLabel: TextProps } }
+declare module './chart.ts' { interface ChartChildMap { box: Box } }
+
+test("theme", () => {
 // ── resolveStyle on its own, with no chart: a property comes from the first place that names it.
 {
   const chain = ['tickLabel', 'axis', 'text'] as const;
@@ -77,12 +86,7 @@ function render(chartAttrs: object, planeAttrs: object, ...series: DomainSeries[
   assert(platform.toString().includes('fill="#d4d4d4"'), 'setAttribute("theme") restyles a live chart');
 }
 
-// A new kind of element joins the system with its own selector (declared once, by augmentation).
-class Box extends ChartElement<Chart> {
-  look() { return this.styleFor(['boxLabel', 'text']); }
-}
-declare module './theme.ts' { interface Selectors { boxLabel: TextProps } }
-declare module './chart.ts' { interface ChartChildMap { box: Box } }
+// A new kind of element joins the system with its own selector (see `Box`, above).
 {
   const box = new Box();
   const { chart } = render({ theme: extendTheme(lightTheme, { boxLabel: { size: 30 } }) }, {});
@@ -93,4 +97,4 @@ declare module './chart.ts' { interface ChartChildMap { box: Box } }
   assert.equal(box.look().color, 'red', 'and a block above it applies as to anything else');
   assert.throws(() => new Box().look(), /not in a chart/);
 }
-console.log('ok theme');
+});

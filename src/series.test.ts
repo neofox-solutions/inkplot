@@ -6,7 +6,9 @@ import {
   Chart, CartesianPlane, PolarPlane, Axis, LinearScale, XYSeries, DomainSeries, LinePath, AreaPath, CircleMarker, SizeAxis,
   ObjectDataSource, FlatDataSource, Decimator, MinMaxKernel, StringPlatform, type Plane,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("series", () => {
 const lin = () => new LinearScale();
 const near = (a: number, b: number, tol = 1e-6) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 function render(plane: Plane, size = 400) {
@@ -176,4 +178,4 @@ const source = () => new ObjectDataSource({ source: rows, value: 'y', channels: 
   const dots = draw('connect', () => new LinePath(new LinearCurve()));
   assert.equal(Number.isNaN(dots.series.points.data[2 * 2 + 1]), true, 'the point is still a gap for what reads it');
 }
-console.log('ok series');
+});

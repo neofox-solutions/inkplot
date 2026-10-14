@@ -8,7 +8,9 @@ import {
   Decimator, MinMaxKernel, M4Kernel, CircleMarker, LttbKernel, StrideKernel, StringPlatform, lineSeries,
   type DecimationKernel, type PointView, type Extent,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("decimation", () => {
 // ── Data: a noisy sine, as an x,y array and as a y-only array on a regular domain.
 const hash = (i: number) => { let h = (i + 1) * 2654435761 >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; return (h >>> 8) / 16777216; };
 const X0 = -10, X1 = 10;
@@ -221,3 +223,4 @@ function firstDecimator(s: Series): Decimator { return s.data as Decimator; }
   times.sort((a, b) => a - b);
   console.log('ok decimation', { points: N, medianRefillFlushMs: +times[4]!.toFixed(2), drawn: c.series.points.count });
 }
+});

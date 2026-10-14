@@ -6,7 +6,9 @@ import {
   Chart, CartesianPlane, Axis, LinearScale, DomainSeries, LinePath, ObjectDataSource, StringPlatform, IntlTimeScale, TemporalTimeScale, TimeScale,
   fromJSON, registry, toJSON, PanZoom, Refs,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("time", () => {
 const T = (y: number, mo: number, d = 1, h = 0, mi = 0, s = 0, ms = 0) => Date.UTC(y, mo - 1, d, h, mi, s, ms);
 const HOUR = 3600000, DAY = 24 * HOUR;
 const factories = { Intl: (a: object) => new IntlTimeScale(a), Temporal: (a: object) => new TemporalTimeScale(a) } as const;
@@ -145,4 +147,4 @@ function mountOnly(a: Axis) {
     assert.equal(new TemporalTimeScale({ temporal: real as never }).ticks({ min: 0, max: DAY }, 5).length > 0, true);
   } finally { (globalThis as { Temporal?: unknown }).Temporal = real; }
 }
-console.log('ok time');
+});

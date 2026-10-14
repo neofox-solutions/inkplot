@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { lightTheme } from './themes.ts';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, BarPath, ObjectDataSource, Density, readTable, registry } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("density", () => {
 const near = (a: number, b: number, what: string, tol = 1e-9) => assert(Math.abs(a - b) <= tol, `${what}: ${a} vs ${b}`);
 const sum = (a: ArrayLike<number>) => Array.from(a).reduce((p, q) => p + q, 0);
 const xs = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
@@ -91,4 +93,4 @@ const source = (rows: Row[] = rowsOf()) => new ObjectDataSource({ source: rows, 
   assert.equal(series.points.count, 4);
 }
 assert(registry.Density);
-console.log('ok density');
+});

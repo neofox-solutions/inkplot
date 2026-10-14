@@ -3,7 +3,9 @@ import { LinearCurve } from './curve.ts';
 import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, LinePath, FlatDataSource, StringPlatform, LogScale, toSvgString } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("element", () => {
 const ax = (id: string) => new Axis({ id, orientation: 'right' }, new LinearScale());
 const a = ax('a'), b = ax('b'), c = ax('c'), d = ax('d');
 const holder = new CartesianPlane({}, a, c);
@@ -63,3 +65,4 @@ console.log('ok element');
   // Replacing a child that is not there is a clear error too.
   assert.throws(() => axisWith().setChild(0, new LinearScale()), /Axis: has no child 0 to replace/);
 }
+});

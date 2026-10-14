@@ -8,7 +8,9 @@ import {
   PointerListener, Stack, StringPlatform, alignRows, layOut, barShapes, hitTest, hitAll, interpolate, type Plane, type Rows, type RawPointer,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("stack", () => {
 const near = (a: number, b: number, tol = 1e-6) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 const table = (domain: number[], values: number[], rowOf: ((i: number) => number) | null = (i) => i): Rows => {
   const raw = new Float64Array(domain.length * 2);
@@ -214,4 +216,4 @@ const col = (a: Float64Array) => Array.from(a);
   assert.equal(edits[0]!.row, 0);
   near(edits[0]!.value, 5, 1e-6);
 }
-console.log('ok stack');
+});

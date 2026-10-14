@@ -3,7 +3,9 @@ import { LinearCurve } from './curve.ts';
 import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import { Plane, Chart, CartesianPlane, Axis, LinearScale, DomainSeries, AreaPath, ObjectDataSource, StringPlatform } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("plane", () => {
 type Row = { a: number; r: number };
 const data = (rows: Row[]) => new ObjectDataSource({ source: rows, domain: 'a', value: 'r', isSorted: true });
 const lin = () => new LinearScale();
@@ -51,3 +53,4 @@ console.log('ok plane');
   assert.match(plane.guide('first', 5), /^M/, 'a finite value gets a guide');
   for (const v of [NaN, Infinity, -Infinity]) assert.equal(plane.guide('first', v), '', `no guide at ${v}`);
 }
+});

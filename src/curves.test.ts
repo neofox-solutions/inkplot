@@ -8,7 +8,9 @@ import {
   LinearCurve, MonotoneCurve, NaturalCurve, CardinalCurve, CatmullRomCurve, BasisCurve, BumpCurve, QuadraticCurve, ArcCurve, StrokeCurve,
   hitTest, interpolate, nearestSegment, lineTo, type Piece, type Plane, 
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("curves", () => {
 type CurveName = 'linear' | 'monotone' | 'natural' | 'cardinal' | 'catmull-rom' | 'basis' | 'bump' | 'quadratic' | 'arc';
 const CLASSES = { monotone: MonotoneCurve, natural: NaturalCurve, cardinal: CardinalCurve, 'catmull-rom': CatmullRomCurve, basis: BasisCurve, bump: BumpCurve, quadratic: QuadraticCurve, arc: ArcCurve } as const;
 /** A curve by name, with the attributes that go with it. */
@@ -279,4 +281,4 @@ assert.equal(curveOf({ curve: 'natural' }).path([0, 0, 10, 10], 'M'), 'M0 0L10 1
   assert(count(pathOf(), 'C') === 2, 'and swapped again');
   assert.equal(new LinearCurve().parent, null, 'a curve belongs to the renderer that has it');
 }
-console.log('ok curves');
+});

@@ -1,7 +1,9 @@
 // StringPlatform: the node tree, attribute writes, text escaping and text measurement. (DOMPlatform runs in playground.test.mjs.)
 import assert from 'node:assert/strict';
 import { StringPlatform, estimateTextWidth } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("platform", () => {
 const p = new StringPlatform({ width: 200, height: 100 });
 assert.deepEqual(p.size(), { width: 200, height: 100 });
 const g = p.createNode('g');
@@ -28,4 +30,4 @@ assert(!p.toString().includes('id="one"'));
 const font = { family: 'sans-serif', size: 10 };
 assert(estimateTextWidth('wwww', font).width > estimateTextWidth('ww', font).width);
 assert(estimateTextWidth('ww', { ...font, size: 20 }).width > estimateTextWidth('ww', font).width);
-console.log('ok platform');
+});

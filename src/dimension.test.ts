@@ -6,7 +6,9 @@ import {
   Chart, CartesianPlane, Axis, LinearScale, LogScale, DomainSeries, XYSeries, DotMarker, CircleMarker, BarPath, LinePath, FlatDataSource,
   StringPlatform, type Plane,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("dimension", () => {
 const near = (a: number, b: number, tol = 1e-6) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 function mount(plane: Plane, w = 400, h = 300) {
   const chart = new Chart({ theme: lightTheme, width: w, height: h }, plane);
@@ -120,4 +122,4 @@ const values = (a: Axis) => a.getTicks(300).map((t) => t.value);
   near(series.points.data[3]!, 0, 1e-6);
   near(y.denormalize(0), 100);
 }
-console.log('ok dimension');
+});

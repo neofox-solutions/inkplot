@@ -7,7 +7,9 @@ import {
   type Extent, type PanZoomAttributes, type RawPointer, type CartesianOrientation,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("panzoom", async () => {
 /** A scale that is not linear, defined here: sign(v) * sqrt(|v|). */
 class RootScale extends Scale {
   private f = (v: number) => Math.sign(v) * Math.sqrt(Math.abs(v));
@@ -453,4 +455,4 @@ for (const floating of [false, true]) {
   const still = off.x.range.min; await sleep(20); off.drain();
   assert.equal(off.x.range.min, still, 'inertia: false');
 }
-console.log('ok panzoom');
+});

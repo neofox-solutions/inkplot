@@ -4,7 +4,9 @@ import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, LinePath, FlatDataSource, PanZoom, Brush, type BrushAttributes, type BrushSelection, type RawPointer } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("brush", () => {
 function setup(attrs: BrushAttributes = {}) {
   const heard: (BrushSelection | null)[] = [];
   const x = new Axis({ orientation: 'bottom' }, new LinearScale()), y = new Axis({ orientation: 'left' }, new LinearScale());
@@ -84,4 +86,4 @@ const near = (a: number, b: number, what: string) => assert(Math.abs(a - b) < 1e
   send('down', 0.2, 0.5, { buttons: 1, shift: true, pointerType: 'touch' }); send('move', 0.5, 0.5, { buttons: 1, shift: true, pointerType: 'touch' }); send('up', 0.5, 0.5, { pointerType: 'touch' });
   assert.equal(heard.length, 0, 'a touch makes no brush unless always');
 }
-console.log('ok brush');
+});

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { AUTO, BOOLEAN, NUMBER, STRING, expandAttributes } from './attrs.ts';
 import { Axis, CartesianPlane, DomainSeries, LinearScale } from './index.ts';
 import { registry } from './registry.ts';
+import { test } from 'vite-plus/test';
 
+test("attrs", () => {
 // Nesting by hyphens, at any depth, next to plain names.
 assert.deepEqual(expandAttributes({ min: 0, 'meta-title': 'Sales', 'meta-aria-roledescription': 'x', 'style-tickLabel-size': 9 }),
   { min: 0, meta: { title: 'Sales', aria: { roledescription: 'x' } }, style: { tickLabel: { size: 9 } } });
@@ -85,3 +87,4 @@ const nested = (c: unknown, ...path: string[]) => path.reduce<Record<string, unk
 assert.equal(nested(Axis, 'meta', 'title'), STRING, 'nested parts are listed too');
 assert.equal(nested(Axis, 'meta', 'role'), STRING);
 console.log('attrs ok');
+});

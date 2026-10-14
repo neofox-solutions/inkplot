@@ -6,7 +6,9 @@ import {
   Chart, CartesianPlane, PolarPlane, RadarPlane, Axis, LinearScale, DomainSeries, Stack, StepCurve, LinearCurve, AreaPath, FlatDataSource,
   StringPlatform, stepLines, hitTest, interpolate, LinePath, type Plane, type StepMode,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("steps", () => {
 const near = (a: number, b: number, tol = 1e-6) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 function mount(plane: Plane, size = 400) {
   const chart = new Chart({ theme: lightTheme, width: size, height: size }, plane);
@@ -224,4 +226,4 @@ function rect(ys: number[], renderer: AnySeriesRenderer, attrs: object = {}) {
   const h = interpolate(series, 1.5)!;
   assert.equal(hitTest(series, h.px, h.py, 1)?.index, 1, 'a pointer on the arc hits the level\'s point');
 }
-console.log('ok steps');
+});

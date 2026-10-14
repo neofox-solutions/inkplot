@@ -4,7 +4,9 @@ import { build } from 'esbuild';
 import { Axis, CartesianPlane, Chart, ChartTitle, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, StringPlatform, lightTheme, registry, toJSON, toSvgString } from './index.ts';
 import { Fragment, jsx, jsxs } from './jsx-runtime.ts';
 import { jsxDEV } from './jsx-dev-runtime.ts';
+import { test } from 'vite-plus/test';
 
+test("jsx", async () => {
 // A tag is the element, built at once.
 const scale = jsx(LinearScale, {});
 const axis = jsx(Axis, { min: 0, 'meta-title': 'Time', 'meta-aria-roledescription': 'x axis', children: scale }) as Axis;
@@ -100,3 +102,4 @@ assert.ok(mod.json === expectedJson, 'and the same tree');
 // Elements made by another copy of the library are still chart elements to this one only through the JSON, as expected of separate bundles.
 assert.ok(new StringPlatform({ width: 1, height: 1 }));
 console.log('jsx ok');
+});

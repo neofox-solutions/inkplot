@@ -5,7 +5,9 @@ import {
   Chart, CartesianPlane, Axis, LinearScale, DomainSeries, ObjectDataSource, ColorAxis, SizeAxis, CircleMarker, StringPlatform,
   ColorKey, SizeKey,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("key", () => {
 const lin = () => new LinearScale();
 type Row = { x: number; y: number; c: number };
 const rows = Array.from({ length: 100 }, (_, i): Row => ({ x: i, y: Math.sin(i / 10) * 5, c: i }));
@@ -164,5 +166,4 @@ function compileTimeChecks() {
   new CartesianPlane({}, new ColorKey({ dimension: color }));
 }
 void compileTimeChecks;
-
-console.log('ok key');
+});

@@ -3,7 +3,9 @@ import { LinearCurve } from './curve.ts';
 import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import { Plane, Chart, CartesianPlane, PolarPlane, RadarPlane, Axis, LinearScale, DomainSeries, LinePath, AreaPath, ObjectDataSource, StringPlatform } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("radial", () => {
 const near = (a: number, b: number, tol = 0.02) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 type Row = { a: number; r: number };
 const data = (rows: Row[]) => new ObjectDataSource({ source: rows, domain: 'a', value: 'r', isSorted: true });
@@ -132,3 +134,4 @@ console.log('ok radial');
   assert.match(plane.guide('second', 5), /^M/, 'a finite value gets a ring');
   for (const v of [NaN, Infinity, -Infinity]) assert.equal(plane.guide('second', v), '', `no ring at ${v}`);
 }
+});

@@ -6,7 +6,9 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { chromium } from './tools/browser.mjs';
+import { test } from 'vite-plus/test';
 
+test("png", async () => {
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const app = `
 import { Axis, CartesianPlane, Chart, DOMPlatform, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme, toPng } from 'inkplot';
@@ -45,4 +47,4 @@ assert.equal(a.type, 'image/png'); assert.deepEqual([a.width, a.height], [800, 5
 assert(a.ink > 500 && a.clear > 1000, `transparent with ink: ${a.ink} / ${a.clear}`);
 assert.deepEqual([b.width, b.height], [400, 250], 'detached chart at its own size');
 assert.deepEqual(b.corner, [255, 255, 255, 255], 'the background is painted'); assert.equal(b.clear, 0);
-console.log('ok png in a browser');
+});

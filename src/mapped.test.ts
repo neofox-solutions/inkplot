@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
   Chart, CartesianPlane, Axis, LinearScale, DomainSeries, ObjectDataSource, ColorAxis, SizeAxis, CircleMarker, StringPlatform,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("mapped", () => {
 const lin = () => new LinearScale();
 
 // ── Colour: ends of a ramp, interpolation between stops, steps, and what has no value.
@@ -107,5 +109,4 @@ const rows = Array.from({ length: 200 }, (_, i): Row => ({ x: i, y: Math.sin(i /
   assert.deepEqual(fills(false), ['#000000', '#ffffff']);
   assert.deepEqual(fills(true), ['#ffffff', '#000000']);
 }
-
-console.log('ok mapped');
+});

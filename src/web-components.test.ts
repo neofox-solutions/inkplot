@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import * as L from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("web-components", async () => {
 const dom = new JSDOM('<!doctype html><body></body>', { pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
 Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, MutationObserver: dom.window.MutationObserver, CustomEvent: dom.window.CustomEvent, customElements: dom.window.customElements });
 const { defineElements } = await import('./web-components.ts');
@@ -165,3 +167,4 @@ console.log('web components ok');
   assert.deepEqual(t.element.attrs.formats, { hour: { hourCycle: 'h23', timeZone: 'UTC' }, day: { day: '2-digit' } });
   void tag;
 }
+});

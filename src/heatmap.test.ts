@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { lightTheme } from './themes.ts';
 import { Axis, CartesianPlane, Chart, ColorAxis, Density, HeatMap, LinearScale, ObjectDataSource, PolarPlane, StringPlatform, XYSeries } from './index.ts';
 import { hitTest } from './hit.ts';
+import { test } from 'vite-plus/test';
 
+test("heatmap", () => {
 const rows = [{ x: 0.5, y: 0.5 }, { x: 0.6, y: 0.4 }, { x: 0.7, y: 0.6 }, { x: 1.5, y: 0.5 }, { x: 2.5, y: 2.5 }, { x: 2.6, y: 2.4 }];
 const lin = () => new LinearScale();
 const grid = () => new Density({ by: ['domain', 'value'], width: 1 }, new ObjectDataSource({ source: rows, domain: 'x', value: 'y' }));
@@ -94,4 +96,4 @@ const cells = (svg: string) => paths(svg).reduce((n, p) => n + (p.d.match(/Z/g) 
   const chart = new Chart({ theme: lightTheme }, new CartesianPlane({}, new Axis({}, lin()), new Axis({ orientation: 'left' }, lin()), series), heat);
   assert.throws(() => chart.attach(new StringPlatform({ width: 100, height: 100 })), /fewer than 2 steps/);
 }
-console.log('ok heatmap');
+});

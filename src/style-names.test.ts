@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { STYLE_NAMES } from './style-names.ts';
+import { test } from 'vite-plus/test';
 
+test("style-names", () => {
 const source = readFileSync(new URL('./theme.ts', import.meta.url), 'utf8');
 const declared = new Set<string>();
 // Every property of every interface in theme.ts that has a capital in its name.
@@ -16,4 +18,4 @@ assert.deepEqual([...declared].filter((n) => !(STYLE_NAMES as readonly string[])
 assert.equal(new Set(STYLE_NAMES).size, STYLE_NAMES.length, 'none twice');
 const lower = STYLE_NAMES.map((n) => n.toLowerCase());
 assert.equal(new Set(lower).size, lower.length, 'none differs from another only in case');
-console.log('ok style names');
+});

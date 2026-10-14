@@ -2,6 +2,21 @@
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
+  test: {
+    include: ['src/**/*.test.ts', '*.test.mjs', 'tools/**/*.test.{ts,mjs}'],
+    // Each file is one long script-style test; the heavy ones take seconds, and a CI machine is slower than this one.
+    testTimeout: 120_000,
+    hookTimeout: 60_000,
+    // A fresh process per file, with the memory ceiling `npm test` used to give each one.
+    pool: 'forks',
+    execArgv: ['--max-old-space-size=768'],
+    isolate: true,
+    // Some tests run against the clock (a flick is a speed over real milliseconds), so in CI, with its shared and
+    // slower cores, fewer files run at once and a failure is tried once more before it counts.
+    maxWorkers: process.env.CI ? 2 : undefined,
+    retry: process.env.CI ? 1 : 0,
+    reporters: process.env.CI ? ['default', 'github-actions'] : ['default'],
+  },
   lint: {
     options: { typeAware: true },
     "plugins": [

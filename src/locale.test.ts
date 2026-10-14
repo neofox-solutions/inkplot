@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, FlatDataSource, ObjectDataSource, LinePath, LinearCurve, IntlTimeScale } from './index.ts';
 import { lightTheme } from './themes.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("locale", () => {
 const build = (chart: { locale?: string }, axis: { locale?: string; format?: (v: number) => string } = {}) => {
   const y = new Axis({ orientation: 'left', ...axis }, new LinearScale());
   const c = new Chart({ theme: lightTheme, ...chart }, new CartesianPlane({}, new Axis({}, new LinearScale()), y,
@@ -37,4 +39,4 @@ const build = (chart: { locale?: string }, axis: { locale?: string; format?: (v:
   assert(/janv|févr|mars|avr|mai|juin|juil|sept|oct|déc/i.test(month('fr')), 'French month names from the chart locale');
   assert(/Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/.test(month('en')));
 }
-console.log('ok locale');
+});

@@ -6,7 +6,9 @@ import {
   Chart, CartesianPlane, PolarPlane, RadarPlane, Axis, LinearScale, DomainSeries, XYSeries, LinePath, AreaPath, ObjectDataSource, FlatDataSource,
   Decimator, MinMaxKernel, StringPlatform, hitTest, hitPlane, hitAll, interpolate, interpolateAll, nearestPoint, nearestSegment, insideArea, type Plane, type PointBuffer,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("hit", () => {
 const near = (a: number, b: number, tol = 1e-6) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 const buf = (...xy: number[]): PointBuffer => ({ data: new Float64Array(xy), stride: 2, count: xy.length / 2 });
 
@@ -200,5 +202,4 @@ const flat = (ys: number[]) => new FlatDataSource({ data: Float64Array.from(ys),
   near(f, 0.5, 1e-6);
   near(s, 5, 1e-6);
 }
-
-console.log('ok hit');
+});

@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { lightTheme } from './themes.ts';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, LinePath, LinearCurve, Series, descendantsOfType, ObjectDataSource, FlatDataSource, CompositeDataSource, SyntheticDataSource, BoxStats, Decimator, MinMaxKernel, readTable } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("table", () => {
 const rows = [{ g: 1, x: 2, w: 10 }, { g: 0, x: 5, w: 20 }, { g: 0, x: 1, w: 30 }, { g: 1, x: 8, w: 40 }];
 
 {
@@ -57,4 +59,4 @@ const rows = [{ g: 1, x: 2, w: 10 }, { g: 0, x: 5, w: 20 }, { g: 0, x: 1, w: 30 
   }
   assert.equal(blocks.join('\n\n'), '# Load\ndomain,value\n0,3\n1,5');
 }
-console.log('ok table');
+});

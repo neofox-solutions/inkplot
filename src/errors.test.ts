@@ -7,7 +7,9 @@ import {
   type AnyElement, type Series,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("errors", async () => {
 const rows = [
   { t: 0, v: 10, up: 2, down: 1, rel: 0.1 },
   { t: 1, v: 20, up: 3, down: 3, rel: 0.2 },
@@ -136,4 +138,4 @@ const near = (a: number, b: number, what: string, tol = 1e-6) => assert(Math.abs
   const { registry } = await import('./registry.ts');
   assert(registry.ErrorBars && registry.ErrorBand);
 }
-console.log('ok errors');
+});

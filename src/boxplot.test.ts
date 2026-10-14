@@ -6,7 +6,9 @@ import {
   type AnyElement,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("boxplot", () => {
 const near = (a: number, b: number, what: string, tol = 1e-9) => assert(Math.abs(a - b) <= tol, `${what}: ${a} vs ${b}`);
 
 // ── Quantiles: the two rules, on a spread whose answers are known.
@@ -139,4 +141,4 @@ function chartOf(children: AnyElement[], o: { plane?: 'cartesian' | 'polar'; fli
   assert.equal(((/<path d="(M[^"]*Z)"[^>]*fill-opacity="0.4"/.exec(t.svg())?.[1] ?? '').match(/Z/g) ?? []).length, 2, 'two boxes');
 }
 assert(registry.BoxPath && registry.BoxStats);
-console.log('ok boxplot');
+});

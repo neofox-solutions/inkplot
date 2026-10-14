@@ -6,7 +6,9 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { test } from 'vite-plus/test';
 
+test("pack", () => {
 const root = fileURLToPath(new URL('../', import.meta.url));
 const out = mkdtempSync(join(tmpdir(), 'inkplot-pack-'));
 try {
@@ -46,3 +48,4 @@ try {
   assert.match(skillZip, new RegExp(`inkplot-data-charts-${lib.version.replaceAll('.', '\\.')}\\.zip$`));
   console.log(`ok pack (inkplot ${lib.version}: ${have.size} files, inkplot-scratch: ${toolFiles.size} files)`);
 } finally { rmSync(out, { recursive: true, force: true }); rmSync(join(root, 'out/pack-test-skill'), { recursive: true, force: true }); }
+});

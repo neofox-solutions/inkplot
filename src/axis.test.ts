@@ -3,7 +3,9 @@ import { LinearCurve } from './curve.ts';
 import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, LinePath, FlatDataSource, StringPlatform } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("axis", () => {
 const lin = () => new LinearScale();
 const near = (a: number, b: number, tol = 0.01) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 
@@ -173,4 +175,4 @@ const fixed = build({}, {});
   assert.match(styled.svg, /stroke="#fff"/);
   assert(styled.x.thickness > fixed.x.thickness, 'a bigger title needs more room');
 }
-console.log('ok axis');
+});

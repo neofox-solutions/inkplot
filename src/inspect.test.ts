@@ -5,7 +5,9 @@ import { Axis, CartesianPlane, Chart, Cursor, DomainSeries, FlatDataSource, Line
 import { LinearCurve } from './curve.ts';
 import { FakePlatform } from './fake-platform.ts';
 import { lightTheme } from './themes.ts';
+import { test } from 'vite-plus/test';
 
+test("inspect", () => {
 const series = new DomainSeries({ name: 'a' }, new FlatDataSource({ data: Float64Array.from([1, 2, 3]), regularDomain: { start: 0, step: 1 } }), new LinePath(new LinearCurve()));
 const plane = new CartesianPlane({ id: 'main' }, new Axis({ orientation: 'bottom' }, new LinearScale()), new Axis({ orientation: 'left' }, new LinearScale()), series);
 const chart = new Chart({ theme: lightTheme }, plane, new Cursor({}));
@@ -20,4 +22,4 @@ assert(said({ plane }).length < 400 && said({ plane }).includes('CartesianPlane'
 chart.attach(new FakePlatform({ width: 400, height: 300 })).flush();
 const big = said({ plane, chart, series });
 assert(big.length < 4000, `a failed assert with a live chart in the value is ${big.length} characters`);
-console.log('ok inspect');
+});

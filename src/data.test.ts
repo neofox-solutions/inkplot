@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import { endsOf } from './data.ts';
 import { CompositeDataSource, SyntheticDataSource, FlatDataSource, ObjectDataSource, Decimator, MinMaxKernel, type PointView, type PlanContext } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("data", () => {
 const ctx: PlanContext = { width: 600, height: 300, domainRange: { min: 0, max: 100 }, channels: [] };
 const points = (src: FlatDataSource | ObjectDataSource | CompositeDataSource | SyntheticDataSource): number[] => {
   const plan = src.plan(ctx), out = new Float64Array(plan.capacity * 2), r = plan.fill(out);
@@ -246,3 +248,4 @@ assert.deepEqual(points(none), []);
   assert.deepEqual(endsOf(4, (i) => [-Infinity, 1, 2, Infinity][i]!), { min: 1, max: 2 }, 'the ends of an ordered run skip infinities');
   assert.equal(endsOf(2, () => Infinity), null, 'nothing finite: no domain');
 }
+});

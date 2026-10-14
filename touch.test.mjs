@@ -6,7 +6,9 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { chromium } from './tools/browser.mjs';
+import { test } from 'vite-plus/test';
 
+test("touch", async () => {
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const bundled = await build({
   entryPoints: [here('./playground/touch-test/app.ts')], bundle: true, write: false, format: 'iife', platform: 'browser', target: 'es2022', logLevel: 'error',
@@ -102,4 +104,4 @@ const touches = async (page, points, type) => {
 
 await browser.close();
 assert.deepEqual(problems, [], 'no page errors');
-console.log('ok touch in a browser');
+});

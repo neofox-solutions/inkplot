@@ -4,7 +4,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { CORE, FEATURE_USES, FOUNDATION, runtimeGraph } from './deps.ts';
+import { test } from 'vite-plus/test';
 
+test("deps", () => {
 const graph = runtimeGraph();
 const layer = (m: string) => (FOUNDATION.includes(m) ? 0 : CORE.includes(m) ? 1 : 2);
 const problems: string[] = [];
@@ -39,4 +41,4 @@ for (const file of readdirSync(new URL('../src/', import.meta.url)).filter((f) =
 assert.deepEqual(problems, []);
 // What is listed as allowed is still used: a stale entry hides the next real change.
 for (const [from, to] of Object.entries(FEATURE_USES)) for (const t of to) assert(graph.get(from)?.has(t), `FEATURE_USES lists ${from} → ${t}, which no longer exists`);
-console.log('ok deps');
+});

@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import * as L from './index.ts';
 import { ChartView, reactWrapper } from './react.ts';
+import { test } from 'vite-plus/test';
 
+test("react", async () => {
 const dom = new JSDOM('<!doctype html><div id="root"></div>', { pretendToBeVisual: true });
 Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true });
 Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true });
@@ -201,3 +203,4 @@ console.log('react ok');
   for (const gone of ['RadarPlane', 'BarPath', 'TemporalTimeScale', 'CalloutAnnotation', 'Legend']) assert.ok(!new RegExp(`(var|class) ${gone}\\b`).test(text), `${gone} should be shaken out`);
   console.log('react tree-shaking ok', text.length);
 }
+});

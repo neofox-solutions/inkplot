@@ -9,7 +9,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { blocksOf } from './docs.ts';
 import { convertCode, convertInline, jsxFlavour, typeScriptFlavour } from './jsx-to-new.mjs';
+import { test } from 'vite-plus/test';
 
+test("skill-ts", async () => {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const docs = (f) => readFileSync(join(root, 'docs', f), 'utf8');
 
@@ -79,4 +81,4 @@ for (const b of blocks.filter((x) => x.jsx !== 'react' && /^export const chart\b
   assert.ok(/<(path|rect|circle|line|text)\b/.test(svg) && !/NaN|Infinity/.test(svg), `${where}: the chart drew nothing, or NaN`);
   ran++;
 }
-console.log(`ok skill in TypeScript (${blocks.length} examples, ${ran} run)`);
+});

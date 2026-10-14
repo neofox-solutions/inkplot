@@ -1,10 +1,10 @@
 // The documentation's code is real: every `live` and `check` block is type-checked against the library, and every `live` block
 // is compiled, run, and has to draw a chart. A change that breaks the documented API breaks this test, naming the page and line.
 //
-//   node tools/docs.test.ts            check everything
-//   node tools/docs.test.ts --sheet    also write out/docs-sheet.html: every live example drawn, to look at
-//   node tools/docs.test.ts --sheet=planes  only the pages whose path contains that
-//   node tools/docs.test.ts --no-links do not check that links resolve (while writing)
+//   pnpm run docs                           check everything
+//   INKPLOT_DOCS_SHEET=1 pnpm run docs      also write out/docs-sheet.html: every live example drawn, to look at
+//   INKPLOT_DOCS_SHEET=planes pnpm run docs only the pages whose path contains that
+//   INKPLOT_DOCS_LINKS=0 pnpm run docs      do not check that links resolve (while writing)
 import assert from 'node:assert/strict';
 import { expected as expectedSkillFiles, coverage as skillCoverage, TOPICS as SKILL_TOPICS } from './skill-topics.ts';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +14,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { STRUCTURE, load, reference } from './api.ts';
 import { allBlocks, anchorOf, blocksOf, linkProblems, markdownFiles, parseInfo, type DocBlock } from './docs.ts';
+import { test } from 'vite-plus/test';
 
+test("docs", async () => {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const src = (name: string) => join(root, 'src', name);
 
@@ -46,7 +48,7 @@ assert.equal(anchorOf('Pointer listener'), 'pointer-listener');
 
 // ─── The documentation ───
 // `--no-links` skips this while pages are still being written.
-const problems = process.argv.includes('--no-links') ? [] : linkProblems(root);
+const problems = process.env.INKPLOT_DOCS_LINKS === '0' ? [] : linkProblems(root);
 assert.deepEqual(problems, [], `links that go nowhere:\n${problems.join('\n')}`);
 
 const blocks = allBlocks(root);
@@ -102,9 +104,9 @@ if (blocks.length) {
     sheet.push({ block: b, svg });
   }
 
-  const sheetArg = process.argv.find((a) => a === '--sheet' || a.startsWith('--sheet='));
+  const sheetArg = process.env.INKPLOT_DOCS_SHEET;   // '1' for every page, or part of a path
   if (sheetArg) {
-    const only = sheetArg.split('=')[1] ?? '';
+    const only = sheetArg === '1' ? '' : sheetArg;
     // Each example is bundled alone, so each starts its ids (clip paths, gradients) from the same numbers; on one page they must differ.
     const cell = ({ block: b, svg: raw }: { block: DocBlock; svg: string }, n: number) => {
       const svg = raw.replace(/\bid="([^"]+)"/g, (_, id: string) => `id="${id}_${n}"`).replace(/#([\w-]+)\)/g, (_, id: string) => `#${id}_${n})`);
@@ -134,4 +136,4 @@ if (blocks.length) {
   assert.deepEqual(cover, { missing: [], twice: [], unknown: [] }, 'tools/skill-topics.ts: every element of the registry must be in CORE or in exactly one topic');
   for (const t of Object.values(SKILL_TOPICS)) assert.ok(existsSync(join(root, 'docs/skill-topics', t.file)), `skill topic file ${t.file} is missing`);
 }
-console.log(`ok docs (${blocks.filter((b) => b.kind === 'live').length} live, ${blocks.filter((b) => b.kind === 'check').length} check)`);
+});

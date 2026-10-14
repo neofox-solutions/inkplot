@@ -2,7 +2,9 @@
 import { LinearCurve } from './curve.ts';
 import assert from 'node:assert/strict';
 import { Axis, CalloutAnnotation, CartesianPlane, Chart, ChartTitle, DomainSeries, FlatDataSource, LineAnnotation, LinePath, LinearScale, LogScale, PolarPlane, RadarPlane, StringPlatform, extendTheme, lightTheme } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("annotation", () => {
 const near = (a: number, b: number, tol = 0.02) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 const lin = () => new LinearScale();
 const W = 400, H = 300;
@@ -219,4 +221,4 @@ function cartesian(extras: (plane: CartesianPlane, x: Axis, y: Axis) => object[]
   const themed = cartesian(() => [new CalloutAnnotation({ domain: 5, value: 5, text: 'x' })], [], extendTheme(lightTheme, { calloutBox: { fill: '#ffeeaa' } }));
   assert.match(themed.svg, /fill="#ffeeaa"/);
 }
-console.log('ok annotation');
+});

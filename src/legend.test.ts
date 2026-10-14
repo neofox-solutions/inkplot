@@ -8,7 +8,9 @@ import {
   Legend, ChartTooltip, Cursor, fromJSON, toJSON, registry, type Series,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("legend", () => {
 const flat = (ys: number[]) => new FlatDataSource({ data: Float64Array.from(ys), regularDomain: { start: 0, step: 1 } });
 const lin = () => new LinearScale();
 
@@ -176,4 +178,4 @@ function platformMove(t: { platform: FakePlatform; chart: Chart }, x: number, y:
   bare.attach(p2).flush();
   assert(!p2.toString().includes('role='), 'nothing named, nothing listed');
 }
-console.log('ok legend');
+});

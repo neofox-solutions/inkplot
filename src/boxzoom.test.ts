@@ -4,7 +4,9 @@ import { lightTheme } from './themes.ts';
 import assert from 'node:assert/strict';
 import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, LinePath, FlatDataSource, PanZoom, BoxZoom, type BoxZoomAttributes, type RawPointer } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { test } from 'vite-plus/test';
 
+test("boxzoom", () => {
 function setup(box: BoxZoomAttributes = {}, withPan = true) {
   const x = new Axis({ orientation: 'bottom' }, new LinearScale()), y = new Axis({ orientation: 'left' }, new LinearScale());
   const series = new DomainSeries(new FlatDataSource({ data: Array.from({ length: 11 }, (_, i) => i), regularDomain: { start: 0, step: 1 } }), new LinePath(new LinearCurve()));
@@ -96,4 +98,4 @@ const near = (a: number, b: number, what: string) => assert(Math.abs(a - b) < 1e
   const build = () => new CartesianPlane({}, new Axis({ orientation: 'bottom' }, new LinearScale()), new Axis({ orientation: 'left' }, new LinearScale()), new PanZoom({}), new BoxZoom());
   assert.throws(() => new Chart({ theme: lightTheme }, build()).attach(new FakePlatform({ width: 100, height: 100 })), /before PanZoom/);
 }
-console.log('ok boxzoom');
+});

@@ -5,7 +5,9 @@ import {
   Chart, CartesianPlane, PolarPlane, Axis, LinearScale, BandScale, DomainSeries, BarPath, BarLinePath, CircleMarker, Stack, FlatDataSource, StringPlatform,
   barShapes, stemLines, hitTest, hitAll, type Plane,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("bars", () => {
 const near = (a: number, b: number, tol = 1e-6) => assert(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 function mount(plane: Plane, w = 400, h = 300) {
   const chart = new Chart({ theme: lightTheme, width: w, height: h }, plane);
@@ -203,4 +205,4 @@ const ys = (shape: Float64Array, from: number, count: number) => Array.from({ le
     near(g.data[k + 2]!, s.points.data[2 * i]!, 1e-9);                   // and the top is where the point is
   }
 }
-console.log('ok bars');
+});

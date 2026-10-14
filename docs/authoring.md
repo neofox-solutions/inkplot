@@ -55,7 +55,7 @@ The standard style is **vanilla JSX**: the library's own JSX runtime, which make
 1. Writes it to its own file and runs the TypeScript compiler over all of them, with the project's strict settings. A mistake is reported as the Markdown file and line.
 2. For `live` blocks: bundles it, calls the default export, checks that the result is a `Chart`, draws it to an SVG string, and checks that something was drawn and that nothing in it is `NaN` or `undefined`.
 
-`node tools/docs.test.ts --sheet` also writes `out/docs-sheet.html`: every live example drawn on one page, for looking at.
+`INKPLOT_DOCS_SHEET=1 pnpm run docs` also writes `out/docs-sheet.html`: every live example drawn on one page, for looking at.
 
 ### Everything else on a page
 

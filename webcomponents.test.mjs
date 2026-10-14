@@ -7,7 +7,9 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { chromium } from './tools/browser.mjs';
+import { test } from 'vite-plus/test';
 
+test("webcomponents", async () => {
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const bundled = await build({
   stdin: {
@@ -93,4 +95,4 @@ await settle();
 assert.deepEqual(await lines(), ['#d9534f'], 'drawn again when it returns');
 await browser.close();
 assert.deepEqual(problems, [], 'no console errors or warnings');
-console.log('ok web components in a browser');
+});

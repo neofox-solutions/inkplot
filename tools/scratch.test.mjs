@@ -10,7 +10,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { convertCode } from './jsx-to-new.mjs';
+import { test } from 'vite-plus/test';
 
+test("scratch", async () => {
 const root = fileURLToPath(new URL('../', import.meta.url));
 const tgz = execFileSync(process.execPath, [join(root, 'tools/pack-scratch.mjs'), join(tmpdir(), `inkplot-scratch-pack-${process.pid}`)], { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
 const inkplotTgz = readdirSync(join(tgz, '../../inkplot-lib/inkplot')).filter((f) => f.endsWith('.tgz')).map((f) => join(tgz, '../../inkplot-lib/inkplot', f))[0];
@@ -196,4 +198,4 @@ for (const f of ['skill/inkplot/SKILL.md', 'skill/inkplot/topics/statistics.md',
 assert.equal(run([]).status, 2);
 assert.equal(run(['good.tsx', '--nope']).status, 2);
 assert.equal(run(['missing.ts']).status, 2);
-console.log(`ok scratch (${(html.length / 1024).toFixed(0)} KB page${png ? ', png' : ', png skipped'})`);
+});

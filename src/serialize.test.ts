@@ -9,7 +9,9 @@ import {
   Decimator, MinMaxKernel, Stack, ChartTitle, ChartTooltip, Cursor, Crosshair, LineAnnotation, PanZoom, PointerListener, ColorAxis, ColorKey, CircleMarker, ChartElement,
   Refs, registry, toJSON, fromJSON, applyJSON, toSvgString, type ElementJSON, type ElementRegistry,
 } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("serialize", () => {
 // ── Every concrete element class the library exports is in the registry, so a new class cannot be forgotten.
 {
   const abstract = new Set<string>();
@@ -230,4 +232,4 @@ function everything() {
   assert(t.chart.isAttached);
   t.chart.detach();
 }
-console.log('ok serialize');
+});

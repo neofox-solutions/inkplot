@@ -6,7 +6,9 @@ import {
   DotMarker, CrossMarker, PlusMarker, CircleMarker, SquareMarker, FlatDataSource,
 } from './index.ts';
 import type { AnyElement } from './index.ts';
+import { test } from 'vite-plus/test';
 
+test("marker", () => {
 type Row = { x: number; y: number; c: number; s: number };
 const rows = (n: number): Row[] => Array.from({ length: n }, (_, i) => ({ x: i, y: (i * 37) % 101, c: i % 20, s: i % 7 }));
 
@@ -216,5 +218,4 @@ function compileTimeChecks() {
   new DotMarker({ bind: { strokeWidth: { axis: size, channel: 's' } } });
 }
 void compileTimeChecks;
-
-console.log('ok marker', { dotsMs: Math.round(bigMs) });
+});
