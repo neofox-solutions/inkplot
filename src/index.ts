@@ -314,7 +314,15 @@ export {
   DEFAULT_CURSOR_KEYS,
 } from './cursor.ts';
 export { Crosshair, type CrosshairAttributes } from './crosshair.ts';
-export { ChartGroup, ChartGroupItem, type ChartGroupAttributes, type ChartGroupItemAttributes, type Justify } from './chartgroup.ts';
+export {
+  ChartGroup,
+  ChartGroupItem,
+  SharedRange,
+  type Edges,
+  type ChartGroupAttributes,
+  type ChartGroupItemAttributes,
+  type Justify,
+} from './chartgroup.ts';
 export { ChartTitle, type ChartTitleAttributes, ChartTooltip, type ChartTooltipAttributes, type TitleRole } from './furniture.ts';
 export {
   CalloutAnnotation,

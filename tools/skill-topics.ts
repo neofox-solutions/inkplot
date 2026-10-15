@@ -94,7 +94,11 @@ export const TOPICS: Record<string, Topic> = {
     use: 'tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch, an entrance animation',
     elements: ['ChartTooltip', 'Cursor', 'Crosshair', 'PanZoom', 'BoxZoom', 'Brush', 'PointerListener', 'Entrance'],
   },
-  grid: { file: 'grid.md', use: 'a dashboard: several charts in one picture, in a grid', elements: ['ChartGroup', 'ChartGroupItem'] },
+  grid: {
+    file: 'grid.md',
+    use: 'a dashboard: several charts in one picture, in a grid',
+    elements: ['ChartGroup', 'ChartGroupItem', 'SharedRange'],
+  },
   planes: { file: 'planes.md', use: 'polar and radar charts', elements: ['PolarPlane', 'RadarPlane'] },
   data: {
     file: 'data.md',

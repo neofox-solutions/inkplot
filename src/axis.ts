@@ -6,12 +6,13 @@
  * a rectangle, a floating cross-line, a rim and a spoke. The plane tells it where (`assign`, `setRuler`); the axis tells
  * the plane how much room it needs (the MEASURE event → `thickness`, `titleThickness`, `labelOverhang`).
  */
-import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
+import { type AttrTypesFor, BOOLEAN, NUMBER, STRING } from './attrs.ts';
 import { Dimension, type DimensionAttributes } from './dimension.ts';
-import { type ElementRef, fail } from './element.ts';
+import { type ElementRef, fail, resolveRef } from './element.ts';
 import { hideFromAssistive, writeAria } from './aria.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_MEASURE, EVENT_PAINT, type MeasureEvent } from './events.ts';
-import { type Side, f2 } from './geometry.ts';
+import { type Extent, type Side, f2 } from './geometry.ts';
+import type { Scale } from './scale.ts';
 import type { Plane } from './plane.ts';
 import { type FontSpec, estimateTextWidth } from './platform.ts';
 import { applyText } from './text.ts';
@@ -108,16 +109,26 @@ export interface AxisAttributes extends DimensionAttributes {
   crossesAt?: number;
   /** The axis `crossesAt` is a value of. Default: the plane's first axis on the other orientation. */
   crossAxis?: ElementRef<Axis>;
+  /**
+   * Draw a dimension that several planes share (a `SharedRange` in a `ChartGroup`) instead of one of its own. The axis then
+   * has no scale: its range, scale and pan/zoom view are the shared dimension's, and its own attributes only say how it is
+   * drawn (`orientation`, `title`, `format`, ticks).
+   */
+  sharedRef?: ElementRef<Dimension>;
+  /** Draw only where its plot is at the edge of the group of charts it faces, and take no room elsewhere. For a shared axis: one set of labels along the bottom row. */
+  edgeOnly?: boolean;
 }
 
 /** A spatial dimension, drawn along a ruler its plane gives it. Needs one scale child: `new Axis({}, new LinearScale())`. */
-export class Axis extends Dimension<Plane, AxisAttributes> {
+export class Axis extends Dimension<Plane, AxisAttributes, [scale: Scale] | []> {
   static override attrTypes = {
     ...Dimension.attrTypes,
     titlePosition: STRING,
     titleDirection: STRING,
     crossesAt: NUMBER,
     crossAxis: STRING,
+    sharedRef: STRING,
+    edgeOnly: BOOLEAN,
   } satisfies AttrTypesFor<AxisAttributes>;
 
   #orientation: AxisOrientation = 'bottom';
@@ -131,6 +142,62 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
 
   get orientation(): AxisOrientation {
     return this.#orientation;
+  }
+
+  /** The dimension this axis draws for several planes, if `sharedRef` names one. */
+  get shared(): Dimension | null {
+    const ref = this.attrs.sharedRef;
+    if (ref === undefined) return null;
+    const el = resolveRef(ref, this);
+    return el instanceof Dimension ? el : fail('sharedRef: the element is not a dimension');
+  }
+  override get scale(): Scale {
+    return this.shared?.scale ?? super.scale;
+  }
+  override get range(): Readonly<Extent> {
+    return this.shared?.range ?? super.range;
+  }
+  override get isZoomed(): boolean {
+    return this.shared?.isZoomed ?? super.isZoomed;
+  }
+  override get viewRange(): Readonly<Extent> | null {
+    const shared = this.shared;
+    return shared ? shared.viewRange : super.viewRange;
+  }
+  override begin(lengthInPixels = 0): void {
+    const shared = this.shared;
+    if (shared) shared.beginShared(this.chart?.flushCount ?? 0, lengthInPixels);
+    else super.begin(lengthInPixels);
+  }
+  override reach(pixels: number, ends: 'both' | 'lo' | 'hi' = 'both'): void {
+    const shared = this.shared;
+    if (shared) shared.reach(pixels, ends);
+    else super.reach(pixels, ends);
+  }
+  override contribute(min: number, max: number): void {
+    const shared = this.shared;
+    if (shared) shared.contribute(min, max);
+    else super.contribute(min, max);
+  }
+  override resolve(): void {
+    const shared = this.shared;
+    if (shared) shared.resolve();
+    else super.resolve();
+  }
+  override setViewRange(range: Extent | null): void {
+    const shared = this.shared;
+    if (shared) shared.setViewRange(range);
+    else super.setViewRange(range);
+  }
+
+  /** Whether the axis is drawn at all: not with `edgeOnly` when the chart it is in has others between it and the edge it faces. */
+  get drawn(): boolean {
+    if (!this.attrs.edgeOnly) return true;
+    const item = this.requireParent().parent,
+      o = this.#orientation;
+    if (!item || !('edges' in item) || !(o === 'top' || o === 'right' || o === 'bottom' || o === 'left')) return true;
+    const edges = item.edges;
+    return !!edges && typeof edges === 'object' && o in edges && edges[o] === true;
   }
   /** The curve it is drawn along. Valid after arrange. */
   get ruler(): Ruler {
@@ -208,6 +275,14 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
   private measure(ev: MeasureEvent): void {
     const s = this.look(),
       ruler = this.#ruler;
+    if (!this.drawn) {
+      this.#thickness = this.#titleThickness = 0;
+      this.#labelWidth = 0;
+      ev.request = ruler.horizontal
+        ? { min: { width: 0, height: 0 }, max: { width: Infinity, height: 0 } }
+        : { min: { width: 0, height: 0 }, max: { width: 0, height: Infinity } };
+      return;
+    }
     const chart = this.chart;
     // 'inherit' means whatever the SVG gives; measuring needs a concrete family, so a generic one stands in.
     const font = (r: TextProps): FontSpec => ({ family: r.family === 'inherit' ? 'sans-serif' : r.family, size: r.size, weight: r.weight });
@@ -255,6 +330,14 @@ export class Axis extends Dimension<Plane, AxisAttributes> {
 
   /** The line, a mark and a label at each tick, each facing away from the plot, then the title. */
   private paint(): void {
+    if (!this.drawn) {
+      const surface = this.surface;
+      surface.remove('axis');
+      surface.remove('title');
+      for (let i = 0; i < this.#labelCount; i++) surface.remove(`label-${i}`);
+      this.#labelCount = 0;
+      return;
+    }
     const s = this.look(),
       surface = this.surface,
       ruler = this.#ruler,

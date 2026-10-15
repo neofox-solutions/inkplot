@@ -10,7 +10,7 @@
  * dimension's resolved range while still being allowed to contribute to the value dimension afterwards.
  */
 import { type AttrTypesFor, AUTO, NUMBER, STRING } from './attrs.ts';
-import { type AnyElement, type BaseAttributes, ChartElement } from './element.ts';
+import { type AnyElement, type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 import { Scale } from './scale.ts';
 
@@ -66,7 +66,8 @@ function numberFormat(locale: string, options: Intl.NumberFormatOptions): Intl.N
 export abstract class Dimension<
   Parent extends AnyElement = AnyElement,
   A extends DimensionAttributes = DimensionAttributes,
-> extends ChartElement<Parent, [scale: Scale], A> {
+  Kids extends AnyElement[] = [scale: Scale],
+> extends ChartElement<Parent, Kids, A> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     title: STRING,
@@ -102,7 +103,13 @@ export abstract class Dimension<
   }
 
   get scale(): Scale {
-    return this.child(0, Scale);
+    const first = [...this][0];
+    if (first instanceof Scale) return first;
+    return fail(
+      first
+        ? `${this.constructor.name}: child 0 should be Scale, but is ${first.constructor.name}`
+        : `${this.constructor.name}: has no child 0 (it needs Scale)`,
+    );
   }
 
   // ─── Engine protocol: a plane and its series negotiate the range through these. ───
@@ -117,6 +124,17 @@ export abstract class Dimension<
     this.resolved = false;
     this.reachLo = this.reachHi = 0;
     this.lengthPx = lengthInPixels;
+  }
+  #pass = -1;
+  /**
+   * `begin` for a dimension that several planes share: the first plane of a pass (`pass` counts passes) starts it over, and
+   * the others only say how long they will draw it, of which the shortest is kept.
+   */
+  beginShared(pass: number, lengthInPixels = 0): void {
+    if (pass !== this.#pass) {
+      this.#pass = pass;
+      this.begin(lengthInPixels);
+    } else if (lengthInPixels > 0 && (this.lengthPx === 0 || lengthInPixels < this.lengthPx)) this.lengthPx = lengthInPixels;
   }
   /** A series asks for room of `pixels` past the ends of its data, so that marks centred on them are not cut by the plot. Ignored once resolved. */
   reach(pixels: number, ends: 'both' | 'lo' | 'hi' = 'both'): void {

@@ -8,6 +8,7 @@ import {
   ChartGroup,
   ChartGroupItem,
   ChartTitle,
+  SharedRange,
   DomainSeries,
   FlatDataSource,
   Legend,
@@ -207,5 +208,119 @@ test('chart group', () => {
     back.attach(new StringPlatform({ width: W, height: H })).flush();
     assert.equal(back.planes.length, 2);
     assert.deepEqual(toJSON(back, registry), json);
+  }
+});
+
+// Shared axes: one range for the charts of a group, fitted to what all of them draw.
+test('shared ranges', () => {
+  const rows = (xs: number[], ys: number[]) =>
+    new FlatDataSource({ data: Float64Array.from(xs.flatMap((x, i) => [x, ys[i]!])), stride: 2 });
+  const cell = (
+    xs: number[],
+    ys: number[],
+    x: Record<string, unknown> = {},
+    y: Record<string, unknown> = {},
+    own: ChartGroupItemAttributes = {},
+  ) =>
+    new ChartGroupItem(
+      own,
+      new CartesianPlane(
+        {},
+        new Axis({ orientation: 'bottom', sharedRef: 'time', ...x }),
+        new Axis({ orientation: 'left', ...y }, new LinearScale()),
+        new DomainSeries({}, rows(xs, ys), new LinePath(new LinearCurve())),
+      ),
+    );
+  const rangeOf = (g: ChartGroup) => [...g].find((c): c is SharedRange => c instanceof SharedRange)!;
+  const build = (items: ChartGroupItem[], attrs: ChartGroupAttributes = { columns: 2 }) => {
+    const group = new ChartGroup(attrs, new SharedRange({ id: 'time' }, new LinearScale()), ...items);
+    const chart = new Chart({ theme: lightTheme, width: W, height: H }, group);
+    chart.attach(new StringPlatform({ width: W, height: H })).flush();
+    return { chart, group };
+  };
+
+  // The range covers every chart's data, and every chart draws it the same way.
+  {
+    const a = cell([0, 1, 2], [1, 2, 3]),
+      b = cell([5, 6, 10], [4, 3, 2]);
+    const { group } = build([a, b]);
+    const range = rangeOf(group).range;
+    assert.deepEqual([range.min, range.max], [0, 10]);
+    const [pa, pb] = [a.planes[0]!, b.planes[0]!];
+    assert.deepEqual(pa.axes[0]!.range, pb.axes[0]!.range);
+    assert.equal(pa.axes[0]!.scale, rangeOf(group).scale);
+    // Value axes stay each chart's own.
+    assert.notDeepEqual(pa.axes[1]!.range, pb.axes[1]!.range);
+  }
+  // Pan/zoom on one chart's axis is the range's view, and moves all.
+  {
+    const a = cell([0, 1, 2], [1, 2, 3]),
+      b = cell([0, 1, 4], [4, 3, 2]);
+    const { chart, group } = build([a, b]);
+    a.planes[0]!.axes[0]!.setViewRange({ min: 1, max: 2 });
+    chart.flush();
+    assert.deepEqual(rangeOf(group).range, { min: 1, max: 2 });
+    assert.deepEqual(b.planes[0]!.axes[0]!.range, { min: 1, max: 2 });
+    assert(b.planes[0]!.axes[0]!.isZoomed);
+    chart.resetViews();
+    chart.flush();
+    assert.equal(rangeOf(group).range.max, 4);
+  }
+  // edgeOnly: labels on the bottom row only, and the others give the room back.
+  {
+    const items = [0, 1, 2, 3].map(() => cell([0, 1, 2], [1, 2, 3], { edgeOnly: true }));
+    build(items);
+    const top = items[0]!.planes[0]!,
+      bottom = items[2]!.planes[0]!;
+    assert.equal(top.axes[0]!.drawn, false);
+    assert.equal(top.axes[0]!.thickness, 0);
+    assert.equal(bottom.axes[0]!.drawn, true);
+    assert(bottom.axes[0]!.thickness > 0);
+    assert(top.rect.height > bottom.rect.height, 'the plot above keeps the room');
+    assert.deepEqual(
+      items.map((i) => i.edges.bottom),
+      [false, false, true, true],
+    );
+    assert.deepEqual(
+      items.map((i) => i.edges.right),
+      [false, true, false, true],
+    );
+  }
+  // A partly empty last row: the chart above the gap is on the bottom edge too.
+  {
+    const items = [0, 1, 2, 3, 4].map(() => cell([0, 1], [0, 1], { edgeOnly: true }));
+    build(items, { columns: 2 });
+    assert.deepEqual(
+      items.map((i) => i.edges.bottom),
+      [false, false, false, true, true],
+    );
+    const three = [0, 1, 2].map(() => cell([0, 1], [0, 1], { edgeOnly: true }));
+    build(three, { columns: 2 });
+    assert.deepEqual(
+      three.map((i) => i.edges.bottom),
+      [false, true, true],
+    );
+  }
+  // Hidden charts take no part in the range.
+  {
+    const a = cell([0, 1], [0, 1]),
+      b = cell([0, 100], [0, 1], {}, {}, { visible: false });
+    const { group } = build([a, b]);
+    assert.equal(rangeOf(group).range.max, 1);
+  }
+  // Errors and JSON.
+  {
+    const lone = new Chart(
+      { theme: lightTheme, width: W, height: H },
+      new CartesianPlane({}, new Axis({ orientation: 'bottom', sharedRef: 'x' })),
+    );
+    assert.throws(() => lone.attach(new StringPlatform({ width: W, height: H })).flush(), /no element with id "x"/);
+    assert.throws(() => new Axis({}).scale, /has no child 0/);
+    const { chart } = build([cell([0, 1], [0, 1]), cell([0, 4], [1, 2])]);
+    const json = toJSON(chart, registry);
+    const back = fromJSON<Chart>(JSON.parse(JSON.stringify(json)), registry);
+    back.attach(new StringPlatform({ width: W, height: H })).flush();
+    assert.deepEqual(toJSON(back, registry), json);
+    assert.equal(back.planes[1]!.axes[0]!.range.max, 4);
   }
 });

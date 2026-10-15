@@ -168,8 +168,6 @@ test('chart', () => {
   // Never called: these lines only have to fail to compile.
   function compileTimeChecks() {
     const series0 = firstDescendantOfType(chart, Series)!;
-    // @ts-expect-error an axis needs its scale
-    new Axis({ title: 'no scale' });
     // @ts-expect-error a series starts with its data source, not a renderer
     new DomainSeries(new LinePath(new LinearCurve()), source);
     // @ts-expect-error a plane takes axes and series, not renderers
@@ -193,7 +191,7 @@ test('chart', () => {
     // @ts-expect-error a fixed child is replaced by one of its own kind
     series0.setChild(0, new LinePath(new LinearCurve()));
     // Only the types are under test: the values are checked by the compiler, not read.
-    const scaleOfAxis: LinearScale | Scale = level.child(0, Scale);
+    const scaleOfAxis: LinearScale | Scale | undefined = level.child(0, Scale);
     const dataOfSeries: import('./index.ts').DataNode = series0.child(0, DataSource, DataTransform);
     // @ts-expect-error a class that cannot be the fixed child at that place is refused at compile time
     level.child(0, LinePath);

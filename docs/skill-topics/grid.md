@@ -55,6 +55,45 @@ Items go in the order they are written, each after the last; the grid does not g
 An item that is not `visible` takes no cell and no room, and the others close up; a hidden chart is not drawn, nor asked for by a legend of the whole chart. A grid of one cell (`columns={1} rows={1}`) puts every item in it, one on another: show one at a time with `visible`.
 
 
+## Sharing an axis
+
+Charts that show the same thing over the same range should line up. A `SharedRange` in the group holds one scale and one range; the `Axis` in each plane names it with `sharedRef` and draws it. The range is fitted to everything every chart draws against it, so a chart with a shorter series still has the longer one's span. Pan, zoom and `resetViews` act on the range, so all the charts move together. Each plane's own axes (the value axes, say) stay its own.
+
+```tsx check id="grid-shared" title="Three charts, one time axis" height=420
+/** @jsxImportSource inkplot */
+import { Axis, CartesianPlane, Chart, ChartGroup, ChartGroupItem, ChartTitle, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, SharedRange, lightTheme } from 'inkplot';
+
+const series = (k: number, from: number, to: number) =>
+  Float64Array.from(Array.from({ length: to - from + 1 }, (_, i) => [from + i, Math.sin((from + i) / (4 + k)) * (k + 1)]).flat());
+
+const strip = (name: string, k: number, from: number, to: number) => (
+  <ChartGroupItem>
+    <ChartTitle text={name} role="subtitle" />
+    <CartesianPlane>
+      <Axis orientation="bottom" sharedRef="time" edgeOnly />
+      <Axis orientation="left" tickCount={3}><LinearScale /></Axis>
+      <DomainSeries>
+        <FlatDataSource data={series(k, from, to)} stride={2} isSorted />
+        <LinePath><LinearCurve /></LinePath>
+      </DomainSeries>
+    </CartesianPlane>
+  </ChartGroupItem>
+);
+
+export const chart = (
+  <Chart theme={lightTheme}>
+    <ChartGroup columns={1}>
+      <SharedRange id="time"><LinearScale /></SharedRange>
+      {strip('Sensor A', 0, 0, 60)}
+      {strip('Sensor B', 1, 10, 90)}
+      {strip('Sensor C', 2, 30, 100)}
+    </ChartGroup>
+  </Chart>
+) as Chart;
+```
+
+An axis with `sharedRef` has no scale of its own, and only says how it is drawn: `orientation`, `title`, `format`, ticks. The range's attributes (`min`, `max`, `include`, `padding`, `nice`) go on the `SharedRange`. `edgeOnly` draws the axis only where its chart is at the edge of the group it faces, and takes no room elsewhere: one row of labels along the bottom, and the plots above it keep their height. A chart is on an edge when no chart lies beyond it, so the chart above a gap in the last row counts as being at the bottom. The same holds for any axis, shared or not. Shared axes are for Cartesian planes.
+
 ## What goes where
 
 
@@ -67,7 +106,7 @@ A `Legend` in the `Chart` lists the series of every chart; one in an item lists 
 
 A grid of charts in one picture, in place of a plane: equal cells, filled along a row or a column.
 
-**In** Chart or ChartGroupItem · **Holds** ChartGroupItem, any number
+**In** Chart or ChartGroupItem · **Holds** ChartGroupItem, any number; SharedRange
 
 | Attribute | Type | |
 |---|---|---|
@@ -86,4 +125,26 @@ One chart of a group, in the cells it spans; its titles and keys go round its ow
 | Attribute | Type | |
 |---|---|---|
 | `span` | `number \| readonly [columns: number, rows: number]` | How many cells it takes along the flow and across it: one number is columns (rows being 1), or `[columns, rows]`. Default 1. |
+
+### SharedRange
+
+A scale and range the charts of a group share; each chart draws it with an Axis that has sharedRef.
+
+**In** ChartGroup · **Holds** 1 scale (required)
+
+| Attribute | Type | |
+|---|---|---|
+| `min` | `number` | Fix an end of the range. |
+| `max` | `number` | Fix the top end of the range. |
+| `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
+| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `nice` | `boolean` | Round the ends outwards to tidy tick values. |
+| `inverted` | `boolean` | Run from max to min along the axis. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
+| `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
+| `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
+| `tickStep` | `number` | Put ticks at every multiple of this step. |
+| `format` | `(value: number) => string` | Turns a tick's number into its label, e.g. (v) => `${v}%`. Default: plain digits, grouped by `locale` if one is set. |
+| `locale` | `string` | A BCP 47 tag for how this writes its numbers (grouping and decimal mark). Default: the chart's `locale`, else plain digits. |
+| `onViewChange` | `(view: Readonly<Extent> \| null) => void` | Called when the view (what pan, zoom or a reset has set) changes: the new range, or null when it is back to the natural one. |
 <!-- api:end -->

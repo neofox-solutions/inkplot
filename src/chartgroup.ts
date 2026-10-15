@@ -19,6 +19,7 @@ import { Container, isBody } from './container.ts';
 import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import { type ChartEvent, EVENT_ARRANGE } from './events.ts';
 import type { Rect } from './geometry.ts';
+import { Dimension } from './dimension.ts';
 import type { Plane } from './plane.ts';
 import type { ChartChildren } from './chart.ts';
 
@@ -43,6 +44,20 @@ export interface ChartGroupItemAttributes extends BaseAttributes {
   span?: number | readonly [columns: number, rows: number];
 }
 
+export interface Edges {
+  top: boolean;
+  right: boolean;
+  bottom: boolean;
+  left: boolean;
+}
+
+/**
+ * A range that the charts of a group share: one scale and one fitted range for all of them, so that what is drawn in
+ * several charts lines up. It draws nothing. A plane's `Axis` with `sharedRef` names it and draws it: each chart says
+ * where the axis goes and how it looks, and the range is fitted to everything every chart draws against it.
+ */
+export class SharedRange extends Dimension<ChartGroup> {}
+
 /** One chart in a group: its own plane and furniture, in its cells of the grid. Not shown, it takes no cell and no space. */
 export class ChartGroupItem extends Container<ChartGroup, ChartChildren, ChartGroupItemAttributes> {
   static override attrTypes = { ...ChartElement.attrTypes, span: AUTO } satisfies AttrTypesFor<ChartGroupItemAttributes>;
@@ -54,6 +69,15 @@ export class ChartGroupItem extends Container<ChartGroup, ChartChildren, ChartGr
     if (!(Number.isInteger(c) && Number.isInteger(r) && c >= 1 && r >= 1))
       fail(`ChartGroupItem: span ${String(s)} is not a whole number of columns and rows`);
     return [c, r];
+  }
+
+  #edges: Edges = { top: true, right: true, bottom: true, left: true };
+  /** Which edges of the group this chart is at: nothing of the group lies beyond it that way. An axis with `edgeOnly` is drawn on these. */
+  get edges(): Edges {
+    return this.#edges;
+  }
+  setEdges(edges: Edges): void {
+    this.#edges = edges;
   }
 
   #rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -81,7 +105,7 @@ interface Placed {
 }
 
 /** A grid of charts. It is the body of a chart, in place of a plane. */
-export class ChartGroup extends ChartElement<Container, ChartGroupItem[], ChartGroupAttributes> {
+export class ChartGroup extends ChartElement<Container, (ChartGroupItem | SharedRange)[], ChartGroupAttributes> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     columns: NUMBER,
@@ -97,7 +121,7 @@ export class ChartGroup extends ChartElement<Container, ChartGroupItem[], ChartG
 
   /** The items that take part: those that are shown. */
   get items(): readonly ChartGroupItem[] {
-    return [...this].filter((c) => c.attrs.visible !== false);
+    return [...this].filter((c): c is ChartGroupItem => c instanceof ChartGroupItem && c.attrs.visible !== false);
   }
 
   /** The planes of the items that are shown. */
@@ -110,7 +134,7 @@ export class ChartGroup extends ChartElement<Container, ChartGroupItem[], ChartG
   }
 
   /** Where each shown item goes in the grid, in cells, and how many lines the grid has. */
-  private place(): { placed: Placed[]; lines: number; perLine: number } {
+  private place(): { placed: Placed[]; lines: number; perLine: number; taken: Set<number> } {
     const a = this.attrs,
       rowFlow = (a.flow ?? 'row') === 'row',
       items = this.items;
@@ -172,14 +196,14 @@ export class ChartGroup extends ChartElement<Container, ChartGroupItem[], ChartG
       lines = Math.max(lines, line + s.across);
       at += s.along;
     });
-    return { placed, lines: Math.max(lines, 1), perLine };
+    return { placed, lines: Math.max(lines, 1), perLine, taken };
   }
 
   private arrange(area: Rect): void {
     const a = this.attrs,
       rowFlow = (a.flow ?? 'row') === 'row',
       gap = typeof a.gap === 'number' ? { row: a.gap, column: a.gap } : { row: a.gap?.row ?? 8, column: a.gap?.column ?? 8 };
-    const { placed, lines, perLine } = this.place();
+    const { placed, lines, perLine, taken } = this.place();
     if (placed.length === 0) return;
     // Cells are the same size: the area less the gaps, shared out. `gapAlong` is the gap between cells along the flow.
     const gapAlong = rowFlow ? gap.column : gap.row,
@@ -219,15 +243,41 @@ export class ChartGroup extends ChartElement<Container, ChartGroupItem[], ChartG
               : 0;
       inLast.forEach((p, i) => offsets.set(p, lead + between * i));
     }
+    const free = (line: number, at: number) => line >= 0 && at >= 0 && !taken.has(line * (perLine + 1) + at);
+    const rects = new Map<ChartGroupItem, Rect>();
     for (const p of placed) {
       const start = p.at * (cellAlong + gapAlong) + (offsets.get(p) ?? 0),
         top = p.line * (cellAcross + gapAcross),
         sizeAlong = p.along * cellAlong + (p.along - 1) * gapAlong,
         sizeAcross = p.across * cellAcross + (p.across - 1) * gapAcross;
-      const rect: Rect = rowFlow
-        ? { x: area.x + start, y: area.y + top, width: sizeAlong, height: sizeAcross }
-        : { x: area.x + top, y: area.y + start, width: sizeAcross, height: sizeAlong };
-      this.arrangeChild(p.item, rect);
+      rects.set(
+        p.item,
+        rowFlow
+          ? { x: area.x + start, y: area.y + top, width: sizeAlong, height: sizeAcross }
+          : { x: area.x + top, y: area.y + start, width: sizeAcross, height: sizeAlong },
+      );
+      // An edge of the group is one with no chart in the cells beyond this one's.
+      const along = Array.from({ length: p.along }, (_, k) => p.at + k),
+        across = Array.from({ length: p.across }, (_, l) => p.line + l);
+      const before = { across: along.every((at) => free(p.line - 1, at)), along: across.every((l) => free(l, p.at - 1)) },
+        after = { across: along.every((at) => free(p.line + p.across, at)), along: across.every((l) => free(l, p.at + p.along)) };
+      p.item.setEdges(
+        rowFlow
+          ? { top: before.across, bottom: after.across, left: before.along, right: after.along }
+          : { left: before.across, right: after.across, top: before.along, bottom: after.along },
+      );
     }
+    this.fitShared(placed, rects);
+    for (const p of placed) this.arrangeChild(p.item, rects.get(p.item) ?? area);
+  }
+
+  /** Charts that draw a range of this group's are fitted in step, since the range has to cover what all of them draw before any is placed. */
+  private fitShared(placed: readonly Placed[], rects: ReadonlyMap<ChartGroupItem, Rect>): void {
+    if (![...this].some((c) => c instanceof SharedRange)) return;
+    const steps: Generator<void>[] = [];
+    for (const { item } of placed)
+      for (const plane of item.planes)
+        if (plane.axes.some((x) => x.shared?.parent === this)) steps.push(plane.fitSteps(rects.get(item) ?? item.rect));
+    for (let live = steps; live.length > 0;) live = live.filter((g) => !g.next().done);
   }
 }

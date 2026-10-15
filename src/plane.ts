@@ -187,11 +187,23 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
    * plot is expected to have, which sizes decimation; the real plot is only known once the axes have been measured.
    */
   protected fit(estimate: Size): void {
+    const steps = this.fitStages(estimate);
+    while (!steps.next().done);
+  }
+
+  /**
+   * `fit` as stages, with a `yield` between them where planes that share an axis have to wait for each other: every plane
+   * has begun its axes before any contributes, every plane has contributed its domain before any resolves it, and every plane
+   * has loaded before any axis is settled. A plane alone runs them one after the other, which is `fit`.
+   */
+  protected *fitStages(estimate: Size): Generator<void> {
     const axes = this.axes,
       series = this.series;
     for (const a of axes) a.begin(this.axisLength(a, estimate));
+    yield;
     for (const s of series) s.resolveAxes(this);
     for (const s of series) s.contributeDomain();
+    yield;
     for (const s of series) s.resolveDomain();
     // A group (a stack) loads its own members, since what they contribute depends on all of them.
     for (const c of this) {
@@ -199,7 +211,16 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
         if (c.shown) c.load(estimate);
       } else groupOf(c)?.load(estimate);
     }
+    yield;
     for (const a of axes) a.resolve();
+  }
+
+  /**
+   * Engine protocol for a chart group: the fit of a plane that shares an axis with others, as stages for the group to take in
+   * step. `available` is the room the plane's chart has. `arrange` then finds its fit done and goes on from there.
+   */
+  fitSteps(_available: Rect): Generator<void> {
+    return fail('a shared axis needs a Cartesian plane');
   }
 }
 
@@ -426,15 +447,27 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
     }
   }
 
+  #fitted = -1;
+  /** 80 and 40: roughly a y-axis's labels and an x-axis's labels. Only a guess for decimation; the real plot is set later. */
+  private estimateFor(available: Rect): Size {
+    return { width: Math.max(1, available.width - 80), height: Math.max(1, available.height - 40) };
+  }
+  override *fitSteps(available: Rect): Generator<void> {
+    this.assignAxes(this.chart?.rtl ? RTL_SIDES : DEFAULT_SIDES, cartesianSide);
+    const estimate = this.estimateFor(available);
+    this.setRulers(estimate.width, estimate.height);
+    yield* this.fitStages(estimate);
+    this.#fitted = this.chart?.flushCount ?? 0;
+  }
+
   /** Negotiates ranges, lays out the axes, projects every series. */
   private arrange(available: Rect): void {
     const axes = this.axes,
       series = this.series;
     this.assignAxes(this.chart?.rtl ? RTL_SIDES : DEFAULT_SIDES, cartesianSide);
-    // 80 and 40: roughly a y-axis's labels and an x-axis's labels. Only a guess for decimation; the real plot is set below.
-    const estimate = { width: Math.max(1, available.width - 80), height: Math.max(1, available.height - 40) };
+    const estimate = this.estimateFor(available);
     this.setRulers(estimate.width, estimate.height);
-    this.fit(estimate);
+    if (this.#fitted !== (this.chart?.flushCount ?? 0)) this.fit(estimate);
     this.setRulers(estimate.width, estimate.height); // ranges are settled now, which is what tells a floating axis from a fixed one
 
     // Axes ask for space; what is left is the plot. Overhang is a horizontal axis' end labels poking past the plot sides.

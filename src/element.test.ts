@@ -61,7 +61,7 @@ test('element', () => {
   const newScale = new LinearScale();
   l.setChild(0, newScale);
   assert.equal(l.child(0, LinearScale), newScale);
-  assert.equal(oldScale.parent, null);
+  assert.equal(oldScale?.parent, null);
   assert.equal(live.flush().attributeWrites, 0, 'an equivalent scale changes nothing on screen');
   assert.equal(p.toString(), before);
   console.log('ok element');

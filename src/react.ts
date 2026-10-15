@@ -325,6 +325,7 @@ export function ChartView(props: {
 export const Chart = /* @__PURE__ */ reactWrapper(chart_.Chart);
 export const ChartGroup = /* @__PURE__ */ reactWrapper(chartgroup_.ChartGroup);
 export const ChartGroupItem = /* @__PURE__ */ reactWrapper(chartgroup_.ChartGroupItem);
+export const SharedRange = /* @__PURE__ */ reactWrapper(chartgroup_.SharedRange);
 export const ChartTitle = /* @__PURE__ */ reactWrapper(furniture_.ChartTitle);
 export const ChartTooltip = /* @__PURE__ */ reactWrapper(furniture_.ChartTooltip);
 export const ChartSummary = /* @__PURE__ */ reactWrapper(summary_.ChartSummary);
