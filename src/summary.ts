@@ -10,7 +10,8 @@
  */
 import { type AttrTypesFor, STRING } from './attrs.ts';
 import type { Axis } from './axis.ts';
-import type { Chart, Describer } from './chart.ts';
+import type { Describer } from './chart.ts';
+import type { Container } from './container.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
 
 /** What a summary is made from. Plain data, so a function in any language can word it. */
@@ -43,7 +44,7 @@ export function englishSummary(f: ChartFacts): string {
   return parts.join(' ');
 }
 
-export class ChartSummary extends ChartElement<Chart, [], ChartSummaryAttributes> implements Describer {
+export class ChartSummary extends ChartElement<Container, [], ChartSummaryAttributes> implements Describer {
   static override attrTypes = { ...ChartElement.attrTypes, roleDescription: STRING } satisfies AttrTypesFor<ChartSummaryAttributes>;
   /** What the chart holds as of the last layout. */
   get facts(): ChartFacts {

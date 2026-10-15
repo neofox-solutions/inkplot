@@ -3,6 +3,7 @@
  * chart group. The furniture is measured first and takes strips at the edges it names; the body gets what is left.
  */
 import { type AnyElement, type BaseAttributes, ChartElement } from './element.ts';
+import { Plane } from './plane.ts';
 import { type LayoutRequest, type Rect, type Side } from './geometry.ts';
 
 /** Space between the plots and the furniture at their edges. */
@@ -10,16 +11,29 @@ const FURNITURE_GAP = 8;
 /** Space between stacked bands, such as a title and its subtitle. */
 const BAND_GAP = 2;
 
+/** An element that arranges itself into the body area of a container (a plane, a chart group): what the furniture leaves. */
+export const isBody = (child: AnyElement): boolean => child instanceof Plane || ('isBody' in child && child.isBody === true);
+
 export abstract class Container<
   Parent extends AnyElement | null = AnyElement | null,
   Children extends AnyElement[] = AnyElement[],
   A extends BaseAttributes = BaseAttributes,
 > extends ChartElement<Parent, Children, A> {
+  /** Every plane inside, in tree order, those in chart groups (and in their items that are shown) included. */
+  get planes(): readonly Plane[] {
+    const out: Plane[] = [];
+    for (const c of this) {
+      if (c instanceof Plane) out.push(c);
+      else if ('planes' in c && Array.isArray(c.planes)) for (const p of c.planes) if (p instanceof Plane) out.push(p);
+    }
+    return out;
+  }
+
   /**
-   * Measure the children that are not the body (`isBody`), give them their edges of `content`, call `arrangeBody` with the
+   * Measure the children that are not the body (`isBody`: planes and groups), give them their edges of `content`, call `arrangeBody` with the
    * rectangle that is left, then arrange the furniture, now that the body has settled.
    */
-  protected layOutFurniture(content: Rect, isBody: (child: AnyElement) => boolean, arrangeBody: (area: Rect) => void): void {
+  protected layOutFurniture(content: Rect, arrangeBody: (area: Rect) => void): void {
     // Everything that is not the body (planes) and asks for a side takes room along that edge, sized by what it asked for, and the
     // planes get what is left. Bands (titles, captions) span the edge and stack outwards from it, and come first; the
     // rest (keys) take a strip inside the bands, where several on one side stack along it.

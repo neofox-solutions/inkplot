@@ -9,7 +9,7 @@
  * orientation, length). Different keys can show one dimension, and a dimension needs none.
  */
 import { type AttrTypesFor, STRING } from './attrs.ts';
-import type { Chart } from './chart.ts';
+import type { Container } from './container.ts';
 import { type BaseAttributes, ChartElement, type ElementRef, resolveRef } from './element.ts';
 import { type ChartEvent, EVENT_ARRANGE, EVENT_ATTACH, EVENT_MEASURE, EVENT_PAINT } from './events.ts';
 import { type Rect, type Side, circlePath, f2 } from './geometry.ts';
@@ -69,7 +69,7 @@ interface Tick {
 export abstract class Key<
   Dimension extends MappedDimension<unknown>,
   A extends KeyAttributes<Dimension> = KeyAttributes<Dimension>,
-> extends ChartElement<Chart, [], A> {
+> extends ChartElement<Container, [], A> {
   static override attrTypes = { ...ChartElement.attrTypes, title: STRING } satisfies Partial<
     AttrTypesFor<KeyAttributes<MappedDimension<unknown>>>
   >;

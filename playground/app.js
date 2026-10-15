@@ -628,7 +628,7 @@ const PALETTE = ['#2a6fdb', '#d9534f', '#2e9e6b', '#e0a030', '#8a5cd0', '#17a2b8
 const demos = [];
 
 // ── 0. Headline: the warming spiral ──────────────────────────────────────────
-// One chart, two polar planes laid over each other. Inside, each year is a ring of twelve months, coloured by the year's anomaly.
+// One chart, two polar planes laid over each other (a one-cell ChartGroup). Inside, each year is a ring of twelve months, coloured by the year's anomaly.
 // Outside, the same years are a ring of stripes: bars on a polar plane whose fill is bound to a colour axis and whose opacity is
 // bound to a function of the year, so the years still to come dim as the spiral plays. The numbers are the real record: NASA GISS
 // GISTEMP v4 (see playground/gistemp.js for the source), and the page's caption credits it.
@@ -796,8 +796,7 @@ demos.push({
         },
       },
       heat,
-      spiral,
-      ring,
+      new L.ChartGroup({ columns: 1, rows: 1, gap: 0 }, new L.ChartGroupItem({}, spiral), new L.ChartGroupItem({}, ring)),
       new L.ChartTitle({ text: 'A century and a half of warming', role: 'title' }),
       new L.ChartTitle({ text: 'Each ring is a year, January at the top; the stripes outside are the same years', role: 'subtitle' }),
       new L.ChartTitle({

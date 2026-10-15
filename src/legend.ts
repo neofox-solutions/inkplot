@@ -18,7 +18,7 @@
  */
 /* oxlint-disable typescript/no-non-null-assertion -- entries, widths and items are parallel arrays indexed together in one loop */
 import { type AttrTypesFor, STRING } from './attrs.ts';
-import type { Chart } from './chart.ts';
+import type { Container } from './container.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
 import { hideFromAssistive, writeAria } from './aria.ts';
 import { InteractiveElement, inputOf } from './input.ts';
@@ -34,7 +34,6 @@ import {
 } from './events.ts';
 import { drawFocusRing, makeTabStop, pressesButton } from './focus.ts';
 import { type Rect, type Side, f2 } from './geometry.ts';
-import { Plane } from './plane.ts';
 import { type SampleCache, type Series, paintSample } from './series.ts';
 import type { PlatformNode } from './platform.ts';
 import { LINE_HEIGHT, applyText, measureBlock } from './text.ts';
@@ -68,7 +67,7 @@ interface Item {
   width: number;
 }
 
-export class Legend extends InteractiveElement<Chart, [], LegendAttributes> {
+export class Legend extends InteractiveElement<Container, [], LegendAttributes> {
   static override attrTypes = { ...ChartElement.attrTypes, title: STRING } satisfies AttrTypesFor<LegendAttributes>;
   #rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
   #items: Item[] = [];
@@ -90,7 +89,7 @@ export class Legend extends InteractiveElement<Chart, [], LegendAttributes> {
   /** The series listed: those of all the chart's planes that have a name. */
   get entries(): readonly Series[] {
     const out: Series[] = [];
-    for (const c of this.requireParent()) if (c instanceof Plane) for (const s of c.allSeries) if (s.attrs.name) out.push(s);
+    for (const p of this.requireParent().planes) for (const s of p.allSeries) if (s.attrs.name) out.push(s);
     return out;
   }
 
@@ -98,7 +97,7 @@ export class Legend extends InteractiveElement<Chart, [], LegendAttributes> {
     switch (ev.type) {
       case EVENT_ATTACH:
         this.surface.wrapper();
-        inputOf(this.requireParent()).watchInput(this);
+        inputOf(this.requireChart()).watchInput(this);
         break;
       case EVENT_MEASURE: {
         const size = this.#layout(ev.available.width);
@@ -169,7 +168,7 @@ export class Legend extends InteractiveElement<Chart, [], LegendAttributes> {
   /** Place every entry, given how wide the chart is, and say how big the legend is; null when there is nothing to list. */
   #layout(available: number): { width: number; height: number } | null {
     const entries = this.entries,
-      chart = this.requireParent();
+      chart = this.requireChart();
     this.#items = [];
     if (entries.length === 0) return null;
     const label = this.#label(),
@@ -250,7 +249,7 @@ export class Legend extends InteractiveElement<Chart, [], LegendAttributes> {
       if (toggle) {
         s.set(hit, 'aria-pressed', String(shown));
         makeTabStop(s, hit);
-        inputOf(this.requireParent()).focusable(this, hit);
+        inputOf(this.requireChart()).focusable(this, hit);
       }
       this.#nodes[i] = hit;
     });

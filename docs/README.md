@@ -48,7 +48,8 @@ One page per part of the library, from the user's point of view.
 | Page | About |
 |---|---|
 | [Charts](guide/charts.md) | The root: theme, size, padding, children, and the flush. |
-| [Planes](guide/planes.md) | Cartesian, polar and radar coordinate spaces; overlaying planes. |
+| [Planes](guide/planes.md) | Cartesian, polar and radar coordinate spaces. |
+| [Charts in a grid](guide/charts-in-a-grid.md) | `ChartGroup`: several charts in one picture, spans, alignment. |
 | [Axes and scales](guide/axes.md) | Ranges, ticks, labels, titles, linear, log, sqrt, band and time scales. |
 | [Data](guide/data.md) | Flat, object, column and synthetic sources; updating; decimating large data. |
 | [Series and renderers](guide/series.md) | Series, lines, areas, bars, markers, curves, gaps, stacks. |

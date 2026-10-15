@@ -76,6 +76,7 @@ export const FEATURE_USES: Record<string, string[]> = {
   react: [
     'dom-platform',
     'adapt',
+    'chartgroup',
     'boxzoom',
     'brush',
     'boxplot',

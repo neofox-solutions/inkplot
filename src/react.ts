@@ -66,6 +66,7 @@ import * as brush_ from './brush.ts';
 import * as axis_ from './axis.ts';
 import * as bars_ from './bars.ts';
 import * as chart_ from './chart.ts';
+import * as chartgroup_ from './chartgroup.ts';
 import * as crosshair_ from './crosshair.ts';
 import * as errors_ from './errors.ts';
 import * as cursor_ from './cursor.ts';
@@ -322,6 +323,8 @@ export function ChartView(props: {
 // ── Built-in components: one per concrete element class (the ones in `registry`). Each is a pure call, so a bundler drops the
 // wrappers you do not use, and with them the classes they name. `reactWrapper` stays for classes of your own.
 export const Chart = /* @__PURE__ */ reactWrapper(chart_.Chart);
+export const ChartGroup = /* @__PURE__ */ reactWrapper(chartgroup_.ChartGroup);
+export const ChartGroupItem = /* @__PURE__ */ reactWrapper(chartgroup_.ChartGroupItem);
 export const ChartTitle = /* @__PURE__ */ reactWrapper(furniture_.ChartTitle);
 export const ChartTooltip = /* @__PURE__ */ reactWrapper(furniture_.ChartTooltip);
 export const ChartSummary = /* @__PURE__ */ reactWrapper(summary_.ChartSummary);

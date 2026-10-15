@@ -24,7 +24,8 @@ import type { ColorKey, SizeKey } from './key.ts';
 import type { Legend } from './legend.ts';
 import type { ChartSummary } from './summary.ts';
 import type { Entrance } from './entrance.ts';
-import { Container } from './container.ts';
+import type { ChartGroup } from './chartgroup.ts';
+import { Container, isBody } from './container.ts';
 import { Plane } from './plane.ts';
 import type { BaseTheme } from './theme.ts';
 import { type Platform, StringPlatform, type TextMeasurer, type Unsubscribe, estimateTextWidth } from './platform.ts';
@@ -111,6 +112,7 @@ export interface ChartChildMap {
   legend: Legend;
   summary: ChartSummary;
   entrance: Entrance;
+  group: ChartGroup;
 }
 export type ChartChildren = ChartChildMap[keyof ChartChildMap][];
 
@@ -200,11 +202,6 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
     this.#dataChanged = true;
   }
 
-  /** Every plane in the chart, in tree order. */
-  get planes(): readonly Plane[] {
-    return [...this].filter((c): c is Plane => c instanceof Plane);
-  }
-
   /** Put every axis of every plane back to the range its data asks for. */
   resetViews(): void {
     for (const p of this.planes) p.resetViews();
@@ -268,13 +265,10 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
       height: Math.max(1, height - pad.top - pad.bottom),
     };
 
-    this.layOutFurniture(
-      content,
-      (child) => child instanceof Plane,
-      (area) => {
-        for (const child of this) if (child instanceof Plane) this.arrangeChild(child, area);
-      },
-    );
+    if ([...this].filter(isBody).length > 1) fail('a chart has one plane or group: put several in a ChartGroup');
+    this.layOutFurniture(content, (area) => {
+      for (const child of this) if (isBody(child)) this.arrangeChild(child, area);
+    });
     // What a screen reader is told of the chart as a whole: `meta` first, then what a describer child makes of it, which needs the layout to have settled.
     let said: ReturnType<Describer['describe']> | undefined;
     for (const child of this)

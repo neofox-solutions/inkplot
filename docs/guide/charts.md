@@ -47,7 +47,7 @@ export default () => (
 | `Cursor` | Finds what the pointer or keyboard is on; holds a `Crosshair` and `ChartTooltip`. | [Interaction](interaction.md) |
 | `ChartSummary` | A generated text description for screen readers. | [Accessibility](accessibility.md) |
 
-**Layout.** Furniture takes room from the edge it sits on: titles at the top and bottom (several on one edge stack, in order, outwards), a legend or key on its `side`. The planes get whatever is left. Every plane is given all of it, so several planes **overlay** one another (each draws its own axes); to put charts side by side, use more than one `Chart`.
+**Layout.** Furniture takes room from the edge it sits on: titles at the top and bottom (several on one edge stack, in order, outwards), a legend or key on its `side`. The planes get whatever is left. The plane gets all of it. A chart has one plane, or one [`ChartGroup`](charts-in-a-grid.md) for several charts in a grid; two planes straight in a chart are an error. A chart of your own can still be put beside another, as two `Chart`s.
 
 ## Right to left
 

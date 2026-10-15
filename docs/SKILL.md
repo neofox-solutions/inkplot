@@ -125,7 +125,7 @@ Attributes of the elements in the Template. An attribute followed by `(required)
 
 The root: a theme, a size, and what is drawn on it.
 
-**In** none (the root) · **Holds** planes, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance
+**In** none (the root) · **Holds** a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance
 
 | Attribute | Type | |
 |---|---|---|
@@ -277,6 +277,7 @@ Read the topic that matches the chart; each has examples and the attributes of t
 - **statistics** (`topics/statistics.md`): histograms (a histogram is `Density` + `BarPath`), heat maps, density, box plots, trendlines (linear, polynomial, sinusoidal, loess), error bars and bands. Elements: BoxPath, BoxStats, Density, HeatMap, LinearTrend, PolynomialTrend, SinusoidalTrend, LoessTrend, ErrorBars, ErrorBand.
 - **furniture** (`topics/furniture.md`): a chart title or caption, a legend, reference lines and callouts, notes on chosen points, an accessible name and summary. Elements: ChartTitle, Legend, ChartSummary, LineAnnotation, CalloutAnnotation, PointAnnotations.
 - **interaction** (`topics/interaction.md`): tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch, an entrance animation. Elements: ChartTooltip, Cursor, Crosshair, PanZoom, BoxZoom, Brush, PointerListener, Entrance.
+- **grid** (`topics/grid.md`): a dashboard: several charts in one picture, in a grid. Elements: ChartGroup, ChartGroupItem.
 - **planes** (`topics/planes.md`): polar and radar charts. Elements: PolarPlane, RadarPlane.
 - **data** (`topics/data.md`): a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table. Elements: CompositeDataSource, SyntheticDataSource, Decimator, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel.
 - **styling-output** (`topics/styling-output.md`): dark and custom themes, styling parts, React, a PNG, chart as JSON, your own element types.

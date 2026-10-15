@@ -30,7 +30,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, AUTO, STRING } from './attrs.ts';
 import { writeAria } from './aria.ts';
-import type { Chart } from './chart.ts';
+import type { Container } from './container.ts';
 import { type BaseAttributes, ChartElement, type ElementRef, resolveRef } from './element.ts';
 import { InteractiveElement, inputOf } from './input.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_FOCUS, EVENT_HOVER, EVENT_KEY, EVENT_PAINT, type Hit } from './events.ts';
@@ -95,7 +95,7 @@ export type CursorChildren = CursorChildMap[keyof CursorChildMap][];
 
 const JUMP = 0.1;
 
-export class Cursor extends InteractiveElement<Chart, CursorChildren, CursorAttributes> {
+export class Cursor extends InteractiveElement<Container, CursorChildren, CursorAttributes> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     plane: STRING,
@@ -137,8 +137,7 @@ export class Cursor extends InteractiveElement<Chart, CursorChildren, CursorAttr
   get plane(): Plane | null {
     const ref = this.attrs.plane;
     if (ref) return resolveRef<Plane>(ref, this, Plane);
-    for (const c of this.requireParent()) if (c instanceof Plane) return c;
-    return null;
+    return this.requireParent().planes[0] ?? null;
   }
 
   /** Put the keyboard cursor on a point of a series, as if stepped to, and show it. */
@@ -151,7 +150,7 @@ export class Cursor extends InteractiveElement<Chart, CursorChildren, CursorAttr
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
       case EVENT_ATTACH:
-        inputOf(this.requireParent()).watchPointer(this);
+        inputOf(this.requireChart()).watchPointer(this);
         break;
       case EVENT_HOVER: {
         const pinned = this.attrs.plane ? this.plane : null;
@@ -400,7 +399,7 @@ export class Cursor extends InteractiveElement<Chart, CursorChildren, CursorAttr
       this.#lastKeys = shortcuts;
       s.set(node, 'aria-keyshortcuts', shortcuts);
     }
-    inputOf(this.requireParent()).focusable(this, node);
+    inputOf(this.requireChart()).focusable(this, node);
     this.#node = node;
     drawFocusRing(
       s,

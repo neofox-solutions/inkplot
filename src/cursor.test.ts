@@ -5,6 +5,8 @@ import { FakePlatform } from './fake-platform.ts';
 import {
   Axis,
   CartesianPlane,
+  ChartGroup,
+  ChartGroupItem,
   Chart,
   ChartTooltip,
   Crosshair,
@@ -380,7 +382,8 @@ test('cursor', () => {
     const p2 = new CartesianPlane({}, new Axis({ orientation: 'bottom' }, lin()), new Axis({ orientation: 'left' }, lin()), b);
     const cursor = new Cursor({ plane: p2 }, new Crosshair()),
       free = new Cursor({}, new Crosshair());
-    const chart = new Chart({ theme: lightTheme }, p1, p2, cursor, free);
+    const overlay = new ChartGroup({ columns: 1, rows: 1 }, new ChartGroupItem({}, p1), new ChartGroupItem({}, p2));
+    const chart = new Chart({ theme: lightTheme }, overlay, cursor, free);
     const platform = new FakePlatform({ width: 400, height: 600 });
     chart.attach(platform).flush();
     // Planes laid one over another share the pointer by order: the first under it gets it.

@@ -10,6 +10,7 @@ import { StemPath, BarPath } from './bars.ts';
 import { BoxPath } from './boxplot.ts';
 import { BoxStats } from './stats.ts';
 import { Chart } from './chart.ts';
+import { ChartGroup, ChartGroupItem } from './chartgroup.ts';
 import { ErrorBand, ErrorBars } from './errors.ts';
 import { LinearCurve } from './curve.ts';
 import { ArcCurve, BasisCurve, BumpCurve, CardinalCurve, CatmullRomCurve, MonotoneCurve, NaturalCurve, QuadraticCurve } from './curves.ts';
@@ -45,6 +46,8 @@ import { TemporalTimeScale } from './time-temporal.ts';
 
 export const registry: ElementRegistry = {
   Chart,
+  ChartGroup,
+  ChartGroupItem,
   ChartTitle,
   ChartTooltip,
   ChartSummary,

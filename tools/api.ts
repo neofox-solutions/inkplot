@@ -11,8 +11,18 @@ const SRC = new URL('../src/', import.meta.url);
 export const STRUCTURE: Record<string, { parent: string; children: string; about: string }> = {
   Chart: {
     parent: 'none (the root)',
-    children: 'planes, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance',
+    children: 'a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance',
     about: 'The root: a theme, a size, and what is drawn on it.',
+  },
+  ChartGroup: {
+    parent: 'Chart or ChartGroupItem',
+    children: 'ChartGroupItem, any number',
+    about: 'A grid of charts in one picture, in place of a plane: equal cells, filled along a row or a column.',
+  },
+  ChartGroupItem: {
+    parent: 'ChartGroup',
+    children: 'what a Chart holds: a plane (or a nested ChartGroup), ChartTitle, Legend, Cursor, keys',
+    about: 'One chart of a group, in the cells it spans; its titles and keys go round its own plane.',
   },
   ChartTitle: { parent: 'Chart', children: 'none', about: 'Text across the top or bottom: a title, subtitle or caption.' },
   ChartTooltip: { parent: 'Cursor', children: 'none', about: 'A box of text at the cursor.' },

@@ -9,7 +9,7 @@
  */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, STRING } from './attrs.ts';
-import type { Chart } from './chart.ts';
+import type { Container } from './container.ts';
 import { Dimension, type DimensionAttributes } from './dimension.ts';
 import { type ElementRef, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
@@ -26,7 +26,10 @@ export interface MappedDimensionAttributes extends DimensionAttributes {}
  * for itself when a new flush has begun. The first contribution of a flush starts it over, and the first read of the
  * range, which is when something draws, fixes it.
  */
-export abstract class MappedDimension<Out, A extends MappedDimensionAttributes = MappedDimensionAttributes> extends Dimension<Chart, A> {
+export abstract class MappedDimension<Out, A extends MappedDimensionAttributes = MappedDimensionAttributes> extends Dimension<
+  Container,
+  A
+> {
   /** The output for a position 0..1 along the dimension. */
   abstract valueAt(fraction: number): Out;
   /** What data outside the range, or NaN, maps to. */

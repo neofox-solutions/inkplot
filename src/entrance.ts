@@ -10,7 +10,7 @@
  * to a string, an image or a server has no entrance, and so no markup for one.
  */
 import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
-import type { Chart } from './chart.ts';
+import type { Container } from './container.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
 import { type ChartEvent, EVENT_PAINT } from './events.ts';
 import { f2 } from './geometry.ts';
@@ -33,12 +33,12 @@ const KINDS: [string, string][] = [
   ['grow-x', 'from{transform:scale(0,1)}'],
 ];
 
-export class Entrance extends ChartElement<Chart, [], EntranceAttributes> {
+export class Entrance extends ChartElement<Container, [], EntranceAttributes> {
   static override attrTypes = { ...ChartElement.attrTypes, duration: NUMBER, easing: STRING } satisfies AttrTypesFor<EntranceAttributes>;
 
   override onEvent(ev: ChartEvent): void {
     if (ev.type !== EVENT_PAINT) return;
-    const chart = this.requireParent();
+    const chart = this.requireChart();
     // Only the first draw, and only where there is a browser to play it (`setTransition` is how a platform says it can animate).
     if (chart.flushCount !== 1 || !chart.platform?.setTransition) return;
     const a = this.attrs,
@@ -49,7 +49,7 @@ export class Entrance extends ChartElement<Chart, [], EntranceAttributes> {
       ).join('');
     const s = this.surface;
     s.text(s.node('style', 'style'), `@media (prefers-reduced-motion:no-preference){${css}}`);
-    for (const plane of chart.planes) for (const series of plane.allSeries) this.#mark(plane, series);
+    for (const plane of this.requireParent().planes) for (const series of plane.allSeries) this.#mark(plane, series);
   }
 
   /** A round plane fades, bars grow from their baseline (they say where it is), anything else is drawn on. */

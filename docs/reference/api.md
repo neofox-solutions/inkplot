@@ -8,13 +8,13 @@ Every element class the library ships, in the order of the registry: where it go
 
 ## Contents
 
-[Chart](#chart) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
+[Chart](#chart) · [ChartGroup](#chartgroup) · [ChartGroupItem](#chartgroupitem) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
 
 ## Chart
 
 The root: a theme, a size, and what is drawn on it.
 
-**In** none (the root) · **Holds** planes, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance
+**In** none (the root) · **Holds** a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance
 
 | Attribute | Type | |
 |---|---|---|
@@ -27,6 +27,30 @@ The root: a theme, a size, and what is drawn on it.
 | `locale` | `string` | A BCP 47 tag (`'de'`, `'fr-CA'`) for how numbers and dates are written: digit grouping, the decimal mark, month names. Default: numbers as plain digits with a point, and the runtime's own locale for dates. |
 | `transition` | `{ duration?: number; easing?: string; views?: boolean }` | Ease the chart to a new drawing when its **data** changes, in the browser: colours, sizes and (in browsers that can morph a path, Chrome and Firefox) the shapes of lines, areas and bars move over `duration` milliseconds (default 250) with a CSS `easing` (default `'ease-out'`). Default false. |
 | `onFlush` | `(stats: FlushStats) => void` | Called after every flush with its statistics. |
+
+## ChartGroup
+
+A grid of charts in one picture, in place of a plane: equal cells, filled along a row or a column.
+
+**In** Chart or ChartGroupItem · **Holds** ChartGroupItem, any number
+
+| Attribute | Type | |
+|---|---|---|
+| `columns` | `number` | How many columns. |
+| `rows` | `number` | How many rows; the counterpart of `columns`. |
+| `flow` | `'row' \| 'column'` | The direction the items fill the grid in: along a row and then down (`'row'`, the default) or down a column and then along. |
+| `gap` | `number \| { row?: number; column?: number }` | Space between cells in pixels: one number, or one for each direction. Default 8. |
+| `justify` | `Justify` | Where the items of the last line go when it is not full. Default 'start'. |
+
+## ChartGroupItem
+
+One chart of a group, in the cells it spans; its titles and keys go round its own plane.
+
+**In** ChartGroup · **Holds** what a Chart holds: a plane (or a nested ChartGroup), ChartTitle, Legend, Cursor, keys
+
+| Attribute | Type | |
+|---|---|---|
+| `span` | `number \| readonly [columns: number, rows: number]` | How many cells it takes along the flow and across it: one number is columns (rows being 1), or `[columns, rows]`. Default 1. |
 
 ## ChartTitle
 

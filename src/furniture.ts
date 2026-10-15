@@ -3,7 +3,7 @@
  * in annotation.ts.
  */
 import { type AttrTypesFor, STRING } from './attrs.ts';
-import type { Chart } from './chart.ts';
+import type { Container } from './container.ts';
 import type { Cursor, CursorChild } from './cursor.ts';
 import type { SampleCache, Series } from './series.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
@@ -36,7 +36,7 @@ const BAND_PADDING = 4;
  *
  * Where the text sits along its band is the style property `align` (`style: { chartTitle: { align: 'middle' } }`).
  */
-export class ChartTitle extends ChartElement<Chart, [], ChartTitleAttributes> {
+export class ChartTitle extends ChartElement<Container, [], ChartTitleAttributes> {
   static override attrTypes = { ...ChartElement.attrTypes, text: STRING } satisfies AttrTypesFor<ChartTitleAttributes>;
   #rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
   #lines = 0;
@@ -57,7 +57,7 @@ export class ChartTitle extends ChartElement<Chart, [], ChartTitleAttributes> {
         this.surface.wrapper();
         break;
       case EVENT_MEASURE: {
-        const size = measureBlock(this.requireParent().measureText, this.attrs.text, this.look);
+        const size = measureBlock(this.requireChart().measureText, this.attrs.text, this.look);
         const request = { width: size.width, height: size.height + BAND_PADDING };
         ev.request = { min: request, max: request, side: this.side, band: true };
         break;
@@ -168,7 +168,7 @@ export class ChartTooltip extends ChartElement<Cursor, [], ChartTooltipAttribute
       cursor = this.requireParent(),
       state = cursor.state,
       a = this.attrs,
-      chart = cursor.requireParent();
+      chart = this.requireChart();
     s.wrapper();
     if (!state || state.hits.length === 0) {
       clearCallout(s, this.#lines, this.#samples);
