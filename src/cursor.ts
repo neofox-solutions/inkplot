@@ -154,7 +154,8 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
         break;
       case EVENT_HOVER: {
         const pinned = this.attrs.plane ? this.plane : null;
-        if (pinned && ev.plane !== pinned) break;
+        // A cursor in one chart of a group follows the pointer in that chart only.
+        if ((pinned && ev.plane !== pinned) || !this.requireParent().planes.includes(ev.plane)) break;
         this.#pointer = ev.x === ev.x ? { plane: ev.plane, x: ev.x, y: ev.y, buttons: ev.buttons } : null;
         // The pointer leaving ends only what the pointer was doing: a cursor the keyboard put there stays.
         if (this.#pointer) this.#by = 'pointer';

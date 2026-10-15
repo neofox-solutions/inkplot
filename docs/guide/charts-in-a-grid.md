@@ -85,6 +85,46 @@ export default () => (
 
 A `SharedAxis` has no scale of its own, and only says how it is drawn: `orientation`, `title`, `format`, ticks. The range's attributes (`min`, `max`, `include`, `padding`, `nice`) go on the `SharedRange`. `edgeOnly` draws the axis only where its chart is at the edge of the group it faces, and takes no room elsewhere: one row of labels along the bottom, and the plots above it keep their height. A chart is on an edge when no chart lies beyond it, so the chart above a gap in the last row counts as being at the bottom. Shared axes are for Cartesian planes.
 
+## Pointer and keyboard
+
+The pointer goes to the chart under it. A `Cursor`, `Crosshair` and `ChartTooltip` inside an item follow the pointer in that chart only; one in the `Chart` follows it into whichever chart it is over. Pan and zoom (`PanZoom`, `BoxZoom`) on an axis that is a `SharedAxis` change the range's view, so every chart that shows it moves. Without a shared axis they act on their own chart's.
+
+`linkCursor` on the group goes further: when the pointer is over one chart, the charts that share an axis with it are told it is at the same value of that axis, so their own cursors show it too. Give each chart a `Cursor` with `mode="shared"` (a cursor that looks for the nearest point has nothing to compare the other charts' pointer with). The keyboard is per chart: each chart's cursor is its own tab stop.
+
+```tsx live title="A cursor across three charts" height=460
+import { Axis, CartesianPlane, Chart, ChartGroup, ChartGroupItem, ChartTitle, ChartTooltip, Crosshair, Cursor, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, PanZoom, SharedAxis, SharedRange, lightTheme } from 'inkplot';
+
+const series = (k: number, from: number, to: number) =>
+  Float64Array.from(Array.from({ length: to - from + 1 }, (_, i) => [from + i, Math.sin((from + i) / (4 + k)) * (k + 1)]).flat());
+
+const strip = (name: string, k: number, from: number, to: number) => (
+  <ChartGroupItem>
+    <ChartTitle text={name} role="subtitle" />
+    <CartesianPlane>
+      <SharedAxis orientation="bottom" sharedRef="time" edgeOnly />
+      <Axis orientation="left" tickCount={3}><LinearScale /></Axis>
+      <DomainSeries name={name}>
+        <FlatDataSource data={series(k, from, to)} stride={2} isSorted />
+        <LinePath><LinearCurve /></LinePath>
+      </DomainSeries>
+      <PanZoom direction="horizontal" />
+    </CartesianPlane>
+    <Cursor mode="shared"><Crosshair lines="first" /><ChartTooltip /></Cursor>
+  </ChartGroupItem>
+);
+
+export default () => (
+  <Chart theme={lightTheme}>
+    <ChartGroup columns={1} linkCursor>
+      <SharedRange id="time"><LinearScale /></SharedRange>
+      {strip('Sensor A', 0, 0, 60)}
+      {strip('Sensor B', 1, 10, 90)}
+      {strip('Sensor C', 2, 30, 100)}
+    </ChartGroup>
+  </Chart>
+);
+```
+
 ## What goes where
 
 A chart has one plane or one group; two planes straight in a `Chart` are an error that points here. A `ChartGroupItem` may hold a `ChartGroup` in place of a plane, so grids nest. `chart.planes` lists every plane, in grid order.

@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { test } from 'vite-plus/test';
 import {
   Axis,
+  Crosshair,
+  Cursor,
+  PanZoom,
   CartesianPlane,
   Chart,
   ChartGroup,
@@ -22,6 +25,7 @@ import {
   registry,
   toJSON,
 } from './index.ts';
+import { FakePlatform } from './fake-platform.ts';
 import type { ChartGroupAttributes, ChartGroupItemAttributes } from './index.ts';
 
 const W = 420,
@@ -360,4 +364,105 @@ test('aligned plots', () => {
   const fixed = run({ columns: 1 }, [1, 1234567], [{ left: 5 }]);
   assert.equal(fixed[0]!.x, 5);
   assert.notEqual(fixed[1]!.x, 5);
+});
+
+// Input in a group: the pointer reaches the chart under it, a cursor follows it in its own chart, and shared axes link them.
+test('group interaction', () => {
+  const cell = (cursor: boolean, pan = false) => {
+    const plane = new CartesianPlane(
+      {},
+      new SharedAxis({ orientation: 'bottom', sharedRef: 'time' }),
+      new Axis({ orientation: 'left' }, new LinearScale()),
+      new DomainSeries(
+        { name: 's' },
+        new FlatDataSource({ data: Float64Array.from([0, 1, 5, 3, 10, 2]), stride: 2 }),
+        new LinePath(new LinearCurve()),
+      ),
+      ...(pan ? [new PanZoom({ direction: 'horizontal' })] : []),
+    );
+    const own = cursor ? new Cursor({ mode: 'shared' }, new Crosshair()) : null;
+    return { plane, cursor: own, item: new ChartGroupItem({}, plane, ...(own ? [own] : [])) };
+  };
+  const build = (cells: ReturnType<typeof cell>[], attrs: ChartGroupAttributes = {}) => {
+    const group = new ChartGroup({ columns: 1, ...attrs }, new SharedRange({ id: 'time' }, new LinearScale()), ...cells.map((c) => c.item));
+    const chart = new Chart({ theme: lightTheme, width: W, height: 2 * H }, group);
+    const platform = new FakePlatform({ width: W, height: 2 * H });
+    chart.attach(platform).flush();
+    const at = (c: ReturnType<typeof cell>, fx: number, fy: number, kind: 'move' | 'wheel' = 'move', deltaY = 0) => {
+      const r = c.plane.rect;
+      platform.pointer!({ kind, x: r.x + fx * r.width, y: r.y + fy * r.height, buttons: 0, deltaY, shift: false, ctrl: false });
+      chart.flush();
+    };
+    const leave = () => {
+      platform.pointer!({ kind: 'leave', x: 0, y: 0, buttons: 0, deltaY: 0, shift: false, ctrl: false });
+      chart.flush();
+    };
+    return { chart, group, platform, at, leave };
+  };
+
+  // A cursor in a chart follows the pointer in that chart, and not the one in the next.
+  {
+    const a = cell(true),
+      b = cell(true);
+    const { at, leave } = build([a, b]);
+    at(a, 0.5, 0.5);
+    assert(a.cursor!.state, 'over its own chart');
+    assert.equal(b.cursor!.state, null, 'not over the other');
+    at(b, 0.5, 0.5);
+    assert.equal(a.cursor!.state, null);
+    assert(b.cursor!.state);
+    leave();
+    assert.equal(b.cursor!.state, null);
+  }
+  // Linked: the other chart's cursor is at the same value of the shared axis.
+  {
+    const a = cell(true),
+      b = cell(true),
+      c = cell(true);
+    const { at, leave } = build([a, b, c], { linkCursor: true });
+    at(a, 0.3, 0.5);
+    const xa = a.cursor!.state!;
+    const value = a.plane.axes[0]!.denormalize(xa.x / a.plane.rect.width);
+    for (const other of [b, c]) {
+      const s = other.cursor!.state;
+      assert(s, 'the linked chart has a cursor');
+      assert(Math.abs(other.plane.axes[0]!.denormalize(s.x / other.plane.rect.width) - value) < 1e-6, 'at the same value');
+    }
+    leave();
+    assert.deepEqual(
+      [a, b, c].map((x) => x.cursor!.state),
+      [null, null, null],
+    );
+    // Off by default.
+    const x = cell(true),
+      y = cell(true);
+    const plain = build([x, y]);
+    plain.at(x, 0.3, 0.5);
+    assert.equal(y.cursor!.state, null);
+  }
+  // A cursor of the whole chart (not in an item) goes with the pointer into any chart, and is never moved by a link.
+  {
+    const a = cell(false),
+      b = cell(false);
+    const top = new Cursor({ mode: 'shared' }, new Crosshair());
+    const group = new ChartGroup({ columns: 1, linkCursor: true }, new SharedRange({ id: 'time' }, new LinearScale()), a.item, b.item);
+    const chart = new Chart({ theme: lightTheme, width: W, height: 2 * H }, group, top);
+    const platform = new FakePlatform({ width: W, height: 2 * H });
+    chart.attach(platform).flush();
+    platform.pointer!({ kind: 'move', x: b.plane.rect.x + 40, y: b.plane.rect.y + 40, buttons: 0, deltaY: 0, shift: false, ctrl: false });
+    chart.flush();
+    assert.equal(top.state?.plane, b.plane);
+  }
+  // Pan and zoom in one chart moves the shared range, and with it the others.
+  {
+    const a = cell(false, true),
+      b = cell(false);
+    const { at, group } = build([a, b]);
+    const range = [...group].find((c): c is SharedRange => c instanceof SharedRange)!;
+    const before = { ...range.range };
+    at(a, 0.5, 0.5, 'wheel', -400);
+    assert.notDeepEqual(range.range, before);
+    assert(range.isZoomed);
+    assert.deepEqual(b.plane.axes[0]!.range, range.range);
+  }
 });

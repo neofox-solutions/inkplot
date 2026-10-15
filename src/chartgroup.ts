@@ -18,7 +18,7 @@ import { type AttrTypesFor, AUTO, BOOLEAN, NUMBER, STRING } from './attrs.ts';
 import { Axis } from './axis.ts';
 import { Container, isBody } from './container.ts';
 import { type BaseAttributes, ChartElement, fail, resolveRef } from './element.ts';
-import { type ChartEvent, EVENT_ARRANGE } from './events.ts';
+import { type ChartEvent, EVENT_ARRANGE, EVENT_HOVER } from './events.ts';
 import type { Extent, Insets, Rect } from './geometry.ts';
 import type { Scale } from './scale.ts';
 import { Dimension } from './dimension.ts';
@@ -41,6 +41,12 @@ export interface ChartGroupAttributes extends BaseAttributes {
   justify?: Justify;
   /** Give charts in a column the same room left and right of their plots, and charts in a row the same above and below, so the plots line up whatever their labels need. Default true. */
   align?: boolean;
+  /**
+   * Show the cursor in every chart that shares an axis with the one the pointer is over, at the same value of it: a crosshair
+   * and a tooltip in each chart of a column, all reading one time. Each chart needs a `Cursor` of its own (with `mode: 'shared'`).
+   * Default false.
+   */
+  linkCursor?: boolean;
 }
 
 export interface ChartGroupItemAttributes extends BaseAttributes {
@@ -186,6 +192,7 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
     gap: AUTO,
     justify: STRING,
     align: BOOLEAN,
+    linkCursor: BOOLEAN,
   } satisfies AttrTypesFor<ChartGroupAttributes>;
 
   get isBody(): true {
@@ -204,6 +211,39 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
 
   override onEvent(ev: ChartEvent): void {
     if (ev.type === EVENT_ARRANGE) this.arrange(ev.rect);
+    else if (ev.type === EVENT_HOVER && this.attrs.linkCursor) this.followPointer(ev.plane, ev.x, ev.y, ev.buttons);
+  }
+
+  /**
+   * The pointer is at (`x`, `y`) in `plane`: tell the other charts of the group that share an axis with it that it is, along that
+   * axis, at the same value. Each is told by a hover of its own, sent to that chart alone, so its cursor and nothing else follows.
+   */
+  private followPointer(plane: Plane, x: number, y: number, buttons: number): void {
+    const from = plane.axes.filter((a) => a instanceof SharedAxis);
+    if (from.length === 0 || !this.planes.includes(plane)) return;
+    for (const item of this.items)
+      for (const other of item.planes) {
+        if (other === plane) continue;
+        let tx = NaN,
+          ty = NaN;
+        for (const a of from) {
+          const b = other.axes.find((o) => o instanceof SharedAxis && o.shared === a.shared);
+          if (!b) continue;
+          const horizontal = a.orientation === 'top' || a.orientation === 'bottom',
+            along = horizontal ? x / plane.rect.width : 1 - y / plane.rect.height;
+          if (!(along >= 0 && along <= 1)) continue;
+          const mapped = b.fractionOf(a.denormalize(along)) * (horizontal ? other.rect.width : other.rect.height);
+          if (horizontal) {
+            tx = mapped;
+            ty = other.rect.height / 2;
+          } else {
+            tx = other.rect.width / 2;
+            ty = other.rect.height - mapped;
+          }
+          break;
+        }
+        this.requireChart().deliver({ type: EVENT_HOVER, plane: other, x: tx, y: ty, buttons: tx === tx ? buttons : 0 }, item);
+      }
   }
 
   /** Where each shown item goes in the grid, in cells, and how many lines the grid has. */

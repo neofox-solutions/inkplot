@@ -42,6 +42,7 @@ A grid of charts in one picture, in place of a plane: equal cells, filled along 
 | `gap` | `number \| { row?: number; column?: number }` | Space between cells in pixels: one number, or one for each direction. Default 8. |
 | `justify` | `Justify` | Where the items of the last line go when it is not full. Default 'start'. |
 | `align` | `boolean` | Give charts in a column the same room left and right of their plots, and charts in a row the same above and below, so the plots line up whatever their labels need. Default true. |
+| `linkCursor` | `boolean` | Show the cursor in every chart that shares an axis with the one the pointer is over, at the same value of it: a crosshair and a tooltip in each chart of a column, all reading one time. Default false. |
 
 ## ChartGroupItem
 
