@@ -12,7 +12,6 @@ import { type AttrTypesFor, STRING } from './attrs.ts';
 import type { Axis } from './axis.ts';
 import type { Chart, Describer } from './chart.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
-import { Plane } from './plane.ts';
 
 /** What a summary is made from. Plain data, so a function in any language can word it. */
 export interface ChartFacts {
@@ -53,8 +52,7 @@ export class ChartSummary extends ChartElement<Chart, [], ChartSummaryAttributes
       axes: ChartFacts['axes'][number][] = [];
     const seen = new Set<Axis>();
     let n = 0;
-    for (const plane of chart) {
-      if (!(plane instanceof Plane)) continue;
+    for (const plane of chart.planes) {
       for (const s of plane.allSeries) {
         n++;
         series.push({ name: s.attrs.name ?? s.attrs.meta?.title ?? `${n}`, points: s.points.count, shown: s.shown });

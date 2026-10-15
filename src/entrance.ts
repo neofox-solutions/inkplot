@@ -49,7 +49,7 @@ export class Entrance extends ChartElement<Chart, [], EntranceAttributes> {
       ).join('');
     const s = this.surface;
     s.text(s.node('style', 'style'), `@media (prefers-reduced-motion:no-preference){${css}}`);
-    for (const plane of chart) if (plane instanceof Plane) for (const series of plane.allSeries) this.#mark(plane, series);
+    for (const plane of chart.planes) for (const series of plane.allSeries) this.#mark(plane, series);
   }
 
   /** A round plane fades, bars grow from their baseline (they say where it is), anything else is drawn on. */

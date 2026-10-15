@@ -51,7 +51,7 @@ export const FOUNDATION = [
   'quantile',
   'bucket',
 ];
-export const CORE = ['chart', 'plane', 'axis', 'dimension', 'series', 'renderer', 'curve', 'scale', 'data'];
+export const CORE = ['chart', 'container', 'plane', 'axis', 'dimension', 'series', 'renderer', 'curve', 'scale', 'data'];
 /** The only places one feature may use another: the rest of the features are independent. Add here on purpose. */
 export const FEATURE_USES: Record<string, string[]> = {
   annotation: ['callout'],

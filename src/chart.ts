@@ -18,21 +18,17 @@ import { type ChartEvent, type ChartEventInit, EVENT_PAINT } from './events.ts';
 import type { InputHost } from './input.ts';
 import type { ChartTitle } from './furniture.ts';
 import type { Cursor } from './cursor.ts';
-import { type Insets, type LayoutRequest, type Rect, type Side } from './geometry.ts';
+import { type Insets, type Rect } from './geometry.ts';
 import type { ColorAxis, ScalarAxis } from './mapped.ts';
 import type { ColorKey, SizeKey } from './key.ts';
 import type { Legend } from './legend.ts';
 import type { ChartSummary } from './summary.ts';
 import type { Entrance } from './entrance.ts';
+import { Container } from './container.ts';
 import { Plane } from './plane.ts';
 import type { BaseTheme } from './theme.ts';
 import { type Platform, StringPlatform, type TextMeasurer, type Unsubscribe, estimateTextWidth } from './platform.ts';
 import { type Counters, type StageName, newCounters } from './surface.ts';
-
-/** Space between the plots and the furniture at their edges. */
-const FURNITURE_GAP = 8;
-/** Space between stacked bands, such as a title and its subtitle. */
-const BAND_GAP = 2;
 
 /** What one flush did and cost: the numbers the playground shows, and what tests assert caching against. */
 export interface FlushStats {
@@ -119,7 +115,7 @@ export interface ChartChildMap {
 export type ChartChildren = ChartChildMap[keyof ChartChildMap][];
 
 /** The root: the only element that knows about the platform lifecycle (attach, flush, detach). */
-export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
+export class Chart extends Container<null, ChartChildren, ChartAttributes> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     measureText: AUTO,
@@ -204,9 +200,14 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
     this.#dataChanged = true;
   }
 
+  /** Every plane in the chart, in tree order. */
+  get planes(): readonly Plane[] {
+    return [...this].filter((c): c is Plane => c instanceof Plane);
+  }
+
   /** Put every axis of every plane back to the range its data asks for. */
   resetViews(): void {
-    for (const c of this) if (c instanceof Plane) c.resetViews();
+    for (const p of this.planes) p.resetViews();
   }
 
   /** Send an event through the tree from `root` (default the chart). For the input host, which lives outside this class. */
@@ -267,65 +268,13 @@ export class Chart extends ChartElement<null, ChartChildren, ChartAttributes> {
       height: Math.max(1, height - pad.top - pad.bottom),
     };
 
-    // Everything that is not a plane and asks for a side takes room along that edge, sized by what it asked for, and the
-    // planes get what is left. Bands (titles, captions) span the edge and stack outwards from it, and come first; the
-    // rest (keys) take a strip inside the bands, where several on one side stack along it.
-    const furniture: { child: AnyElement; request: LayoutRequest; side: Side }[] = [];
-    const bands: { child: AnyElement; request: LayoutRequest; side: Side }[] = [];
-    const bandSize: Record<Side, number> = { top: 0, right: 0, bottom: 0, left: 0 };
-    const strip: Record<Side, number> = { top: 0, right: 0, bottom: 0, left: 0 };
-    for (const child of this) {
-      if (child instanceof Plane || child.attrs.visible === false) continue;
-      const request = this.measureChild(child, { width: content.width, height: content.height });
-      const side = request.side;
-      if (!side) continue;
-      if (request.band) {
-        bands.push({ child, request, side });
-        bandSize[side] += request.min.height + (bandSize[side] ? BAND_GAP : 0);
-        continue;
-      }
-      furniture.push({ child, request, side });
-      const across = side === 'left' || side === 'right' ? request.min.width : request.min.height;
-      strip[side] = Math.max(strip[side], across);
-    }
-    // What the bands leave. Everything below is laid out inside it.
-    const bandGap = (side: Side) => (bandSize[side] ? FURNITURE_GAP : 0);
-    const inner: Rect = {
-      x: content.x,
-      y: content.y + bandSize.top + bandGap('top'),
-      width: content.width,
-      height: Math.max(1, content.height - bandSize.top - bandSize.bottom - bandGap('top') - bandGap('bottom')),
-    };
-    const gap = (side: Side) => (strip[side] ? FURNITURE_GAP : 0);
-    const plotArea: Rect = {
-      x: inner.x + strip.left + gap('left'),
-      y: inner.y + strip.top + gap('top'),
-      width: Math.max(1, inner.width - strip.left - strip.right - gap('left') - gap('right')),
-      height: Math.max(1, inner.height - strip.top - strip.bottom - gap('top') - gap('bottom')),
-    };
-    const edge: Record<'top' | 'bottom', number> = { top: content.y, bottom: content.y + content.height };
-    for (const { child, request, side } of bands) {
-      const height = request.min.height;
-      if (side === 'top') {
-        this.arrangeChild(child, { x: content.x, y: edge.top, width: content.width, height });
-        edge.top += height + BAND_GAP;
-      } else {
-        edge.bottom -= height;
-        this.arrangeChild(child, { x: content.x, y: edge.bottom, width: content.width, height });
-        edge.bottom -= BAND_GAP;
-      }
-    }
-    for (const child of this) if (child instanceof Plane) this.arrangeChild(child, plotArea);
-    const along: Record<Side, number> = { top: inner.x, bottom: inner.x, left: inner.y, right: inner.y };
-    for (const { child, request, side } of furniture) {
-      const { width, height } = request.min;
-      const vertical = side === 'left' || side === 'right';
-      const rect: Rect = vertical
-        ? { x: side === 'left' ? inner.x : inner.x + inner.width - strip.right, y: along[side], width: strip[side], height }
-        : { x: along[side], y: side === 'top' ? inner.y : inner.y + inner.height - strip.bottom, width, height: strip[side] };
-      this.arrangeChild(child, rect);
-      along[side] += (vertical ? height : width) + FURNITURE_GAP;
-    }
+    this.layOutFurniture(
+      content,
+      (child) => child instanceof Plane,
+      (area) => {
+        for (const child of this) if (child instanceof Plane) this.arrangeChild(child, area);
+      },
+    );
     // What a screen reader is told of the chart as a whole: `meta` first, then what a describer child makes of it, which needs the layout to have settled.
     let said: ReturnType<Describer['describe']> | undefined;
     for (const child of this)

@@ -132,8 +132,7 @@ export class InputHost {
     let at = this.#pressed;
     // A pointer reaches the plane it is over: its plot, or the strip an axis takes beside it.
     if (!at && p.kind !== 'leave') {
-      for (const c of chart) {
-        if (!(c instanceof Plane)) continue;
+      for (const c of chart.planes) {
         if (contains(c.rect, p.x, p.y) || c.axisAt(p.x - c.rect.x, p.y - c.rect.y)) {
           at = c;
           break;
