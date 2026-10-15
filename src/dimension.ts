@@ -34,7 +34,7 @@ export interface DimensionAttributes extends BaseAttributes {
   nice?: boolean;
   /** Run from max to min along the axis. */
   inverted?: boolean;
-  /** The axis title (or, on a `ColorAxis` or `SizeAxis`, the default title of its key). Default: none. */
+  /** The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. */
   title?: string;
   /** Ask for about this many ticks, whatever the length. */
   tickCount?: number;

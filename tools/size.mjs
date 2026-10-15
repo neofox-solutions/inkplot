@@ -94,7 +94,7 @@ const SCENARIOS = [
     series: `new DomainSeries(${FLAT}, new LinePath({}, new MonotoneCurve()), ...[new NaturalCurve(), new CardinalCurve(), new CatmullRomCurve(), new BasisCurve(), new BumpCurve(), new QuadraticCurve(), new ArcCurve(), new StepCurve()].map((c) => new LinePath({}, c)))`,
   },
   { name: 'Bars (replaces LinePath)', imports: ['BarPath'], series: `new DomainSeries(${FLAT}, new BarPath({}))` },
-  { name: 'Bars as lines (BarLinePath)', imports: ['BarLinePath'], series: `new DomainSeries(${FLAT}, new BarLinePath({}))` },
+  { name: 'Bars as lines (StemPath)', imports: ['StemPath'], series: `new DomainSeries(${FLAT}, new StemPath({}))` },
   {
     name: 'toJSON + fromJSON, registry of only the classes used',
     imports: ['toJSON', 'fromJSON'],

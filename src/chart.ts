@@ -8,7 +8,7 @@
  *   3. Furniture is arranged into its strip, now that the planes (and the mapped scales they fed) are settled.
  *   4. PAINT is broadcast and every element draws through its Surface.
  * Each flush re-runs all of it; Surface's write cache and the series' fill cache are what make that cheap.
- * Mapped dimensions (ColorAxis/SizeAxis) are children of the chart rather than a plane, so they use `flushCount` to
+ * Mapped dimensions (ColorAxis/ScalarAxis) are children of the chart rather than a plane, so they use `flushCount` to
  * recognise a new pass and reset what they gathered from the planes.
  */
 import { type AttrTypesFor, AUTO, BOOLEAN, NUMBER, STRING } from './attrs.ts';
@@ -19,7 +19,7 @@ import type { InputHost } from './input.ts';
 import type { ChartTitle } from './furniture.ts';
 import type { Cursor } from './cursor.ts';
 import { type Insets, type LayoutRequest, type Rect, type Side } from './geometry.ts';
-import type { ColorAxis, SizeAxis } from './mapped.ts';
+import type { ColorAxis, ScalarAxis } from './mapped.ts';
 import type { ColorKey, SizeKey } from './key.ts';
 import type { Legend } from './legend.ts';
 import type { ChartSummary } from './summary.ts';
@@ -109,7 +109,7 @@ export interface ChartChildMap {
   title: ChartTitle;
   cursor: Cursor;
   colorAxis: ColorAxis;
-  sizeAxis: SizeAxis;
+  scalarAxis: ScalarAxis;
   colorKey: ColorKey;
   sizeKey: SizeKey;
   legend: Legend;

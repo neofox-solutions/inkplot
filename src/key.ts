@@ -13,7 +13,7 @@ import type { Chart } from './chart.ts';
 import { type BaseAttributes, ChartElement, type ElementRef, resolveRef } from './element.ts';
 import { type ChartEvent, EVENT_ARRANGE, EVENT_ATTACH, EVENT_MEASURE, EVENT_PAINT } from './events.ts';
 import { type Rect, type Side, circlePath, f2 } from './geometry.ts';
-import type { ColorAxis, MappedDimension, SizeAxis } from './mapped.ts';
+import type { ColorAxis, MappedDimension, ScalarAxis } from './mapped.ts';
 import type { PlatformNode } from './platform.ts';
 import { applyText } from './text.ts';
 
@@ -270,10 +270,10 @@ export class ColorKey extends Key<ColorAxis, ColorKeyAttributes> {
 // ─── Size ───
 
 /** No options of its own beyond the common ones. */
-export interface SizeKeyAttributes extends KeyAttributes<SizeAxis> {}
+export interface SizeKeyAttributes extends KeyAttributes<ScalarAxis> {}
 
 /** Circles at the dimension's tick values, each as big as the size it stands for. */
-export class SizeKey extends Key<SizeAxis, SizeKeyAttributes> {
+export class SizeKey extends Key<ScalarAxis, SizeKeyAttributes> {
   protected override get inset(): number {
     return this.dimension.output[1];
   }

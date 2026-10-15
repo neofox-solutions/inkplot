@@ -11,7 +11,7 @@ const SRC = new URL('../src/', import.meta.url);
 export const STRUCTURE: Record<string, { parent: string; children: string; about: string }> = {
   Chart: {
     parent: 'none (the root)',
-    children: 'planes, ChartTitle, Legend, Cursor, ColorAxis, SizeAxis, ColorKey, SizeKey, ChartSummary, Entrance',
+    children: 'planes, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance',
     about: 'The root: a theme, a size, and what is drawn on it.',
   },
   ChartTitle: { parent: 'Chart', children: 'none', about: 'Text across the top or bottom: a title, subtitle or caption.' },
@@ -39,9 +39,9 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   RadarPlane: { parent: 'Chart', children: 'as CartesianPlane', about: 'A polygon with a spoke per category.' },
   Axis: { parent: 'a plane', children: '1 scale (required)', about: 'Positions data along one side of a plane, with ticks and labels.' },
   ColorAxis: { parent: 'Chart', children: '1 scale (required)', about: 'Maps data to colours.' },
-  SizeAxis: { parent: 'Chart', children: '1 scale (required)', about: 'Maps data to sizes or other numbers.' },
+  ScalarAxis: { parent: 'Chart', children: '1 scale (required)', about: 'Maps data to sizes or other numbers.' },
   ColorKey: { parent: 'Chart', children: 'none', about: 'Shows what a ColorAxis means.' },
-  SizeKey: { parent: 'Chart', children: 'none', about: 'Shows what a SizeAxis means.' },
+  SizeKey: { parent: 'Chart', children: 'none', about: 'Shows what a ScalarAxis means.' },
   LinearScale: { parent: 'an axis', children: 'none', about: 'Equal steps in the data are equal steps on the page.' },
   LogScale: { parent: 'an axis', children: 'none', about: 'Logarithmic.' },
   SqrtScale: { parent: 'an axis', children: 'none', about: 'Square root: gives zero a place.' },
@@ -77,7 +77,7 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   LinePath: { parent: 'a series', children: '1 curve (required)', about: 'A line through the points.' },
   AreaPath: { parent: 'a series', children: '1 curve (required)', about: 'The region between a line and a baseline.' },
   BarPath: { parent: 'a series', children: 'none', about: 'Bars, in one path.' },
-  BarLinePath: { parent: 'a series', children: 'none', about: 'Bars drawn as stems.' },
+  StemPath: { parent: 'a series', children: 'none', about: 'Bars drawn as stems.' },
   BoxPath: { parent: 'a series', children: 'none', about: 'Box and whisker from min, q1, median, q3, max channels.' },
   Density: {
     parent: 'a series',

@@ -10,7 +10,7 @@ import {
   DomainSeries,
   ObjectDataSource,
   ColorAxis,
-  SizeAxis,
+  ScalarAxis,
   StringPlatform,
   DotMarker,
   CrossMarker,
@@ -27,7 +27,7 @@ test('marker', () => {
   const rows = (n: number): Row[] => Array.from({ length: n }, (_, i) => ({ x: i, y: (i * 37) % 101, c: i % 20, s: i % 7 }));
 
   const heat = () => new ColorAxis({ id: 'heat' }, new LinearScale());
-  const mass = (output: [number, number] = [2, 10]) => new SizeAxis({ id: 'mass', output }, new LinearScale());
+  const mass = (output: [number, number] = [2, 10]) => new ScalarAxis({ id: 'mass', output }, new LinearScale());
 
   function scatter(
     renderer: ConstructorParameters<typeof Series>[2],
@@ -291,7 +291,7 @@ test('marker', () => {
   // Never called: these lines only have to fail to compile.
   function compileTimeChecks() {
     const color = new ColorAxis({}, new LinearScale());
-    const size = new SizeAxis({}, new LinearScale());
+    const size = new ScalarAxis({}, new LinearScale());
     new CircleMarker({ bind: { fill: { axis: color, channel: 'c' }, size: { axis: size, channel: 's' } } });
     new DotMarker({ bind: { stroke: { axis: color, channel: 'c' }, size: { axis: size, channel: 's' } } });
     new CrossMarker({ bind: { strokeWidth: { axis: size, channel: 's' } } });

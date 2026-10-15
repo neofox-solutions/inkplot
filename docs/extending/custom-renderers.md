@@ -41,7 +41,7 @@ export default () => (
 );
 ```
 
-Everything else is inherited: `<DiamondMarker size={…} bind={{ fill: … }}>` can be bound to a `ColorAxis` and a `SizeAxis`, it appears in legends, and a scatter of a hundred thousand of them is a few paths. The three families differ in what they let you bind and where the series colour goes:
+Everything else is inherited: `<DiamondMarker size={…} bind={{ fill: … }}>` can be bound to a `ColorAxis` and a `ScalarAxis`, it appears in legends, and a scatter of a hundred thousand of them is a few paths. The three families differ in what they let you bind and where the series colour goes:
 
 | Base | Is | Palette colour goes to | Bindable |
 |---|---|---|---|

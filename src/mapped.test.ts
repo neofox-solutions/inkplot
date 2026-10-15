@@ -9,7 +9,7 @@ import {
   DomainSeries,
   ObjectDataSource,
   ColorAxis,
-  SizeAxis,
+  ScalarAxis,
   CircleMarker,
   StringPlatform,
 } from './index.ts';
@@ -55,19 +55,19 @@ test('mapped', () => {
 
   // ── Size: linear between the ends of its output.
   {
-    const s = new SizeAxis({ output: [2, 12] }, lin());
+    const s = new ScalarAxis({ output: [2, 12] }, lin());
     assert.equal(s.valueAt(0), 2);
     assert.equal(s.valueAt(0.5), 7);
     assert.equal(s.valueAt(1), 12);
     assert.equal(s.valueAt(NaN), 2, 'by default the low end stands in for no value');
-    assert.equal(new SizeAxis({ output: [2, 12], missing: 0 }, lin()).valueAt(NaN), 0);
-    assert.equal(new SizeAxis({}, lin()).valueAt(1), 12, 'default output is 2 to 12');
-    assert(Math.abs(new SizeAxis({ output: [0.2, 1] }, lin()).valueAt(0.5) - 0.6) < 1e-12, 'also how to bind an opacity');
+    assert.equal(new ScalarAxis({ output: [2, 12], missing: 0 }, lin()).valueAt(NaN), 0);
+    assert.equal(new ScalarAxis({}, lin()).valueAt(1), 12, 'default output is 2 to 12');
+    assert(Math.abs(new ScalarAxis({ output: [0.2, 1] }, lin()).valueAt(0.5) - 0.6) < 1e-12, 'also how to bind an opacity');
   }
 
   // ── In a chart.
   type Row = { x: number; y: number; c: number };
-  const build = (rows: Row[], colour: ColorAxis | null, extra: object[] = [], plane: { x?: object } = {}, size?: SizeAxis) => {
+  const build = (rows: Row[], colour: ColorAxis | null, extra: object[] = [], plane: { x?: object } = {}, size?: ScalarAxis) => {
     const xAxis = new Axis({ orientation: 'bottom', ...plane.x }, lin());
     const source = new ObjectDataSource({ source: rows, domain: 'x', value: 'y', isSorted: true, channels: { c: 'c' } });
     const marker =
@@ -100,7 +100,7 @@ test('mapped', () => {
 
   // A dimension that nothing binds has the default range, and one that is bound follows its data from flush to flush.
   {
-    const idle = new SizeAxis({}, lin());
+    const idle = new ScalarAxis({}, lin());
     const { chart, source } = build(rows, new ColorAxis({}, lin()), [idle]);
     assert.deepEqual({ ...idle.range }, { min: 0, max: 1 }, 'nothing contributes, so the default');
     const heat = new ColorAxis({}, lin());

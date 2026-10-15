@@ -8,13 +8,13 @@ Every element class the library ships, in the order of the registry: where it go
 
 ## Contents
 
-[Chart](#chart) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [SizeAxis](#sizeaxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [BarLinePath](#barlinepath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
+[Chart](#chart) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
 
 ## Chart
 
 The root: a theme, a size, and what is drawn on it.
 
-**In** none (the root) · **Holds** planes, ChartTitle, Legend, Cursor, ColorAxis, SizeAxis, ColorKey, SizeKey, ChartSummary, Entrance
+**In** none (the root) · **Holds** planes, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance
 
 | Attribute | Type | |
 |---|---|---|
@@ -176,7 +176,7 @@ Positions data along one side of a plane, with ticks and labels.
 | `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
-| `title` | `string` | The axis title (or, on a `ColorAxis` or `SizeAxis`, the default title of its key). Default: none. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
 | `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
 | `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
 | `tickStep` | `number` | Put ticks at every multiple of this step. |
@@ -201,7 +201,7 @@ Maps data to colours.
 | `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
-| `title` | `string` | The axis title (or, on a `ColorAxis` or `SizeAxis`, the default title of its key). Default: none. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
 | `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
 | `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
 | `tickStep` | `number` | Put ticks at every multiple of this step. |
@@ -209,7 +209,7 @@ Maps data to colours.
 | `locale` | `string` | A BCP 47 tag for how this writes its numbers (grouping and decimal mark). Default: the chart's `locale`, else plain digits. |
 | `onViewChange` | `(view: Readonly<Extent> \| null) => void` | Called when the view (what pan, zoom or a reset has set) changes: the new range, or null when it is back to the natural one. |
 
-## SizeAxis
+## ScalarAxis
 
 Maps data to sizes or other numbers.
 
@@ -225,7 +225,7 @@ Maps data to sizes or other numbers.
 | `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
-| `title` | `string` | The axis title (or, on a `ColorAxis` or `SizeAxis`, the default title of its key). Default: none. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
 | `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
 | `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
 | `tickStep` | `number` | Put ticks at every multiple of this step. |
@@ -251,7 +251,7 @@ Shows what a ColorAxis means.
 
 ## SizeKey
 
-Shows what a SizeAxis means.
+Shows what a ScalarAxis means.
 
 **In** Chart · **Holds** none
 
@@ -632,7 +632,7 @@ Bars, in one path.
 | `baseline` | `number` | The value bars grow from when there is no stack to say. Default 0. |
 | `from` | `string` | The channel of the data that holds where each bar starts, for bars that float: a waterfall's steps, a candlestick's body (the series' value is where it ends). |
 
-## BarLinePath
+## StemPath
 
 Bars drawn as stems.
 

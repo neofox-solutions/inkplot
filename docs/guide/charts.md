@@ -42,7 +42,7 @@ export default () => (
 | `CartesianPlane`, `PolarPlane`, `RadarPlane` | A coordinate space, holding axes and series. A chart may have several. | [Planes](planes.md) |
 | `ChartTitle` | A title, subtitle or caption. | [Labels and annotations](labels.md) |
 | `Legend` | The named series, as a key. Clicking an entry hides the series. | [Labels and annotations](labels.md) |
-| `ColorAxis`, `SizeAxis` | Mapped dimensions: data to colour or size. | [Mapped dimensions](mapped.md) |
+| `ColorAxis`, `ScalarAxis` | Mapped dimensions: data to colour or size. | [Mapped dimensions](mapped.md) |
 | `ColorKey`, `SizeKey` | A key beside the chart that shows what a mapped dimension means. | [Mapped dimensions](mapped.md) |
 | `Cursor` | Finds what the pointer or keyboard is on; holds a `Crosshair` and `ChartTooltip`. | [Interaction](interaction.md) |
 | `ChartSummary` | A generated text description for screen readers. | [Accessibility](accessibility.md) |

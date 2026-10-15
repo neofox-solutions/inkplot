@@ -4,7 +4,7 @@ An axis turns data into a *position*. A **mapped dimension** turns data into a *
 
 Three pieces work together:
 
-1. A **mapped axis** (`ColorAxis` or `SizeAxis`) that owns the mapping. It is a child of the `Chart`, beside the planes, and takes a scale like any axis.
+1. A **mapped axis** (`ColorAxis` or `ScalarAxis`) that owns the mapping. It is a child of the `Chart`, beside the planes, and takes a scale like any axis.
 2. A **binding** on a renderer (`bind`) that feeds one of its attributes from one **channel** of the data through that axis.
 3. A **key** (`ColorKey`, `SizeKey`) beside the chart that shows what the mapping means.
 
@@ -41,7 +41,7 @@ export default () => (
 - `channel` is a channel of the series' data ([Data](data.md#the-model-domain-value-channels)).
 - The plain attribute (`fill`, `strokeWidth`…) stays as the **fallback**, so `{ strokeWidth: 0.5, bind: { stroke: … } }` mixes fixed and bound freely.
 - A renderer lists what it lets you bind: a `CircleMarker` takes `stroke`, `strokeWidth`, `fill`, `opacity` and `size`; a `DotMarker` takes `stroke`, `size` and `opacity`. In TypeScript, binding something the renderer cannot vary, or a dimension of the wrong kind (a colour axis for `size`), is a compile error.
-- **Where it works.** Markers, `BarPath` (`stroke`, `strokeWidth`, `fill`, `opacity`), `BarLinePath` (`stroke`, `strokeWidth`, `opacity`) and `HeatMap`. `LinePath` and `AreaPath` accept `bind` in their types, but throw `… bindings is not implemented yet` when drawn, so that a half-supported option cannot be relied on by accident: a line is one stroke, so to colour parts of it by data, use several series.
+- **Where it works.** Markers, `BarPath` (`stroke`, `strokeWidth`, `fill`, `opacity`), `StemPath` (`stroke`, `strokeWidth`, `opacity`) and `HeatMap`. `LinePath` and `AreaPath` accept `bind` in their types, but throw `… bindings is not implemented yet` when drawn, so that a half-supported option cannot be relied on by accident: a line is one stroke, so to colour parts of it by data, use several series.
 - Several renderers on a series can each bind.
 
 **Geometric versus stylistic.** A bound property is either *geometric*, going into the path data (a marker's `size` on a `CircleMarker`, which costs the same however much it varies), or *stylistic*, which has to vary per path (a colour, a stroke width, an opacity). A stylistic binding is **quantized** into steps so that points with the same look share one path: with `maxNodes` of 1000 (the default) and one stylistic binding there are 1000 colours at most; with two, 31 steps each. That bound on path count is what keeps a scatter of a hundred thousand coloured points fast. The cost is that a colour is the nearest step. Marker `merge={false}` gives every point its own node, exact value and blending, and is for small data.
@@ -94,7 +94,7 @@ export default () => (
 );
 ```
 
-## `SizeAxis`
+## `ScalarAxis`
 
 | Attribute | Meaning |
 |---|---|
@@ -109,7 +109,7 @@ A key is a child of the `Chart`, so one key can sit beside several planes. It re
 
 | Attribute | Meaning |
 |---|---|
-| `dimension` | **Required.** The mapped axis (or its `id`) this key shows. A `ColorKey` takes a `ColorAxis`, a `SizeKey` a `SizeAxis`. |
+| `dimension` | **Required.** The mapped axis (or its `id`) this key shows. A `ColorKey` takes a `ColorAxis`, a `SizeKey` a `ScalarAxis`. |
 | `side` | The edge of the chart: `top`, `right`, `bottom`, `left`. Default `right`. Several keys on one side stack along it. |
 | `orientation` | `'vertical'` or `'horizontal'`. Default: along its side. |
 | `title` | Default: the dimension's own `title`. |

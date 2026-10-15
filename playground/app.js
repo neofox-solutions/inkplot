@@ -493,7 +493,7 @@ function coverage() {
   const groups = {
     Scales: ['LinearScale', 'LogScale', 'SqrtScale', 'BandScale', 'IntlTimeScale', 'TemporalTimeScale'],
     Planes: ['CartesianPlane', 'PolarPlane'],
-    Dimensions: ['Axis', 'ColorAxis', 'SizeAxis', 'ColorKey', 'SizeKey'],
+    Dimensions: ['Axis', 'ColorAxis', 'ScalarAxis', 'ColorKey', 'SizeKey'],
     'Data sources': ['FlatDataSource', 'ObjectDataSource', 'SyntheticDataSource', 'CompositeDataSource'],
     Grouping: ['Stack'],
     Transforms: ['Decimator', 'BoxStats', 'Density', 'LinearTrend', 'PolynomialTrend', 'SinusoidalTrend', 'LoessTrend'],
@@ -519,7 +519,7 @@ function coverage() {
       'CircleMarker',
       'SquareMarker',
       'BarPath',
-      'BarLinePath',
+      'StemPath',
       'BoxPath',
       'ErrorBars',
       'ErrorBand',
@@ -542,11 +542,11 @@ function coverage() {
   };
   const make = {
     ColorKey: () => new L.ColorKey({ dimension: new L.ColorAxis({}, scale()) }),
-    SizeKey: () => new L.SizeKey({ dimension: new L.SizeAxis({}, scale()) }),
+    SizeKey: () => new L.SizeKey({ dimension: new L.ScalarAxis({}, scale()) }),
     BandScale: () => new L.BandScale({ categories: ['a', 'b'] }),
     Axis: () => new L.Axis({}, scale()),
     ColorAxis: () => new L.ColorAxis({}, scale()),
-    SizeAxis: () => new L.SizeAxis({}, scale()),
+    ScalarAxis: () => new L.ScalarAxis({}, scale()),
     ObjectDataSource: () => new L.ObjectDataSource({ source: [], domain: 't', value: 'v' }),
     SyntheticDataSource: () => new L.SyntheticDataSource({ fn: Math.sin, domain: { min: 0, max: 1 } }),
     CompositeDataSource: () => new L.CompositeDataSource({ count: 0, domain: [], value: [] }),
@@ -1976,7 +1976,7 @@ demos.push({
       composite.invalidate();
     }
     measure();
-    const size = new L.SizeAxis({ id: 'weight', output: [2, 7] }, new L.LinearScale());
+    const size = new L.ScalarAxis({ id: 'weight', output: [2, 7] }, new L.LinearScale());
     const curve = new L.DomainSeries(
       { name: 'function', hit: 'line' },
       synthetic,
@@ -2959,9 +2959,9 @@ demos.push({
         S.shape === 'bars'
           ? [new L.BarPath({})]
           : S.shape === 'stems'
-            ? [new L.BarLinePath({ strokeWidth: 3 })]
+            ? [new L.StemPath({ strokeWidth: 3 })]
             : S.shape === 'lollipops'
-              ? [new L.BarLinePath({ strokeWidth: 2 }), new L.CircleMarker({ size: 5 })]
+              ? [new L.StemPath({ strokeWidth: 2 }), new L.CircleMarker({ size: 5 })]
               : S.shape === 'areas'
                 ? [new L.AreaPath({}, new L.LinearCurve())]
                 : [new L.LinePath({}, new L.LinearCurve())];
@@ -3539,7 +3539,7 @@ demos.push({
     const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'x', padding: 0.04 }, new L.LinearScale());
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', padding: 0.04 }, new L.LinearScale());
     const heat = new L.ColorAxis({ id: 'heat', title: 'Pressure' }, new L.LinearScale());
-    const mass = new L.SizeAxis({ id: 'mass', title: 'Mass', output: [2, 10] }, new L.LinearScale());
+    const mass = new L.ScalarAxis({ id: 'mass', title: 'Mass', output: [2, 10] }, new L.LinearScale());
     // Four clusters. Points are interleaved x, y, pressure, mass, in no particular order: the source sorts them.
     const makeData = () => {
       const r = rng(S.seed),
@@ -3772,7 +3772,10 @@ demos.push({
     });
     const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'Income (k per head)', padding: 0.08 }, new L.LinearScale());
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'Life expectancy', padding: 0.1 }, new L.LinearScale());
-    const area = new L.SizeAxis({ id: 'pop', title: 'Population (M)', output: [3, 26], format: (v) => fmt(v * v, 0) }, new L.LinearScale());
+    const area = new L.ScalarAxis(
+      { id: 'pop', title: 'Population (M)', output: [3, 26], format: (v) => fmt(v * v, 0) },
+      new L.LinearScale(),
+    );
     const group = new L.ColorAxis(
       {
         id: 'region',
@@ -3817,7 +3820,7 @@ demos.push({
         onChange: (v) => keys.forEach((k) => k.setAttribute('side', v)),
       }),
       ui.note(
-        "No bubble series exists: this is a CircleMarker with `size` bound to a channel through a SizeAxis, and `fill` bound to the region through a stepped ColorAxis. The channel is the square root of the population, so a bubble's area, not its radius, follows the population. With merge on, bubbles of one region share a path (one node per colour in use) and do not blend where they overlap.",
+        "No bubble series exists: this is a CircleMarker with `size` bound to a channel through a ScalarAxis, and `fill` bound to the region through a stepped ColorAxis. The channel is the square root of the population, so a bubble's area, not its radius, follows the population. With merge on, bubbles of one region share a path (one node per colour in use) and do not blend where they overlap.",
       ),
     );
     return { chart };

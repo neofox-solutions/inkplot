@@ -38,7 +38,7 @@ Numbers in a flat array (`number[]`, `Float64Array`, `Float32Array`: anything ar
 | `channels` | Extra named columns, as offsets within a point: `{ weight: 2 }`. |
 
 ```tsx live title="Three numbers per point, one of them a channel" height=300
-import { Axis, CartesianPlane, Chart, CircleMarker, FlatDataSource, LinearScale, SizeAxis, XYSeries, lightTheme } from 'inkplot';
+import { Axis, CartesianPlane, Chart, CircleMarker, FlatDataSource, LinearScale, ScalarAxis, XYSeries, lightTheme } from 'inkplot';
 
 // x, y, weight for each point, in one array.
 const readings = [1, 2.0, 3, 2, 3.1, 8, 3, 2.6, 5, 4, 4.4, 12, 5, 3.9, 6, 6, 5.2, 9];
@@ -53,7 +53,7 @@ export default () => (
         <CircleMarker bind={{ size: { axis: 'w', channel: 'weight' } }} opacity={0.8} />
       </XYSeries>
     </CartesianPlane>
-    <SizeAxis id="w" output={[4, 16]}><LinearScale /></SizeAxis>
+    <ScalarAxis id="w" output={[4, 16]}><LinearScale /></ScalarAxis>
   </Chart>
 );
 ```

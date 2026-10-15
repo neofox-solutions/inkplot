@@ -13,7 +13,7 @@ import {
   LinePath,
   AreaPath,
   BarPath,
-  BarLinePath,
+  StemPath,
   CircleMarker,
   DotMarker,
   CrossMarker,
@@ -95,7 +95,7 @@ test('legend', () => {
       const svg = platform.toString();
       return svg.slice(svg.indexOf('translate', svg.lastIndexOf('<g')));
     };
-    assert(only(new BarLinePath({ stroke: '#123456' })).includes('stroke="#123456"'), 'stems in the line look');
+    assert(only(new StemPath({ stroke: '#123456' })).includes('stroke="#123456"'), 'stems in the line look');
     assert(
       (only(new DotMarker({ stroke: '#654321', size: 4 })).match(/stroke-width="8"/g) ?? []).length >= 1,
       'a dot is as wide as it is on the plot',

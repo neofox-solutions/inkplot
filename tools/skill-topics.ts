@@ -49,7 +49,7 @@ export const TOPICS: Record<string, Topic> = {
       'ArcCurve',
       'StepCurve',
       'BarPath',
-      'BarLinePath',
+      'StemPath',
     ],
   },
   'markers-color': {
@@ -63,7 +63,7 @@ export const TOPICS: Record<string, Topic> = {
       'CircleMarker',
       'SquareMarker',
       'ColorAxis',
-      'SizeAxis',
+      'ScalarAxis',
       'ColorKey',
       'SizeKey',
     ],

@@ -129,15 +129,15 @@ export class ColorAxis extends MappedDimension<string, ColorAxisAttributes> {
 
 // ─── Size ───
 
-export interface SizeAxisAttributes extends MappedDimensionAttributes {
+export interface ScalarAxisAttributes extends MappedDimensionAttributes {
   /** The output range. Pixels for a size, so [2, 12] by default; it is also how to map to opacity ([0.2, 1]) or a width. */
   output?: readonly [min: number, max: number];
   /** Output for data with no value or outside the range. Default: the low end of `output`. */
   missing?: number;
 }
 
-/** Data to a number: a marker size, a stroke width, an opacity. `new SizeAxis({ output: [3, 14] }, new LinearScale())`. */
-export class SizeAxis extends MappedDimension<number, SizeAxisAttributes> {
+/** Data to a number: a marker size, a stroke width, an opacity. `new ScalarAxis({ output: [3, 14] }, new LinearScale())`. */
+export class ScalarAxis extends MappedDimension<number, ScalarAxisAttributes> {
   /** The output range. */
   get output(): readonly [number, number] {
     return this.attrs.output ?? [2, 12];

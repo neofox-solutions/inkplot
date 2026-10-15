@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {
   Axis,
   BandScale,
-  BarLinePath,
+  StemPath,
   CartesianPlane,
   Chart,
   CircleMarker,
@@ -29,8 +29,8 @@ test('lollipop', () => {
         value,
         new Stack(
           { mode },
-          new DomainSeries({}, rows([3, 5, 4]), new BarLinePath({}), new CircleMarker({ size: 5 })),
-          new DomainSeries({}, rows([2, 4, 3]), new BarLinePath({}), new CircleMarker({ size: 5 })),
+          new DomainSeries({}, rows([3, 5, 4]), new StemPath({}), new CircleMarker({ size: 5 })),
+          new DomainSeries({}, rows([2, 4, 3]), new StemPath({}), new CircleMarker({ size: 5 })),
         ),
       ),
     );
@@ -58,7 +58,7 @@ test('lollipop', () => {
 // Swapping a series' data for another node refills it, also when both nodes are at the same version.
 test('swapped data', () => {
   const one = new FlatDataSource({ data: [1, 2, 3], regularDomain: { start: 0, step: 1 } });
-  const series = new DomainSeries({}, one, new BarLinePath({}));
+  const series = new DomainSeries({}, one, new StemPath({}));
   const chart = new Chart(
     { theme: lightTheme, width: 400, height: 300 },
     new CartesianPlane(

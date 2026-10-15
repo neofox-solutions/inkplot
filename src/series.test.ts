@@ -13,7 +13,7 @@ import {
   LinePath,
   AreaPath,
   CircleMarker,
-  SizeAxis,
+  ScalarAxis,
   ObjectDataSource,
   FlatDataSource,
   Decimator,
@@ -76,7 +76,7 @@ test('series', () => {
 
   // ── Bound channels follow the two coordinates, however the data was laid out.
   {
-    const size = new SizeAxis({ id: 'w', output: [2, 10] }, lin());
+    const size = new ScalarAxis({ id: 'w', output: [2, 10] }, lin());
     const x = new Axis({ orientation: 'bottom', min: 0, max: 10 }, lin()),
       y = new Axis({ orientation: 'left', min: 0, max: 10 }, lin());
     const series = new XYSeries({ x: 'x' }, source(), new CircleMarker({ bind: { size: { axis: size, channel: 'w' } } }));

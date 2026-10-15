@@ -117,7 +117,7 @@ Every renderer shares these attributes:
 | `LinePath` | One path through the points. | a curve | A gap lifts the pen. |
 | `AreaPath` | The region between the line and a baseline. | a curve | `baseline` (default 0). No outline unless you give `stroke`. |
 | `BarPath` | One path holding every bar. | | `width`, `baseline`, `from`. The cost of a bar chart is its path text, not a node per bar. |
-| `BarLinePath` | Bars as stems: a stroked line from the foot to the value. | | `cap` (`butt`, `round`, `square`), `width`, `baseline`, `from`. The stem's width is the stroke's, so it stays the same however many bars there are: the answer for dense data. With a marker, a lollipop. |
+| `StemPath` | Bars as stems: a stroked line from the foot to the value. | | `cap` (`butt`, `round`, `square`), `width`, `baseline`, `from`. The stem's width is the stroke's, so it stays the same however many bars there are: the answer for dense data. With a marker, a lollipop. |
 | Markers | One small shape per point. | | See [Markers](#markers). |
 
 A series may have any number of renderers. They are drawn in order, so put an `AreaPath` before the `LinePath` that outlines it.
@@ -127,7 +127,7 @@ A series may have any number of renderers. They are drawn in order, so put an `A
 Bars sit on a [`BandScale`](axes.md#band-scales) (categories) or any numeric domain; they grow from `baseline` (default 0), and the value axis always reaches the baseline. `width` is the fraction of the room each bar fills (default: a band's own width, else 0.8). Bars say their hit mode is `'shape'` themselves, so a bar series needs no `hit` setting. `from` names a channel of the data that holds each bar's start, so bars can **float**: a [waterfall](../start/recipes.md#draw-a-waterfall-chart)'s steps, a [candlestick](../start/recipes.md#draw-a-candlestick-chart)'s body and wick (the value is where the bar ends, and the axis reaches both). It replaces the baseline for that renderer; a stack's own starts still win. On a polar plane a bar is a wedge.
 
 ```tsx live title="Bars as stems, and a lollipop" height=260
-import { Axis, BarLinePath, CartesianPlane, Chart, CircleMarker, DomainSeries, FlatDataSource, LinearScale, lightTheme } from 'inkplot';
+import { Axis, StemPath, CartesianPlane, Chart, CircleMarker, DomainSeries, FlatDataSource, LinearScale, lightTheme } from 'inkplot';
 
 const values = [4, 9, 6, 11, 5, 8, 10, 3];
 
@@ -138,7 +138,7 @@ export default () => (
       <Axis orientation="left"><LinearScale /></Axis>
       <DomainSeries name="Lollipops">
         <FlatDataSource data={values} regularDomain-start={0} regularDomain-step={1} />
-        <BarLinePath strokeWidth={2} />
+        <StemPath strokeWidth={2} />
         <CircleMarker size={5} />
       </DomainSeries>
     </CartesianPlane>
@@ -296,7 +296,7 @@ The rows are split first and the template's transforms run on each series' own r
 
 | Form | The attribute is |
 |---|---|
-| `{ axis, value? }` | The axis (a `ColorAxis` or `SizeAxis`) read at the key, or at `value(key)`: a series coloured by something about it, such as its mean. The axis' range is fitted to these values, as to any binding. |
+| `{ axis, value? }` | The axis (a `ColorAxis` or `ScalarAxis`) read at the key, or at `value(key)`: a series coloured by something about it, such as its mean. The axis' range is fitted to these values, as to any binding. |
 | `{ map }` | Whatever `map(key)` returns, a colour or a number. |
 
 Both are read at every paint, so what they read from outside (a playback year, a selection) takes effect when the group is invalidated, with `group.invalidate()`. Nothing is refilled: the data is cached, and only the attributes that changed are written to the page. Because they bind attributes and not channels, a group gives a line or an area a colour for each series, which a renderer's own `bind` does not yet do for those.

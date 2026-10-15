@@ -9,7 +9,7 @@ import {
   DomainSeries,
   ObjectDataSource,
   ColorAxis,
-  SizeAxis,
+  ScalarAxis,
   CircleMarker,
   StringPlatform,
   ColorKey,
@@ -23,9 +23,9 @@ test('key', () => {
   const rows = Array.from({ length: 100 }, (_, i): Row => ({ x: i, y: Math.sin(i / 10) * 5, c: i }));
 
   /** A scatter bound to both dimensions, with whatever furniture the test hands in after the dimensions. */
-  function build(furniture: (heat: ColorAxis, mass: SizeAxis) => object[], dims: { heat?: object; mass?: object } = {}) {
+  function build(furniture: (heat: ColorAxis, mass: ScalarAxis) => object[], dims: { heat?: object; mass?: object } = {}) {
     const heat = new ColorAxis({ id: 'heat', ...dims.heat }, lin());
-    const mass = new SizeAxis({ id: 'mass', output: [2, 9], ...dims.mass }, lin());
+    const mass = new ScalarAxis({ id: 'mass', output: [2, 9], ...dims.mass }, lin());
     const plane = new CartesianPlane(
       {},
       new Axis({}, lin()),
@@ -191,7 +191,7 @@ test('key', () => {
   // Never called: these lines only have to fail to compile.
   function compileTimeChecks() {
     const color = new ColorAxis({}, lin());
-    const size = new SizeAxis({}, lin());
+    const size = new ScalarAxis({}, lin());
     new ColorKey({ dimension: color });
     new SizeKey({ dimension: size, side: 'bottom' });
     // @ts-expect-error a colour key shows a colour dimension

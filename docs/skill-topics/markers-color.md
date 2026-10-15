@@ -35,7 +35,7 @@ Only **markers** (and `HeatMap`) can `bind` for now. A `bind`'s `channel` is the
 
 ```tsx check title="Bubble chart with a size key"
 /** @jsxImportSource inkplot */
-import { Axis, CartesianPlane, Chart, CircleMarker, LinearScale, ObjectDataSource, SizeAxis, SizeKey, XYSeries, lightTheme } from 'inkplot';
+import { Axis, CartesianPlane, Chart, CircleMarker, LinearScale, ObjectDataSource, ScalarAxis, SizeKey, XYSeries, lightTheme } from 'inkplot';
 
 const rows = Array.from({ length: 20 }, (_, i) => ({ x: i, y: Math.sin(i / 3) * 10, weight: 1 + (i % 7) }));
 
@@ -49,13 +49,13 @@ export const chart = (
         <CircleMarker bind={{ size: { axis: 'size', channel: 'mass' } }} />
       </XYSeries>
     </CartesianPlane>
-    <SizeAxis id="size" title="Weight" output={[3, 12]}><LinearScale /></SizeAxis>
+    <ScalarAxis id="size" title="Weight" output={[3, 12]}><LinearScale /></ScalarAxis>
     <SizeKey dimension="size" side="right" />
   </Chart>
 ) as Chart;
 ```
 
-`SizeAxis` `output` is the marker size range in pixels (default `[2, 12]`). A bound `size` replaces the marker's own `size`. Both keys can share a side.
+`ScalarAxis` `output` is the marker size range in pixels (default `[2, 12]`). A bound `size` replaces the marker's own `size`. Both keys can share a side.
 
 ## Notes
 
@@ -187,7 +187,7 @@ Maps data to colours.
 | `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
-| `title` | `string` | The axis title (or, on a `ColorAxis` or `SizeAxis`, the default title of its key). Default: none. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
 | `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
 | `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
 | `tickStep` | `number` | Put ticks at every multiple of this step. |
@@ -195,7 +195,7 @@ Maps data to colours.
 | `locale` | `string` | A BCP 47 tag for how this writes its numbers (grouping and decimal mark). Default: the chart's `locale`, else plain digits. |
 | `onViewChange` | `(view: Readonly<Extent> \| null) => void` | Called when the view (what pan, zoom or a reset has set) changes: the new range, or null when it is back to the natural one. |
 
-### SizeAxis
+### ScalarAxis
 
 Maps data to sizes or other numbers.
 
@@ -211,7 +211,7 @@ Maps data to sizes or other numbers.
 | `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
-| `title` | `string` | The axis title (or, on a `ColorAxis` or `SizeAxis`, the default title of its key). Default: none. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
 | `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
 | `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
 | `tickStep` | `number` | Put ticks at every multiple of this step. |
@@ -237,7 +237,7 @@ Shows what a ColorAxis means.
 
 ### SizeKey
 
-Shows what a SizeAxis means.
+Shows what a ScalarAxis means.
 
 **In** Chart · **Holds** none
 

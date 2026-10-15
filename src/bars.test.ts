@@ -10,7 +10,7 @@ import {
   BandScale,
   DomainSeries,
   BarPath,
-  BarLinePath,
+  StemPath,
   CircleMarker,
   Stack,
   FlatDataSource,
@@ -205,7 +205,7 @@ test('bars', () => {
   }
   // ── Stems: a line from the foot to the value, drawn stroked; they share the geometry and the hit rules of bars.
   {
-    const stems = new DomainSeries({ name: 's' }, flat([3, 9, -4, NaN, 5]), new BarLinePath({}), new CircleMarker({}));
+    const stems = new DomainSeries({ name: 's' }, flat([3, 9, -4, NaN, 5]), new StemPath({}), new CircleMarker({}));
     const x = new Axis({ orientation: 'bottom', min: -0.5, max: 4.5 }, new LinearScale()),
       y = new Axis({ orientation: 'left', min: -5, max: 10 }, new LinearScale());
     const plane = new CartesianPlane({}, x, y, stems);
@@ -236,7 +236,7 @@ test('bars', () => {
     assert.equal(stems.hitHint, 'shape');
     assert.equal(stems.color, lightTheme.palette[0], 'the swatch is the line colour');
     // Style: stroke and width set directly, round caps.
-    const styled = new DomainSeries({}, flat([3, 5]), new BarLinePath({ stroke: 'crimson', strokeWidth: 4, cap: 'round' }));
+    const styled = new DomainSeries({}, flat([3, 5]), new StemPath({ stroke: 'crimson', strokeWidth: 4, cap: 'round' }));
     const out = mount(
       new CartesianPlane(
         {},
@@ -250,8 +250,8 @@ test('bars', () => {
 
   // ── Stems in a stack and in a group: each foot is the layer below; side by side they share the band.
   {
-    const a = new DomainSeries({}, flat([3, 5]), new BarLinePath({})),
-      b = new DomainSeries({}, flat([4, 2]), new BarLinePath({}));
+    const a = new DomainSeries({}, flat([3, 5]), new StemPath({})),
+      b = new DomainSeries({}, flat([4, 2]), new StemPath({}));
     mount(
       new CartesianPlane(
         {},
@@ -264,8 +264,8 @@ test('bars', () => {
       sb = stemLines(b)!;
     near(sb.data[1]!, sa.data[3]!, 1e-9); // b's foot is a's top
     near(sb.data[0]!, sa.data[0]!, 1e-9); // same x: stacked
-    const c = new DomainSeries({}, flat([3, 5]), new BarLinePath({})),
-      e = new DomainSeries({}, flat([4, 2]), new BarLinePath({}));
+    const c = new DomainSeries({}, flat([3, 5]), new StemPath({})),
+      e = new DomainSeries({}, flat([4, 2]), new StemPath({}));
     mount(
       new CartesianPlane(
         {},
@@ -283,7 +283,7 @@ test('bars', () => {
 
   // ── Stems on a polar plane are spokes: both ends on one ray from the centre.
   {
-    const s = new DomainSeries({}, flat([4, 8, 6]), new BarLinePath({}));
+    const s = new DomainSeries({}, flat([4, 8, 6]), new StemPath({}));
     const plane = new PolarPlane(
       {},
       new Axis({ orientation: 'angle', min: -0.5, max: 2.5 }, new LinearScale()),

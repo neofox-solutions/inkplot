@@ -253,10 +253,10 @@ export default () => (
 
 ## Make a bubble chart or colour points by a value
 
-Any numeric property of a renderer (a marker's `size`, `fill`, `stroke`, `opacity`) can come from the data instead of being fixed. You **bind** it to a data channel through a **mapped axis**: a `SizeAxis` turns numbers into sizes, a `ColorAxis` into colours. A key beside the chart shows what the colours or sizes mean. Mapped axes belong to the `Chart`, next to the plane.
+Any numeric property of a renderer (a marker's `size`, `fill`, `stroke`, `opacity`) can come from the data instead of being fixed. You **bind** it to a data channel through a **mapped axis**: a `ScalarAxis` turns numbers into sizes, a `ColorAxis` into colours. A key beside the chart shows what the colours or sizes mean. Mapped axes belong to the `Chart`, next to the plane.
 
 ```tsx live title="Colour and size from data" height=420
-import { Axis, CartesianPlane, Chart, CircleMarker, ColorAxis, ColorKey, LinearScale, ObjectDataSource, SizeAxis, SizeKey, XYSeries, lightTheme } from 'inkplot';
+import { Axis, CartesianPlane, Chart, CircleMarker, ColorAxis, ColorKey, LinearScale, ObjectDataSource, ScalarAxis, SizeKey, XYSeries, lightTheme } from 'inkplot';
 
 const random = (seed: number) => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 const next = random(11);
@@ -276,7 +276,7 @@ export default () => (
       </XYSeries>
     </CartesianPlane>
     <ColorAxis id="heat" title="Temp (°C)" ramp="viridis"><LinearScale /></ColorAxis>
-    <SizeAxis id="weight" title="Mass (kg)" output={[3, 14]}><LinearScale /></SizeAxis>
+    <ScalarAxis id="weight" title="Mass (kg)" output={[3, 14]}><LinearScale /></ScalarAxis>
     <ColorKey dimension="heat" side="right" />
     <SizeKey dimension="weight" side="right" />
   </Chart>
@@ -725,10 +725,10 @@ The bars are one path for each colour, however many steps there are. The annotat
 
 ## Draw a candlestick chart
 
-A candlestick shows four prices for each period: open, high, low and close. The body runs from the open to the close, and the wick from the low to the high. Both are bars that float (see above), so a candlestick is two series over the same rows: the wick (`BarLinePath`, a stem from `low` to `high`) and the body (`BarPath`, from `open` to `close`). A `direction` channel (`1` when the price rose, `-1` when it fell) colours both through bindings.
+A candlestick shows four prices for each period: open, high, low and close. The body runs from the open to the close, and the wick from the low to the high. Both are bars that float (see above), so a candlestick is two series over the same rows: the wick (`StemPath`, a stem from `low` to `high`) and the body (`BarPath`, from `open` to `close`). A `direction` channel (`1` when the price rose, `-1` when it fell) colours both through bindings.
 
 ```tsx live title="Thirty days of prices" height=340
-import { Axis, BandScale, BarLinePath, BarPath, CartesianPlane, Chart, DomainSeries, LinearScale, ObjectDataSource, lightTheme } from 'inkplot';
+import { Axis, BandScale, StemPath, BarPath, CartesianPlane, Chart, DomainSeries, LinearScale, ObjectDataSource, lightTheme } from 'inkplot';
 
 // Thirty days of made-up prices: open, high, low and close.
 let price = 100,
@@ -753,7 +753,7 @@ export default () => (
       <Axis orientation="left" title="Price"><LinearScale /></Axis>
       <DomainSeries name="Range">
         <ObjectDataSource source={days} domain="x" value="high" isSorted channels={{ low: 'low', direction: 'direction' }} />
-        <BarLinePath from="low" strokeWidth={1.5} bind={{ stroke: { channel: 'direction', map: colour } }} />
+        <StemPath from="low" strokeWidth={1.5} bind={{ stroke: { channel: 'direction', map: colour } }} />
       </DomainSeries>
       <DomainSeries name="Body">
         <ObjectDataSource source={days} domain="x" value="close" isSorted channels={{ open: 'open', direction: 'direction' }} />
@@ -764,7 +764,7 @@ export default () => (
 );
 ```
 
-The wick is drawn first, so the bodies sit over it. Channels travel with the rows, so a tooltip (or `PointAnnotations`) can read the open, high, low and close of any candle from `hit.channels`. For an OHLC chart (a tick left for the open and one right for the close) the same data works with your own marker or a second `BarLinePath`; for a different candle width use `width`. Dates on a band axis leave no gaps for weekends, which is what a market chart usually wants; on a time scale the bars would sit where the dates fall.
+The wick is drawn first, so the bodies sit over it. Channels travel with the rows, so a tooltip (or `PointAnnotations`) can read the open, high, low and close of any candle from `hit.channels`. For an OHLC chart (a tick left for the open and one right for the close) the same data works with your own marker or a second `StemPath`; for a different candle width use `width`. Dates on a band axis leave no gaps for weekends, which is what a market chart usually wants; on a time scale the bars would sit where the dates fall.
 
 ## Use a polar or radar chart
 

@@ -7,7 +7,7 @@
  * straight line between the corners would cut across: the domain's when the domain is the angle, the value's when the value is,
  * as in a ring or pie).
  *
- * Two renderers share all of that, through `BarRenderer`: `BarPath` fills each bar, and `BarLinePath` draws only its
+ * Two renderers share all of that, through `BarRenderer`: `BarPath` fills each bar, and `StemPath` draws only its
  * stem, a line from the foot to the value (a spike plot; add a marker to the series for a lollipop). A stem has no
  * width, so the width rule matters only to series that share a band.
  *
@@ -446,7 +446,7 @@ export class BarPath extends BarRenderer<BarPathAttributes> {
   }
 }
 
-export interface BarLinePathAttributes extends BarRendererAttributes<Omit<StyleBindable, 'fill'>> {
+export interface StemPathAttributes extends BarRendererAttributes<Omit<StyleBindable, 'fill'>> {
   /** How the end of a stem is finished: 'butt' (flat, at the value), 'round' or 'square' (both reach half a width past). Default 'butt'. */
   cap?: 'butt' | 'round' | 'square';
 }
@@ -457,7 +457,7 @@ export interface BarLinePathAttributes extends BarRendererAttributes<Omit<StyleB
  * filled bars would be slivers. The look is the line's (`seriesLine`), with the series' colour as its stroke; give the
  * series a marker as well for a lollipop.
  */
-export class BarLinePath extends BarRenderer<BarLinePathAttributes> {
+export class StemPath extends BarRenderer<StemPathAttributes> {
   private look() {
     const a = this.attrs;
     return this.styleFor(

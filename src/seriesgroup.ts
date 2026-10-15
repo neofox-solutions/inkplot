@@ -93,7 +93,7 @@ function refresh(from: AnyElement, to: AnyElement, keep: ReadonlySet<string>): v
 /** The colour or size axis a binding names (a `MappedDimension` is not imported here, so that a group costs nothing to a chart that does not bind). */
 function dimensionOf(spec: { axis: ElementRef<MappedDimension<unknown>> }, from: AnyElement): MappedDimension<unknown> {
   const d = resolveRef<MappedDimension<unknown>>(spec.axis, from);
-  return 'valueAt' in d ? d : fail('SeriesGroup: a binding needs a ColorAxis or a SizeAxis');
+  return 'valueAt' in d ? d : fail('SeriesGroup: a binding needs a ColorAxis or a ScalarAxis');
 }
 /** The source at the bottom of a chain of data transforms: what the group splits. */
 function leafOf(node: DataNode): DataSource {

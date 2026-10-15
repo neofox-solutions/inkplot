@@ -176,8 +176,8 @@ export { Density, type DensityAttributes } from './density.ts';
 export { ErrorBand, type ErrorBandAttributes, ErrorBars, type ErrorBarsAttributes } from './errors.ts';
 export { barShift } from './bars.ts';
 export {
-  BarLinePath,
-  type BarLinePathAttributes,
+  StemPath,
+  type StemPathAttributes,
   BarPath,
   type BarPathAttributes,
   BarRenderer,
@@ -247,8 +247,8 @@ export {
   type ColorRampName,
   MappedDimension,
   type MappedDimensionAttributes,
-  SizeAxis,
-  type SizeAxisAttributes,
+  ScalarAxis,
+  type ScalarAxisAttributes,
 } from './mapped.ts';
 export { Legend, type LegendAttributes } from './legend.ts';
 export { ColorKey, Key, SizeKey, type ColorKeyAttributes, type KeyAttributes, type KeyOrientation, type SizeKeyAttributes } from './key.ts';

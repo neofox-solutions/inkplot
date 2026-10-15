@@ -6,7 +6,7 @@
 import { CalloutAnnotation, LineAnnotation } from './annotation.ts';
 import { PointAnnotations } from './pointannotations.ts';
 import { Axis } from './axis.ts';
-import { BarLinePath, BarPath } from './bars.ts';
+import { StemPath, BarPath } from './bars.ts';
 import { BoxPath } from './boxplot.ts';
 import { BoxStats } from './stats.ts';
 import { Chart } from './chart.ts';
@@ -20,7 +20,7 @@ import { Cursor } from './cursor.ts';
 import { Crosshair } from './crosshair.ts';
 import { ColorKey, SizeKey } from './key.ts';
 import { Legend } from './legend.ts';
-import { ColorAxis, SizeAxis } from './mapped.ts';
+import { ColorAxis, ScalarAxis } from './mapped.ts';
 import { LinearTrend, LoessTrend, PolynomialTrend, SinusoidalTrend } from './trend.ts';
 import { HeatMap } from './heatmap.ts';
 import { CircleMarker, CrossMarker, DotMarker, PlusMarker, SquareMarker } from './marker.ts';
@@ -57,7 +57,7 @@ export const registry: ElementRegistry = {
   RadarPlane,
   Axis,
   ColorAxis,
-  SizeAxis,
+  ScalarAxis,
   ColorKey,
   SizeKey,
   LinearScale,
@@ -92,7 +92,7 @@ export const registry: ElementRegistry = {
   ArcCurve,
   StepCurve,
   BarPath,
-  BarLinePath,
+  StemPath,
   BoxPath,
   BoxStats,
   Density,

@@ -4,7 +4,7 @@ import { test } from 'vite-plus/test';
 import {
   Axis,
   BandScale,
-  BarLinePath,
+  StemPath,
   BarPath,
   CartesianPlane,
   Chart,
@@ -63,7 +63,7 @@ test('without from, bars grow from the baseline and the axis does not reach the 
 });
 
 test('stems can float too', () => {
-  const stems = new BarLinePath({ from: 'start' });
+  const stems = new StemPath({ from: 'start' });
   assert.equal(stems.attrs.from, 'start');
   assert.deepEqual(stems.channelNames, ['start']);
 });
@@ -113,10 +113,10 @@ test('bars take bound looks from a function of a channel', () => {
 });
 
 test('stems take bound strokes, and a bound fill is a compile error there', () => {
-  const stems = new BarLinePath({ bind: { stroke: { channel: 'chg', map: (v: number) => (v < 0 ? 'red' : 'green') } } });
+  const stems = new StemPath({ bind: { stroke: { channel: 'chg', map: (v: number) => (v < 0 ? 'red' : 'green') } } });
   assert.equal(stems.swatch, null, 'a bound colour has no one swatch');
   // @ts-expect-error -- stems have no fill to bind
-  new BarLinePath({ bind: { fill: { channel: 'chg', map: () => 'red' } } });
+  new StemPath({ bind: { fill: { channel: 'chg', map: () => 'red' } } });
 });
 
 test('histogram bars can be coloured by their bin', () => {

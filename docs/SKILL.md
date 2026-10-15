@@ -125,7 +125,7 @@ Attributes of the elements in the Template. An attribute followed by `(required)
 
 The root: a theme, a size, and what is drawn on it.
 
-**In** none (the root) · **Holds** planes, ChartTitle, Legend, Cursor, ColorAxis, SizeAxis, ColorKey, SizeKey, ChartSummary, Entrance
+**In** none (the root) · **Holds** planes, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance
 
 | Attribute | Type | |
 |---|---|---|
@@ -171,7 +171,7 @@ Positions data along one side of a plane, with ticks and labels.
 | `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
-| `title` | `string` | The axis title (or, on a `ColorAxis` or `SizeAxis`, the default title of its key). Default: none. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
 | `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
 | `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
 | `tickStep` | `number` | Put ticks at every multiple of this step. |
@@ -272,8 +272,8 @@ Read the topic that matches the chart; each has examples and the attributes of t
 
 <!-- index:start -->
 - **axes** (`topics/axes.md`): dates and times, categories, log and sqrt scales, tick labels and formats, axis limits, a second or reversed axis, number and date language. Elements: LogScale, SqrtScale, BandScale, IntlTimeScale, TemporalTimeScale.
-- **lines-bars** (`topics/lines-bars.md`): bars (grouped, stacked), areas, smooth and stepped lines, curves, gaps in the data, several series sharing a plane. Elements: Stack, SeriesGroup, AreaPath, MonotoneCurve, NaturalCurve, CardinalCurve, CatmullRomCurve, BasisCurve, BumpCurve, QuadraticCurve, ArcCurve, StepCurve, BarPath, BarLinePath.
-- **markers-color** (`topics/markers-color.md`): scatter and bubble charts, dots and crosses, colour or size taken from the data, colour and size keys. Elements: XYSeries, DotMarker, CrossMarker, PlusMarker, CircleMarker, SquareMarker, ColorAxis, SizeAxis, ColorKey, SizeKey.
+- **lines-bars** (`topics/lines-bars.md`): bars (grouped, stacked), areas, smooth and stepped lines, curves, gaps in the data, several series sharing a plane. Elements: Stack, SeriesGroup, AreaPath, MonotoneCurve, NaturalCurve, CardinalCurve, CatmullRomCurve, BasisCurve, BumpCurve, QuadraticCurve, ArcCurve, StepCurve, BarPath, StemPath.
+- **markers-color** (`topics/markers-color.md`): scatter and bubble charts, dots and crosses, colour or size taken from the data, colour and size keys. Elements: XYSeries, DotMarker, CrossMarker, PlusMarker, CircleMarker, SquareMarker, ColorAxis, ScalarAxis, ColorKey, SizeKey.
 - **statistics** (`topics/statistics.md`): histograms (a histogram is `Density` + `BarPath`), heat maps, density, box plots, trendlines (linear, polynomial, sinusoidal, loess), error bars and bands. Elements: BoxPath, BoxStats, Density, HeatMap, LinearTrend, PolynomialTrend, SinusoidalTrend, LoessTrend, ErrorBars, ErrorBand.
 - **furniture** (`topics/furniture.md`): a chart title or caption, a legend, reference lines and callouts, notes on chosen points, an accessible name and summary. Elements: ChartTitle, Legend, ChartSummary, LineAnnotation, CalloutAnnotation, PointAnnotations.
 - **interaction** (`topics/interaction.md`): tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch, an entrance animation. Elements: ChartTooltip, Cursor, Crosshair, PanZoom, BoxZoom, Brush, PointerListener, Entrance.
