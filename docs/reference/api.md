@@ -361,7 +361,7 @@ Points with x and y both from the data.
 
 Series that share axes and are laid on each other or side by side.
 
-**In** a plane · **Holds** DomainSeries, any number
+**In** a plane · **Holds** DomainSeries or SeriesGroup, any number
 
 | Attribute | Type | |
 |---|---|---|

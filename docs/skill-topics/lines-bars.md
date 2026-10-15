@@ -50,7 +50,7 @@ An attribute followed by `(required)` must be given. Every element also takes `i
 
 Series that share axes and are laid on each other or side by side.
 
-**In** a plane · **Holds** DomainSeries, any number
+**In** a plane · **Holds** DomainSeries or SeriesGroup, any number
 
 | Attribute | Type | |
 |---|---|---|

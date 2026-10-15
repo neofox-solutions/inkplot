@@ -229,6 +229,11 @@ export class SeriesGroup
   /** Engine protocol, called by the plane in place of each series' own `load`. */
   load(estimate: Size): void {
     for (const m of this.members) if (m.shown) m.load(estimate);
+    this.contribute();
+  }
+
+  /** Engine protocol: add what the bindings read from their axes to the axes' ranges. A `Stack` that holds the group calls it after it has loaded the members itself. */
+  contribute(): void {
     const bind = this.attrs.bind;
     if (bind)
       for (const spec of Object.values(bind)) {

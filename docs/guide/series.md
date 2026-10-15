@@ -290,7 +290,33 @@ The series are real ones: each has a name, a palette colour, a legend entry and 
 
 The rows are split first and the template's transforms run on each series' own rows: a `Decimator` thins each series to the width of the plot, and `BoxStats` summarises each series' samples. The group channel is used up by the split: a renderer in the group cannot bind it.
 
-**What the copies are.** Each series draws copies of the template's renderers, made from their classes and attributes (their `id` gets the key added: `ring` is `ring/7`). Change the template and every series follows at the next flush: set an attribute of a renderer, a curve or a transform, or `applyJSON` a saved tree, which only ever holds the template. The copies are not for editing: a renderer reached through `plane.series` is put back to match the template, and so are the series' `name`, axes and `gaps`, which the group sets from its own attributes. The one thing a series keeps for itself is `visible`, so the legend can hide it and a change of data does not bring it back. To make the series differ, use `bind`. The series are also left out of saved JSON and of lookups by `id`, which find the template. Notes (`PointAnnotations`) cannot anchor to a renderer of a group yet, and say so.
+**What the copies are.** Each series draws copies of the template's renderers, made from their classes and attributes (their `id` gets the key added: `ring` is `ring/7`). Change the template and every series follows at the next flush: set an attribute of a renderer, a curve or a transform, or `applyJSON` a saved tree, which only ever holds the template. The copies are not for editing: a renderer reached through `plane.series` is put back to match the template, and so are the series' `name`, axes and `gaps`, which the group sets from its own attributes. The one thing a series keeps for itself is `visible`: the group never sets it (it is not among the attributes it sends to a series), so the legend can hide a series and neither a change of data nor a refresh brings it back. To make the series differ, use `bind`. The series are also left out of saved JSON and of lookups by `id`, which find the template. Notes (`PointAnnotations`) cannot anchor to a renderer of a group yet, and say so.
+
+**In a stack.** A group can be a child of a `Stack`, and stands there for its series: the same as writing them out one after another, in the order of the group's keys, and mixed with plain `DomainSeries` before or after. This is the way to stack tidy data, a table with a row for each region and year. The group has to be of `DomainSeries` (no `x`), and the stack's `align` says how rows are matched if the regions' years differ.
+
+```tsx live title="A stacked area from tidy rows" height=320
+import { AreaPath, Axis, CartesianPlane, Chart, FlatDataSource, Legend, LinearCurve, LinearScale, SeriesGroup, Stack, lightTheme } from 'inkplot';
+
+const regions = ['North', 'South', 'East'];
+const rows: number[] = [];
+for (let year = 2018; year <= 2024; year++) regions.forEach((_, r) => rows.push(year, 5 + r * 3 + ((year * (r + 2)) % 4), r));
+
+export default () => (
+  <Chart theme={lightTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom" tickStep={1} format={(v: number) => String(v)}><LinearScale /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <Stack>
+        <SeriesGroup channel="region" name={(r: number) => regions[r] ?? ''}>
+          <FlatDataSource data={Float64Array.from(rows)} stride={3} channels={{ region: 2 }} isSorted />
+          <AreaPath><LinearCurve /></AreaPath>
+        </SeriesGroup>
+      </Stack>
+    </CartesianPlane>
+    <Legend side="bottom" />
+  </Chart>
+);
+```
 
 **Binding the look to the key.** `bind` gives an attribute of every series' renderers a value worked out from its key, once for the series and not once for each point. It has the two forms a renderer's own bindings have:
 

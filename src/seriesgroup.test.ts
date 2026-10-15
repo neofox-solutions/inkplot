@@ -21,6 +21,9 @@ import {
   LinearCurve,
   LinearScale,
   Legend,
+  DomainSeries,
+  AreaPath,
+  Stack,
   CircleMarker,
   PointAnnotations,
   SeriesGroup,
@@ -354,4 +357,51 @@ test('seriesgroup', () => {
     const chart = new Chart({ theme: lightTheme, width: W, height: H }, plane);
     assert.throws(() => chart.attach(new StringPlatform({ width: W, height: H })).flush(), /is in a SeriesGroup/);
   }
+});
+
+// A group in a stack is several series in it: the same layers as when each is written out, and it mixes with plain series.
+test('a group in a stack stands for its series', () => {
+  const flat = (ys: number[]) => new FlatDataSource({ data: Float64Array.from(ys.flatMap((y, i) => [i, y])), stride: 2 });
+  // Rows (domain, value, part): part 1 is 1,2,3 and part 2 is 5,6,7.
+  const rows = Float64Array.from([0, 1, 1, 0, 5, 2, 1, 2, 1, 1, 6, 2, 2, 3, 1, 2, 7, 2]);
+  const source = () => new FlatDataSource({ data: rows, stride: 3, channels: { part: 2 }, isSorted: true });
+  const area = () => new AreaPath(new LinearCurve());
+  const build = (children: (DomainSeries | SeriesGroup)[]) => {
+    const plane = new CartesianPlane(
+      {},
+      new Axis({ orientation: 'bottom' }, new LinearScale()),
+      new Axis({ orientation: 'left' }, new LinearScale()),
+      new Stack({}, ...children),
+    );
+    const chart = new Chart({ theme: lightTheme, width: W, height: H }, plane);
+    chart.attach(new StringPlatform({ width: W, height: H })).flush();
+    return { chart, plane };
+  };
+  const grouped = build([
+    new DomainSeries({ name: 'A' }, flat([4, 4, 4]), area()),
+    new SeriesGroup({ channel: 'part', name: (k) => `P${k}` }, source(), area()),
+    new DomainSeries({ name: 'D' }, flat([2, 2, 2]), area()),
+  ]);
+  const written = build([
+    new DomainSeries({ name: 'A' }, flat([4, 4, 4]), area()),
+    new DomainSeries({ name: 'P1' }, flat([1, 2, 3]), area()),
+    new DomainSeries({ name: 'P2' }, flat([5, 6, 7]), area()),
+    new DomainSeries({ name: 'D' }, flat([2, 2, 2]), area()),
+  ]);
+  const layers = (p: CartesianPlane) => p.allSeries.map((s) => [s.attrs.name, [...(s.layer?.top ?? [])], [...(s.layer?.base ?? [])]]);
+  assert.deepEqual(layers(grouped.plane), layers(written.plane));
+  assert.equal(grouped.plane.allSeries.length, 4);
+  assert.deepEqual(
+    grouped.plane.allSeries.map((s) => s.accentColor),
+    written.plane.allSeries.map((s) => s.accentColor),
+    'the palette runs on through the stack as it would',
+  );
+
+  // `visible` on a member is the one thing a group leaves alone: a hidden member closes up the stack, and stays hidden through a refresh.
+  const group = grouped.plane.allSeries[1]!.requireParent() as SeriesGroup;
+  grouped.plane.allSeries[1]!.setAttribute('visible', false);
+  group.invalidate();
+  grouped.chart.flush();
+  assert.equal(grouped.plane.allSeries[1]!.attrs.visible, false);
+  assert.deepEqual(layers(grouped.plane).filter((l) => l[0] === 'D')[0]?.[1], [4 + 5 + 2, 4 + 6 + 2, 4 + 7 + 2]);
 });

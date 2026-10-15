@@ -32,7 +32,8 @@
 import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent, Size } from './geometry.ts';
 import type { Plane } from './plane.ts';
-import { DomainSeries, type Rows, type SeriesHolder } from './series.ts';
+import type { SeriesGroup } from './seriesgroup.ts';
+import { DomainSeries, type Rows, type Series, type SeriesHolder } from './series.ts';
 
 export type StackMode = 'stack' | 'normalize' | 'center' | 'group';
 export type StackAlign = 'strict' | 'gaps' | 'interpolate';
@@ -158,10 +159,21 @@ export function layOut(tables: readonly Rows[], mode: StackMode): Layout {
   return { base, top, extent: min <= max ? { min, max } : null };
 }
 
-export class Stack extends ChartElement<Plane, DomainSeries[], StackAttributes> implements SeriesHolder {
+function domainOnly(s: Series): DomainSeries {
+  if (!(s instanceof DomainSeries))
+    fail('a group in a stack has to be of series with a domain and a value: it has `x`, so its series are XY');
+  return s;
+}
+
+export class Stack extends ChartElement<Plane, (DomainSeries | SeriesGroup)[], StackAttributes> implements SeriesHolder {
   /** The series in the stack, in the order they stack. */
   get members(): readonly DomainSeries[] {
-    return [...this].filter((c): c is DomainSeries => c instanceof DomainSeries);
+    return this.#holders().flatMap((c) => (c instanceof DomainSeries ? [c] : c.members.map(domainOnly)));
+  }
+
+  /** The children that are series or groups of them, in order. */
+  #holders(): (DomainSeries | SeriesGroup)[] {
+    return [...this].filter((c): c is DomainSeries | SeriesGroup => c instanceof DomainSeries || (typeof c === 'object' && 'members' in c));
   }
 
   /** Engine protocol, called by the plane in place of each member's own `load`: read them all, lay them out, report the extents. */
@@ -173,6 +185,7 @@ export class Stack extends ChartElement<Plane, DomainSeries[], StackAttributes> 
       if (m.domainAxis !== domainAxis || m.valueAxis !== valueAxis)
         fail('the series of a stack have to share their domain axis and their value axis');
     const own = members.map((m) => m.prepare(estimate));
+    for (const c of this.#holders()) if (!(c instanceof DomainSeries)) c.contribute();
     const how = this.attrs.align ?? 'strict';
     let tables: readonly Rows[] = own,
       made: Rows[] | null = null;

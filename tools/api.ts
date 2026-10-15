@@ -56,7 +56,7 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   XYSeries: { parent: 'a plane', children: '1 data, then any renderers', about: 'Points with x and y both from the data.' },
   Stack: {
     parent: 'a plane',
-    children: 'DomainSeries, any number',
+    children: 'DomainSeries or SeriesGroup, any number',
     about: 'Series that share axes and are laid on each other or side by side.',
   },
   SeriesGroup: {

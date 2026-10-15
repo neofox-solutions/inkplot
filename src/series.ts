@@ -158,9 +158,11 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   }
   /** The plane this series is drawn on, which is its parent unless a stack sits between them. */
   get plane(): Plane {
-    const p = this.requireParent();
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- `members` was probed in the condition: this is the series group's plane
-    return 'members' in p ? (p.requireParent() as Plane) : p;
+    let p: Plane | (SeriesHolder & AnyElement) = this.requireParent();
+    // A stack, a group, or a group in a stack: climb until the plane.
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- `members` was probed in the condition: the parent of a series holder is another holder or the plane
+    while ('members' in p) p = p.requireParent() as Plane | (SeriesHolder & AnyElement);
+    return p;
   }
   /** The rows drawn from: a stack's lined-up table when it made one, else the series' own fill. */
   protected rows(): Rows {
