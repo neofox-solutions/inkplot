@@ -73,7 +73,7 @@ One series for each value of a channel of the data, each drawn with a copy of th
 | `xAxis` | `ElementRef<Axis>` |  |
 | `yAxis` | `ElementRef<Axis>` |  |
 | `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
-| `bind` | `Readonly<Record<string, GroupBinding>>` | An attribute of the renderers of every series, from a colour or size axis: `{ stroke: { axis: 'heat' } }`. |
+| `bind` | `Readonly<Record<string, GroupBinding>>` | An attribute of the renderers of every series, from the key: `{ stroke: { axis: 'heat' }, opacity: { map: (key) => key > year ? 0.2 : 1 } }`. |
 | `order` | `'first' \| 'sorted' \| ((a: number, b: number) => number)` | The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. |
 | `maxGroups` | `number` | The most series made; more keys than this are left out (`omitted` says how many). Default 100. |
 

@@ -212,6 +212,15 @@ export abstract class SeriesRenderer<
     return 0;
   }
 
+  /**
+   * Engine protocol for a `SeriesGroup`: set an attribute of the look from outside, while the chart paints and just before
+   * this paints, so no further flush is asked for.
+   */
+  restyle(name: string, value: string | number): void {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- the name is one of this renderer's attributes, which the group's binding keys say
+    this.put(name as never, value as never);
+  }
+
   override onEvent(ev: ChartEvent): void {
     switch (ev.type) {
       case EVENT_PAINT:

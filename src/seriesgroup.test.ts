@@ -21,6 +21,8 @@ import {
   LinearCurve,
   LinearScale,
   Legend,
+  CircleMarker,
+  PointAnnotations,
   SeriesGroup,
   StringPlatform,
   fromJSON,
@@ -157,8 +159,8 @@ test('seriesgroup', () => {
     assert.equal(stroke(2), '#ffffff', 'key 9 is the high end');
     assert.match(String(stroke(0)), /^#[0-9a-f]{6}$/);
     assert.ok(svg().includes('#000000'));
-    const mapped = chartOf({ bind: { stroke: { axis: 'heat', map: (k) => (k === 7 ? 100 : 0) } } });
-    assert.equal(strokeOf(mapped.plane.series[0]!), '#ffffff', 'map decides what the axis is read at');
+    const mapped = chartOf({ bind: { stroke: { axis: 'heat', value: (k) => (k === 7 ? 100 : 0) } } });
+    assert.equal(strokeOf(mapped.plane.series[0]!), '#ffffff', 'value decides what the axis is read at');
   }
 
   // The legend lists each series.
@@ -297,5 +299,59 @@ test('seriesgroup', () => {
       assert.equal(r.attrs.strokeWidth, 4, 'the width came from the group');
       assert.notEqual(r.attrs.stroke, '#123456', "the colour is still the binding's");
     }
+  }
+
+  // `map` gives the attribute directly, and is read again whenever the group is invalidated: what it reads from outside (a
+  // playback year) takes effect, with nothing refilled and only the attribute that changed written.
+  {
+    let year = 7;
+    const stats: { filled: number; attributesWritten: readonly string[] }[] = [];
+    const group = new SeriesGroup(
+      { channel: 'group', bind: { opacity: { map: (k) => (k <= year ? 0.9 : 0.1) } } },
+      flatRows(),
+      new LinePath(new LinearCurve()),
+    );
+    const plane = new CartesianPlane(
+      {},
+      new Axis({ orientation: 'bottom' }, new LinearScale()),
+      new Axis({ orientation: 'left' }, new LinearScale()),
+      group,
+    );
+    const chart = new Chart({ theme: lightTheme, width: W, height: H, onFlush: (f) => stats.push(f) }, plane);
+    chart.attach(new StringPlatform({ width: W, height: H })).flush();
+    const opacity = () =>
+      plane.series.map((s) => [...s].map((r) => (r.attrs as { opacity?: number }).opacity).find((o) => o !== undefined));
+    assert.deepEqual(opacity(), [0.9, 0.9, 0.1], 'keys 7 and 3 are on, 9 is not');
+    year = 3;
+    group.invalidate();
+    chart.flush();
+    assert.deepEqual(opacity(), [0.1, 0.9, 0.1], 'now only 3');
+    const last = stats.at(-1)!;
+    assert.equal(last.filled, 0, 'nothing was refilled');
+    assert.deepEqual(last.attributesWritten, ['opacity'], 'only the opacity was written');
+  }
+
+  // Copies follow the group: an edit made to a copy itself is put back, since what the group holds is what counts.
+  {
+    const { group, plane, chart } = chartOf();
+    const copy = [...plane.series[0]!][1] as unknown as { attrs: { strokeWidth?: number }; setAttribute(n: string, v: number): void };
+    copy.setAttribute('strokeWidth', 9);
+    chart.flush();
+    assert.notEqual(copy.attrs.strokeWidth, 9, 'the copy is as the group has it');
+    void group;
+  }
+
+  // Notes cannot anchor to a renderer of a group: that says so, rather than drawing nothing.
+  {
+    const group = new SeriesGroup({ channel: 'group' }, flatRows(), new CircleMarker({ id: 'dots' }));
+    const plane = new CartesianPlane(
+      {},
+      new Axis({ orientation: 'bottom' }, new LinearScale()),
+      new Axis({ orientation: 'left' }, new LinearScale()),
+      group,
+      new PointAnnotations({ anchor: 'dots', text: () => 'x' }),
+    );
+    const chart = new Chart({ theme: lightTheme, width: W, height: H }, plane);
+    assert.throws(() => chart.attach(new StringPlatform({ width: W, height: H })).flush(), /is in a SeriesGroup/);
   }
 });

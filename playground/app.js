@@ -642,7 +642,7 @@ demos.push({
   id: 'hero',
   title: 'Warming spiral',
   blurb:
-    'A century and a half of the NASA global temperature record: bound bars on a polar plane, 146 rings, a callout in the middle, played from outside',
+    'A century and a half of the NASA global temperature record: bound bars on a polar plane, a group of 146 rings, a callout in the middle, played from outside',
   setup(ctx) {
     const { FIRST, LAST } = HERO;
     const { months, annual } = heroData;
@@ -654,7 +654,7 @@ demos.push({
     const hottest = annual.indexOf(Math.max(...annual)) + FIRST;
     const coldest = annual.indexOf(Math.min(...annual)) + FIRST;
 
-    // The ramp both rings share: a colour axis, whose `valueAt` also colours each spiral ring (a line has no binding).
+    // The ramp both rings share: a colour axis, which the stripes bind their fill to and the spiral's group reads for each ring's stroke.
     const LIM = 1.5;
     const heat = new L.ColorAxis(
       {
@@ -667,7 +667,6 @@ demos.push({
       },
       new L.LinearScale(),
     );
-    const colourOf = (a) => heat.valueAt((a + LIM) / (2 * LIM));
 
     // ── The outer ring: one wedge a year, all the same height, coloured and dimmed by the data.
     const stripes = new L.BarPath({ id: 'stripes', width: 1, stroke: 'none', maxNodes: 2500 });
@@ -704,24 +703,36 @@ demos.push({
     // ── The spiral: a ring of twelve months for each year.
     const R_MIN = -2.2,
       R_MAX = 3.9;
-    const rings = months.map((row, i) => {
-      const y = FIRST + i;
-      const data = [...row, months[i + 1]?.[0] ?? row[11]]; // January again, to close the ring
-      const line = new L.LinePath(
-        { stroke: colourOf(annual[i]), strokeWidth: 0.6 + (i / (N - 1)) * 0.9, opacity: 0.2 + 0.55 * (i / (N - 1)) },
-        new L.CatmullRomCurve(),
-      );
-      return {
-        y,
-        line,
-        series: new L.DomainSeries(
-          { domainAxis: 'month', valueAxis: 'anomaly' },
-          new L.FlatDataSource({ data, regularDomain: { start: 0, step: 1 } }),
-          line,
-        ),
-        shown: true,
-      };
-    });
+    // One group draws all of them: rows of (month, anomaly, year), month by month, so the domain ascends, and the year is the
+    // channel that splits them. The ring is closed with January of the next year.
+    const ringRows = new Float64Array(13 * N * 3);
+    for (let m = 0, k = 0; m <= 12; m++)
+      for (let i = 0; i < N; i++, k += 3) {
+        ringRows[k] = m;
+        ringRows[k + 1] = m < 12 ? months[i][m] : (months[i + 1]?.[0] ?? months[i][11]);
+        ringRows[k + 2] = FIRST + i;
+      }
+    // What the bindings read from outside is the year being played: invalidating the group says it has moved.
+    const ringOpacity = (y) => {
+      const age = Math.round(S.year) - y;
+      if (age < 0 || (S.trail && age >= S.trail)) return 0;
+      return S.trail ? Math.max(0.12, 1 - age / S.trail) : 0.2 + 0.55 * ((y - FIRST) / (N - 1));
+    };
+    const rings = new L.SeriesGroup(
+      {
+        channel: 'year',
+        domainAxis: 'month',
+        valueAxis: 'anomaly',
+        maxGroups: N,
+        bind: {
+          stroke: { axis: heat, value: (y) => annual[y - FIRST] },
+          strokeWidth: { map: (y) => 0.6 + ((y - FIRST) / (N - 1)) * 0.9 },
+          opacity: { map: ringOpacity },
+        },
+      },
+      new L.FlatDataSource({ data: ringRows, stride: 3, channels: { year: 2 }, isSorted: true }),
+      new L.LinePath({}, new L.CatmullRomCurve()),
+    );
     const nowSource = new L.FlatDataSource({ data: [...months[N - 1], months[N - 1][0]], regularDomain: { start: 0, step: 1 } });
     const nowLine = new L.LinePath({ id: 'now', strokeWidth: 2.6, stroke: fg() }, new L.CatmullRomCurve());
     const nowDots = new L.CircleMarker({ size: 3, fill: fg(), stroke: 'none' });
@@ -765,7 +776,7 @@ demos.push({
         { id: 'anomaly', orientation: 'radius', min: R_MIN, max: R_MAX, ticks: [0, 1, 2], format: (v) => (v === 0 ? '0 °C' : `+${v}`) },
         new L.LinearScale(),
       ),
-      ...rings.map((r) => r.series),
+      rings,
       limit,
       nowSeries,
       names,
@@ -801,16 +812,7 @@ demos.push({
     const show = () => {
       const yr = Math.round(S.year),
         i = yr - FIRST;
-      for (const r of rings) {
-        const age = yr - r.y;
-        const on = age >= 0 && (S.trail === 0 || age < S.trail);
-        if (on !== r.shown) {
-          r.series.setAttribute('visible', on);
-          r.shown = on;
-        }
-        if (on && S.trail) r.line.setAttribute('opacity', Math.max(0.12, 1 - age / S.trail));
-      }
-      if (!S.trail) for (const r of rings) r.line.setAttribute('opacity', 0.2 + 0.55 * ((r.y - FIRST) / (N - 1)));
+      rings.invalidate();
       nowSource.setAttributes({ data: [...months[i], months[i][0]], regularDomain: { start: 0, step: 1 } });
       yearNote.setAttribute('text', String(yr));
       anomalyNote.setAttribute('text', signed(annual[i]));
@@ -921,7 +923,7 @@ demos.push({
         onChange: (v) => (S.speed = v),
       }),
       ui.note(
-        'Hover the stripes to scrub the spiral; click one to pin its year. One chart with two polar planes. The outer ring is a bar series on a polar plane whose fill is bound to a colour axis and whose opacity is bound to a function of the year (the years to come dim). Each spiral ring is a series coloured from the same axis; the month names are notes on twelve invisible points; the year in the middle is a callout with no box. The data are NASA GISS GISTEMP v4 global land-ocean anomalies against 1951–1980, 1880–2025 (source and citation in playground/gistemp.js).',
+        'Hover the stripes to scrub the spiral; click one to pin its year. One chart with two polar planes. The outer ring is a bar series on a polar plane whose fill is bound to a colour axis and whose opacity is bound to a function of the year (the years to come dim). The spiral is one `SeriesGroup`: a ring for each year, its colour, width and opacity bound to the year (the opacity reads the year being played, so moving it invalidates the group and nothing is refilled); the month names are notes on twelve invisible points; the year in the middle is a callout with no box. The data are NASA GISS GISTEMP v4 global land-ocean anomalies against 1951–1980, 1880–2025 (source and citation in playground/gistemp.js).',
       ),
     );
     // Hover the stripes (when nothing is playing) and the spiral follows the pointer; off them it goes back to the pinned year. A click pins it.

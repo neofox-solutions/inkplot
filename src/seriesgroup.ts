@@ -29,12 +29,15 @@ import type { Plane } from './plane.ts';
 import { type AnySeriesRenderer, SeriesRenderer } from './renderer.ts';
 import { DomainSeries, type Series, type SeriesHolder, XYSeries } from './series.ts';
 
-/** What a group gives one attribute of its series: the value of the axis (a colour, a size) at the series' key, or at `map(key)`. */
-export interface GroupBinding {
-  axis: ElementRef<MappedDimension<unknown>>;
-  /** What to read the axis at, from the key. Default: the key itself. */
-  map?: (key: number) => number;
-}
+/**
+ * What a group gives one attribute of its series' renderers, worked out once for each series from its key: either the value
+ * of a colour or size axis at the key (or at `value(key)`, which is how a series is coloured by something about it), or
+ * whatever `map(key)` says, as a renderer's own `{ channel, map }` binding does. Both are read at every paint, so what they
+ * read from outside (a playback year) takes effect when the group is invalidated.
+ */
+export type GroupBinding =
+  | { axis: ElementRef<MappedDimension<unknown>>; value?: (key: number) => number }
+  | { map: (key: number) => string | number };
 
 export interface SeriesGroupAttributes extends BaseAttributes {
   /** The channel of the data that says which series a point is in. It is not offered to the renderers. */
@@ -50,7 +53,7 @@ export interface SeriesGroupAttributes extends BaseAttributes {
   yAxis?: ElementRef<Axis>;
   /** What a missing value means in every series (see `Series`). */
   gaps?: 'break' | 'connect' | 'zero';
-  /** An attribute of the renderers of every series, from a colour or size axis: `{ stroke: { axis: 'heat' } }`. */
+  /** An attribute of the renderers of every series, from the key: `{ stroke: { axis: 'heat' }, opacity: { map: (key) => key > year ? 0.2 : 1 } }`. */
   bind?: Readonly<Record<string, GroupBinding>>;
   /** The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. */
   order?: 'first' | 'sorted' | ((a: number, b: number) => number);
@@ -88,7 +91,7 @@ function refresh(from: AnyElement, to: AnyElement, keep: ReadonlySet<string>): v
   });
 }
 /** The colour or size axis a binding names (a `MappedDimension` is not imported here, so that a group costs nothing to a chart that does not bind). */
-function dimensionOf(spec: GroupBinding, from: AnyElement): MappedDimension<unknown> {
+function dimensionOf(spec: { axis: ElementRef<MappedDimension<unknown>> }, from: AnyElement): MappedDimension<unknown> {
   const d = resolveRef<MappedDimension<unknown>>(spec.axis, from);
   return 'valueAt' in d ? d : fail('SeriesGroup: a binding needs a ColorAxis or a SizeAxis');
 }
@@ -229,9 +232,10 @@ export class SeriesGroup
     const bind = this.attrs.bind;
     if (bind)
       for (const spec of Object.values(bind)) {
+        if (!('axis' in spec)) continue;
         const dimension = dimensionOf(spec, this);
         for (const key of this.#series.keys()) {
-          const v = spec.map ? spec.map(key) : key;
+          const v = spec.value ? spec.value(key) : key;
           dimension.contribute(v, v);
         }
       }
@@ -241,15 +245,16 @@ export class SeriesGroup
     if (ev.type === EVENT_PAINT) this.paintBindings();
   }
 
-  /** Give each series' renderers the attributes the axes say for its key. The axes are settled by now, since drawing is what reads them. */
+  /** Give each series' renderers the attributes the bindings say for its key. The axes are settled by now, since drawing is what reads them. */
   private paintBindings(): void {
     const bind = this.attrs.bind;
     if (!bind) return;
     for (const [attribute, spec] of Object.entries(bind)) {
-      const dimension = dimensionOf(spec, this);
+      const dimension = 'axis' in spec ? dimensionOf(spec, this) : null;
       for (const [key, series] of this.#series) {
-        const value = dimension.valueAt(dimension.fractionOf(spec.map ? spec.map(key) : key));
-        for (const r of series) if (r instanceof SeriesRenderer) r.setAttribute(attribute as never, value);
+        const look =
+          'map' in spec ? spec.map(key) : (dimension?.valueAt(dimension.fractionOf(spec.value ? spec.value(key) : key)) as string | number);
+        for (const r of series) if (r instanceof SeriesRenderer) r.restyle(attribute, look);
       }
     }
   }

@@ -258,6 +258,49 @@ export default () => (
 
 Decimating a stack's data is done to each source *before* the stack ([Data](data.md#decimation)).
 
+## Series groups
+
+A `SeriesGroup` makes one series for each value of a channel of the data: a line for each region of a table that has all the regions' rows together. It is a child of the plane. Inside it is a *template*: one data source (or transforms over one, such as a `Decimator`, `BoxStats` or `Density`) and the renderers each series is drawn with.
+
+```tsx live title="A line for each group of rows" height=340
+import { Axis, CartesianPlane, Chart, FlatDataSource, Legend, LinePath, LinearCurve, LinearScale, SeriesGroup, lightTheme } from 'inkplot';
+
+// Rows of (year, value, region), as a table gives them: the regions mixed, in order of year.
+const regions = ['North', 'South', 'East'];
+const rows: number[] = [];
+for (let year = 2018; year <= 2024; year++)
+  regions.forEach((_, r) => rows.push(year, 10 + r * 6 + (year - 2018) * (r + 1) * 0.8 + ((year * (r + 3)) % 5), r));
+
+export default () => (
+  <Chart theme={lightTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom" tickStep={1} format={(v: number) => String(v)}><LinearScale /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <SeriesGroup channel="region" name={(r: number) => regions[r] ?? ''}>
+        <FlatDataSource data={Float64Array.from(rows)} stride={3} channels={{ region: 2 }} isSorted />
+        <LinePath><LinearCurve /></LinePath>
+      </SeriesGroup>
+    </CartesianPlane>
+    <Legend side="bottom" />
+  </Chart>
+);
+```
+
+The series are real ones: each has a name, a palette colour, a legend entry and hits, and takes part in the axes' ranges as any series does. A key is a number (every channel is), and `name` turns it into the series' name; the default is the number as text. `order` sets the order, and so the palette colours: `'first'` (the default, the order the keys first appear along the domain), `'sorted'`, or a comparison function. `maxGroups` (default 100) bounds the series made; `omitted` says how many keys were left out. `x` makes the series `XYSeries` (a path or scatter for each key, a heat map) in place of `DomainSeries`, with `xAxis` and `yAxis` for `domainAxis` and `valueAxis`.
+
+The rows are split first and the template's transforms run on each series' own rows: a `Decimator` thins each series to the width of the plot, and `BoxStats` summarises each series' samples. The group channel is used up by the split: a renderer in the group cannot bind it.
+
+**What the copies are.** Each series draws copies of the template's renderers, made from their classes and attributes (their `id` gets the key added: `ring` is `ring/7`). Change the template and every series follows at the next flush: set an attribute of a renderer, a curve or a transform, or `applyJSON` a saved tree, which only ever holds the template. The copies are not for editing: a renderer reached through `plane.series` is put back to match the template, and so are the series' `name`, axes and `gaps`, which the group sets from its own attributes. The one thing a series keeps for itself is `visible`, so the legend can hide it and a change of data does not bring it back. To make the series differ, use `bind`. The series are also left out of saved JSON and of lookups by `id`, which find the template. Notes (`PointAnnotations`) cannot anchor to a renderer of a group yet, and say so.
+
+**Binding the look to the key.** `bind` gives an attribute of every series' renderers a value worked out from its key, once for the series and not once for each point. It has the two forms a renderer's own bindings have:
+
+| Form | The attribute is |
+|---|---|
+| `{ axis, value? }` | The axis (a `ColorAxis` or `SizeAxis`) read at the key, or at `value(key)`: a series coloured by something about it, such as its mean. The axis' range is fitted to these values, as to any binding. |
+| `{ map }` | Whatever `map(key)` returns, a colour or a number. |
+
+Both are read at every paint, so what they read from outside (a playback year, a selection) takes effect when the group is invalidated, with `group.invalidate()`. Nothing is refilled: the data is cached, and only the attributes that changed are written to the page. Because they bind attributes and not channels, a group gives a line or an area a colour for each series, which a renderer's own `bind` does not yet do for those.
+
 ## Error bars and bands
 
 How far each value may be from what was measured is another **channel** of the data, drawn by a renderer that sits beside the others. `ErrorBars` draws a whisker with a cap at each end; `ErrorBand` fills the region between the ends.

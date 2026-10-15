@@ -286,7 +286,8 @@ export abstract class ChartElement<
     if (changed) this.invalidate();
     return this;
   }
-  private put<K extends keyof Attrs>(name: K, value: Attrs[K]): boolean {
+  /** Write an attribute and say whether it changed, without telling the chart. Subclasses use it where the chart is already laying out. */
+  protected put<K extends keyof Attrs>(name: K, value: Attrs[K]): boolean {
     if (this.#attrs[name] === value) return false;
     if (value === undefined) delete this.#attrs[name];
     else this.#attrs[name] = value;
