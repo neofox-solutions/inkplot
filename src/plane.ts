@@ -33,6 +33,7 @@ import type { PanZoom } from './panzoom.ts';
 import type { PointerListener } from './pointer.ts';
 import type { PlatformNode } from './platform.ts';
 import { Series, groupOf, seriesOf } from './series.ts';
+import type { SeriesGroup } from './seriesgroup.ts';
 import type { Stack } from './stack.ts';
 import type { LineProps } from './theme.ts';
 
@@ -45,6 +46,7 @@ export interface PlaneChildMap {
   axis: Axis;
   series: Series;
   stack: Stack;
+  seriesGroup: SeriesGroup;
   lineAnnotation: LineAnnotation;
   calloutAnnotation: CalloutAnnotation;
   pointAnnotations: PointAnnotations;

@@ -57,6 +57,26 @@ Series that share axes and are laid on each other or side by side.
 | `mode` | `StackMode` | How the members' values are laid out. Default 'stack'. |
 | `align` | `StackAlign` | How rows are matched up when the members' domains differ. Default 'strict': they must not. |
 
+### SeriesGroup
+
+One series for each value of a channel of the data, each drawn with a copy of the renderers. The series are made from the data and are not saved.
+
+**In** a plane · **Holds** 1 data (source, or a transform over one), then any renderers: a template
+
+| Attribute | Type | |
+|---|---|---|
+| `channel` (required) | `string` | The channel of the data that says which series a point is in. |
+| `name` | `(key: number) => string` | What a series is called, from its key. Default: the key as text. |
+| `domainAxis` | `ElementRef<Axis>` | The axes of every series (as a `DomainSeries` names them). |
+| `valueAxis` | `ElementRef<Axis>` |  |
+| `x` | `string` | The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave it out for `DomainSeries`. |
+| `xAxis` | `ElementRef<Axis>` |  |
+| `yAxis` | `ElementRef<Axis>` |  |
+| `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
+| `bind` | `Readonly<Record<string, GroupBinding>>` | An attribute of the renderers of every series, from a colour or size axis: `{ stroke: { axis: 'heat' } }`. |
+| `order` | `'first' \| 'sorted' \| ((a: number, b: number) => number)` | The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. |
+| `maxGroups` | `number` | The most series made; more keys than this are left out (`omitted` says how many). Default 100. |
+
 ### AreaPath
 
 The region between a line and a baseline.

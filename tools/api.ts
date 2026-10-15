@@ -31,7 +31,8 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   Legend: { parent: 'Chart', children: 'none', about: 'Lists the named series; click to hide or show.' },
   CartesianPlane: {
     parent: 'Chart',
-    children: 'Axis, series, Stack, LineAnnotation, CalloutAnnotation, PointAnnotations, PanZoom, BoxZoom, Brush, PointerListener',
+    children:
+      'Axis, series, Stack, SeriesGroup, LineAnnotation, CalloutAnnotation, PointAnnotations, PanZoom, BoxZoom, Brush, PointerListener',
     about: 'A rectangular plot (x and y).',
   },
   PolarPlane: { parent: 'Chart', children: 'as CartesianPlane', about: 'A disc: angle and radius.' },
@@ -57,6 +58,12 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
     parent: 'a plane',
     children: 'DomainSeries, any number',
     about: 'Series that share axes and are laid on each other or side by side.',
+  },
+  SeriesGroup: {
+    parent: 'a plane',
+    children: '1 data (source, or a transform over one), then any renderers: a template',
+    about:
+      'One series for each value of a channel of the data, each drawn with a copy of the renderers. The series are made from the data and are not saved.',
   },
   FlatDataSource: { parent: 'a series', children: 'none', about: 'Numbers in an array or typed array, read in place.' },
   ObjectDataSource: { parent: 'a series', children: 'none', about: 'Rows as objects, read by property name.' },

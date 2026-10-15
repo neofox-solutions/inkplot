@@ -8,7 +8,7 @@ Every element class the library ships, in the order of the registry: where it go
 
 ## Contents
 
-[Chart](#chart) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [SizeAxis](#sizeaxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [BarLinePath](#barlinepath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
+[Chart](#chart) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [SizeAxis](#sizeaxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [BarLinePath](#barlinepath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
 
 ## Chart
 
@@ -118,7 +118,7 @@ Lists the named series; click to hide or show.
 
 A rectangular plot (x and y).
 
-**In** Chart · **Holds** Axis, series, Stack, LineAnnotation, CalloutAnnotation, PointAnnotations, PanZoom, BoxZoom, Brush, PointerListener
+**In** Chart · **Holds** Axis, series, Stack, SeriesGroup, LineAnnotation, CalloutAnnotation, PointAnnotations, PanZoom, BoxZoom, Brush, PointerListener
 
 | Attribute | Type | |
 |---|---|---|
@@ -367,6 +367,26 @@ Series that share axes and are laid on each other or side by side.
 |---|---|---|
 | `mode` | `StackMode` | How the members' values are laid out. Default 'stack'. |
 | `align` | `StackAlign` | How rows are matched up when the members' domains differ. Default 'strict': they must not. |
+
+## SeriesGroup
+
+One series for each value of a channel of the data, each drawn with a copy of the renderers. The series are made from the data and are not saved.
+
+**In** a plane · **Holds** 1 data (source, or a transform over one), then any renderers: a template
+
+| Attribute | Type | |
+|---|---|---|
+| `channel` (required) | `string` | The channel of the data that says which series a point is in. |
+| `name` | `(key: number) => string` | What a series is called, from its key. Default: the key as text. |
+| `domainAxis` | `ElementRef<Axis>` | The axes of every series (as a `DomainSeries` names them). |
+| `valueAxis` | `ElementRef<Axis>` |  |
+| `x` | `string` | The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave it out for `DomainSeries`. |
+| `xAxis` | `ElementRef<Axis>` |  |
+| `yAxis` | `ElementRef<Axis>` |  |
+| `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
+| `bind` | `Readonly<Record<string, GroupBinding>>` | An attribute of the renderers of every series, from a colour or size axis: `{ stroke: { axis: 'heat' } }`. |
+| `order` | `'first' \| 'sorted' \| ((a: number, b: number) => number)` | The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. |
+| `maxGroups` | `number` | The most series made; more keys than this are left out (`omitted` says how many). Default 100. |
 
 ## FlatDataSource
 

@@ -344,6 +344,20 @@ export abstract class ChartElement<
     this.invalidate();
     return this;
   }
+  /**
+   * For an element that makes children of its own from data (the series of a `SeriesGroup`): linked and mounted like an
+   * appended child, but without invalidating, since it happens while the chart lays out. Such a child is left out of
+   * the element's own iteration by the element that adopts it, so saved JSON never holds it.
+   */
+  protected adopt(child: AnyElement): void {
+    this.link(child, null);
+    if (this.#ctx) child.mount(this.#ctx);
+  }
+  /** The other half of `adopt`. */
+  protected release(child: AnyElement): void {
+    child.unmount(true);
+    this.unlink(child);
+  }
   /** Convenience for `parent.remove(this)` when the caller holds only the child. */
   detachFromParent(): this {
     this.#parent?.remove(this);

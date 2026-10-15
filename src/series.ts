@@ -72,15 +72,15 @@ export interface Rows {
   readonly stride: number;
   readonly rowOf: ((index: number) => number) | null;
 }
-/** A plane child that holds series of its own (a `Stack`): the plane sees through it, and hands it their loading. */
-export interface SeriesGroup {
+/** A plane child that holds series of its own (a `Stack`, a `SeriesGroup`): the plane sees through it, and hands it their loading. */
+export interface SeriesHolder {
   readonly members: readonly Series[];
   load(estimate: Size): void;
 }
 /** A plane child that holds series of its own (a stack), or null. Recognised by what it offers, so this file need not import every kind of group. */
-export function groupOf(child: unknown): (SeriesGroup & AnyElement) | null {
+export function groupOf(child: unknown): (SeriesHolder & AnyElement) | null {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- `members` was probed on the line above
-  return typeof child === 'object' && child !== null && 'members' in child ? (child as SeriesGroup & AnyElement) : null;
+  return typeof child === 'object' && child !== null && 'members' in child ? (child as SeriesHolder & AnyElement) : null;
 }
 /** The series a plane child stands for: itself, the members of a group, or none. */
 export function seriesOf(child: unknown): readonly Series[] {
@@ -129,7 +129,7 @@ export interface Drawn {
 
 /** The shared pipeline: raw fill (cached), column gather, normalise, place. Subclasses say which columns and axes. */
 export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Channel extends string = string> extends ChartElement<
-  Plane | (SeriesGroup & AnyElement),
+  Plane | (SeriesHolder & AnyElement),
   SeriesChildren<Channel>,
   A
 > {

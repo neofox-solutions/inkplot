@@ -32,7 +32,7 @@
 import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent, Size } from './geometry.ts';
 import type { Plane } from './plane.ts';
-import { DomainSeries, type Rows, type SeriesGroup } from './series.ts';
+import { DomainSeries, type Rows, type SeriesHolder } from './series.ts';
 
 export type StackMode = 'stack' | 'normalize' | 'center' | 'group';
 export type StackAlign = 'strict' | 'gaps' | 'interpolate';
@@ -158,7 +158,7 @@ export function layOut(tables: readonly Rows[], mode: StackMode): Layout {
   return { base, top, extent: min <= max ? { min, max } : null };
 }
 
-export class Stack extends ChartElement<Plane, DomainSeries[], StackAttributes> implements SeriesGroup {
+export class Stack extends ChartElement<Plane, DomainSeries[], StackAttributes> implements SeriesHolder {
   /** The series in the stack, in the order they stack. */
   get members(): readonly DomainSeries[] {
     return [...this].filter((c): c is DomainSeries => c instanceof DomainSeries);

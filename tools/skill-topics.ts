@@ -37,6 +37,7 @@ export const TOPICS: Record<string, Topic> = {
     use: 'bars (grouped, stacked), areas, smooth and stepped lines, curves, gaps in the data, several series sharing a plane',
     elements: [
       'Stack',
+      'SeriesGroup',
       'AreaPath',
       'MonotoneCurve',
       'NaturalCurve',

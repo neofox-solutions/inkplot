@@ -186,6 +186,7 @@ export {
   barShapes,
   stemLines,
 } from './bars.ts';
+export { SeriesGroup, type SeriesGroupAttributes, type GroupBinding } from './seriesgroup.ts';
 export { Stack, type StackAttributes, type StackAlign, type StackMode, type Layout, alignRows, layOut } from './stack.ts';
 export {
   DomainSeries,
@@ -193,7 +194,7 @@ export {
   type Drawn,
   type Rows,
   Series,
-  type SeriesGroup,
+  type SeriesHolder,
   type StackLayer,
   seriesOf,
   paintSample,
