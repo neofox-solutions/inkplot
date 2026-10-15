@@ -326,7 +326,7 @@ test('seriesgroup', () => {
     group.invalidate();
     chart.flush();
     assert.deepEqual(opacity(), [0.1, 0.9, 0.1], 'now only 3');
-    const last = stats.at(-1)!;
+    const last = stats[stats.length - 1]!;
     assert.equal(last.filled, 0, 'nothing was refilled');
     assert.deepEqual(last.attributesWritten, ['opacity'], 'only the opacity was written');
   }
