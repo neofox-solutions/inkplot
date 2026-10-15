@@ -14,13 +14,15 @@
  * A line that is not filled (eight items in three columns leave two in the last row) is placed by `justify`.
  * A grid of one cell puts every item in it, on top of each other: showing one at a time is `visible`.
  */
-import { type AttrTypesFor, AUTO, NUMBER, STRING } from './attrs.ts';
+import { type AttrTypesFor, AUTO, BOOLEAN, NUMBER, STRING } from './attrs.ts';
+import { Axis } from './axis.ts';
 import { Container, isBody } from './container.ts';
-import { type BaseAttributes, ChartElement, fail } from './element.ts';
+import { type BaseAttributes, ChartElement, fail, resolveRef } from './element.ts';
 import { type ChartEvent, EVENT_ARRANGE } from './events.ts';
-import type { Rect } from './geometry.ts';
+import type { Extent, Insets, Rect } from './geometry.ts';
+import type { Scale } from './scale.ts';
 import { Dimension } from './dimension.ts';
-import type { Plane } from './plane.ts';
+import { CartesianPlane, type Plane } from './plane.ts';
 import type { ChartChildren } from './chart.ts';
 
 /** Where the items of a line that is not full sit along the line. */
@@ -37,6 +39,8 @@ export interface ChartGroupAttributes extends BaseAttributes {
   gap?: number | { row?: number; column?: number };
   /** Where the items of the last line go when it is not full. Default 'start'. */
   justify?: Justify;
+  /** Give charts in a column the same room left and right of their plots, and charts in a row the same above and below, so the plots line up whatever their labels need. Default true. */
+  align?: boolean;
 }
 
 export interface ChartGroupItemAttributes extends BaseAttributes {
@@ -53,10 +57,69 @@ export interface Edges {
 
 /**
  * A range that the charts of a group share: one scale and one fitted range for all of them, so that what is drawn in
- * several charts lines up. It draws nothing. A plane's `Axis` with `sharedRef` names it and draws it: each chart says
- * where the axis goes and how it looks, and the range is fitted to everything every chart draws against it.
+ * several charts lines up. It draws nothing. A plane's `SharedAxis` names it and draws it: each chart says where the axis goes
+ * and how it looks, and the range is fitted to everything every chart draws against it.
  */
-export class SharedRange extends Dimension<ChartGroup> {}
+export class SharedRange extends Dimension<ChartGroup> {
+  #pass = -1;
+  /** `begin` for a range several planes share: the first plane of a pass starts it over, the others only say how long they will draw it, of which the shortest counts. */
+  beginShared(pass: number, length: number): void {
+    if (pass !== this.#pass) {
+      this.#pass = pass;
+      this.begin(length);
+    } else if (length > 0 && (this.lengthPx === 0 || length < this.lengthPx)) this.lengthPx = length;
+  }
+}
+
+/**
+ * An axis that draws a `SharedRange` of the group its chart is in, in place of a scale of its own (it has none): the range, the scale
+ * and the pan and zoom view are the shared range's, so charts that show it line up and move together. Its own attributes say how it is
+ * drawn: `orientation`, `title`, `format`, ticks. `edgeOnly` draws it only where its chart is at the edge of the group it faces (one row
+ * of labels along the bottom), and takes no room elsewhere. Cartesian planes only.
+ */
+export class SharedAxis extends Axis {
+  /** The range it draws. */
+  get shared(): SharedRange {
+    const ref = this.attrs.sharedRef;
+    return ref === undefined
+      ? fail('SharedAxis needs a sharedRef: the id of a SharedRange')
+      : resolveRef<SharedRange>(ref, this, SharedRange);
+  }
+  override get scale(): Scale {
+    return this.shared.scale;
+  }
+  override get range(): Readonly<Extent> {
+    return this.shared.range;
+  }
+  override get isZoomed(): boolean {
+    return this.shared.isZoomed;
+  }
+  override get viewRange(): Readonly<Extent> | null {
+    return this.shared.viewRange;
+  }
+  override begin(lengthInPixels = 0): void {
+    this.shared.beginShared(this.chart?.flushCount ?? 0, lengthInPixels);
+  }
+  override reach(pixels: number, ends: 'both' | 'lo' | 'hi' = 'both'): void {
+    this.shared.reach(pixels, ends);
+  }
+  override contribute(min: number, max: number): void {
+    this.shared.contribute(min, max);
+  }
+  override resolve(): void {
+    this.shared.resolve();
+  }
+  override setViewRange(range: Extent | null): void {
+    this.shared.setViewRange(range);
+  }
+  /** Not with `edgeOnly` when its chart has others between it and the edge it faces. */
+  override get drawn(): boolean {
+    const item = this.requireParent().parent,
+      o = this.orientation;
+    if (!this.attrs.edgeOnly || !(item instanceof ChartGroupItem) || o === 'angle' || o === 'radius') return true;
+    return item.edges[o];
+  }
+}
 
 /** One chart in a group: its own plane and furniture, in its cells of the grid. Not shown, it takes no cell and no space. */
 export class ChartGroupItem extends Container<ChartGroup, ChartChildren, ChartGroupItemAttributes> {
@@ -86,6 +149,15 @@ export class ChartGroupItem extends Container<ChartGroup, ChartChildren, ChartGr
     return this.#rect;
   }
 
+  /** The room left for the plane in `rect` once this chart's titles and keys have taken theirs. */
+  bodyArea(rect: Rect): Rect {
+    let out = rect;
+    this.layOutFurniture(rect, (area) => {
+      out = area;
+    });
+    return out;
+  }
+
   override onEvent(ev: ChartEvent): void {
     if (ev.type !== EVENT_ARRANGE) return;
     const rect = (this.#rect = ev.rect);
@@ -113,6 +185,7 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
     flow: STRING,
     gap: AUTO,
     justify: STRING,
+    align: BOOLEAN,
   } satisfies AttrTypesFor<ChartGroupAttributes>;
 
   get isBody(): true {
@@ -268,7 +341,46 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
       );
     }
     this.fitShared(placed, rects);
+    this.alignPlots(placed, rects, rowFlow);
     for (const p of placed) this.arrangeChild(p.item, rects.get(p.item) ?? area);
+  }
+
+  /**
+   * Charts whose cells share an edge leave the same room on that side of their plots, the largest any of them needs, so the
+   * plots line up. The sides are keyed by the line of cells they lie on: all charts that start in a column share their left, all that end in it
+   * their right, and so on for rows.
+   */
+  private alignPlots(placed: readonly Placed[], rects: ReadonlyMap<ChartGroupItem, Rect>, rowFlow: boolean): void {
+    const need = {
+      left: new Map<number, number>(),
+      right: new Map<number, number>(),
+      top: new Map<number, number>(),
+      bottom: new Map<number, number>(),
+    };
+    const keyed: { plane: CartesianPlane; keys: Insets; own: Insets }[] = [];
+    for (const p of placed) {
+      const c0 = rowFlow ? p.at : p.line,
+        c1 = rowFlow ? p.at + p.along : p.line + p.across,
+        r0 = rowFlow ? p.line : p.at,
+        r1 = rowFlow ? p.line + p.across : p.at + p.along;
+      for (const plane of p.item) {
+        if (!(plane instanceof CartesianPlane)) continue;
+        plane.alignInsets = null;
+        const own = this.attrs.align === false ? null : plane.measureInsets(p.item.bodyArea(rects.get(p.item) ?? p.item.rect));
+        if (!own) continue;
+        const entry = { plane, keys: { left: c0, right: c1, top: r0, bottom: r1 }, own };
+        keyed.push(entry);
+        for (const k of ['left', 'right', 'top', 'bottom'] as const)
+          need[k].set(entry.keys[k], Math.max(need[k].get(entry.keys[k]) ?? 0, own[k]));
+      }
+    }
+    for (const { plane, keys } of keyed)
+      plane.alignInsets = {
+        left: need.left.get(keys.left),
+        right: need.right.get(keys.right),
+        top: need.top.get(keys.top),
+        bottom: need.bottom.get(keys.bottom),
+      };
   }
 
   /** Charts that draw a range of this group's are fitted in step, since the range has to cover what all of them draw before any is placed. */
@@ -277,7 +389,10 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
     const steps: Generator<void>[] = [];
     for (const { item } of placed)
       for (const plane of item.planes)
-        if (plane.axes.some((x) => x.shared?.parent === this)) steps.push(plane.fitSteps(rects.get(item) ?? item.rect));
+        if (plane.axes.some((x) => x instanceof SharedAxis && x.shared.parent === this))
+          steps.push(
+            (plane instanceof CartesianPlane ? plane : fail('a SharedAxis needs a Cartesian plane')).fitSteps(rects.get(item) ?? item.rect),
+          );
     for (let live = steps; live.length > 0;) live = live.filter((g) => !g.next().done);
   }
 }

@@ -97,7 +97,7 @@ export const TOPICS: Record<string, Topic> = {
   grid: {
     file: 'grid.md',
     use: 'a dashboard: several charts in one picture, in a grid',
-    elements: ['ChartGroup', 'ChartGroupItem', 'SharedRange'],
+    elements: ['ChartGroup', 'ChartGroupItem', 'SharedRange', 'SharedAxis'],
   },
   planes: { file: 'planes.md', use: 'polar and radar charts', elements: ['PolarPlane', 'RadarPlane'] },
   data: {

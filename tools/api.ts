@@ -19,10 +19,15 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
     children: 'ChartGroupItem, any number; SharedRange',
     about: 'A grid of charts in one picture, in place of a plane: equal cells, filled along a row or a column.',
   },
+  SharedAxis: {
+    parent: 'a plane in a ChartGroup',
+    children: 'none',
+    about: 'An axis that draws a SharedRange of the group, with the same attributes as Axis except for a scale.',
+  },
   SharedRange: {
     parent: 'ChartGroup',
     children: '1 scale (required)',
-    about: 'A scale and range the charts of a group share; each chart draws it with an Axis that has sharedRef.',
+    about: 'A scale and range the charts of a group share; each chart draws it with a SharedAxis.',
   },
   ChartGroupItem: {
     parent: 'ChartGroup',

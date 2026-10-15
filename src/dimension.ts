@@ -85,7 +85,7 @@ export abstract class Dimension<
   // The most room in pixels any series asks beyond the ends of its data (a marker's radius), and the axis' length to turn it into data.
   private reachLo = 0;
   private reachHi = 0;
-  private lengthPx = 0;
+  protected lengthPx = 0;
   /** Scratch for `fractionOf`, so a single-value lookup (called per tick) allocates nothing. */
   private readonly tmp = new Float64Array(1);
 
@@ -124,17 +124,6 @@ export abstract class Dimension<
     this.resolved = false;
     this.reachLo = this.reachHi = 0;
     this.lengthPx = lengthInPixels;
-  }
-  #pass = -1;
-  /**
-   * `begin` for a dimension that several planes share: the first plane of a pass (`pass` counts passes) starts it over, and
-   * the others only say how long they will draw it, of which the shortest is kept.
-   */
-  beginShared(pass: number, lengthInPixels = 0): void {
-    if (pass !== this.#pass) {
-      this.#pass = pass;
-      this.begin(lengthInPixels);
-    } else if (lengthInPixels > 0 && (this.lengthPx === 0 || lengthInPixels < this.lengthPx)) this.lengthPx = lengthInPixels;
   }
   /** A series asks for room of `pixels` past the ends of its data, so that marks centred on them are not cut by the plot. Ignored once resolved. */
   reach(pixels: number, ends: 'both' | 'lo' | 'hi' = 'both'): void {

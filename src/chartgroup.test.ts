@@ -8,6 +8,7 @@ import {
   ChartGroup,
   ChartGroupItem,
   ChartTitle,
+  SharedAxis,
   SharedRange,
   DomainSeries,
   FlatDataSource,
@@ -226,7 +227,7 @@ test('shared ranges', () => {
       own,
       new CartesianPlane(
         {},
-        new Axis({ orientation: 'bottom', sharedRef: 'time', ...x }),
+        new SharedAxis({ orientation: 'bottom', sharedRef: 'time', ...x }),
         new Axis({ orientation: 'left', ...y }, new LinearScale()),
         new DomainSeries({}, rows(xs, ys), new LinePath(new LinearCurve())),
       ),
@@ -312,7 +313,7 @@ test('shared ranges', () => {
   {
     const lone = new Chart(
       { theme: lightTheme, width: W, height: H },
-      new CartesianPlane({}, new Axis({ orientation: 'bottom', sharedRef: 'x' })),
+      new CartesianPlane({}, new SharedAxis({ orientation: 'bottom', sharedRef: 'x' })),
     );
     assert.throws(() => lone.attach(new StringPlatform({ width: W, height: H })).flush(), /no element with id "x"/);
     assert.throws(() => new Axis({}).scale, /has no child 0/);
@@ -323,4 +324,40 @@ test('shared ranges', () => {
     assert.deepEqual(toJSON(back, registry), json);
     assert.equal(back.planes[1]!.axes[0]!.range.max, 4);
   }
+});
+
+// Aligned plots: charts in a column share the room left and right of their plots, charts in a row the room above and below.
+test('aligned plots', () => {
+  const plane = (top: number, insets = {}) =>
+    new CartesianPlane(
+      { insets },
+      new Axis({ orientation: 'bottom' }, new LinearScale()),
+      new Axis({ orientation: 'left' }, new LinearScale()),
+      new DomainSeries({}, new FlatDataSource({ data: Float64Array.from([0, 0, 1, top]), stride: 2 }), new LinePath(new LinearCurve())),
+    );
+  const run = (attrs: ChartGroupAttributes, tops: number[], insets: object[] = []) => {
+    const items = tops.map((t, i) => new ChartGroupItem({}, plane(t, insets[i])));
+    const chart = new Chart({ theme: lightTheme, width: W, height: H, padding: 0 }, new ChartGroup({ gap: 0, ...attrs }, ...items));
+    chart.attach(new StringPlatform({ width: W, height: H })).flush();
+    return items.map((i) => i.planes[0]!.rect);
+  };
+  // One column: the long labels of the second chart take room, and the first leaves the same, so the plots are one above the other.
+  const on = run({ columns: 1 }, [1, 1234567]),
+    off = run({ columns: 1, align: false }, [1, 1234567]);
+  assert.notEqual(off[0]!.x, off[1]!.x);
+  assert.equal(on[0]!.x, on[1]!.x);
+  assert.equal(on[0]!.width, on[1]!.width);
+  assert.equal(on[0]!.x, off[1]!.x, 'the larger need wins');
+  // Two columns: each column is settled on its own, and a row shares its top and bottom.
+  const grid = run({ columns: 2 }, [1, 1234567, 2, 3]);
+  assert.equal(grid[0]!.x, grid[2]!.x);
+  assert.equal(grid[1]!.x, grid[3]!.x);
+  assert.equal(grid[0]!.width, grid[2]!.width);
+  assert.notEqual(grid[0]!.x, grid[1]!.x - W / 2, 'the other column has its own need');
+  assert.equal(grid[0]!.y, grid[1]!.y);
+  assert.equal(grid[0]!.height, grid[1]!.height);
+  // A side fixed with `insets` is left alone.
+  const fixed = run({ columns: 1 }, [1, 1234567], [{ left: 5 }]);
+  assert.equal(fixed[0]!.x, 5);
+  assert.notEqual(fixed[1]!.x, 5);
 });

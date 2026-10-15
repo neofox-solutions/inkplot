@@ -317,6 +317,7 @@ export { Crosshair, type CrosshairAttributes } from './crosshair.ts';
 export {
   ChartGroup,
   ChartGroupItem,
+  SharedAxis,
   SharedRange,
   type Edges,
   type ChartGroupAttributes,

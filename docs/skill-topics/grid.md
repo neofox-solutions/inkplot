@@ -48,6 +48,7 @@ export const chart = (
 | `columns`, `rows` | one line | How many cells across and down. Give one and the other follows from the items; give both and the items have to fit, or it is an error. |
 | `flow` | `'row'` | `'row'` fills a row and then goes down; `'column'` fills a column and then goes along. |
 | `gap` | `8` | Pixels between cells: a number, or `{ row, column }`. |
+| `align` | `true` | Plots line up: charts in a column leave the same room left and right of their plots (the most any of them needs for its axis labels), charts in a row the same above and below. `false` lets each plot take what its own axes need. A side fixed with the plane's `insets` is left alone. |
 | `justify` | `'start'` | Where the items of a last line that is not full go: `'start'`, `'center'`, `'end'`, `'space-between'`, `'space-around'`, `'space-evenly'`. Eight items in three columns leave two in the last row. |
 
 Items go in the order they are written, each after the last; the grid does not go back to fill holes. All cells are the same size. An item takes more with `span`: a number of columns, or `[columns, rows]` (`span={[2, 1]}` for a chart twice as wide). A span wider than the line is an error.
@@ -57,11 +58,11 @@ An item that is not `visible` takes no cell and no room, and the others close up
 
 ## Sharing an axis
 
-Charts that show the same thing over the same range should line up. A `SharedRange` in the group holds one scale and one range; the `Axis` in each plane names it with `sharedRef` and draws it. The range is fitted to everything every chart draws against it, so a chart with a shorter series still has the longer one's span. Pan, zoom and `resetViews` act on the range, so all the charts move together. Each plane's own axes (the value axes, say) stay its own.
+Charts that show the same thing over the same range should line up. A `SharedRange` in the group holds one scale and one range; a `SharedAxis` in each plane names it with `sharedRef` and draws it. The range is fitted to everything every chart draws against it, so a chart with a shorter series still has the longer one's span. Pan, zoom and `resetViews` act on the range, so all the charts move together. Each plane's own axes (the value axes, say) stay its own.
 
 ```tsx check id="grid-shared" title="Three charts, one time axis" height=420
 /** @jsxImportSource inkplot */
-import { Axis, CartesianPlane, Chart, ChartGroup, ChartGroupItem, ChartTitle, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, SharedRange, lightTheme } from 'inkplot';
+import { Axis, CartesianPlane, Chart, ChartGroup, ChartGroupItem, ChartTitle, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, SharedAxis, SharedRange, lightTheme } from 'inkplot';
 
 const series = (k: number, from: number, to: number) =>
   Float64Array.from(Array.from({ length: to - from + 1 }, (_, i) => [from + i, Math.sin((from + i) / (4 + k)) * (k + 1)]).flat());
@@ -70,7 +71,7 @@ const strip = (name: string, k: number, from: number, to: number) => (
   <ChartGroupItem>
     <ChartTitle text={name} role="subtitle" />
     <CartesianPlane>
-      <Axis orientation="bottom" sharedRef="time" edgeOnly />
+      <SharedAxis orientation="bottom" sharedRef="time" edgeOnly />
       <Axis orientation="left" tickCount={3}><LinearScale /></Axis>
       <DomainSeries>
         <FlatDataSource data={series(k, from, to)} stride={2} isSorted />
@@ -92,7 +93,7 @@ export const chart = (
 ) as Chart;
 ```
 
-An axis with `sharedRef` has no scale of its own, and only says how it is drawn: `orientation`, `title`, `format`, ticks. The range's attributes (`min`, `max`, `include`, `padding`, `nice`) go on the `SharedRange`. `edgeOnly` draws the axis only where its chart is at the edge of the group it faces, and takes no room elsewhere: one row of labels along the bottom, and the plots above it keep their height. A chart is on an edge when no chart lies beyond it, so the chart above a gap in the last row counts as being at the bottom. The same holds for any axis, shared or not. Shared axes are for Cartesian planes.
+A `SharedAxis` has no scale of its own, and only says how it is drawn: `orientation`, `title`, `format`, ticks. The range's attributes (`min`, `max`, `include`, `padding`, `nice`) go on the `SharedRange`. `edgeOnly` draws the axis only where its chart is at the edge of the group it faces, and takes no room elsewhere: one row of labels along the bottom, and the plots above it keep their height. A chart is on an edge when no chart lies beyond it, so the chart above a gap in the last row counts as being at the bottom. Shared axes are for Cartesian planes.
 
 ## What goes where
 
@@ -115,6 +116,7 @@ A grid of charts in one picture, in place of a plane: equal cells, filled along 
 | `flow` | `'row' \| 'column'` | The direction the items fill the grid in: along a row and then down (`'row'`, the default) or down a column and then along. |
 | `gap` | `number \| { row?: number; column?: number }` | Space between cells in pixels: one number, or one for each direction. Default 8. |
 | `justify` | `Justify` | Where the items of the last line go when it is not full. Default 'start'. |
+| `align` | `boolean` | Give charts in a column the same room left and right of their plots, and charts in a row the same above and below, so the plots line up whatever their labels need. Default true. |
 
 ### ChartGroupItem
 
@@ -128,12 +130,41 @@ One chart of a group, in the cells it spans; its titles and keys go round its ow
 
 ### SharedRange
 
-A scale and range the charts of a group share; each chart draws it with an Axis that has sharedRef.
+A scale and range the charts of a group share; each chart draws it with a SharedAxis.
 
 **In** ChartGroup · **Holds** 1 scale (required)
 
 | Attribute | Type | |
 |---|---|---|
+| `min` | `number` | Fix an end of the range. |
+| `max` | `number` | Fix the top end of the range. |
+| `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
+| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `nice` | `boolean` | Round the ends outwards to tidy tick values. |
+| `inverted` | `boolean` | Run from max to min along the axis. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
+| `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
+| `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
+| `tickStep` | `number` | Put ticks at every multiple of this step. |
+| `format` | `(value: number) => string` | Turns a tick's number into its label, e.g. (v) => `${v}%`. Default: plain digits, grouped by `locale` if one is set. |
+| `locale` | `string` | A BCP 47 tag for how this writes its numbers (grouping and decimal mark). Default: the chart's `locale`, else plain digits. |
+| `onViewChange` | `(view: Readonly<Extent> \| null) => void` | Called when the view (what pan, zoom or a reset has set) changes: the new range, or null when it is back to the natural one. |
+
+### SharedAxis
+
+An axis that draws a SharedRange of the group, with the same attributes as Axis except for a scale.
+
+**In** a plane in a ChartGroup · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `orientation` | `AxisOrientation` | The side of the plot the axis sits on. Default: 'bottom' for the first axis in a plane, then 'left', 'top', 'right'. |
+| `titlePosition` | `Side` | The edge of the plot the title sits at: past the axis' labels for an axis fixed to that side, otherwise at the middle of the edge, outside any axes there, which then take the room it needs. Default: the axis' own side. |
+| `titleDirection` | `'horizontal' \| 'vertical'` | Whether the title runs along the horizontal or the vertical. Default: horizontal at the top and bottom, vertical at the left and right. |
+| `crossesAt` | `number` | Float across the plot at this value of the crossing axis (the other one, or `crossAxis`), instead of sitting on a side. |
+| `crossAxis` | `ElementRef<Axis>` | The axis `crossesAt` is a value of. Default: the plane's first axis on the other orientation. |
+| `sharedRef` | `ElementRef<SharedRange>` | For a `SharedAxis`: the `SharedRange` it draws. |
+| `edgeOnly` | `boolean` | For a `SharedAxis`: draw only where its chart is at the edge of the group it faces, and take no room elsewhere. |
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |

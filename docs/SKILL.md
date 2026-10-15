@@ -165,8 +165,8 @@ Positions data along one side of a plane, with ticks and labels.
 | `titleDirection` | `'horizontal' \| 'vertical'` | Whether the title runs along the horizontal or the vertical. Default: horizontal at the top and bottom, vertical at the left and right. |
 | `crossesAt` | `number` | Float across the plot at this value of the crossing axis (the other one, or `crossAxis`), instead of sitting on a side. |
 | `crossAxis` | `ElementRef<Axis>` | The axis `crossesAt` is a value of. Default: the plane's first axis on the other orientation. |
-| `sharedRef` | `ElementRef<Dimension>` | Draw a dimension that several planes share (a `SharedRange` in a `ChartGroup`) instead of one of its own. |
-| `edgeOnly` | `boolean` | Draw only where its plot is at the edge of the group of charts it faces, and take no room elsewhere. |
+| `sharedRef` | `ElementRef<SharedRange>` | For a `SharedAxis`: the `SharedRange` it draws. |
+| `edgeOnly` | `boolean` | For a `SharedAxis`: draw only where its chart is at the edge of the group it faces, and take no room elsewhere. |
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
@@ -279,7 +279,7 @@ Read the topic that matches the chart; each has examples and the attributes of t
 - **statistics** (`topics/statistics.md`): histograms (a histogram is `Density` + `BarPath`), heat maps, density, box plots, trendlines (linear, polynomial, sinusoidal, loess), error bars and bands. Elements: BoxPath, BoxStats, Density, HeatMap, LinearTrend, PolynomialTrend, SinusoidalTrend, LoessTrend, ErrorBars, ErrorBand.
 - **furniture** (`topics/furniture.md`): a chart title or caption, a legend, reference lines and callouts, notes on chosen points, an accessible name and summary. Elements: ChartTitle, Legend, ChartSummary, LineAnnotation, CalloutAnnotation, PointAnnotations.
 - **interaction** (`topics/interaction.md`): tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch, an entrance animation. Elements: ChartTooltip, Cursor, Crosshair, PanZoom, BoxZoom, Brush, PointerListener, Entrance.
-- **grid** (`topics/grid.md`): a dashboard: several charts in one picture, in a grid. Elements: ChartGroup, ChartGroupItem, SharedRange.
+- **grid** (`topics/grid.md`): a dashboard: several charts in one picture, in a grid. Elements: ChartGroup, ChartGroupItem, SharedRange, SharedAxis.
 - **planes** (`topics/planes.md`): polar and radar charts. Elements: PolarPlane, RadarPlane.
 - **data** (`topics/data.md`): a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table. Elements: CompositeDataSource, SyntheticDataSource, Decimator, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel.
 - **styling-output** (`topics/styling-output.md`): dark and custom themes, styling parts, React, a PNG, chart as JSON, your own element types.

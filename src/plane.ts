@@ -214,14 +214,6 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
     yield;
     for (const a of axes) a.resolve();
   }
-
-  /**
-   * Engine protocol for a chart group: the fit of a plane that shares an axis with others, as stages for the group to take in
-   * step. `available` is the room the plane's chart has. `arrange` then finds its fit done and goes on from there.
-   */
-  fitSteps(_available: Rect): Generator<void> {
-    return fail('a shared axis needs a Cartesian plane');
-  }
 }
 
 export interface CartesianPlaneAttributes extends PlaneAttributes {
@@ -447,12 +439,14 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
     }
   }
 
+  /** Engine protocol for a chart group: least room to leave on each side, so that plots in a row or column line up. */
+  alignInsets: Partial<Insets> | null = null;
   #fitted = -1;
   /** 80 and 40: roughly a y-axis's labels and an x-axis's labels. Only a guess for decimation; the real plot is set later. */
   private estimateFor(available: Rect): Size {
     return { width: Math.max(1, available.width - 80), height: Math.max(1, available.height - 40) };
   }
-  override *fitSteps(available: Rect): Generator<void> {
+  *fitSteps(available: Rect): Generator<void> {
     this.assignAxes(this.chart?.rtl ? RTL_SIDES : DEFAULT_SIDES, cartesianSide);
     const estimate = this.estimateFor(available);
     this.setRulers(estimate.width, estimate.height);
@@ -461,9 +455,8 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
   }
 
   /** Negotiates ranges, lays out the axes, projects every series. */
-  private arrange(available: Rect): void {
-    const axes = this.axes,
-      series = this.series;
+  measureInsets(available: Rect): Insets {
+    const axes = this.axes;
     this.assignAxes(this.chart?.rtl ? RTL_SIDES : DEFAULT_SIDES, cartesianSide);
     const estimate = this.estimateFor(available);
     this.setRulers(estimate.width, estimate.height);
@@ -487,6 +480,16 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
       left: o.left ?? Math.max(MIN_INSET, side.left, Math.ceil(overhang)),
       right: o.right ?? Math.max(MIN_INSET, side.right, Math.ceil(overhang)),
     };
+    return insets;
+  }
+
+  private arrange(available: Rect): void {
+    const insets = this.measureInsets(available),
+      o = this.attrs.insets ?? {},
+      align = this.alignInsets;
+    // A chart group may ask for more room on a side, to line the plot up with its neighbours'; a side fixed by `insets` stays.
+    for (const k of ['top', 'right', 'bottom', 'left'] as const)
+      if (o[k] === undefined && (align?.[k] ?? 0) > insets[k]) insets[k] = align?.[k] ?? 0;
     this.setRect({
       x: available.x + insets.left,
       y: available.y + insets.top,
@@ -496,7 +499,7 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
 
     // Now the plot is known, the axes can be placed along it, and the series projected.
     this.setRulers(this.rect.width, this.rect.height);
-    for (const s of series) s.project(this);
+    for (const s of this.series) s.project(this);
   }
 
   /** Clip region, gridlines (from the first horizontal and vertical axis) and frame. */

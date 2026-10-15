@@ -10,7 +10,7 @@ import { StemPath, BarPath } from './bars.ts';
 import { BoxPath } from './boxplot.ts';
 import { BoxStats } from './stats.ts';
 import { Chart } from './chart.ts';
-import { ChartGroup, ChartGroupItem, SharedRange } from './chartgroup.ts';
+import { ChartGroup, ChartGroupItem, SharedAxis, SharedRange } from './chartgroup.ts';
 import { ErrorBand, ErrorBars } from './errors.ts';
 import { LinearCurve } from './curve.ts';
 import { ArcCurve, BasisCurve, BumpCurve, CardinalCurve, CatmullRomCurve, MonotoneCurve, NaturalCurve, QuadraticCurve } from './curves.ts';
@@ -49,6 +49,7 @@ export const registry: ElementRegistry = {
   ChartGroup,
   ChartGroupItem,
   SharedRange,
+  SharedAxis,
   ChartTitle,
   ChartTooltip,
   ChartSummary,

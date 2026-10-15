@@ -8,7 +8,7 @@ Every element class the library ships, in the order of the registry: where it go
 
 ## Contents
 
-[Chart](#chart) · [ChartGroup](#chartgroup) · [ChartGroupItem](#chartgroupitem) · [SharedRange](#sharedrange) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
+[Chart](#chart) · [ChartGroup](#chartgroup) · [ChartGroupItem](#chartgroupitem) · [SharedRange](#sharedrange) · [SharedAxis](#sharedaxis) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
 
 ## Chart
 
@@ -41,6 +41,7 @@ A grid of charts in one picture, in place of a plane: equal cells, filled along 
 | `flow` | `'row' \| 'column'` | The direction the items fill the grid in: along a row and then down (`'row'`, the default) or down a column and then along. |
 | `gap` | `number \| { row?: number; column?: number }` | Space between cells in pixels: one number, or one for each direction. Default 8. |
 | `justify` | `Justify` | Where the items of the last line go when it is not full. Default 'start'. |
+| `align` | `boolean` | Give charts in a column the same room left and right of their plots, and charts in a row the same above and below, so the plots line up whatever their labels need. Default true. |
 
 ## ChartGroupItem
 
@@ -54,12 +55,41 @@ One chart of a group, in the cells it spans; its titles and keys go round its ow
 
 ## SharedRange
 
-A scale and range the charts of a group share; each chart draws it with an Axis that has sharedRef.
+A scale and range the charts of a group share; each chart draws it with a SharedAxis.
 
 **In** ChartGroup · **Holds** 1 scale (required)
 
 | Attribute | Type | |
 |---|---|---|
+| `min` | `number` | Fix an end of the range. |
+| `max` | `number` | Fix the top end of the range. |
+| `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
+| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `nice` | `boolean` | Round the ends outwards to tidy tick values. |
+| `inverted` | `boolean` | Run from max to min along the axis. |
+| `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
+| `tickCount` | `number` | Ask for about this many ticks, whatever the length. |
+| `ticks` | `readonly number[] \| ((range: Readonly<Extent>) => readonly …` | Put ticks exactly here (those inside the range are drawn), or at whatever a function of the range returns. |
+| `tickStep` | `number` | Put ticks at every multiple of this step. |
+| `format` | `(value: number) => string` | Turns a tick's number into its label, e.g. (v) => `${v}%`. Default: plain digits, grouped by `locale` if one is set. |
+| `locale` | `string` | A BCP 47 tag for how this writes its numbers (grouping and decimal mark). Default: the chart's `locale`, else plain digits. |
+| `onViewChange` | `(view: Readonly<Extent> \| null) => void` | Called when the view (what pan, zoom or a reset has set) changes: the new range, or null when it is back to the natural one. |
+
+## SharedAxis
+
+An axis that draws a SharedRange of the group, with the same attributes as Axis except for a scale.
+
+**In** a plane in a ChartGroup · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `orientation` | `AxisOrientation` | The side of the plot the axis sits on. Default: 'bottom' for the first axis in a plane, then 'left', 'top', 'right'. |
+| `titlePosition` | `Side` | The edge of the plot the title sits at: past the axis' labels for an axis fixed to that side, otherwise at the middle of the edge, outside any axes there, which then take the room it needs. Default: the axis' own side. |
+| `titleDirection` | `'horizontal' \| 'vertical'` | Whether the title runs along the horizontal or the vertical. Default: horizontal at the top and bottom, vertical at the left and right. |
+| `crossesAt` | `number` | Float across the plot at this value of the crossing axis (the other one, or `crossAxis`), instead of sitting on a side. |
+| `crossAxis` | `ElementRef<Axis>` | The axis `crossesAt` is a value of. Default: the plane's first axis on the other orientation. |
+| `sharedRef` | `ElementRef<SharedRange>` | For a `SharedAxis`: the `SharedRange` it draws. |
+| `edgeOnly` | `boolean` | For a `SharedAxis`: draw only where its chart is at the edge of the group it faces, and take no room elsewhere. |
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
@@ -216,8 +246,8 @@ Positions data along one side of a plane, with ticks and labels.
 | `titleDirection` | `'horizontal' \| 'vertical'` | Whether the title runs along the horizontal or the vertical. Default: horizontal at the top and bottom, vertical at the left and right. |
 | `crossesAt` | `number` | Float across the plot at this value of the crossing axis (the other one, or `crossAxis`), instead of sitting on a side. |
 | `crossAxis` | `ElementRef<Axis>` | The axis `crossesAt` is a value of. Default: the plane's first axis on the other orientation. |
-| `sharedRef` | `ElementRef<Dimension>` | Draw a dimension that several planes share (a `SharedRange` in a `ChartGroup`) instead of one of its own. |
-| `edgeOnly` | `boolean` | Draw only where its plot is at the edge of the group of charts it faces, and take no room elsewhere. |
+| `sharedRef` | `ElementRef<SharedRange>` | For a `SharedAxis`: the `SharedRange` it draws. |
+| `edgeOnly` | `boolean` | For a `SharedAxis`: draw only where its chart is at the edge of the group it faces, and take no room elsewhere. |
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
