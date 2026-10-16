@@ -103,7 +103,16 @@ export const TOPICS: Record<string, Topic> = {
   data: {
     file: 'data.md',
     use: "a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table",
-    elements: ['CompositeDataSource', 'SyntheticDataSource', 'Decimator', 'MinMaxKernel', 'M4Kernel', 'LttbKernel', 'StrideKernel'],
+    elements: [
+      'CompositeDataSource',
+      'SyntheticDataSource',
+      'Decimator',
+      'Slice',
+      'MinMaxKernel',
+      'M4Kernel',
+      'LttbKernel',
+      'StrideKernel',
+    ],
   },
   'styling-output': {
     file: 'styling-output.md',

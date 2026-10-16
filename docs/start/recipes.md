@@ -608,6 +608,8 @@ export default () => (
 
 `isSorted` tells the source the data is in order, so it is read where it is and never copied. More: [Performance and size](../guide/performance.md).
 
+To draw a window of the rows instead, or to animate one, put a `Slice` round the source (inside the `Decimator` if there is one): `<Slice last={300} end={n}>`. Rows are counted as `Array.prototype.slice` counts them, `last` keeps that many rows ending at `end`, and the axes fit the rows kept. Move the window with `setAttribute('end', n)`: the series refills and nothing else is touched.
+
 ## Draw a pie or ring chart
 
 A ring chart is a stack of bars on a polar plane. The **bars run round the circle**: a series' value is an angle, and its domain is a **ring**. Normalise the stack so each ring adds up to a whole turn; each series is then one segment of every ring, and each point of a series is one ring (so one point is a pie, with `innerRadius` for a doughnut).

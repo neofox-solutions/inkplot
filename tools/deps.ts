@@ -92,6 +92,7 @@ export const FEATURE_USES: Record<string, string[]> = {
     'cursor',
     'curves',
     'decimation',
+    'slice',
     'furniture',
     'key',
     'legend',

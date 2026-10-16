@@ -90,6 +90,7 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   CompositeDataSource: { parent: 'a series', children: 'none', about: 'Separate columns.' },
   SyntheticDataSource: { parent: 'a series', children: 'none', about: 'A function sampled when drawn.' },
   Decimator: { parent: 'a series', children: '1 kernel, then 1 source', about: 'Reduces large data to what the plot can show.' },
+  Slice: { parent: 'a series', children: '1 source', about: 'Keeps a window of rows of the data: move it to animate.' },
   MinMaxKernel: { parent: 'Decimator', children: 'none', about: 'Keeps the lowest and highest of each pixel column.' },
   M4Kernel: { parent: 'Decimator', children: 'none', about: 'First, last, lowest and highest of each column.' },
   LttbKernel: { parent: 'Decimator', children: 'none', about: 'Largest-triangle-three-buckets: keeps the shape.' },

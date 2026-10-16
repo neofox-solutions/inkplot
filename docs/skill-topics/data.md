@@ -87,6 +87,18 @@ Reduces large data to what the plot can show.
 | `resolution` | `number` | Pixel columns reduced to per pixel of plot width. Default 1; raise it for high-DPI output. |
 | `enabled` | `boolean` | Turn it off without removing it. Default true. |
 
+### Slice
+
+Keeps a window of rows of the data: move it to animate.
+
+**In** a series · **Holds** 1 source
+
+| Attribute | Type | |
+|---|---|---|
+| `start` | `number` | The first row kept. Default 0. |
+| `end` | `number` | One past the last row kept. Default all. |
+| `last` | `number` | Keep this many rows ending at `end`, instead of from `start`. |
+
 ### MinMaxKernel
 
 Keeps the lowest and highest of each pixel column.

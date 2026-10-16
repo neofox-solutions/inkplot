@@ -17,7 +17,7 @@ import { DomainSeries } from './series.ts';
 import { Stack } from './stack.ts';
 
 /** One slice of a pie: its name (shown by the legend), its size, and optionally its colour. */
-export interface Slice {
+export interface PieSlice {
   name: string;
   /** Not negative. The slices are drawn in proportion to their values; a slice of 0 has no area. */
   value: number;
@@ -35,14 +35,14 @@ export interface PieChartOptions extends ChartShortcutOptions {
    * no label on that slice. Writing the number is yours (the locale, the unit), so nothing here is in one language. The
    * labels sit outside the circle, so the chart needs `padding` for them.
    */
-  label?: (slice: Slice, share: number) => string | null | undefined;
+  label?: (slice: PieSlice, share: number) => string | null | undefined;
 }
 
 /**
  * A pie (or, with `innerRadius`, a doughnut) in one call: a `Chart` holding a `PolarPlane` with the two hidden axes, a
  * normalized `Stack` of one series per slice, and a `PointAnnotations` for each if there is a `label`. Add a `Legend` in `extras`.
  */
-export function pieChart(slices: readonly Slice[], options: PieChartOptions): Chart {
+export function pieChart(slices: readonly PieSlice[], options: PieChartOptions): Chart {
   let total = 0;
   for (const s of slices) {
     if (!(s.value >= 0)) fail(`pieChart: the value of "${s.name}" must be a number that is not negative, not ${s.value}`);

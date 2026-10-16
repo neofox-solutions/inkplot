@@ -986,6 +986,395 @@ demos.push({
   },
 });
 
+// ── 0b. Headline: a cluster dashboard ────────────────────────────────────────
+// The second hero, for the other kind of page: dense, many kinds of metric together, and the odd one out has to be seen at a glance.
+// One chart, one ChartGroup of twelve columns: four headline numbers with a sparkline each, a latency chart and a restarts chart,
+// and a sparkline for every node of the cluster, all on the same 0–100 scale so a node that stands out does so by its height.
+// Everything is made up (see `clusterData`), with four things going wrong at known moments. Time advances by moving a `Slice`
+// along each series' history: nothing is refilled but the window.
+const clusterData = (() => {
+  const T = 2400,
+    NODES = 24;
+  let seed = 7;
+  const rand = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  // Noise that remembers where it was, so a series wanders and does not fizz.
+  const walk = (n, keep, size) => {
+    const out = new Float64Array(n);
+    let v = 0;
+    for (let i = 0; i < n; i++) out[i] = v = v * keep + (rand() - 0.5) * size;
+    return out;
+  };
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const DEAD = 18,
+    DEAD_AT = 1000,
+    SPIKE = 6,
+    LEAK = 12,
+    FLAP = 2;
+  const SPIKE_FROM = 700,
+    SPIKE_TO = 790,
+    LEAK_FROM = 1300,
+    LEAK_TO = 1900;
+  const day = (t) => Math.sin(t / 380) * 9;
+  const cpu = [];
+  for (let n = 0; n < NODES; n++) {
+    const base = 26 + ((n * 7) % 19),
+      phase = n * 0.7,
+      noise = walk(T, 0.9, 7),
+      a = new Float64Array(T);
+    for (let t = 0; t < T; t++) {
+      let v = base + day(t) + Math.sin(t / 55 + phase) * 4 + noise[t];
+      if (t >= DEAD_AT && n !== DEAD) v += 5; // the dead node's work goes elsewhere
+      if (n === SPIKE && t >= SPIKE_FROM && t < SPIKE_TO) v = 91 + Math.min(8, (t - SPIKE_FROM) / 6) + (rand() - 0.5) * 4;
+      if (n === LEAK && t >= LEAK_FROM) v += Math.min(55, ((t - LEAK_FROM) / (LEAK_TO - LEAK_FROM)) * 60);
+      if (n === FLAP && t > 400 && t < 520) v += Math.sin(t * 1.9) * 24;
+      a[t] = n === DEAD && t >= DEAD_AT ? 0 : clamp(v, 1, 99);
+    }
+    cpu.push(a);
+  }
+  const traffic = walk(T, 0.97, 0.12);
+  const rps = new Float64Array(T),
+    p99 = new Float64Array(T),
+    errors = new Float64Array(T),
+    up = new Float64Array(T),
+    restarts = new Float64Array(T);
+  const jitter = walk(T, 0.6, 14),
+    errNoise = walk(T, 0.5, 0.06);
+  for (let t = 0; t < T; t++) {
+    let hottest = 0;
+    for (let n = 0; n < NODES; n++) hottest = Math.max(hottest, cpu[n][t]);
+    const sinceDeath = t - DEAD_AT;
+    rps[t] = 4200 * (1 + 0.3 * Math.sin(t / 380 - 0.6) + traffic[t]) * (t >= SPIKE_FROM && t < SPIKE_TO ? 0.92 : 1);
+    p99[t] = 98 + jitter[t] + 6.5 * Math.max(0, hottest - 66) + (sinceDeath >= 0 ? 60 * Math.exp(-sinceDeath / 45) : 0);
+    errors[t] =
+      0.12 + Math.abs(errNoise[t]) + (t >= SPIKE_FROM && t < SPIKE_TO ? 2.4 : 0) + (sinceDeath >= 0 ? 1.6 * Math.exp(-sinceDeath / 30) : 0);
+    up[t] = t >= DEAD_AT ? NODES - 1 : NODES;
+    restarts[t] = (t >= SPIKE_FROM + 20 && t < SPIKE_TO + 40 && rand() < 0.35 ? 1 + Math.floor(rand() * 3) : 0) + (rand() < 0.01 ? 1 : 0);
+    if (t >= LEAK_TO - 30 && t < LEAK_TO && rand() < 0.4) restarts[t] += 2;
+  }
+  // The services, as slower or faster cousins of the cluster's p99.
+  const svc = (k, off, noise) => Float64Array.from(p99, (v, t) => v * k + off + noise[t]);
+  const services = {
+    api: p99,
+    auth: svc(0.5, 8, walk(T, 0.8, 5)),
+    db: Float64Array.from(cpu[LEAK], (c, t) => 34 + c * 0.9 + jitter[t] * 0.5 + (t >= LEAK_FROM ? (c - 50) * 2.2 : 0)),
+    cache: svc(0.12, 4, walk(T, 0.7, 1.2)),
+  };
+  return { T, NODES, cpu, rps, p99, errors, up, restarts, services, DEAD, DEAD_AT, SPIKE_FROM, SPIKE_TO, LEAK_FROM, LEAK_TO };
+})();
+
+demos.push({
+  id: 'dashboard',
+  title: 'Cluster dashboard',
+  blurb:
+    'A made-up 24-node cluster, live: headline numbers, latency and restarts, and a sparkline for every node, in one ChartGroup, moved along its history by Slice',
+  setup(ctx) {
+    const D = clusterData;
+    const S = { end: 360, rate: 10, playing: false };
+    const TICK = 2; // seconds of the made-up clock to a sample
+    const clock = (i) => {
+      const s = 9 * 3600 + Math.round(i) * TICK;
+      return String(Math.floor(s / 3600) % 24).padStart(2, '0') + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0');
+    };
+    const tone = () => ({
+      ok: isDark() ? '#5aa6ff' : '#2a6fdb',
+      hot: isDark() ? '#ff6a5e' : '#d63a2f',
+      down: isDark() ? '#8a9aa4' : '#7d8c96',
+      text: isDark() ? '#e3ebef' : '#12202b',
+      muted: isDark() ? '#8b9ea9' : '#566772',
+    });
+
+    // ── Every series reads its own history through a Slice, which the clock moves.
+    const slices = [];
+    const feed = (data, last) => {
+      const slice = new L.Slice({ last, end: S.end }, new L.FlatDataSource({ data, regularDomain: { start: 0, step: 1 }, isSorted: true }));
+      slices.push(slice);
+      return slice;
+    };
+    const hidden = () => new L.Axis({ orientation: 'bottom', visible: false }, new L.LinearScale());
+    const fixed = (min, max) => new L.Axis({ orientation: 'left', visible: false, min, max }, new L.LinearScale());
+    const tight = { gridlines: false, insets: { left: 2, right: 2, top: 4, bottom: 4 } };
+    const smallText = { chartTitle: { size: 11, weight: 600, align: 'start' } };
+
+    // ── The headline numbers: the value is the item's title and the name its subtitle, and the line behind them is the last few minutes.
+    const kpis = [
+      { name: 'Requests / s', data: D.rps, last: 150, min: 0, max: 8000, format: (v) => Math.round(v).toLocaleString(), kind: 'area' },
+      { name: 'p99 latency', data: D.p99, last: 150, min: 0, max: 400, format: (v) => Math.round(v) + ' ms', kind: 'line', limit: 250 },
+      { name: 'Error rate', data: D.errors, last: 150, min: 0, max: 4, format: (v) => v.toFixed(2) + ' %', kind: 'area', limit: 1 },
+      { name: 'Nodes up', data: D.up, last: 150, min: 0, max: D.NODES + 1, format: (v) => `${v} / ${D.NODES}`, kind: 'step' },
+    ].map((k) => {
+      const title = new L.ChartTitle({ text: '', role: 'title' });
+      const sub = new L.ChartTitle({ text: k.name, role: 'subtitle' });
+      const line = new L.LinePath({ strokeWidth: 1.5 }, k.kind === 'step' ? new L.LinearCurve() : new L.MonotoneCurve());
+      const area = k.kind === 'line' ? null : new L.AreaPath({ opacity: 0.18 }, new L.LinearCurve());
+      const series = new L.DomainSeries({ name: k.name }, feed(k.data, k.last), ...[area, line].filter(Boolean));
+      const plane = new L.CartesianPlane(
+        {
+          ...tight,
+          meta: { title: k.name, description: `${k.name}, the last five minutes${k.limit === undefined ? '' : ', with its limit marked'}` },
+        },
+        hidden(),
+        fixed(k.min, k.max),
+        series,
+        ...(k.limit === undefined
+          ? []
+          : [new L.LineAnnotation({ value: k.limit, stroke: '#e5483d', strokeWidth: 1, style: { annotationLine: { dash: '2 3' } } })]),
+      );
+      const item = new L.ChartGroupItem(
+        { span: [3, 1], style: { chartTitle: { size: 22, weight: 700, align: 'start' }, chartSubtitle: { size: 11, align: 'start' } } },
+        plane,
+        title,
+        sub,
+      );
+      return { ...k, title, line, area, item };
+    });
+
+    // ── Latency by service, with the limit the team promised.
+    const svcNames = Object.keys(D.services);
+    const svcColors = ['#2a6fdb', '#8a5cd0', '#e0a030', '#2e9e6b'];
+    const latency = new L.ChartGroupItem(
+      { span: [8, 2], style: { chartTitle: { size: 12, weight: 600, align: 'start' } } },
+      new L.CartesianPlane(
+        {
+          gridlines: true,
+          meta: {
+            title: 'Latency by service',
+            description: 'p99 latency of four services, the last ten minutes, against the 250 ms limit',
+          },
+        },
+        new L.Axis({ orientation: 'bottom', format: clock, tickStep: 60 }, new L.LinearScale()),
+        new L.Axis(
+          { orientation: 'left', min: 0, max: 400, ticks: [0, 100, 200, 300, 400], format: (v) => v + ' ms' },
+          new L.LinearScale(),
+        ),
+        ...svcNames.map(
+          (name, i) =>
+            new L.DomainSeries(
+              { name },
+              feed(D.services[name], 300),
+              new L.LinePath({ stroke: svcColors[i], strokeWidth: 1.4 }, new L.LinearCurve()),
+            ),
+        ),
+        new L.LineAnnotation({
+          value: 250,
+          label: 'SLO 250 ms',
+          stroke: '#e5483d',
+          strokeWidth: 1,
+          style: { annotationLine: { dash: '4 4' } },
+        }),
+      ),
+      new L.ChartTitle({ text: 'Latency by service (p99)', role: 'title' }),
+      new L.Legend({ side: 'top' }),
+    );
+
+    // ── Restarts: a bar for every sample that had any.
+    const restartBars = new L.BarPath({ fill: '#e0a030', stroke: 'none', width: 0.8 });
+    const restarts = new L.ChartGroupItem(
+      { span: [4, 2], style: { chartTitle: { size: 12, weight: 600, align: 'start' } } },
+      new L.CartesianPlane(
+        { gridlines: true, meta: { title: 'Pod restarts', description: 'Pod restarts in each interval, the last four minutes' } },
+        new L.Axis({ orientation: 'bottom', format: clock, tickStep: 60 }, new L.LinearScale()),
+        new L.Axis({ orientation: 'left', min: 0, max: 6, tickStep: 2 }, new L.LinearScale()),
+        new L.DomainSeries({ name: 'Restarts' }, feed(D.restarts, 120), restartBars),
+      ),
+      new L.ChartTitle({ text: 'Pod restarts', role: 'title' }),
+    );
+
+    // ── A sparkline for every node. They share a scale and nothing is drawn but the line and its area, so a node that is
+    // working hard is a tall one, and one that has stopped is a flat one. The title carries the name and the figure.
+    const nodes = D.cpu.map((cpu, n) => {
+      const name = 'node-' + String(n + 1).padStart(2, '0');
+      const title = new L.ChartTitle({ text: name, role: 'title' });
+      const line = new L.LinePath({ strokeWidth: 1.2 }, new L.LinearCurve());
+      const area = new L.AreaPath({ opacity: 0.2 }, new L.LinearCurve());
+      const item = new L.ChartGroupItem(
+        { span: [2, 1], style: smallText },
+        new L.CartesianPlane(
+          {
+            ...tight,
+            meta: { title: name + ' CPU', description: `CPU use of ${name}, the last five minutes, on a scale of 0 to 100 percent` },
+          },
+          hidden(),
+          fixed(0, 100),
+          new L.DomainSeries({ name: name + ' CPU' }, feed(cpu, 150), area, line),
+        ),
+        title,
+      );
+      return { name, cpu, title, line, area, item, state: '' };
+    });
+
+    const head = new L.ChartTitle({ text: 'prod-eu-1', role: 'title' });
+    const headSub = new L.ChartTitle({ text: '', role: 'subtitle' });
+    const group = new L.ChartGroup(
+      { columns: 12, gap: { row: 12, column: 6 } },
+      ...kpis.map((k) => k.item),
+      latency,
+      restarts,
+      ...nodes.map((n) => n.item),
+    );
+    const chart = new L.Chart(
+      {
+        theme: chartTheme(),
+        onFlush: ctx.onFlush,
+        padding: 14,
+        meta: {
+          title: 'Cluster dashboard',
+          description: 'A made-up 24-node cluster: headline numbers, latency, restarts and CPU for every node',
+        },
+      },
+      group,
+      head,
+      headSub,
+    );
+    chart.setAttribute('style', { chartTitle: { size: 18, align: 'start' }, chartSubtitle: { size: 12, align: 'start' } });
+
+    // ── What a tick changes: the window, the figures, and which nodes look wrong.
+    const HOT = 85;
+    const apply = (n, state) => {
+      const c = tone();
+      const color = state === 'hot' ? c.hot : state === 'down' ? c.down : c.ok;
+      n.line.setAttribute('stroke', color);
+      n.area.setAttribute('fill', color);
+      n.item.setAttribute('style', { ...smallText, chartTitle: { ...smallText.chartTitle, color: state === 'ok' ? c.muted : color } });
+    };
+    const show = () => {
+      const e = Math.min(D.T, Math.max(1, Math.round(S.end))),
+        i = e - 1;
+      for (const s of slices) s.setAttribute('end', e);
+      for (const k of kpis) k.title.setAttribute('text', k.format(k.data[i]));
+      let alerts = 0;
+      for (const n of nodes) {
+        let peak = 0;
+        for (let j = Math.max(0, i - 30); j <= i; j++) peak = Math.max(peak, n.cpu[j]);
+        const state = n.cpu[i] < 1 ? 'down' : peak > HOT ? 'hot' : 'ok';
+        if (state !== 'ok') alerts++;
+        const value = state === 'down' ? 'down' : Math.round(n.cpu[i]) + '%';
+        n.title.setAttribute('text', `${n.name}   ${value}`);
+        if (state !== n.state) {
+          n.state = state;
+          apply(n, state);
+        }
+      }
+      headSub.setAttribute(
+        'text',
+        `${clock(i)} · ${D.up[i]} of ${D.NODES} nodes up · ${alerts === 0 ? 'all quiet' : alerts + (alerts === 1 ? ' node needs attention' : ' nodes need attention')}`,
+      );
+      if (slider) slider.set(e);
+    };
+    ctx.onTheme(() => {
+      for (const n of nodes) apply(n, n.state || 'ok');
+    });
+
+    // ── Playing it.
+    let raf = 0,
+      last = 0,
+      owed = 0,
+      playButton = null,
+      slider = null;
+    const frame = (now) => {
+      owed += Math.min(0.25, (now - last) / 1000) * S.rate;
+      last = now;
+      const steps = Math.floor(owed);
+      if (steps > 0) {
+        owed -= steps;
+        S.end += steps;
+        if (S.end >= D.T) S.end = 360; // and round again
+        show();
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    const play = () => {
+      S.playing = true;
+      last = performance.now();
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(frame);
+      refresh();
+    };
+    const stop = () => {
+      S.playing = false;
+      cancelAnimationFrame(raf);
+      refresh();
+    };
+    const refresh = () => {
+      if (playButton) playButton.textContent = S.playing ? 'Pause' : 'Play';
+    };
+    playButton = h('button', { type: 'button', onclick: () => (S.playing ? stop() : play()) }, 'Pause');
+    slider = (() => {
+      const f = ui.slider({
+        label: 'time',
+        min: 300,
+        max: D.T,
+        value: S.end,
+        format: clock,
+        onChange: (v) => {
+          stop();
+          S.end = v;
+          show();
+        },
+      });
+      const input = f.querySelector('input'),
+        out = f.querySelector('output');
+      return {
+        el: f,
+        set: (v) => {
+          input.value = v;
+          out.textContent = clock(v);
+        },
+      };
+    })();
+    const jumps = [
+      ['runaway process', D.SPIKE_FROM + 60],
+      ['node lost', D.DEAD_AT + 30],
+      ['memory leak', D.LEAK_TO - 20],
+    ];
+    ctx.add(
+      h('div', { class: 'field' }, h('div', { class: 'seg' }, playButton)),
+      slider.el,
+      ui.seg({
+        label: 'speed (samples per second)',
+        options: [
+          [4, 'slow'],
+          [10, 'medium'],
+          [30, 'fast'],
+        ],
+        value: S.rate,
+        onChange: (v) => (S.rate = v),
+      }),
+      ui.seg({
+        label: 'jump to',
+        options: jumps.map(([text, at]) => [at, text]),
+        value: -1,
+        onChange: (v) => {
+          stop();
+          S.end = v;
+          show();
+        },
+      }),
+      ui.note(
+        "Everything here is invented. Three things go wrong: a runaway process on node-07 (CPU pinned, latency and errors up, pods restarting), node-19 dropping out (a flat line, and its work lands on the rest), and a leak on node-13 that climbs for ten minutes. One ChartGroup of twelve columns holds a chart in every cell; the sparklines share a 0–100 scale. The clock is a `Slice` on every series, moved by one row a tick (`setAttribute('end', n)`): the series refill their window and nothing else is rebuilt. The line and area of a node that is hot or down are restyled, and the title says so.",
+      ),
+    );
+    ctx.host.style.height = '840px';
+    show();
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still) stop();
+    const starter = still ? 0 : setTimeout(play, 400);
+    refresh();
+    return {
+      chart,
+      dispose: () => {
+        clearTimeout(starter);
+        cancelAnimationFrame(raf);
+        ctx.host.style.height = '';
+      },
+    };
+  },
+});
+
 // ── 1. Basic line ────────────────────────────────────────────────────────────
 demos.push({
   id: 'basic',

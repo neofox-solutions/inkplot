@@ -73,6 +73,7 @@ import * as cursor_ from './cursor.ts';
 import * as curve_ from './curve.ts';
 import * as curves_ from './curves.ts';
 import * as decimation_ from './decimation.ts';
+import * as slice_ from './slice.ts';
 import * as furniture_ from './furniture.ts';
 import * as key_ from './key.ts';
 import * as legend_ from './legend.ts';
@@ -356,6 +357,7 @@ export const ObjectDataSource = /* @__PURE__ */ reactWrapper(sources_.ObjectData
 export const CompositeDataSource = /* @__PURE__ */ reactWrapper(sources_.CompositeDataSource);
 export const SyntheticDataSource = /* @__PURE__ */ reactWrapper(sources_.SyntheticDataSource);
 export const Decimator = /* @__PURE__ */ reactWrapper(decimation_.Decimator);
+export const Slice = /* @__PURE__ */ reactWrapper(slice_.Slice);
 export const MinMaxKernel = /* @__PURE__ */ reactWrapper(decimation_.MinMaxKernel);
 export const M4Kernel = /* @__PURE__ */ reactWrapper(decimation_.M4Kernel);
 export const LttbKernel = /* @__PURE__ */ reactWrapper(decimation_.LttbKernel);
