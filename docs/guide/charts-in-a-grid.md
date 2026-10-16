@@ -37,7 +37,7 @@ export default () => (
 
 | `ChartGroup` attribute | Default | Meaning |
 |---|---|---|
-| `columns`, `rows` | one line | How many cells across and down. Give one and the other follows from the items; give both and the items have to fit, or it is an error. |
+| `columns`, `rows` | a square | How many cells across and down. Give one and the other follows from the items; give neither and the cells make a square, rounded up; give both and the items have to fit, or it is an error. |
 | `flow` | `'row'` | `'row'` fills a row and then goes down; `'column'` fills a column and then goes along. |
 | `gap` | `8` | Pixels between cells: a number, or `{ row, column }`. |
 | `align` | `true` | Plots line up: charts in a column leave the same room left and right of their plots (the most any of them needs for its axis labels), charts in a row the same above and below. `false` lets each plot take what its own axes need. A side fixed with the plane's `insets` is left alone. |

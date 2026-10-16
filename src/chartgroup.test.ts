@@ -86,7 +86,7 @@ test('chart group', () => {
       [210, 0, 210, 160],
     ]);
   }
-  // Rows given alone share the items out; neither given is one line.
+  // Rows given alone share the items out; neither given makes a square, rounded up.
   {
     const items = [item(), item(), item(), item()];
     lay({ rows: 2, gap: 0 }, items);
@@ -100,8 +100,8 @@ test('chart group', () => {
       boxes(one).map((b) => [b[0], b[1]]),
       [
         [0, 0],
-        [140, 0],
-        [280, 0],
+        [210, 0],
+        [0, 160],
       ],
     );
   }

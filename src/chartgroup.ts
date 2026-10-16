@@ -266,15 +266,10 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
     const overlay = along === 1 && across === 1;
     let perLine = along ?? 0;
     if (!perLine) {
-      // The lines are not given: one line, or as many cells to a line as sharing the items out over the lines asked for takes.
+      // The lines are not given: as many cells to a line as sharing the items out over the lines asked for takes, or, with
+      // neither asked for, a square (rounded up) of the cells the items cover.
       const area = spans.reduce((n, s) => n + s.along * s.across, 0);
-      perLine = across
-        ? Math.ceil(area / across)
-        : Math.max(
-            1,
-            ...spans.map((s) => s.along),
-            spans.reduce((n, s) => n + s.along, 0),
-          );
+      perLine = across ? Math.ceil(area / across) : Math.ceil(Math.sqrt(area));
       perLine = Math.max(perLine, ...spans.map((s) => s.along), 1);
     }
     const limit = across ?? Infinity;
