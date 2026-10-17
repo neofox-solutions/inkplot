@@ -161,7 +161,7 @@ declare module 'inkplot' {
 
 (Other maps: `CursorChildMap` for what goes inside a `Cursor`.) With no augmentation the element still works in JSX, which does not check children, and is simply rejected by `new CartesianPlane({}, …)` types.
 
-Find things in the tree with the helpers: `findById`, `descendantsOfType`, `closestAncestorOfType`, `childrenOfType`, `resolveRef` (turn an attribute that is an element or its id into the element).
+Find things in the tree with the helpers: `findById` and `findClosestOfType` (nearest first), `descendantsOfType`, `closestAncestorOfType`, `childrenOfType`, `resolveRef` (turn an attribute that is an element or its id into the element).
 
 ## Planes
 

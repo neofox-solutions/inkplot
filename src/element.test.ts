@@ -15,6 +15,7 @@ import {
   toSvgString,
   descendantsOfType,
   findById,
+  findClosestOfType,
   firstDescendantOfType,
   resolveRef,
   walk,
@@ -106,7 +107,6 @@ test('element lookups stay right while the tree changes', () => {
   assert.equal(at('y'), y);
   assert.equal(at('y', x), y);
   assert.equal(x.chart, chart);
-  assert.equal(x.treeRoot, chart);
   assert.equal(at('y'), y);
 
   // A new element is found; a removed one is not.
@@ -117,7 +117,6 @@ test('element lookups stay right while the tree changes', () => {
   p.remove(late);
   assert.throws(() => at('late'), /no element with id "late"/);
   assert.equal(late.chart, null);
-  assert.equal(late.treeRoot, late);
 
   // An id that is set or changed or taken away is followed.
   late.setAttribute('id', 'renamed');
@@ -129,7 +128,7 @@ test('element lookups stay right while the tree changes', () => {
   late.setAttribute('id', undefined);
   assert.throws(() => at('again'), /no element/);
 
-  // The first in tree order wins, as it always did, and what is first changes with the tree.
+  // Looked up from the root, the first in tree order wins, and what is first changes with the tree.
   const twin = axis('x');
   p.insertBefore(twin, x);
   assert.equal(at('x'), twin);
@@ -157,9 +156,41 @@ test('element lookups stay right while the tree changes', () => {
   later.append(loose);
   assert.equal(loose.chart, later);
 
-  // findById on part of the tree looks only there; walk and the descendant finders keep their order.
+  // findById looks from the element it is given: itself, below it, then outwards, so the nearest of two equal ids wins.
   assert.equal(findById(p, 'y'), y);
   assert.equal(findById(p, 'nope'), undefined);
+  assert.equal(findById(y, 'x'), x, 'up to the plane, then across to the sibling');
+  assert.equal(findById(y, 'y'), y, 'itself');
+  const near = plane(axis('x'), axis('y'));
+  chart.append(near);
+  const nearX = firstDescendantOfType(near, Axis) as Axis;
+  assert.equal(findById(near, 'x'), nearX);
+  assert.equal(findById(nearX, 'x'), nearX);
+  assert.equal(findById(nearX, 'y'), near.lastChild, 'its own plane before the other');
+  assert.equal(findById(chart, 'x'), x, 'from the top, tree order');
+  assert.equal(findClosestOfType(nearX, CartesianPlane), near);
+  assert.equal(findClosestOfType(near, Chart), chart);
+  assert.equal(findClosestOfType(nearX, Axis), nearX);
+  chart.remove(near);
+  // The links run both ways, so a child can come out of or go into any place.
+  const row = plane(axis('1'), axis('2'), axis('3'));
+  const [one, two, three] = [row.firstChild as Axis, row.firstChild!.nextSibling as Axis, row.lastChild as Axis];
+  assert.equal(three.previousSibling, two);
+  assert.equal(one.previousSibling, null);
+  row.remove(two);
+  assert.equal(one.nextSibling, three);
+  assert.equal(three.previousSibling, one);
+  row.remove(three);
+  assert.equal(row.lastChild, one);
+  row.insertBefore(two, one);
+  row.append(three);
+  assert.deepEqual(
+    [...row].map((e) => e.attrs.id),
+    ['2', '1', '3'],
+  );
+  assert.equal(row.lastChild, three);
+  assert.equal(row.firstChild?.previousSibling, null);
+  assert.throws(() => row.insertBefore(axis('z'), x), /not a child/);
   const order: string[] = [];
   walk(chart, (e) => void order.push(e.constructor.name));
   assert.deepEqual(order.slice(0, 3), ['Chart', 'CartesianPlane', 'Axis']);

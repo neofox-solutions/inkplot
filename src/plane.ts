@@ -21,7 +21,7 @@
 import { Axis, type AxisOrientation, type CartesianOrientation, type Ruler, type TitleSpot, cartesianSide, isHorizontal } from './axis.ts';
 import type { Chart } from './chart.ts';
 import type { PointBuffer } from './data.ts';
-import { type BaseAttributes, ChartElement, fail, resolveRef } from './element.ts';
+import { type BaseAttributes, ChartElement, childrenOfType, fail, resolveRef } from './element.ts';
 import { writeAria } from './aria.ts';
 import { type ChartEvent, EVENT_ARRANGE, EVENT_ATTACH, EVENT_PAINT } from './events.ts';
 import type { CalloutAnnotation, LineAnnotation } from './annotation.ts';
@@ -71,11 +71,13 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
   }
 
   get axes(): readonly Axis[] {
-    return [...this].filter((c): c is Axis => c instanceof Axis);
+    return childrenOfType(this, Axis);
   }
   /** Every series on the plane, in drawing order, those inside a `Stack` included, whether shown or not: the order that gives each its palette colour. */
   get allSeries(): readonly Series[] {
-    return [...this].flatMap(seriesOf);
+    const out: Series[] = [];
+    for (let c = this.firstChild; c; c = c.nextSibling) out.push(...seriesOf(c));
+    return out;
   }
   /** The series that are on show (`visible` is not false): the ones that are drawn, fit the axes and are hit. */
   get series(): readonly Series[] {
@@ -206,7 +208,7 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
     yield;
     for (const s of series) s.resolveDomain();
     // A group (a stack) loads its own members, since what they contribute depends on all of them.
-    for (const c of this) {
+    for (let c = this.firstChild; c; c = c.nextSibling) {
       if (c instanceof Series) {
         if (c.shown) c.load(estimate);
       } else groupOf(c)?.load(estimate);

@@ -268,13 +268,15 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
       height: Math.max(1, height - pad.top - pad.bottom),
     };
 
-    if ([...this].filter(isBody).length > 1) fail('a chart has one plane or group: put several in a ChartGroup');
+    let bodies = 0;
+    for (let c = this.firstChild; c; c = c.nextSibling) if (isBody(c)) bodies++;
+    if (bodies > 1) fail('a chart has one plane or group: put several in a ChartGroup');
     this.layOutFurniture(content, (area) => {
-      for (const child of this) if (isBody(child)) this.arrangeChild(child, area);
+      for (let child = this.firstChild; child; child = child.nextSibling) if (isBody(child)) this.arrangeChild(child, area);
     });
     // What a screen reader is told of the chart as a whole: `meta` first, then what a describer child makes of it, which needs the layout to have settled.
     let said: ReturnType<Describer['describe']> | undefined;
-    for (const child of this)
+    for (let child = this.firstChild; child; child = child.nextSibling)
       if (isDescriber(child) && child.attrs.visible !== false) {
         said = child.describe();
         break;

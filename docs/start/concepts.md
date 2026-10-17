@@ -93,7 +93,7 @@ const time = new Axis({ id: 'time', orientation: 'bottom' }, new LinearScale());
 <DomainSeries domainAxis="time" />        // …or its id: the same, and what markup and saved JSON use
 ```
 
-Ids are looked up from the root of the tree, so they need to be unique within a chart.
+An id is looked up from the element that names it: itself, what is under it, then its parent and what is under that, outwards to the root, and the nearest match wins. Two charts in a group can each have an axis `x`; an id you refer to from far away needs to be unique.
 
 To keep hold of an element made by JSX, use a **`ref`**: a function that is given the element, or an object with `current`:
 

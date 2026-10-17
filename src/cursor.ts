@@ -357,8 +357,10 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
   #changed(force: boolean): void {
     this.#version++;
     const state = this.state;
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- a type guard in effect: probing a child for the optional `follows`
-    const moves = [...this].some((c) => c.attrs.visible !== false && (c as Partial<CursorChild>).follows === true);
+    let moves = false;
+    for (let c = this.firstChild; c && !moves; c = c.nextSibling)
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- a type guard in effect: probing a child for the optional `follows`
+      moves = c.attrs.visible !== false && (c as Partial<CursorChild>).follows === true;
     const sig = !state
       ? ''
       : [

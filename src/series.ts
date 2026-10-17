@@ -191,7 +191,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    */
   get channels(): readonly string[] {
     const names = new Set<string>();
-    for (const r of this)
+    for (let r = this.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
         for (const b of r.bindings) names.add(b.channel);
         for (const c of r.channelNames) names.add(c);
@@ -218,14 +218,15 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    */
   sample(surface: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
     let n = 0;
-    for (const r of this) if (r instanceof SeriesRenderer) r.sample(surface, parent, `${key}/${n++}`, width, height);
+    for (let r = this.firstChild; r; r = r.nextSibling)
+      if (r instanceof SeriesRenderer) r.sample(surface, parent, `${key}/${n++}`, width, height);
   }
   /**
    * The colour that stands for this series: what its first renderer says (its line, its fill, a marker's colour),
    * else the palette colour. A key or tooltip shows it beside the name.
    */
   get color(): string {
-    for (const r of this)
+    for (let r = this.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
         const c = r.swatch;
         if (c && c !== 'none') return c;
@@ -234,12 +235,12 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   }
   /** What the first renderer that has an opinion says a hit on this series should measure: bars say the shapes they draw. */
   get hitHint(): HitMode | undefined {
-    for (const r of this) if (r instanceof SeriesRenderer && r.hitMode) return r.hitMode;
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.hitMode) return r.hitMode;
     return undefined;
   }
   /** The shapes the series draws, as polygons in plot pixels, if a renderer draws any (bars): what a 'shape' hit is inside. */
   shapes(): PolygonSet | null {
-    for (const r of this)
+    for (let r = this.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
         const g = r.shapes?.();
         if (g) return g;
@@ -248,7 +249,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   }
   /** The path the series' renderer draws, if it draws other than straight lines through the points (steps, curves): what a line hit or a reading follows. */
   trace(): Trace | null {
-    for (const r of this)
+    for (let r = this.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
         const t = r.trace?.();
         if (t) return t;
@@ -381,18 +382,18 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   /** The most any renderer draws beyond a point, in pixels. */
   protected get reachPx(): number {
     let px = 0;
-    for (const r of this) if (r instanceof SeriesRenderer && r.reach > px) px = r.reach;
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.reach > px) px = r.reach;
     return px;
   }
   /** Whether bars (anything with a baseline to grow from) are drawn here, which markers then stand on the ends of. */
   protected get onBars(): boolean {
-    for (const r of this) if (r instanceof SeriesRenderer && r.includes.length > 0) return true;
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.includes.length > 0) return true;
     return false;
   }
   /** The largest `spans` of the renderers: how far they draw beyond a point along the domain, as a fraction of the gap between points. */
   protected get spans(): number {
     let m = 0;
-    for (const r of this) if (r instanceof SeriesRenderer && r.spans > m) m = r.spans;
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.spans > m) m = r.spans;
     return m;
   }
 
@@ -411,16 +412,17 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
         }
     }
     // Values a renderer needs on the value axis whatever the data says: the baseline bars grow from.
-    for (const r of this) if (r instanceof SeriesRenderer) for (const v of r.includes) this.secondAxis.contribute(v, v);
+    for (let r = this.firstChild; r; r = r.nextSibling)
+      if (r instanceof SeriesRenderer) for (const v of r.includes) this.secondAxis.contribute(v, v);
     // What renderers draw beyond the values (error bars) is part of what the axes must show.
     const view = this.spreadView();
-    for (const r of this) {
+    for (let r = this.firstChild; r; r = r.nextSibling) {
       if (!(r instanceof SeriesRenderer) || !r.spread) continue;
       const s = r.spread(view);
       if (s?.first) this.firstAxis.contribute(s.first.min, s.first.max);
       if (s?.second) this.secondAxis.contribute(s.second.min, s.second.max);
     }
-    for (const r of this) {
+    for (let r = this.firstChild; r; r = r.nextSibling) {
       if (!(r instanceof SeriesRenderer)) continue;
       for (const b of r.bindings) {
         const e = this.data.channelExtent(b.channel);
@@ -454,7 +456,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   protected widened(axis: Axis, base: Extent | null): Extent | null {
     let e = base;
     if (this.#layer) return e;
-    for (const r of this) {
+    for (let r = this.firstChild; r; r = r.nextSibling) {
       if (!(r instanceof SeriesRenderer) || !r.limit) continue;
       const s = r.limit(this),
         w = axis === this.firstAxis ? s?.first : axis === this.secondAxis ? s?.second : undefined;
@@ -626,7 +628,7 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   private reachBeyondBars(ext: Extent): void {
     if (!this.onBars || this.reachPx <= 0) return;
     let base = 0;
-    for (const r of this) if (r instanceof SeriesRenderer && r.includes.length > 0) base = r.includes[0] ?? 0;
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.includes.length > 0) base = r.includes[0] ?? 0;
     if (ext.max > base) this.valueAxis.reach(this.reachPx, 'hi');
     if (ext.min < base) this.valueAxis.reach(this.reachPx, 'lo');
   }
@@ -765,7 +767,7 @@ export function paintSample(
   cache: SampleCache,
 ): PlatformNode {
   let renderers = 0;
-  for (const r of series) if (r instanceof SeriesRenderer) renderers++;
+  for (let r = series.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer) renderers++;
   const last = cache.get(key);
   if (!last || last.series !== series || last.renderers !== renderers) {
     surface.removePrefix(key);

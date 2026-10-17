@@ -103,7 +103,7 @@ export abstract class Dimension<
   }
 
   get scale(): Scale {
-    const first = [...this][0];
+    const first = this.firstChild;
     if (first instanceof Scale) return first;
     return fail(
       first

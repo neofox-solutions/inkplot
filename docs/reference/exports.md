@@ -44,7 +44,8 @@ The element classes (with every attribute) are in the [attribute reference](api.
 
 | Export | Is |
 |---|---|
-| `findById(root, id)` | The element with that `id` under `root`, or `undefined`. |
+| `findById(source, id)` | The element with that `id` nearest to `source` (itself, below it, then outwards), or `undefined`. |
+| `findNearest(source, test)`, `findClosestOfType(source, Class)` | The same search for any test or class. No recursion and no allocation. |
 | `descendantsOfType(root, Class)`, `childrenOfType`, `firstDescendantOfType`, `closestAncestorOfType` | Typed searches. |
 | `walk(root, visit)` | Calls `visit(element, depth)` for an element and everything under it; returning `false` skips a subtree. |
 | `resolveRef(ref, from, Class?)` | Turns an attribute that is an element or an id into the element. |

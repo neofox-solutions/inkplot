@@ -56,7 +56,7 @@ export class Entrance extends ChartElement<Container, [], EntranceAttributes> {
   #mark(plane: Plane, series: Series): void {
     if (plane.axes.some((axis) => plane.cyclic(axis))) return series.decorate('data-ink-enter', 'fade');
     let grow: ReturnType<NonNullable<SeriesRenderer['enterFrom']>> = null;
-    for (const r of series)
+    for (let r = series.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
         const from = r.enterFrom?.() ?? null;
         if (!from) {

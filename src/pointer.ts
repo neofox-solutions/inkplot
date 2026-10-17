@@ -78,7 +78,7 @@ export class PointerListener extends InteractiveElement<Plane, [], PointerListen
   override onEvent(ev: ChartEvent): void {
     if (ev.type === EVENT_ATTACH) {
       const plane = this.requireParent();
-      for (const sibling of plane) {
+      for (let sibling = plane.firstChild; sibling; sibling = sibling.nextSibling) {
         if (sibling === this) break;
         if (sibling.claimsPress) fail('add a PointerListener before PanZoom in a plane: the listener has to see a press first to claim it');
       }

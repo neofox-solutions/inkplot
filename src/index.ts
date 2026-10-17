@@ -62,6 +62,8 @@ export {
   closestAncestorOfType,
   descendantsOfType,
   findById,
+  findNearest,
+  findClosestOfType,
   firstDescendantOfType,
   resolveRef,
   walk,

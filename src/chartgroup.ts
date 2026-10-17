@@ -139,8 +139,7 @@ export class ChartGroupItem extends Container<ChartGroup, ChartChildren, ChartGr
 
   /** An item with nothing in it. It still takes its cells, so it keeps room free, and it draws nothing. */
   get isEmpty(): boolean {
-    for (const _ of this) return false;
-    return true;
+    return this.firstChild === null;
   }
 
   /** The cells it takes, as columns and rows. */
@@ -180,7 +179,7 @@ export class ChartGroupItem extends Container<ChartGroup, ChartChildren, ChartGr
     if (ev.type !== EVENT_ARRANGE) return;
     const rect = (this.#rect = ev.rect);
     this.layOutFurniture(rect, (area) => {
-      for (const child of this) if (isBody(child)) this.arrangeChild(child, area);
+      for (let child = this.firstChild; child; child = child.nextSibling) if (isBody(child)) this.arrangeChild(child, area);
     });
   }
 }
@@ -215,7 +214,9 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
 
   /** The items that take part: those that are shown. */
   get items(): readonly ChartGroupItem[] {
-    return [...this].filter((c): c is ChartGroupItem => c instanceof ChartGroupItem && c.attrs.visible !== false);
+    const out: ChartGroupItem[] = [];
+    for (let c = this.firstChild; c; c = c.nextSibling) if (c instanceof ChartGroupItem && c.attrs.visible !== false) out.push(c);
+    return out;
   }
 
   /** The planes of the items that are shown. */
@@ -439,7 +440,7 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
         c1 = rowFlow ? p.at + p.along : p.line + p.across,
         r0 = rowFlow ? p.line : p.at,
         r1 = rowFlow ? p.line + p.across : p.at + p.along;
-      for (const plane of p.item) {
+      for (let plane = p.item.firstChild; plane; plane = plane.nextSibling) {
         if (!(plane instanceof CartesianPlane)) continue;
         plane.alignInsets = null;
         const own = this.attrs.align === false ? null : plane.measureInsets(p.item.bodyArea(rects.get(p.item) ?? p.item.rect));
@@ -471,7 +472,9 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
 
   /** Charts that draw a range of this group's are fitted in step, since the range has to cover what all of them draw before any is placed. */
   private fitShared(placed: readonly Placed[], rects: ReadonlyMap<ChartGroupItem, Rect>): void {
-    if (![...this].some((c) => c instanceof SharedRange)) return;
+    let shared = false;
+    for (let c = this.firstChild; c && !shared; c = c.nextSibling) shared = c instanceof SharedRange;
+    if (!shared) return;
     const steps: Generator<void>[] = [];
     for (const { item } of placed)
       for (const plane of item.planes)

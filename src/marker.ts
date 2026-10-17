@@ -174,7 +174,7 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
     const reset = () => Object.assign(v, base);
     // Beside bars (a lollipop: a stem and a marker), a marker stands on the end of its bar, which is not at the point when bars share a band.
     let ends: Float64Array | null = null;
-    for (const r of series) {
+    for (let r = series.firstChild; r; r = r.nextSibling) {
       const set = r !== this && r instanceof SeriesRenderer ? (r.anchors?.() ?? null) : null;
       if (set && set.count === count) ends = set.data;
     }

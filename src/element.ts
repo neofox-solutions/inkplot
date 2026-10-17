@@ -101,9 +101,9 @@ export interface MountContext {
 
 /** The answer of an element that did not respond to MEASURE: it wants nothing and can take anything. */
 /**
- * Counts every change that can alter what an element can be found as, or which tree it is in: a child added or removed, an id set.
- * What is looked up from the tree (an element's chart and root, an id) is kept with the number it was found at and trusted while the
- * number is the same, so the lookups that happen many times in a flush cost one comparison. Edits are rare next to flushes.
+ * Counts every change that can alter what an id means from where it is looked up: a child added or removed, an id set. What a
+ * `resolveRef` found is kept with the number it was found at and trusted while the number is the same. A search for an id that is
+ * not near can cross the whole tree, and a flush asks for the same few dozen ids over and over; edits are rare next to flushes.
  */
 let treeVersion = 0;
 
@@ -145,7 +145,9 @@ export abstract class ChartElement<
   #attrs: Attrs;
   #parent: AnyElement | null = null;
   #first: AnyElement | null = null;
+  #last: AnyElement | null = null;
   #next: AnyElement | null = null;
+  #prev: AnyElement | null = null;
   #surface: Surface | null = null;
   #ctx: MountContext | null = null;
   #hidden = false;
@@ -177,33 +179,26 @@ export abstract class ChartElement<
   get firstChild(): AnyElement | null {
     return this.#first;
   }
+  get lastChild(): AnyElement | null {
+    return this.#last;
+  }
   get nextSibling(): AnyElement | null {
     return this.#next;
+  }
+  get previousSibling(): AnyElement | null {
+    return this.#prev;
   }
   /** For elements that only make sense inside a parent (an axis in a plane): fails loudly rather than returning null. */
   requireParent(): Parent & AnyElement {
     if (!this.#parent) fail(`${this.constructor.name} has no parent`);
     return this.#parent as Parent & AnyElement;
   }
-  #chart: Chart | null = null;
-  #chartAt = -1;
-  #root: AnyElement | null = null;
-  #rootAt = -1;
-  /** The root chart, if this element is in a tree that has one. Found by walking up once, then kept until the tree is edited. */
+  /** The root chart, if this element is in a tree that has one: found by walking up the parents. */
   get chart(): Chart | null {
-    if (this.#chartAt !== treeVersion) {
-      this.#chart = this.#parent ? this.#parent.chart : null;
-      this.#chartAt = treeVersion;
-    }
-    return this.#chart;
-  }
-  /** The top of the tree this element is in (itself, if it has no parent): where an id is looked up from. Kept like `chart`. */
-  get treeRoot(): AnyElement {
-    if (this.#rootAt !== treeVersion) {
-      this.#root = this.#parent ? this.#parent.treeRoot : (this as AnyElement);
-      this.#rootAt = treeVersion;
-    }
-    return this.#root as AnyElement;
+    let e: AnyElement | null = this as AnyElement;
+    while (e.#parent) e = e.#parent;
+    // The root answers for itself (a Chart returns itself); any other root has no chart.
+    return e === this ? null : e.chart;
   }
   /** Like `chart`, for code that only runs inside a chart (painting, input): fails loudly rather than returning null. */
   requireChart(): Chart {
@@ -215,7 +210,10 @@ export abstract class ChartElement<
     return this.#ctx !== null;
   }
 
-  /** The children in order. Do not remove the element you are on and the one after it while iterating. */
+  /**
+   * The children in order. Convenience only, for code outside the library: it allocates a generator, so prefer a loop over
+   * `firstChild` and `nextSibling`. Do not remove the element you are on and the one after it while iterating.
+   */
   *[Symbol.iterator](): Generator<Children[number]> {
     for (let c = this.#first; c;) {
       const next = c.#next;
@@ -318,26 +316,30 @@ export abstract class ChartElement<
     return true;
   }
 
-  /** Put `child` in front of `before` (null: at the end). Finding the place walks the siblings. */
+  /** Put `child` in front of `before` (null: at the end). Constant time: the siblings are linked both ways. */
   private link(child: AnyElement, before: AnyElement | null): void {
     if (child.#parent) fail('element already has a parent');
-    let prev: AnyElement | null = null;
-    for (let c = this.#first; c && c !== before; c = c.#next) prev = c;
+    if (before && before.#parent !== this) fail('element is not a child of this element');
+    const prev = before ? before.#prev : this.#last;
     treeVersion++;
     child.#parent = this;
     child.#next = before;
+    child.#prev = prev;
     if (prev) prev.#next = child;
     else this.#first = child;
+    if (before) before.#prev = child;
+    else this.#last = child;
   }
   private unlink(child: AnyElement): void {
-    let prev: AnyElement | null = null;
-    let c = this.#first;
-    for (; c && c !== child; c = c.#next) prev = c;
-    if (!c) fail('element is not a child of this element');
+    if (child.#parent !== this) fail('element is not a child of this element');
     treeVersion++;
-    if (prev) prev.#next = child.#next;
-    else this.#first = child.#next;
-    child.#next = child.#parent = null;
+    const prev = child.#prev;
+    const next = child.#next;
+    if (prev) prev.#next = next;
+    else this.#first = next;
+    if (next) next.#prev = prev;
+    else this.#last = prev;
+    child.#next = child.#prev = child.#parent = null;
   }
 
   /**
@@ -510,45 +512,84 @@ export abstract class ChartElement<
 // ─── Tree utilities ───
 // Plain functions rather than methods so unused ones tree-shake away.
 
-/** Depth-first, parents before children. Returning `false` from `visit` skips that element's subtree. */
+/**
+ * Depth-first, parents before children. Returning `false` from `visit` skips that element's subtree. A loop over the links, with
+ * no recursion and no allocation. What comes next is read before the visit, so a visitor may take the element it is on out of the
+ * tree (its subtree is then skipped).
+ */
 export function walk(root: AnyElement, visit: (element: AnyElement, depth: number) => boolean | void, depth = 0): void {
-  if (visit(root, depth) === false) return;
-  // The next sibling is read before the visit of the one before, as the iterator does: a visitor may take the element it is on out of the tree.
-  for (let c = root.firstChild; c;) {
-    const next = c.nextSibling;
-    walk(c, visit, depth + 1);
+  let c: AnyElement = root;
+  let d = depth;
+  for (;;) {
+    let up: AnyElement | null = c.parent;
+    let next: AnyElement | null = c.nextSibling;
+    // Into the children, unless told to skip them or the visitor took the element out of the tree (its children go with it).
+    const skip: boolean = visit(c, d) === false || c.parent !== up;
+    const down: AnyElement | null = skip ? null : c.firstChild;
+    if (down) {
+      c = down;
+      d++;
+      continue;
+    }
+    // Along, or up until there is a next sibling, but never past `root`.
+    if (c === root) return;
+    while (!next) {
+      c = up as AnyElement;
+      d--;
+      if (c === root) return;
+      up = c.parent;
+      next = c.nextSibling;
+    }
     c = next;
   }
 }
-/** The first element at or under `element` for which `test` holds, stopping as soon as there is one. */
-function firstWhere(element: AnyElement, test: (e: AnyElement) => boolean): AnyElement | undefined {
-  if (test(element)) return element;
-  for (let c = element.firstChild; c; c = c.nextSibling) {
-    const found = firstWhere(c, test);
-    if (found) return found;
+/**
+ * The element nearest to `source` for which `test` holds: `source`, then what is under it, then its parent, then the parent's other
+ * children and what is under them, and so on up to the root. Stops at the first match. A loop over the links: no recursion, and
+ * the only allocation is the caller's `test`. The one `findById(source, id)`, `findClosestOfType` and `resolveRef` share.
+ */
+export function findNearest(source: AnyElement, test: (e: AnyElement) => boolean): AnyElement | undefined {
+  if (test(source)) return source;
+  let at = source;
+  let skip: AnyElement | null = null; // the child we came up from, whose subtree has been searched
+  for (;;) {
+    for (let c = at.firstChild; c;) {
+      if (c !== skip) {
+        if (test(c)) return c;
+        if (c.firstChild) {
+          c = c.firstChild;
+          continue;
+        }
+      }
+      while (!c.nextSibling) {
+        c = c.parent as AnyElement;
+        if (c === at) break;
+      }
+      c = c === at ? null : c.nextSibling;
+    }
+    const up = at.parent;
+    if (!up) return undefined;
+    skip = at;
+    at = up;
+    if (test(at)) return at;
   }
-  return undefined;
 }
-/** The first element under `root` (or `root` itself) with this id. */
-export function findById<T extends AnyElement = AnyElement>(root: AnyElement, id: string): T | undefined {
-  return firstWhere(root, (e) => e.attrs.id === id) as T | undefined;
+/** The element with this id nearest to `source` (see `findNearest`): ids only have to be unique among the elements that can see each other. */
+export function findById<T extends AnyElement = AnyElement>(source: AnyElement, id: string): T | undefined {
+  return findNearest(source, (e) => e.attrs.id === id) as T | undefined;
 }
-
-/** What each tree's ids are, as of the tree version it was made at. Trees that are let go are let go of. */
-const idIndexes = new WeakMap<AnyElement, { at: number; byId: Map<string, AnyElement> }>();
-/** The first element of the whole tree below `root` with this id, from an index that is made once and remade after the tree is edited. */
-function findInTree(root: AnyElement, id: string): AnyElement | undefined {
-  let index = idIndexes.get(root);
-  if (!index || index.at !== treeVersion) {
-    const byId = new Map<string, AnyElement>();
-    walk(root, (e) => {
-      const own = e.attrs.id;
-      if (typeof own === 'string' && !byId.has(own)) byId.set(own, e);
-    });
-    index = { at: treeVersion, byId };
-    idIndexes.set(root, index);
+/** What `resolveRef` found from each element, as of the tree version it was found at. Elements that are let go are let go of. */
+const lookups = new WeakMap<AnyElement, { at: number; found: Map<string, AnyElement | undefined> }>();
+function lookup(from: AnyElement, id: string): AnyElement | undefined {
+  let kept = lookups.get(from);
+  if (!kept || kept.at !== treeVersion) {
+    kept = { at: treeVersion, found: new Map() };
+    lookups.set(from, kept);
   }
-  return index.byId.get(id);
+  if (kept.found.has(id)) return kept.found.get(id);
+  const el = findById(from, id);
+  kept.found.set(id, el);
+  return el;
 }
 /** Every element below `root` of a class, in tree order. */
 export function descendantsOfType<T extends AnyElement>(root: AnyElement, type: ElementClass<T>): T[] {
@@ -558,30 +599,40 @@ export function descendantsOfType<T extends AnyElement>(root: AnyElement, type: 
   });
   return out;
 }
-/** The first element below `root` of a class, stopping the walk as soon as it is found. */
+/** The first element below `root` of a class, stopping as soon as it is found. */
 export function firstDescendantOfType<T extends AnyElement>(root: AnyElement, type: ElementClass<T>): T | undefined {
-  const find = (parent: AnyElement): T | undefined => {
-    for (let c = parent.firstChild; c; c = c.nextSibling) {
-      if (c instanceof type) return c;
-      const found = find(c);
-      if (found) return found;
+  for (let c = root.firstChild; c;) {
+    if (c instanceof type) return c;
+    if (c.firstChild) {
+      c = c.firstChild;
+      continue;
     }
-    return undefined;
-  };
-  return find(root);
+    while (c && !c.nextSibling) {
+      c = c.parent;
+      if (c === root) return undefined;
+    }
+    c = c ? c.nextSibling : null;
+  }
+  return undefined;
 }
-/** The direct children of a class; use it when the parent's children are mixed (an axis next to series). */
+/** The direct children of a class; use it when the parent's children are mixed (an axis next to series). Convenience: it allocates, so in hot code loop over `firstChild` and `nextSibling`. */
 export function childrenOfType<T extends AnyElement>(parent: AnyElement, type: ElementClass<T>): T[] {
-  return [...parent].filter((c): c is T => c instanceof type);
+  const out: T[] = [];
+  for (let c = parent.firstChild; c; c = c.nextSibling) if (c instanceof type) out.push(c);
+  return out;
 }
 /** The nearest enclosing element of a class: how a child finds "its" plane or chart without being handed one. */
 export function closestAncestorOfType<T extends AnyElement>(from: AnyElement, type: ElementClass<T>): T | undefined {
   for (let e = from.parent as AnyElement | null; e; e = e.parent) if (e instanceof type) return e;
   return undefined;
 }
+/** The nearest element of a class to `source`, searched like `findNearest`: itself, what is under it, then outwards. */
+export function findClosestOfType<T extends AnyElement>(source: AnyElement, type: ElementClass<T>): T | undefined {
+  return findNearest(source, (e) => e instanceof type) as T | undefined;
+}
 
 /**
- * Turns an `ElementRef` into the element: ids are looked up from the root of `from`'s tree, elements pass through.
+ * Turns an `ElementRef` into the element: ids are looked up nearest to `from` (see `findNearest`), elements pass through.
  * With `type`, a mismatch is reported by name, which is the useful error when a config points at the wrong thing.
  */
 export function resolveRef<T extends AnyElement>(ref: ElementRef<T>, from: AnyElement, type?: ElementClass<T>): T;
@@ -590,7 +641,7 @@ export function resolveRef<T extends AnyElement>(ref: ElementRef<T> | undefined,
   if (ref === undefined) return undefined;
   let el: AnyElement | undefined;
   if (typeof ref === 'string') {
-    el = findInTree(from.treeRoot, ref);
+    el = lookup(from, ref);
     if (!el) fail(`no element with id "${ref}"`);
   } else {
     el = ref;

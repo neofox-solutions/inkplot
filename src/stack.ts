@@ -173,7 +173,9 @@ export class Stack extends ChartElement<Plane, (DomainSeries | SeriesGroup)[], S
 
   /** The children that are series or groups of them, in order. */
   #holders(): (DomainSeries | SeriesGroup)[] {
-    return [...this].filter((c): c is DomainSeries | SeriesGroup => c instanceof DomainSeries || (typeof c === 'object' && 'members' in c));
+    const out: (DomainSeries | SeriesGroup)[] = [];
+    for (let c = this.firstChild; c; c = c.nextSibling) if (isHolder(c)) out.push(c);
+    return out;
   }
 
   /** Engine protocol, called by the plane in place of each member's own `load`: read them all, lay them out, report the extents. */
@@ -212,4 +214,8 @@ export class Stack extends ChartElement<Plane, (DomainSeries | SeriesGroup)[], S
       m.settle(layout.extent);
     });
   }
+}
+
+function isHolder(c: unknown): c is DomainSeries | SeriesGroup {
+  return c instanceof DomainSeries || (typeof c === 'object' && c !== null && 'members' in c);
 }

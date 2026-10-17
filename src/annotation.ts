@@ -287,7 +287,7 @@ export class CalloutAnnotation extends ChartElement<Plane, [], CalloutAnnotation
   /** How bad a box is as a place for a callout: lower is better. Earlier callouts in the plane count as taken. */
   private trouble(plane: Plane, box: Rect, order: number): number {
     const taken: Rect[] = [];
-    for (const c of plane) {
+    for (let c = plane.firstChild; c; c = c.nextSibling) {
       if (c === this) break;
       if (c instanceof CalloutAnnotation && c.box) taken.push(c.box);
     }

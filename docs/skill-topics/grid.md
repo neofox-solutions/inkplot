@@ -151,7 +151,7 @@ export const chart = (
 
 A chart has one plane or one group; two planes straight in a `Chart` are an error that points here. A `ChartGroupItem` may hold a `ChartGroup` in place of a plane, so grids nest. `chart.planes` lists every plane, in grid order.
 
-A `Legend` in the `Chart` lists the series of every chart; one in an item lists that chart's own. A `Cursor` works in the item it is in, or in the plane it is tied to. Series, axes and colour axes are found by `id` across the whole chart, so ids have to be unique across items.
+A `Legend` in the `Chart` lists the series of every chart; one in an item lists that chart's own. A `Cursor` works in the item it is in, or in the plane it is tied to. An `id` is looked up from the element that names it: itself, what is under it, then its parent and what is under that, and so on outwards, so the nearest one wins. Each item can use `x` and `y` for its own axes; only an id meant to be shared (a `SharedRange` in the group) has to be unique where the items can see it.
 
 <!-- api:start -->
 ### ChartGroup

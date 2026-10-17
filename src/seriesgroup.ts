@@ -21,7 +21,7 @@
 import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
 import type { Axis } from './axis.ts';
 import { type DataNode, DataSource, DataTransform, type FillResult, type FillPlan, type PlanContext, type PointView } from './data.ts';
-import { type AnyElement, type BaseAttributes, ChartElement, type ElementRef, fail, resolveRef } from './element.ts';
+import { type AnyElement, type BaseAttributes, ChartElement, childrenOfType, type ElementRef, fail, resolveRef } from './element.ts';
 import { type ChartEvent, EVENT_PAINT } from './events.ts';
 import type { Extent, Size } from './geometry.ts';
 import type { MappedDimension } from './mapped.ts';
@@ -84,11 +84,7 @@ function refresh(from: AnyElement, to: AnyElement, keep: ReadonlySet<string>): v
   for (const k of Object.keys(is)) if (k !== 'id' && !keep.has(k) && was[k] !== is[k]) patch[k] = is[k];
   for (const k of Object.keys(was)) if (k !== 'id' && !keep.has(k) && !(k in is)) patch[k] = undefined;
   if (Object.keys(patch).length > 0) to.setAttributes(patch as never);
-  const copies = [...to];
-  [...from].forEach((c, i) => {
-    const t = copies[i];
-    if (t) refresh(c, t, keep);
-  });
+  for (let f = from.firstChild, t = to.firstChild; f && t; f = f.nextSibling, t = t.nextSibling) refresh(f, t, keep);
 }
 /** The colour or size axis a binding names (a `MappedDimension` is not imported here, so that a group costs nothing to a chart that does not bind). */
 function dimensionOf(spec: { axis: ElementRef<MappedDimension<unknown>> }, from: AnyElement): MappedDimension<unknown> {
@@ -100,7 +96,7 @@ function leafOf(node: DataNode): DataSource {
   let n: AnyElement = node;
   while (!(n instanceof DataSource)) {
     let next: AnyElement | undefined;
-    for (const c of n) if (c instanceof DataSource || c instanceof DataTransform) next = c;
+    for (let c = n.firstChild; c; c = c.nextSibling) if (c instanceof DataSource || c instanceof DataTransform) next = c;
     n = next ?? fail('SeriesGroup: a data transform in the group has no source beneath it');
   }
   return n;
@@ -259,7 +255,7 @@ export class SeriesGroup
       for (const [key, series] of this.#series) {
         const look =
           'map' in spec ? spec.map(key) : (dimension?.valueAt(dimension.fractionOf(spec.value ? spec.value(key) : key)) as string | number);
-        for (const r of series) if (r instanceof SeriesRenderer) r.restyle(attribute, look);
+        for (let r = series.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer) r.restyle(attribute, look);
       }
     }
   }
@@ -273,8 +269,8 @@ export class SeriesGroup
       const keep = new Set(Object.keys(this.attrs.bind ?? {}));
       for (const [key, series] of this.#series) {
         series.setAttributes(this.seriesAttributes(key));
-        const renderers = [...series].filter((c) => c instanceof SeriesRenderer);
-        const template = [...this].filter((c) => c instanceof SeriesRenderer);
+        const renderers = childrenOfType(series, SeriesRenderer);
+        const template = childrenOfType(this, SeriesRenderer);
         renderers.forEach((r, i) => template[i] && refresh(template[i], r, keep));
         refresh(data, series.data, new Set());
       }

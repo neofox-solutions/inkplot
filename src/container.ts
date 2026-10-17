@@ -22,7 +22,7 @@ export abstract class Container<
   /** Every plane inside, in tree order, those in chart groups (and in their items that are shown) included. */
   get planes(): readonly Plane[] {
     const out: Plane[] = [];
-    for (const c of this) {
+    for (let c = this.firstChild; c; c = c.nextSibling) {
       if (c instanceof Plane) out.push(c);
       else if ('planes' in c && Array.isArray(c.planes)) for (const p of c.planes) if (p instanceof Plane) out.push(p);
     }
@@ -41,7 +41,7 @@ export abstract class Container<
     const bands: { child: AnyElement; request: LayoutRequest; side: Side }[] = [];
     const bandSize: Record<Side, number> = { top: 0, right: 0, bottom: 0, left: 0 };
     const strip: Record<Side, number> = { top: 0, right: 0, bottom: 0, left: 0 };
-    for (const child of this) {
+    for (let child = this.firstChild; child; child = child.nextSibling) {
       if (isBody(child) || child.attrs.visible === false) continue;
       const request = this.measureChild(child, { width: content.width, height: content.height });
       const side = request.side;
