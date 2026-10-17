@@ -281,7 +281,7 @@ Read the topic that matches the chart; each has examples and the attributes of t
 - **interaction** (`topics/interaction.md`): tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch, an entrance animation. Elements: ChartTooltip, Cursor, Crosshair, PanZoom, BoxZoom, Brush, PointerListener, Entrance.
 - **grid** (`topics/grid.md`): a dashboard: several charts in one picture, in a grid. Elements: ChartGroup, ChartGroupItem, SharedRange, SharedAxis.
 - **planes** (`topics/planes.md`): polar and radar charts. Elements: PolarPlane, RadarPlane.
-- **data** (`topics/data.md`): a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table. Elements: CompositeDataSource, SyntheticDataSource, Decimator, Slice, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel.
+- **data** (`topics/data.md`): a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table. Elements: CompositeDataSource, SyntheticDataSource, Decimator, Slice, WorkerBoundary, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel.
 - **styling-output** (`topics/styling-output.md`): dark and custom themes, styling parts, React, a PNG, chart as JSON, your own element types.
 - **troubleshooting** (`topics/troubleshooting.md`): an error message or a chart that draws nothing or draws wrongly.
 <!-- index:end -->

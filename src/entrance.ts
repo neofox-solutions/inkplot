@@ -34,13 +34,19 @@ const KINDS: [string, string][] = [
 ];
 
 export class Entrance extends ChartElement<Container, [], EntranceAttributes> {
+  #played = false;
+  #waited = false;
   static override attrTypes = { ...ChartElement.attrTypes, duration: NUMBER, easing: STRING } satisfies AttrTypesFor<EntranceAttributes>;
 
   override onEvent(ev: ChartEvent): void {
     if (ev.type !== EVENT_PAINT) return;
     const chart = this.requireChart();
     // Only the first draw, and only where there is a browser to play it (`setTransition` is how a platform says it can animate).
-    if (chart.flushCount !== 1 || !chart.platform?.setTransition) return;
+    // If the data is still on its way (see `holdEntrance`) the first draw is empty axes, and the entrance is the first one with data.
+    if (this.#played || !chart.platform?.setTransition) return;
+    if (chart.flushCount === 1 && chart.awaitingData) this.#waited = true;
+    if (chart.awaitingData || (chart.flushCount !== 1 && !this.#waited)) return;
+    this.#played = true;
     const a = this.attrs,
       dur = `${a.duration ?? 400}ms`,
       ease = a.easing ?? 'ease-out',

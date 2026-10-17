@@ -40,6 +40,7 @@ import { BandScale, LinearScale, LogScale, SqrtScale } from './scales.ts';
 import type { ElementRegistry } from './serialize.ts';
 import { DomainSeries, XYSeries } from './series.ts';
 import { SeriesGroup } from './seriesgroup.ts';
+import { WorkerBoundary } from './workerboundary.ts';
 import { Stack } from './stack.ts';
 import { StepCurve } from './steps.ts';
 import { IntlTimeScale } from './time-intl.ts';
@@ -76,6 +77,7 @@ export const registry: ElementRegistry = {
   XYSeries,
   Stack,
   SeriesGroup,
+  WorkerBoundary,
   FlatDataSource,
   ObjectDataSource,
   CompositeDataSource,

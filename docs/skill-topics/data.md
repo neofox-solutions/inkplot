@@ -100,6 +100,19 @@ Keeps a window of rows of the data: move it to animate.
 | `last` | `number` | Keep this many rows ending at `end`, instead of from `start`. |
 | `keyed` | `boolean` | In a `SeriesGroup`: window the rows of each series on their own (the default), or, when false, the rows of the data as a whole, as they stand before they are split by key. |
 
+### WorkerBoundary
+
+Runs the stages inside it in a worker: draws what it has, and what the worker sends when it arrives.
+
+**In** a series · **Holds** 1 source or transform: a description the worker builds
+
+| Attribute | Type | |
+|---|---|---|
+| `worker` (required) | `WorkerLike` | Where the stages inside run. |
+| `registry` (required) | `ElementRegistry` | The classes the description is made of, by the names the worker's registry knows them under. |
+| `transfer` | `boolean` | Move the arrays to the worker instead of copying them: fast and without a second copy, but the page no longer has the rows (a hit has no row, the data cannot be edited here). |
+| `envelope` | `Envelope` | For a worker that carries other traffic too (see `Envelope`). |
+
 ### MinMaxKernel
 
 Keeps the lowest and highest of each pixel column.

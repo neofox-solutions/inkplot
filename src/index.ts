@@ -189,6 +189,10 @@ export {
   stemLines,
 } from './bars.ts';
 export { SeriesGroup, type SeriesGroupAttributes, type GroupBinding } from './seriesgroup.ts';
+export { WorkerBoundary, type WorkerBoundaryAttributes } from './workerboundary.ts';
+export { createHost, type HostOptions } from './workerhost.ts';
+export { NullWorker, LoopbackWorker, cloneMessage, type WorkerHandler, type LoopbackOptions } from './workers.ts';
+export type { Envelope, FromWorker, ToWorker, WorkerLike, WorkerMeta } from './workerproto.ts';
 export { Stack, type StackAttributes, type StackAlign, type StackMode, type Layout, alignRows, layOut } from './stack.ts';
 export {
   DomainSeries,

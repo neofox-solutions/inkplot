@@ -91,6 +91,11 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   SyntheticDataSource: { parent: 'a series', children: 'none', about: 'A function sampled when drawn.' },
   Decimator: { parent: 'a series', children: '1 kernel, then 1 source', about: 'Reduces large data to what the plot can show.' },
   Slice: { parent: 'a series', children: '1 source', about: 'Keeps a window of rows of the data: move it to animate.' },
+  WorkerBoundary: {
+    parent: 'a series',
+    children: '1 source or transform: a description the worker builds',
+    about: 'Runs the stages inside it in a worker: draws what it has, and what the worker sends when it arrives.',
+  },
   MinMaxKernel: { parent: 'Decimator', children: 'none', about: 'Keeps the lowest and highest of each pixel column.' },
   M4Kernel: { parent: 'Decimator', children: 'none', about: 'First, last, lowest and highest of each column.' },
   LttbKernel: { parent: 'Decimator', children: 'none', about: 'Largest-triangle-three-buckets: keeps the shape.' },

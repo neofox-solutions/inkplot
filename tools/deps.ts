@@ -64,6 +64,8 @@ export const FEATURE_USES: Record<string, string[]> = {
   density: ['partition'],
   trend: ['partition'],
   seriesgroup: ['partition'],
+  workerhost: ['serialize', 'workerproto'],
+  workerboundary: ['serialize', 'workerproto'],
   pie: ['bars', 'sources', 'pointannotations', 'radial', 'scales', 'stack', 'chart'],
   cursor: ['hit', 'input'],
   legend: ['input'],

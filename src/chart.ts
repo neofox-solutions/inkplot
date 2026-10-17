@@ -138,6 +138,7 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
   #needsFlush = false;
   #dataChanged = false;
   #flushCount = 0;
+  #holds = 0;
   private readonly counts: Counters = newCounters();
   private unschedule: Unsubscribe | null = null;
   private readonly subscriptions: Unsubscribe[] = [];
@@ -195,6 +196,23 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
         this.flush();
       });
     }
+  }
+
+  /**
+   * Data that has not arrived yet (a worker's) says so, so the entrance waits for it and plays when there is something to enter.
+   * Returns the function that says it has arrived; calling it again does nothing.
+   */
+  holdEntrance(): () => void {
+    this.#holds++;
+    let held = true;
+    return () => {
+      if (held) this.#holds--;
+      held = false;
+    };
+  }
+  /** True while data that was promised has not arrived (see `holdEntrance`). */
+  get awaitingData(): boolean {
+    return this.#holds > 0;
   }
 
   /** A data node changed: the next flush is the kind that may ease (see `transition`). Called by the data stages, not by apps. */
