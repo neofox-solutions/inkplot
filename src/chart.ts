@@ -21,6 +21,7 @@ import type { Cursor } from './cursor.ts';
 import { type Insets, type Rect } from './geometry.ts';
 import type { ColorAxis, ScalarAxis } from './mapped.ts';
 import type { ColorKey, SizeKey } from './key.ts';
+import type { Pattern } from './pattern.ts';
 import type { Legend } from './legend.ts';
 import type { ChartSummary } from './summary.ts';
 import type { Entrance } from './entrance.ts';
@@ -112,6 +113,7 @@ export interface ChartChildMap {
   legend: Legend;
   summary: ChartSummary;
   entrance: Entrance;
+  pattern: Pattern;
   group: ChartGroup;
 }
 export type ChartChildren = ChartChildMap[keyof ChartChildMap][];

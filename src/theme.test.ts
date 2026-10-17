@@ -12,10 +12,13 @@ import {
   LinePath,
   LinearScale,
   StringPlatform,
+  accessibleDarkTheme,
+  accessibleTheme,
   darkTheme,
   extendTheme,
   lightTheme,
   resolveStyle,
+  toSvgString,
 } from './index.ts';
 import { test } from 'vite-plus/test';
 
@@ -162,4 +165,48 @@ test('theme', () => {
     assert.equal(box.look().color, 'red', 'and a block above it applies as to anything else');
     assert.throws(() => new Box().look(), /not in a chart/);
   }
+});
+
+// The accessible themes: contrast that is checked rather than hoped for, and bigger, thicker everything.
+test('accessible themes', () => {
+  const lum = (short: string) => {
+    const hex = short.length === 4 ? short.replace(/[0-9a-f]/gi, (c) => c + c).replace('##', '#') : short;
+    const [r, g, b] = [1, 3, 5]
+      .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  };
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+    return (hi! + 0.05) / (lo! + 0.05);
+  };
+  for (const [theme, page, base] of [
+    [accessibleTheme, '#ffffff', lightTheme],
+    [accessibleDarkTheme, '#141c21', darkTheme],
+  ] as const) {
+    assert.ok(contrast(theme.text.color, page) >= 7, `text on ${page}`);
+    for (const k of ['chartSubtitle', 'chartCaption'] as const)
+      assert.ok(contrast(theme[k]?.color ?? theme.text.color, page) >= 7, `${k} on ${page}`);
+    for (const c of theme.palette) assert.ok(contrast(c, page) >= 3, `${c} on ${page}`);
+    assert.equal(theme.palette.length, 6);
+    assert.ok(theme.text.size > base.text.size && theme.seriesLine!.width! > base.seriesLine!.width!);
+    assert.match(theme.text.family, /^OpenDyslexic/);
+  }
+  // A chart takes either.
+  const svg = toSvgString(
+    new Chart(
+      { theme: accessibleTheme, width: 200, height: 120 },
+      new CartesianPlane(
+        {},
+        new Axis({ orientation: 'bottom' }, new LinearScale()),
+        new Axis({ orientation: 'left' }, new LinearScale()),
+        new DomainSeries(
+          {},
+          new FlatDataSource({ data: Float64Array.from([1, 3, 2]), regularDomain: { start: 0, step: 1 } }),
+          new LinePath(new LinearCurve()),
+        ),
+      ),
+    ),
+  );
+  assert.ok(svg.includes(`stroke="${accessibleTheme.palette[0]}"`) && svg.includes('OpenDyslexic'));
 });

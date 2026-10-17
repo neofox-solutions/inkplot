@@ -27,6 +27,41 @@ export const chart = (
 ) as Chart;
 ```
 
+## Accessible themes and pattern fills
+
+`accessibleTheme` and `accessibleDarkTheme` are `lightTheme` and `darkTheme` with larger text in OpenDyslexic (if the page has it; then Atkinson Hyperlegible, Lexend or the system font), strong contrast, thicker lines, bigger markers and a palette of colours that every reach 3:1 against the page and are told apart under common colour vision differences. Colour alone is still not enough: a **pattern** puts lines or dots in a series' fill. A pattern is an element of the **chart** (not of a plane) with an `id` that is mandatory, and it is named the way SVG names it, `url(#id)`, in `fill` (or any style that takes a colour). With no `stroke` of its own, it is drawn in the colour of the series that uses it, so one pattern serves every series and follows the theme.
+
+```tsx check title="A pattern for each series, in the accessible theme"
+/** @jsxImportSource inkplot */
+import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, DotPattern, FlatDataSource, HatchPattern, LinePattern, LinearScale, Stack, accessibleTheme } from 'inkplot';
+
+const series = (name: string, data: number[], fill: string) => (
+  <DomainSeries name={name}>
+    <FlatDataSource data={data} regularDomain-start={0} regularDomain-step={1} />
+    <BarPath fill={fill} />
+  </DomainSeries>
+);
+
+export const chart = (
+  <Chart theme={accessibleTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom"><BandScale categories={['Q1', 'Q2', 'Q3']} /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <Stack mode="group">
+        {series('A', [3, 5, 4], 'url(#lines)')}
+        {series('B', [2, 4, 5], 'url(#hatch)')}
+        {series('C', [4, 2, 3], 'url(#dots)')}
+      </Stack>
+    </CartesianPlane>
+    <LinePattern id="lines" angle={45} spacing={6} strokeWidth={2} />
+    <HatchPattern id="hatch" spacing={7} />
+    <DotPattern id="dots" strokeWidth={3} gapX={4} />
+  </Chart>
+) as Chart;
+```
+
+`LinePattern` takes `angle` (degrees clockwise from the x axis, default 45), `spacing` and `dash`; `HatchPattern` adds `crossAngle` (default -45); `DotPattern` takes `cap` (`'round'` or `'square'`), `gapX`, `gapY` and `offset` (how far every other row is shifted). All take `stroke`, `fill` (the tile's background) and `strokeWidth`. `checkerboard(size)` returns the `DotPattern` attributes for a checkerboard. A pattern of your own is a subclass of `Pattern` that draws its tile with `linePattern` or `dotPattern` or by hand. A `url(#id)` that names no pattern is left as it is.
+
 ## In React
 
 
@@ -62,3 +97,56 @@ export function Trend({ values }: { values: number[] }) {
 | Show gridlines or a frame | `<CartesianPlane gridlines={false} frame>` |
 | Accessible name | `meta-title`, `meta-description` on the `Chart`; `<ChartSummary />` for an automatic one |
 
+
+## Attributes of this topic's elements
+
+An attribute followed by `(required)` must be given. Every element also takes `id`, `meta`, `visible` and `style`.
+
+<!-- api:start -->
+### LinePattern
+
+A fill of parallel lines, named in a style as `url(#id)`; takes the colour of the series that uses it.
+
+**In** Chart · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `angle` | `number` | Degrees clockwise from the x axis. Default 45. |
+| `spacing` | `number` | The distance between lines, in pixels. Default 6. |
+| `dash` | `string` | An SVG dash array in pixels, such as '6 3'. Default none (solid). |
+| `stroke` | `string` | The colour of the lines or dots. |
+| `fill` | `string` | The tile's background. Default none. |
+| `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
+
+### HatchPattern
+
+A fill of two crossing sets of lines (a crosshatch), named in a style as `url(#id)`.
+
+**In** Chart · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `crossAngle` | `number` | The second family of lines. Default -45, so with the default `angle` the two cross at right angles. |
+| `angle` | `number` | Degrees clockwise from the x axis. Default 45. |
+| `spacing` | `number` | The distance between lines, in pixels. Default 6. |
+| `dash` | `string` | An SVG dash array in pixels, such as '6 3'. Default none (solid). |
+| `stroke` | `string` | The colour of the lines or dots. |
+| `fill` | `string` | The tile's background. Default none. |
+| `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
+
+### DotPattern
+
+A fill of rows of round or square dots (a checkerboard is square dots), named in a style as `url(#id)`.
+
+**In** Chart · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `cap` | `'round' \| 'square'` |  |
+| `gapX` | `number` |  |
+| `gapY` | `number` |  |
+| `offset` | `number` |  |
+| `stroke` | `string` | The colour of the lines or dots. |
+| `fill` | `string` | The tile's background. Default none. |
+| `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
+<!-- api:end -->

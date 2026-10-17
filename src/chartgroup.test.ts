@@ -6,6 +6,8 @@ import {
   Crosshair,
   Cursor,
   PanZoom,
+  PolarPlane,
+  RadarPlane,
   CartesianPlane,
   Chart,
   ChartGroup,
@@ -602,5 +604,62 @@ test('chart group directions, new lines and empty items', () => {
     const copy = fromJSON(json, registry);
     assert.deepEqual(JSON.parse(JSON.stringify(toJSON(copy, registry))), json);
     assert.match(JSON.stringify(json), /"reverseLines":true/);
+  }
+});
+
+// A shared range on a polar plane: the same machinery, whatever the plane draws.
+test('shared ranges on polar planes', () => {
+  const rows = (ys: number[]) => new FlatDataSource({ data: Float64Array.from(ys.flatMap((y, i) => [i, y])), stride: 2 });
+  const cell = (ys: number[], plane: typeof PolarPlane | typeof RadarPlane = PolarPlane, extra: Record<string, unknown> = {}) =>
+    new ChartGroupItem(
+      {},
+      new plane(
+        { sweep: 4 },
+        new Axis({ orientation: 'angle', min: 0, max: ys.length - 1 }, new LinearScale()),
+        new SharedAxis({ orientation: 'radius', sharedRef: 'r', ...extra }),
+        new DomainSeries({}, rows(ys), new LinePath(new LinearCurve())),
+      ),
+    );
+  const build = (items: ChartGroupItem[]) => {
+    const group = new ChartGroup({ columns: 2 }, new SharedRange({ id: 'r' }, new LinearScale()), ...items);
+    const chart = new Chart({ theme: lightTheme, width: W, height: H }, group);
+    chart.attach(new StringPlatform({ width: W, height: H })).flush();
+    return group;
+  };
+
+  // Both charts draw the union of what either holds, on the one scale.
+  {
+    const a = cell([1, 2, 3, 2]),
+      b = cell([10, 20, 30, 20], RadarPlane);
+    const group = build([a, b]);
+    const range = [...group].find((c): c is SharedRange => c instanceof SharedRange)!.range;
+    assert.ok(range.min <= 1 && range.max >= 30, `the range covers both: ${JSON.stringify(range)}`);
+    const [ra, rb] = [a.planes[0]!.axes[1]!, b.planes[0]!.axes[1]!];
+    assert.deepEqual(ra.range, rb.range);
+    assert.equal(ra.scale, rb.scale);
+  }
+  // edgeOnly is for Cartesian planes: on a polar axis it is not an error and the axis is still drawn.
+  {
+    const a = cell([1, 2, 3, 2], PolarPlane, { edgeOnly: true }),
+      b = cell([4, 5, 6, 5], PolarPlane, { edgeOnly: true });
+    build([a, b]);
+    assert.equal(a.planes[0]!.axes[1]!.drawn, true);
+    assert.equal(b.planes[0]!.axes[1]!.drawn, true);
+  }
+  // A polar chart and a Cartesian one can share a range.
+  {
+    const c = new ChartGroupItem(
+      {},
+      new CartesianPlane(
+        {},
+        new Axis({ orientation: 'bottom' }, new LinearScale()),
+        new SharedAxis({ orientation: 'left', sharedRef: 'r' }),
+        new DomainSeries({}, rows([50, 60]), new LinePath(new LinearCurve())),
+      ),
+    );
+    const a = cell([1, 2, 3, 2]);
+    const group = build([a, c]);
+    const range = [...group].find((x): x is SharedRange => x instanceof SharedRange)!.range;
+    assert.ok(range.max >= 60 && range.min <= 1);
   }
 });

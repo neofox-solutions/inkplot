@@ -124,6 +124,10 @@ export default () => (
 
 Click the chart and press Tab, then the arrow keys.
 
+## Seeing the chart: contrast, size, and not only colour
+
+`accessibleTheme` (and `accessibleDarkTheme`) is a theme with larger text in OpenDyslexic if the page has it, strong contrast and thicker lines, and a palette whose colours each reach 3:1 against the page and are told apart under common colour vision differences ([Styling](styling.md#accessible-themes)). It is a first step and not the last: colour should not be the only way to tell two series apart, since a chart is printed in grey and seen by people who cannot tell the colours. Give each series a **pattern** (`LinePattern`, `HatchPattern`, `DotPattern`) in its `fill`, or markers and dashes, so that it differs in more than hue ([Styling](styling.md#pattern-fills)). The playground has an Accessible button that puts any demo in the accessible theme.
+
 ## What is hidden
 
 Decoration is kept out of the accessibility tree (`aria-hidden`): gridlines, ticks and tick labels, legend swatches. What remains is the chart's name and description, the focusable plot, and the legend's buttons. Tick labels are covered by the summary's axis spans, and exact values by the tooltip.
@@ -133,6 +137,7 @@ Decoration is kept out of the accessibility tree (`aria-hidden`): gridlines, tic
 - Give the chart a `meta.title`, and say what it shows in `meta.description` or add a `ChartSummary`.
 - Name the plane that carries a `Cursor` or `PanZoom`.
 - Give every series a `name`; the summary, legend and tooltip use it.
-- Do not rely on colour alone: use markers, dashes or direct labels as well (`style-seriesLine-dash`).
+- Do not rely on colour alone: use patterns, markers, dashes or direct labels as well (`style-seriesLine-dash`, `fill="url(#hatch)"`).
+- Consider `accessibleTheme` (or `accessibleDarkTheme`): larger text, stronger contrast, thicker lines.
 - Keep the default focus ring, or restyle it through the `focusRing` selector ([Styling](styling.md)).
 - Supply `format` for tooltips and `text` for summaries in the page's language.

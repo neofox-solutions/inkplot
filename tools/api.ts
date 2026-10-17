@@ -11,7 +11,8 @@ const SRC = new URL('../src/', import.meta.url);
 export const STRUCTURE: Record<string, { parent: string; children: string; about: string }> = {
   Chart: {
     parent: 'none (the root)',
-    children: 'a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance',
+    children:
+      'a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance, LinePattern, HatchPattern, DotPattern',
     about: 'The root: a theme, a size, and what is drawn on it.',
   },
   ChartGroup: {
@@ -40,6 +41,21 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
     parent: 'Chart',
     children: 'none',
     about: 'The series play an entrance when the chart first appears: bars grow, lines draw on, round charts fade in.',
+  },
+  LinePattern: {
+    parent: 'Chart',
+    children: 'none',
+    about: 'A fill of parallel lines, named in a style as `url(#id)`; takes the colour of the series that uses it.',
+  },
+  HatchPattern: {
+    parent: 'Chart',
+    children: 'none',
+    about: 'A fill of two crossing sets of lines (a crosshatch), named in a style as `url(#id)`.',
+  },
+  DotPattern: {
+    parent: 'Chart',
+    children: 'none',
+    about: 'A fill of rows of round or square dots (a checkerboard is square dots), named in a style as `url(#id)`.',
   },
   ChartSummary: { parent: 'Chart', children: 'none', about: 'A spoken summary of the chart, for screen readers (English, replaceable).' },
   Cursor: {
@@ -127,6 +143,11 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
     parent: 'a series',
     children: '1 data',
     about: 'A constant plus a sine wave fitted to its source, of a given `period` or the best one.',
+  },
+  MeanTrend: {
+    parent: 'a series',
+    children: '1 data',
+    about: "A weighted moving average: never leaves the data's range, flat past the ends. `smoothness` 0 joins the points, 1 is the mean.",
   },
   LoessTrend: { parent: 'a series', children: '1 data', about: 'Local linear regression: `smoothness` 0 joins the points, 1 is the line.' },
   HeatMap: { parent: 'a series', children: 'none', about: 'A rectangle at each point, coloured by a channel; with `Density`, a heat map.' },

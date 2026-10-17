@@ -78,7 +78,7 @@ interface BaseTheme extends Theme {
 }
 ```
 
-The theme must define every property of every root, and every chain ends in a root, so there is always a value to find. `lightTheme` and `darkTheme` are included. Each is a plain object in its own module, so a bundle that names only one leaves the other out.
+The theme must define every property of every root, and every chain ends in a root, so there is always a value to find. `lightTheme` and `darkTheme` are included, with an [accessible](#accessible-themes) version of each. Each is a plain object in its own module, so a bundle that names only one leaves the other out.
 
 **Making your own**: derive it. `extendTheme(base, patch)` merges each selector in the patch over the same one in the base, property by property.
 
@@ -134,6 +134,66 @@ Series colours come from `theme.palette`, by position among the plane's series, 
 - a renderer's own `stroke` or `fill` beats it (`<LinePath stroke="crimson">`);
 - so does any `style` block that names the colour;
 - `color` on a legend, a tooltip and a key follows the series' first renderer, so a series coloured by hand is the same colour everywhere.
+
+## Accessible themes
+
+`accessibleTheme` and `accessibleDarkTheme` are the light and dark themes made for readers who need more from a chart:
+
+- text is larger (14 where the others have 11) and set in **OpenDyslexic** if the page has it, then Atkinson Hyperlegible or Lexend, then the system font. The library does not ship a font: load OpenDyslexic with `@font-face` (or have it installed) and the theme picks it up;
+- text and lines are near black on white (or near white on dark), over 15:1;
+- lines, markers, error bars and outlines are thicker, and ticks are longer;
+- the palette is six colours, each over 3:1 against the page (the WCAG 1.4.11 minimum for graphics), chosen from colour-blind-safe hues so that they differ in lightness as well as hue.
+
+Use one like any other theme (`<Chart theme={accessibleTheme}>`), or derive from it with `extendTheme`. The sizes are for a chart seen at its own size, so a small chart in this theme has less room for its data. Colour is still not enough: see [Patterns](#pattern-fills).
+
+## Pattern fills
+
+A **pattern** fills a shape with lines or dots instead of a flat colour, so that series can be told apart on a grey screen, in print, or without seeing the colours. A pattern is an element of the **chart** (a child of `Chart`, or of a `ChartGroupItem`; it is not a child of a plane) with an `id`, and it is named the way SVG names it: `url(#id)`, in `fill` or in any style that takes a colour.
+
+```tsx live title="A pattern for each series" height=300
+import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, DotPattern, FlatDataSource, HatchPattern, Legend, LinePattern, LinearScale, Stack, checkerboard, lightTheme } from 'inkplot';
+
+const series = (name: string, data: number[], fill: string) => (
+  <DomainSeries name={name}>
+    <FlatDataSource data={data} regularDomain-start={0} regularDomain-step={1} />
+    <BarPath fill={fill} />
+  </DomainSeries>
+);
+
+export default () => (
+  <Chart theme={lightTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom"><BandScale categories={['Q1', 'Q2', 'Q3', 'Q4']} /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <Stack mode="group">
+        {series('Lines', [30, 38, 35, 50], 'url(#lines)')}
+        {series('Hatch', [22, 27, 31, 36], 'url(#hatch)')}
+        {series('Dots', [14, 20, 16, 23], 'url(#dots)')}
+        {series('Checks', [8, 11, 9, 14], 'url(#checks)')}
+      </Stack>
+    </CartesianPlane>
+    <Legend side="bottom" />
+    <LinePattern id="lines" angle={45} spacing={7} strokeWidth={2} />
+    <HatchPattern id="hatch" spacing={8} strokeWidth={1.5} />
+    <DotPattern id="dots" strokeWidth={3} gapX={4} />
+    <DotPattern id="checks" {...checkerboard(4)} />
+  </Chart>
+);
+```
+
+| Pattern | Draws | Attributes |
+|---|---|---|
+| `LinePattern` | parallel lines | `angle` (degrees clockwise from the x axis, default 45), `spacing` (between lines, default 6), `dash` (an SVG dash array in pixels, such as `'6 3'`) |
+| `HatchPattern` | two sets of lines that cross | the same, and `crossAngle` (default -45, so the two cross at right angles) |
+| `DotPattern` | rows of dots | `cap` (`'round'` or `'square'`), `gapX` and `gapY` (the room between dots, edge to edge), `offset` (how far every other row is shifted along; the default staggers them) |
+
+All of them take `stroke`, `fill` (the background of the tile, default none) and `strokeWidth` (the thickness of a line, or the width of a dot). A **checkerboard** is square dots whose size, both gaps and offset are the same number: `checkerboard(size)` gives those attributes.
+
+**The colour.** Without a `stroke`, a pattern is drawn in the colour of the series that uses it: each series gets its own copy in its own palette colour, so one `HatchPattern` serves them all, the legend swatches match the bars, and a change of theme changes the pattern. Give the pattern a `stroke` and it is that colour wherever it is used. Under the hood the style resolver sees a paint of the form `url(#id)`, finds the pattern of that `id` that is nearest in the chart, and asks it for the paint to use; a `url(#id)` that names no pattern here is left as it is, so SVG you wrote yourself still works.
+
+**Your own.** `linePattern(surface, node, key, options)` and `dotPattern(...)` are the two functions the patterns above call: a pattern of your own is a subclass of `Pattern` whose `drawTile` calls one of them (or both, in a pattern that alternates), or draws anything else into the tile (an image, glyphs). The tile of a line pattern is one cell of the lattice the lines make, so it repeats exactly at any angle and a dash array is fitted to it (a whole number of cycles each a little longer or shorter than you asked); a crosshatch of two angles shares one tile.
+
+**Two things to know.** An `id` is looked up from the element that uses it, outward, so put patterns on the chart; the same `id` on two patterns in different charts of a group is two patterns, but in one SVG their ids are one namespace. And a pattern is a paint: it can be the `fill` of a bar, an area, a marker, a box or a heat cell, but a line's `color` is a stroke, which draws a pattern as a thin line of lines; use it on the thick strokes of an outline.
 
 ## In markup
 

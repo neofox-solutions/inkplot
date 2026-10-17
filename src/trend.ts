@@ -50,7 +50,7 @@ export interface TrendFit {
   /** A sinusoid's period, and its amplitude. */
   readonly period?: number;
   readonly amplitude?: number;
-  /** A loess line's reach on each side of a point, in the domain's units (it is wider where the points are few). */
+  /** A loess or mean line's reach on each side of a point, in the domain's units (it is wider where the points are few). */
   readonly bandwidth?: number;
 }
 
@@ -529,39 +529,10 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
     if (s === 1) return leastSquares(xs, ys);
     if (s === 0) return interpolation(xs, ys);
     const h0 = (REACH_AT_HALF * span * s) / (1 - s);
-    const weight =
-      kernel === 'tricube'
-        ? (q: number) => {
-            const t = 1 - q * q * q;
-            return t * t * t;
-          }
-        : (q: number) => Math.exp(-4.5 * q * q); // sigma = h / 3: the weight is negligible at the window's edge
+    const weight = kernelWeight(kernel);
     // The local line at x0 (its value there and its slope) from the points within `reach`, widened to hold three.
     const local = (x0: number, reach: number): { a: number; b: number } | null => {
-      let h = reach;
-      let lo = lowerBound(xs, x0 - h),
-        hi = lowerBound(xs, x0 + h, true);
-      if (hi - lo < MIN_WINDOW) {
-        // Widen to the distance of the third nearest point.
-        let l = lowerBound(xs, x0) - 1,
-          r = l + 1,
-          d = 0;
-        for (let k = 0; k < Math.min(MIN_WINDOW, n); k++) {
-          const dl = l >= 0 ? x0 - xs[l]! : Infinity,
-            dr = r < n ? xs[r]! - x0 : Infinity;
-          if (dl <= dr) {
-            d = dl;
-            l--;
-          } else {
-            d = dr;
-            r++;
-          }
-        }
-        // A little past the third point, so that it still counts for something.
-        h = Math.max(h, d * WIDEN);
-        lo = lowerBound(xs, x0 - h);
-        hi = lowerBound(xs, x0 + h, true);
-      }
+      const { lo, hi, h } = window(xs, x0, reach);
       let s0 = 0,
         s1 = 0,
         s2 = 0,
@@ -597,6 +568,165 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
     };
     return { at, details: { bandwidth: h0 } };
   }
+}
+
+/** How a point's weight falls with its distance `q` (as a fraction of the reach, 0 to 1) under a kernel. */
+function kernelWeight(kernel: unknown): (q: number) => number {
+  if (kernel !== 'tricube' && kernel !== 'gaussian') fail(`kernel is 'tricube' or 'gaussian' (got "${String(kernel)}")`);
+  return kernel === 'tricube'
+    ? (q) => {
+        const t = 1 - q * q * q;
+        return t * t * t;
+      }
+    : (q) => Math.exp(-4.5 * q * q); // sigma = h / 3: the weight is negligible at the window's edge
+}
+
+/** The points within `reach` of `x0` (indices `lo` to `hi`), widening the reach to hold at least MIN_WINDOW of them. */
+function window(xs: Float64Array, x0: number, reach: number): { lo: number; hi: number; h: number } {
+  const n = xs.length;
+  let h = reach;
+  let lo = lowerBound(xs, x0 - h),
+    hi = lowerBound(xs, x0 + h, true);
+  if (hi - lo < MIN_WINDOW) {
+    // Widen to the distance of the third nearest point.
+    let l = lowerBound(xs, x0) - 1,
+      r = l + 1,
+      d = 0;
+    for (let k = 0; k < Math.min(MIN_WINDOW, n); k++) {
+      const dl = l >= 0 ? x0 - xs[l]! : Infinity,
+        dr = r < n ? xs[r]! - x0 : Infinity;
+      if (dl <= dr) {
+        d = dl;
+        l--;
+      } else {
+        d = dr;
+        r++;
+      }
+    }
+    // A little past the third point, so that it still counts for something.
+    h = Math.max(h, d * WIDEN);
+    lo = lowerBound(xs, x0 - h);
+    hi = lowerBound(xs, x0 + h, true);
+  }
+  return { lo, hi, h };
+}
+
+// ─── Mean (local constant) ───
+
+export interface MeanTrendAttributes extends TrendlineAttributes {
+  /** 0 to 1: 0 joins the points, 1 is their mean, and between them the line is smoother the larger it is. Default 0.5. */
+  smoothness?: number;
+  /** How a point's weight falls with its distance. Default 'tricube'. */
+  kernel?: 'tricube' | 'gaussian';
+}
+/** Above this many points the weighted means are made on a grid, so that the cost does not grow with the points in each reach. */
+const EXACT_UP_TO = 2000;
+/** Grid positions across the data's span. */
+const GRID = 4096;
+/** The reach has to span this many grid steps for the grid to be used; a narrower one reads its few points directly. */
+const GRID_MIN_REACH = 3;
+/** The spread of each kernel as a fraction of its reach (its standard deviation). */
+const SPREAD = { tricube: 0.3795, gaussian: 1 / 3 };
+
+/**
+ * A weighted moving average, centred on each position and reaching both ways: the value is the mean of the points near it,
+ * nearer ones counting for more. That is the local-constant case of the regression `LoessTrend` makes, and it differs in the one
+ * way that matters when the line must be safe: every weight is positive and they sum to one, so the line is always between the
+ * lowest and highest value of the data and never overshoots, however smooth; and past the ends it holds the end value, rather than
+ * continuing a slope. `smoothness` is the same control as a loess line's (the reach is `smoothness / (1 - smoothness)` times 0.3 of
+ * the span): 0 joins the points, 1 is the mean of all of them. The price is bias at the ends and on sharp peaks, where the mean is
+ * pulled toward the neighbours; a loess line follows those better. Over many points the means are made on a grid (the points are
+ * shared out to it, smoothed there with three passes of a moving sum, and read back), so a very smooth line over millions of points
+ * costs what a rough one does. It needs sorted points, which it makes itself. `fit.bandwidth` is the reach.
+ */
+export class MeanTrend extends Trendline<MeanTrendAttributes> {
+  static override attrTypes = { ...Trendline.attrTypes, smoothness: NUMBER, kernel: STRING } satisfies AttrTypesFor<MeanTrendAttributes>;
+
+  protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
+    const s = this.attrs.smoothness ?? 0.5,
+      kernel = this.attrs.kernel ?? 'tricube';
+    if (!(s >= 0 && s <= 1)) fail(`MeanTrend: smoothness is from 0 to 1 (got ${s})`);
+    const weight = kernelWeight(kernel);
+    const n = xs.length,
+      first = xs[0]!,
+      last = xs[n - 1]!,
+      span = last - first;
+    if (!(span > 0)) return null;
+    if (s === 0) {
+      const joined = interpolation(xs, ys);
+      // The end segments are not continued past the points: the line holds the end value.
+      return joined && { ...joined, at: (x) => joined.at(Math.min(last, Math.max(first, x))) };
+    }
+    if (s === 1) {
+      let sum = 0;
+      for (let i = 0; i < n; i++) sum += ys[i]!;
+      const mean = sum / n;
+      return { at: (x) => (Number.isFinite(x) ? mean : NaN), details: { bandwidth: Infinity } };
+    }
+    const h0 = (REACH_AT_HALF * span * s) / (1 - s);
+    // The mean of the points within reach of x0, read straight from them.
+    const direct = (x0: number): number => {
+      const { lo, hi, h } = window(xs, x0, h0);
+      let sw = 0,
+        sy = 0;
+      for (let j = lo; j < hi; j++) {
+        const w = weight(Math.abs(xs[j]! - x0) / h);
+        sw += w;
+        sy += w * ys[j]!;
+      }
+      return sw > 0 ? sy / sw : NaN;
+    };
+    const step = span / (GRID - 1);
+    if (n <= EXACT_UP_TO || h0 < GRID_MIN_REACH * step)
+      return { at: (x) => (Number.isFinite(x) ? direct(Math.min(last, Math.max(first, x))) : NaN), details: { bandwidth: h0 } };
+
+    // On a grid: share each point's weight between the two grid positions beside it, smooth the weights and the weighted values alike
+    // (the same three passes, so their ratio is the weighted mean), and read between positions. Where nothing is near, read the points.
+    let sw: Float64Array = new Float64Array(GRID),
+      sy: Float64Array = new Float64Array(GRID);
+    for (let i = 0; i < n; i++) {
+      const f = (xs[i]! - first) / step,
+        k = Math.min(GRID - 2, Math.floor(f)),
+        t = f - k;
+      sw[k]! += 1 - t;
+      sw[k + 1]! += t;
+      sy[k]! += (1 - t) * ys[i]!;
+      sy[k + 1]! += t * ys[i]!;
+    }
+    // Three moving sums of width w have the variance of a kernel of the reach h0 when 3 (w^2 - 1) / 12 = (spread * h0 / step)^2.
+    const sigma = (SPREAD[kernel] * h0) / step;
+    const radius = Math.max(1, Math.round((Math.sqrt(4 * sigma * sigma + 1) - 1) / 2));
+    for (let pass = 0; pass < 3; pass++) {
+      sw = movingSum(sw, radius);
+      sy = movingSum(sy, radius);
+    }
+    const floor = (n / GRID) * 1e-6 * (2 * radius + 1) ** 3;
+    const grid = new Float64Array(GRID);
+    for (let k = 0; k < GRID; k++) grid[k] = sw[k]! > floor ? sy[k]! / sw[k]! : NaN;
+    const at = (x: number): number => {
+      if (!Number.isFinite(x)) return NaN;
+      const f = (Math.min(last, Math.max(first, x)) - first) / step,
+        k = Math.min(GRID - 2, Math.floor(f)),
+        a = grid[k]!,
+        b = grid[k + 1]!;
+      return a === a && b === b ? a + (b - a) * (f - k) : direct(Math.min(last, Math.max(first, x)));
+    };
+    return { at, details: { bandwidth: h0 } };
+  }
+}
+
+/** Each value replaced by the sum of those within `radius` of it, none being counted beyond the ends. */
+function movingSum(a: Float64Array, radius: number): Float64Array {
+  const n = a.length,
+    out = new Float64Array(n);
+  let acc = 0;
+  for (let i = 0; i < Math.min(n, radius); i++) acc += a[i]!;
+  for (let i = 0; i < n; i++) {
+    if (i + radius < n) acc += a[i + radius]!;
+    if (i - radius - 1 >= 0) acc -= a[i - radius - 1]!;
+    out[i] = acc;
+  }
+  return out;
 }
 
 /** The index of the first x not below `x` (or, with `after`, the first above it). */

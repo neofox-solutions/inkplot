@@ -13,7 +13,7 @@ import type { PointBuffer } from './data.ts';
 import { writeAria } from './aria.ts';
 import { fail } from './element.ts';
 import { type ChartEvent, EVENT_ARRANGE, EVENT_ATTACH, EVENT_PAINT } from './events.ts';
-import { type Insets, type Rect, f2 } from './geometry.ts';
+import { type Insets, type Rect, type Size, f2 } from './geometry.ts';
 import { MIN_INSET, Plane, type PlaneAttributes, nextClipId } from './plane.ts';
 
 export interface RadialPlaneAttributes extends PlaneAttributes {
@@ -252,17 +252,26 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
    * Same three passes as a Cartesian plane (estimate → fit → measure → final size → project), except that the plot is
    * the largest circle in what is left, and the only margin that matters is what the angle axis' labels need around it.
    */
-  private arrange(available: Rect): void {
-    const axes = this.axes,
-      series = this.series;
+  /** A first guess at the circle, which sizes the fills and the tick counts; the labels then say how much room they take. */
+  private guess(available: Rect): Size {
     this.assignAxes(SIDES, polarSide);
-
-    // A first guess at the circle sizes the fills and the tick counts; the labels then say how much room they take.
     this.#radius = Math.max(1, Math.min(available.width, available.height) / 2 - 24);
     this.#cx = this.#cy = 0;
     this.setRulers();
-    const estimate = { width: Math.max(1, Math.abs(this.sweep) * this.#radius), height: this.#radius };
-    this.fit(estimate);
+    return { width: Math.max(1, Math.abs(this.sweep) * this.#radius), height: this.#radius };
+  }
+
+  #fitted = -1;
+  *fitSteps(available: Rect): Generator<void> {
+    yield* this.fitStages(this.guess(available));
+    this.#fitted = this.chart?.flushCount ?? 0;
+  }
+
+  private arrange(available: Rect): void {
+    const axes = this.axes,
+      series = this.series;
+    const estimate = this.guess(available);
+    if (this.#fitted !== (this.chart?.flushCount ?? 0)) this.fit(estimate);
     let margin = 0;
     for (const a of axes) {
       this.measureChild(a, estimate);

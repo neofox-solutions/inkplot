@@ -57,3 +57,73 @@ export const darkTheme: BaseTheme = /* @__PURE__ */ extendTheme(lightTheme, {
   calloutText: { color: '#e0e0e0' },
   selection: { fill: '#5b9bff', stroke: '#5b9bff' },
 });
+
+const ACCESSIBLE_FONT = `OpenDyslexic, "Atkinson Hyperlegible", Lexend, ${FONT}`;
+/**
+ * What makes a theme accessible, on top of a light or dark one: larger text in a typeface made to be read (OpenDyslexic if the page
+ * has it, then Atkinson Hyperlegible or Lexend, then the system's), text and lines of strong contrast, thicker lines, bigger markers,
+ * and a palette whose colours are told apart under the common colour vision differences and each reach 3:1 against the page (WCAG
+ * 1.4.11). Colour is still not enough on its own: put a pattern on each series (`HatchPattern`, `DotPattern`) so that it can be told
+ * apart without it. The sizes are for a chart seen at its own size: a small chart in this theme has less room for the data.
+ */
+const ACCESSIBLE = {
+  text: { size: 14, family: ACCESSIBLE_FONT },
+  axis: { tickLength: 7, labelGap: 5, spacing: 6 },
+  marker: { size: 5 },
+  callout: { padding: 8 },
+  axisTitle: { size: 15 },
+  chartTitle: { size: 20 },
+  chartSubtitle: { size: 15 },
+  chartCaption: { size: 13 },
+  line: { width: 2 },
+  focusRing: { width: 3 },
+  seriesLine: { width: 3 },
+  seriesArea: { opacity: 0.45, strokeWidth: 3 },
+  errorBar: { width: 2.5 },
+  boxLine: { width: 2.5 },
+  seriesBox: { opacity: 0.5, strokeWidth: 2.5 },
+  errorBand: { opacity: 0.3 },
+  lineMarker: { strokeWidth: 2.5 },
+  annotationLine: { width: 2 },
+  calloutArm: { width: 1.5 },
+};
+
+/** `lightTheme` made accessible: see `ACCESSIBLE`. Text is near black on white (over 15:1), and every palette colour is over 4:1. */
+export const accessibleTheme: BaseTheme = /* @__PURE__ */ extendTheme(lightTheme, {
+  ...ACCESSIBLE,
+  palette: ['#0072b2', '#c44e00', '#007f5f', '#a66f00', '#a94f82', '#595959'],
+  text: { ...ACCESSIBLE.text, color: '#111' },
+  line: { ...ACCESSIBLE.line, color: '#222' },
+  gridline: { color: '#cfcfcf', width: 1 },
+  frame: { color: '#666' },
+  crosshair: { color: '#333' },
+  focusRing: { ...ACCESSIBLE.focusRing, color: '#0a3d91' },
+  chartSubtitle: { ...ACCESSIBLE.chartSubtitle, color: '#333' },
+  chartCaption: { ...ACCESSIBLE.chartCaption, color: '#444' },
+  annotationLine: { ...ACCESSIBLE.annotationLine, color: '#7a3b00' },
+  calloutBox: { fill: '#fff', stroke: '#444' },
+  calloutArm: { ...ACCESSIBLE.calloutArm, color: '#444' },
+  calloutText: { color: '#000' },
+  shape: { fill: '#0072b2' },
+  selection: { fill: '#0072b2', stroke: '#0072b2' },
+});
+
+/** `darkTheme` made accessible: the same sizes and type, light text (over 15:1 on a dark page), and a palette over 6:1 on it. */
+export const accessibleDarkTheme: BaseTheme = /* @__PURE__ */ extendTheme(darkTheme, {
+  ...ACCESSIBLE,
+  palette: ['#56b4e9', '#ff8a3d', '#33c79a', '#f0b840', '#d68fc0', '#c8c8c8'],
+  text: { ...ACCESSIBLE.text, color: '#f2f2f2' },
+  line: { ...ACCESSIBLE.line, color: '#e6e6e6' },
+  gridline: { color: '#444', width: 1 },
+  frame: { color: '#999' },
+  crosshair: { color: '#ddd' },
+  focusRing: { ...ACCESSIBLE.focusRing, color: '#8ab4f8' },
+  chartSubtitle: { ...ACCESSIBLE.chartSubtitle, color: '#ddd' },
+  chartCaption: { ...ACCESSIBLE.chartCaption, color: '#ccc' },
+  annotationLine: { ...ACCESSIBLE.annotationLine, color: '#f0b88f' },
+  calloutBox: { fill: '#1b252b', stroke: '#bbb' },
+  calloutArm: { ...ACCESSIBLE.calloutArm, color: '#bbb' },
+  calloutText: { color: '#fff' },
+  shape: { fill: '#56b4e9' },
+  selection: { fill: '#56b4e9', stroke: '#56b4e9' },
+});

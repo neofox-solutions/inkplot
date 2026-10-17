@@ -125,7 +125,7 @@ Attributes of the elements in the Template. An attribute followed by `(required)
 
 The root: a theme, a size, and what is drawn on it.
 
-**In** none (the root) · **Holds** a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance
+**In** none (the root) · **Holds** a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance, LinePattern, HatchPattern, DotPattern
 
 | Attribute | Type | |
 |---|---|---|
@@ -276,13 +276,13 @@ Read the topic that matches the chart; each has examples and the attributes of t
 - **axes** (`topics/axes.md`): dates and times, categories, log and sqrt scales, tick labels and formats, axis limits, a second or reversed axis, number and date language. Elements: LogScale, SqrtScale, BandScale, IntlTimeScale, TemporalTimeScale.
 - **lines-bars** (`topics/lines-bars.md`): bars (grouped, stacked), areas, smooth and stepped lines, curves, gaps in the data, several series sharing a plane. Elements: Stack, SeriesGroup, AreaPath, MonotoneCurve, NaturalCurve, CardinalCurve, CatmullRomCurve, BasisCurve, BumpCurve, QuadraticCurve, ArcCurve, StepCurve, BarPath, StemPath.
 - **markers-color** (`topics/markers-color.md`): scatter and bubble charts, dots and crosses, colour or size taken from the data, colour and size keys. Elements: XYSeries, DotMarker, CrossMarker, PlusMarker, CircleMarker, SquareMarker, ColorAxis, ScalarAxis, ColorKey, SizeKey.
-- **statistics** (`topics/statistics.md`): histograms (a histogram is `Density` + `BarPath`), heat maps, density, box plots, trendlines (linear, polynomial, sinusoidal, loess), error bars and bands. Elements: BoxPath, BoxStats, Density, HeatMap, LinearTrend, PolynomialTrend, SinusoidalTrend, LoessTrend, ErrorBars, ErrorBand.
+- **statistics** (`topics/statistics.md`): histograms (a histogram is `Density` + `BarPath`), heat maps, density, box plots, trendlines (linear, polynomial, sinusoidal, loess), error bars and bands. Elements: BoxPath, BoxStats, Density, HeatMap, LinearTrend, PolynomialTrend, SinusoidalTrend, LoessTrend, MeanTrend, ErrorBars, ErrorBand.
 - **furniture** (`topics/furniture.md`): a chart title or caption, a legend, reference lines and callouts, notes on chosen points, an accessible name and summary. Elements: ChartTitle, Legend, ChartSummary, LineAnnotation, CalloutAnnotation, PointAnnotations.
 - **interaction** (`topics/interaction.md`): tooltips, a crosshair, pan and zoom, drag-to-zoom, brushing a range, clicks and hovers, touch, an entrance animation. Elements: ChartTooltip, Cursor, Crosshair, PanZoom, BoxZoom, Brush, PointerListener, Entrance.
 - **grid** (`topics/grid.md`): a dashboard: several charts in one picture, in a grid. Elements: ChartGroup, ChartGroupItem, SharedRange, SharedAxis.
 - **planes** (`topics/planes.md`): polar and radar charts. Elements: PolarPlane, RadarPlane.
 - **data** (`topics/data.md`): a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table. Elements: CompositeDataSource, SyntheticDataSource, Decimator, Slice, WorkerBoundary, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel.
-- **styling-output** (`topics/styling-output.md`): dark and custom themes, styling parts, React, a PNG, chart as JSON, your own element types.
+- **styling-output** (`topics/styling-output.md`): dark, accessible and custom themes, pattern fills (hatching, dots), styling parts, React, a PNG, chart as JSON, your own element types. Elements: LinePattern, HatchPattern, DotPattern.
 - **troubleshooting** (`topics/troubleshooting.md`): an error message or a chart that draws nothing or draws wrongly.
 <!-- index:end -->
 

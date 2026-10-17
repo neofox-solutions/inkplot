@@ -291,7 +291,7 @@ export abstract class ChartElement<
     const scopes: (Theme | undefined)[] = [];
     // oxlint-disable-next-line typescript/no-this-alias -- a walk up the parent chain that starts at this element
     for (let e: AnyElement | null = this; e; e = e.#parent) scopes.push(e.#attrs.style);
-    return resolveStyle(chain, scopes, chart.attrs.theme, local, accent);
+    return paintsOf(this, resolveStyle(chain, scopes, chart.attrs.theme, local, accent), accent);
   }
 
   getAttribute<K extends keyof Attrs>(name: K): Attrs[K] {
@@ -632,6 +632,27 @@ export function resolveRef<T extends AnyElement>(ref: ElementRef<T> | undefined,
     fail(`element "${typeof ref === 'string' ? ref : (ref.attrs.id ?? '?')}" is not a ${type.name}`);
   }
   return el as T;
+}
+
+/** An element a style can name as a paint: `fill: 'url(#id)'` where `id` is its own. Given the colour of whatever is being painted (if it has one), it answers with the paint to use. */
+export interface PaintProvider {
+  provide(accent: string | undefined): string;
+}
+const PAINTED = ['fill', 'stroke', 'color'];
+/** A look in which a paint names a `PaintProvider` (a pattern) of the chart: that paint, made for the colour the element has of its own. */
+function paintsOf<T>(from: AnyElement, look: T, accent: unknown): T {
+  const bag = look as Record<string, unknown>;
+  for (const key of PAINTED) {
+    const v = bag[key];
+    if (typeof v !== 'string' || !v.startsWith('url(#') || !v.endsWith(')')) continue;
+    const target = lookup(from, v.slice(5, -1)) as Partial<PaintProvider> | undefined;
+    if (target?.provide) {
+      const a = accent as Record<string, unknown> | undefined;
+      const own = a?.fill ?? a?.color ?? a?.stroke;
+      bag[key] = target.provide(typeof own === 'string' && !own.startsWith('url(') ? own : undefined);
+    }
+  }
+  return look;
 }
 
 /** `throw` as an expression, so a missing value can be reported inline: `x ?? fail('no x')`. */

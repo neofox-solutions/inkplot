@@ -98,7 +98,7 @@ export {
   extendTheme,
   resolveStyle,
 } from './theme.ts';
-export { darkTheme, lightTheme } from './themes.ts';
+export { accessibleDarkTheme, accessibleTheme, darkTheme, lightTheme } from './themes.ts';
 export {
   type DataNode,
   DataSource,
@@ -265,8 +265,10 @@ export {
   PolynomialTrend,
   SinusoidalTrend,
   LoessTrend,
+  MeanTrend,
   type LinearTrendAttributes,
   type LoessTrendAttributes,
+  type MeanTrendAttributes,
   type PolynomialTrendAttributes,
   type SinusoidalTrendAttributes,
   type TrendFit,
@@ -340,6 +342,22 @@ export {
   type LineAnnotationCommon,
 } from './annotation.ts';
 export { Entrance, type EntranceAttributes } from './entrance.ts';
+export {
+  Pattern,
+  LinePattern,
+  HatchPattern,
+  DotPattern,
+  linePattern,
+  dotPattern,
+  checkerboard,
+  type PatternAttributes,
+  type LinePatternAttributes,
+  type HatchPatternAttributes,
+  type DotPatternAttributes,
+  type LinePatternOptions,
+  type DotPatternOptions,
+} from './pattern.ts';
+export type { PaintProvider } from './element.ts';
 export { type PointAnnotationsAttributes, PointAnnotations, type PointWords } from './pointannotations.ts';
 export { LINE_HEIGHT, measureBlock, paintLines } from './text.ts';
 export { type ElementJSON, type ElementRegistry, Refs, type SerializeOptions, applyJSON, fromJSON, toJSON } from './serialize.ts';

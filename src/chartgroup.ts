@@ -87,7 +87,7 @@ export class SharedRange extends Dimension<ChartGroup> {
  * An axis that draws a `SharedRange` of the group its chart is in, in place of a scale of its own (it has none): the range, the scale
  * and the pan and zoom view are the shared range's, so charts that show it line up and move together. Its own attributes say how it is
  * drawn: `orientation`, `title`, `format`, ticks. `edgeOnly` draws it only where its chart is at the edge of the group it faces (one row
- * of labels along the bottom), and takes no room elsewhere. Cartesian planes only.
+ * of labels along the bottom), and takes no room elsewhere; it is for Cartesian planes, and a polar axis ignores it. Works on any plane.
  */
 export class SharedAxis extends Axis {
   /** The range it draws. */
@@ -479,9 +479,7 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
     for (const { item } of placed)
       for (const plane of item.planes)
         if (plane.axes.some((x) => x instanceof SharedAxis && x.shared.parent === this))
-          steps.push(
-            (plane instanceof CartesianPlane ? plane : fail('a SharedAxis needs a Cartesian plane')).fitSteps(rects.get(item) ?? item.rect),
-          );
+          steps.push(plane.fitSteps(rects.get(item) ?? item.rect));
     for (let live = steps; live.length > 0;) live = live.filter((g) => !g.next().done);
   }
 }

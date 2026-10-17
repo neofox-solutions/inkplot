@@ -11,6 +11,7 @@ import {
   LinearScale,
   LinearTrend,
   LoessTrend,
+  MeanTrend,
   ObjectDataSource,
   PolynomialTrend,
   SinusoidalTrend,
@@ -203,7 +204,61 @@ test('trend', () => {
   }
   {
     // The tags are registered.
-    for (const name of ['LinearTrend', 'PolynomialTrend', 'SinusoidalTrend', 'LoessTrend'])
+    for (const name of ['LinearTrend', 'PolynomialTrend', 'SinusoidalTrend', 'LoessTrend', 'MeanTrend'])
       assert((registry as Record<string, unknown>)[name], name);
   }
+});
+
+// A mean trendline: a weighted average, so it never leaves the range of the data, and it holds the end value past the ends.
+test('mean trend', () => {
+  const src = (rows: { t: number; v: number }[]) => new ObjectDataSource({ source: rows, domain: 't', value: 'v' });
+  let seed = 7;
+  const rand = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+  const near = (a: number, b: number, what: string, tol: number) => assert(Math.abs(a - b) <= tol, `${what}: ${a} vs ${b}`);
+  // Uneven spacing, with a step in it, where a local line overshoots.
+  const rows = Array.from({ length: 300 }, () => {
+    const t = rand() ** 2 * 100;
+    return { t, v: (t > 40 ? 10 : 0) + rand() };
+  });
+  const lo = Math.min(...rows.map((r) => r.v)),
+    hi = Math.max(...rows.map((r) => r.v));
+  for (const kernel of ['tricube', 'gaussian'] as const)
+    for (const s of [0, 0.05, 0.2, 0.5, 0.8, 0.95, 1]) {
+      const t = new MeanTrend({ smoothness: s, kernel, extend: 0.3 }, src(rows));
+      for (let x = -40; x <= 140; x += 0.7) {
+        const y = t.evaluate(x);
+        assert(y >= lo - 1e-9 && y <= hi + 1e-9, `${kernel} ${s} at ${x}: ${y} is outside ${lo}..${hi}`);
+      }
+    }
+  const first = rows.reduce((a, b) => (b.t < a.t ? b : a)),
+    last = rows.reduce((a, b) => (b.t > a.t ? b : a));
+  // Flat past the ends.
+  {
+    const t = new MeanTrend({ smoothness: 0.3 }, src(rows));
+    assert.equal(t.evaluate(-50), t.evaluate(first.t));
+    assert.equal(t.evaluate(500), t.evaluate(last.t));
+  }
+  // 0 joins the points; 1 is their mean.
+  {
+    const few = [0, 1, 2, 3].map((t) => ({ t, v: [4, 1, 7, 2][t]! }));
+    near(new MeanTrend({ smoothness: 0 }, src(few)).evaluate(1.5), 4, 'joins the points', 1e-9);
+    near(new MeanTrend({ smoothness: 1 }, src(few)).evaluate(0.2), 3.5, 'the mean', 1e-9);
+  }
+  // Exact on a constant, at any smoothness.
+  for (const s of [0.1, 0.5, 0.9])
+    near(new MeanTrend({ smoothness: s }, src(rows.map((r) => ({ t: r.t, v: 5 })))).evaluate(33), 5, 'constant', 1e-9);
+  // Over many points the grid gives the same line as reading the points, to a small fraction of the range.
+  {
+    const big = Array.from({ length: 20000 }, (_, i) => ({ t: i / 20, v: Math.sin(i / 700) * 5 + ((i * 7919) % 101) / 50 }));
+    // The same line from every eleventh point, few enough to be read directly.
+    const exactSrc = src(big.filter((_, i) => i % 11 === 0));
+    const viaGrid = new MeanTrend({ smoothness: 0.05 }, src(big)),
+      viaPoints = new MeanTrend({ smoothness: 0.05 }, exactSrc);
+    for (let x = 100; x < 900; x += 37) near(viaGrid.evaluate(x), viaPoints.evaluate(x), `grid at ${x}`, 0.15);
+    assert(viaGrid.fit!.bandwidth! > 0);
+  }
+  // Small and degenerate inputs.
+  assert.equal(new MeanTrend({}, src([{ t: 1, v: 2 }])).fit, null);
+  assert.throws(() => new MeanTrend({ smoothness: 2 }, src(rows)).fit, /smoothness/);
+  assert.throws(() => new MeanTrend({ kernel: 'box' as 'tricube' }, src(rows)).fit, /kernel/);
 });

@@ -22,6 +22,7 @@ export type SvgTag =
   | 'title'
   | 'desc'
   | 'linearGradient'
+  | 'pattern'
   | 'stop'
   | 'style';
 export interface PlatformNode {

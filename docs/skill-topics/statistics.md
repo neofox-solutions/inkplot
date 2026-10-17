@@ -142,7 +142,7 @@ export const chart = (
 ) as Chart;
 ```
 
-A trendline is its own `DomainSeries` (a line over the same data) beside the scatter; its source needs `domain` and `value` and `isSorted` if sorted. It outputs a smooth line, one point per pixel, with `extend` 0 (the line stops at the data) unless you set it. Choose its colour with `stroke` on the `LinePath`. Other fits: `PolynomialTrend degree`, `SinusoidalTrend period?`, `LoessTrend smoothness` (0 joins the points, 1 is the straight line). `extend={0.1}` runs the line 10% of the span past each end.
+A trendline is its own `DomainSeries` (a line over the same data) beside the scatter; its source needs `domain` and `value` and `isSorted` if sorted. It outputs a smooth line, one point per pixel, with `extend` 0 (the line stops at the data) unless you set it. Choose its colour with `stroke` on the `LinePath`. Other fits: `PolynomialTrend degree`, `SinusoidalTrend period?`, `LoessTrend smoothness` (0 joins the points, 1 is the straight line), `MeanTrend smoothness` (the same, but a weighted average that never leaves the range of the data and stays flat past the ends: the stable choice; 1 is the mean). `extend={0.1}` runs the line 10% of the span past each end.
 
 
 | To… | Use |
@@ -267,6 +267,20 @@ Local linear regression: `smoothness` 0 joins the points, 1 is the line.
 | Attribute | Type | |
 |---|---|---|
 | `smoothness` | `number` | 0 to 1: 0 joins the points, 1 is the least-squares line, and between them the line is smoother the larger it is. Default 0.5. |
+| `kernel` | `'tricube' \| 'gaussian'` | How a point's weight falls with its distance. Default 'tricube'. |
+| `x` | `string` | A channel of the source to fit against instead of its domain. |
+| `extend` | `number \| readonly [number, number]` | How far past the data the line goes at each end, as a fraction of the data's span: one number, or `[before, after]`. Default 0. |
+| `count` | `number` | Samples, evenly spaced over the whole span, always. |
+
+### MeanTrend
+
+A weighted moving average: never leaves the data's range, flat past the ends. `smoothness` 0 joins the points, 1 is the mean.
+
+**In** a series · **Holds** 1 data
+
+| Attribute | Type | |
+|---|---|---|
+| `smoothness` | `number` | 0 to 1: 0 joins the points, 1 is their mean, and between them the line is smoother the larger it is. Default 0.5. |
 | `kernel` | `'tricube' \| 'gaussian'` | How a point's weight falls with its distance. Default 'tricube'. |
 | `x` | `string` | A channel of the source to fit against instead of its domain. |
 | `extend` | `number \| readonly [number, number]` | How far past the data the line goes at each end, as a fraction of the data's span: one number, or `[before, after]`. Default 0. |

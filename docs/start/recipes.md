@@ -952,6 +952,39 @@ export default () => (
 );
 ```
 
+## Tell series apart without colour
+
+Put a pattern in each series' `fill` and use the accessible theme. A pattern is an element of the chart with an `id`, named in a fill as `url(#id)`; it is drawn in the colour of the series that uses it. See [Styling](../guide/styling.md#pattern-fills).
+
+```tsx live title="Patterns in the accessible theme" height=300
+import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, DotPattern, FlatDataSource, HatchPattern, Legend, LinePattern, LinearScale, Stack, accessibleTheme } from 'inkplot';
+
+const series = (name: string, data: number[], fill: string) => (
+  <DomainSeries name={name}>
+    <FlatDataSource data={data} regularDomain-start={0} regularDomain-step={1} />
+    <BarPath fill={fill} />
+  </DomainSeries>
+);
+
+export default () => (
+  <Chart theme={accessibleTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom"><BandScale categories={['Q1', 'Q2', 'Q3', 'Q4']} /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <Stack mode="group">
+        {series('Product', [30, 38, 35, 50], 'url(#lines)')}
+        {series('Services', [12, 20, 16, 23], 'url(#hatch)')}
+        {series('Support', [6, 8, 9, 11], 'url(#dots)')}
+      </Stack>
+    </CartesianPlane>
+    <Legend side="bottom" />
+    <LinePattern id="lines" spacing={7} strokeWidth={2} />
+    <HatchPattern id="hatch" spacing={8} />
+    <DotPattern id="dots" strokeWidth={3.5} gapX={4} />
+  </Chart>
+);
+```
+
 ## Get an SVG string
 
 On a server, in a build step, or in a test: no DOM needed.

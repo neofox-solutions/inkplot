@@ -128,7 +128,9 @@ function shape(kind, n, seed) {
 
 /** The chart follows the page's light/dark choice: another base theme, nothing else. */
 const isDark = () => document.documentElement.dataset.theme === 'dark';
-const chartTheme = () => (isDark() ? L.darkTheme : L.lightTheme);
+/** The accessible variant of the theme, switched on by its own button: larger type in OpenDyslexic (if installed), stronger contrast, thicker lines. */
+const isAccessible = () => document.documentElement.dataset.accessible === 'true';
+const chartTheme = () => (isAccessible() ? (isDark() ? L.accessibleDarkTheme : L.accessibleTheme) : isDark() ? L.darkTheme : L.lightTheme);
 /**
  * A cursor with a tooltip and a crosshair in it, as the demos use them. `mode` is how the tooltip reads: 'snap' the nearest
  * point with the box beside it, 'follow' the same with the box at the pointer, 'shared' every series at the cursor (with a
@@ -432,7 +434,10 @@ function mount(demo) {
     add: (...els) => $('controls').append(...els),
     host,
   };
-  const refs = new L.Refs({ lightTheme: L.lightTheme, darkTheme: L.darkTheme }, { auto: true });
+  const refs = new L.Refs(
+    { lightTheme: L.lightTheme, darkTheme: L.darkTheme, accessibleTheme: L.accessibleTheme, accessibleDarkTheme: L.accessibleDarkTheme },
+    { auto: true },
+  );
   /** A demo names the data it keeps editing, so that JSON refers to it and editing the JSON cannot swap it for a copy. */
   ctx.name = (name, value) => refs.adopt(value, name);
   const built = demo.setup(ctx);
@@ -494,7 +499,7 @@ const jsonPanel = {
     this.status.textContent = text;
   },
   byRef() {
-    const names = current.refs.names.filter((n) => n !== 'lightTheme' && n !== 'darkTheme');
+    const names = current.refs.names.filter((n) => !['lightTheme', 'darkTheme', 'accessibleTheme', 'accessibleDarkTheme'].includes(n));
     return names.length ? `by reference, from the page: ${names.join(', ')}` : 'everything is in the JSON';
   },
   render(panel) {
@@ -678,7 +683,8 @@ function coverage() {
     Dimensions: ['Axis', 'ColorAxis', 'ScalarAxis', 'ColorKey', 'SizeKey'],
     'Data sources': ['FlatDataSource', 'ObjectDataSource', 'SyntheticDataSource', 'CompositeDataSource'],
     Grouping: ['Stack'],
-    Transforms: ['Decimator', 'BoxStats', 'Density', 'LinearTrend', 'PolynomialTrend', 'SinusoidalTrend', 'LoessTrend'],
+    Patterns: ['LinePattern', 'HatchPattern', 'DotPattern'],
+    Transforms: ['Decimator', 'BoxStats', 'Density', 'LinearTrend', 'PolynomialTrend', 'SinusoidalTrend', 'LoessTrend', 'MeanTrend'],
     Kernels: ['MinMaxKernel', 'M4Kernel', 'LttbKernel', 'StrideKernel'],
     Curves: [
       'LinearCurve',
@@ -5255,9 +5261,150 @@ demos.push({
 });
 
 demos.push({
+  id: 'patterns',
+  title: 'Pattern fills',
+  blurb: 'Lines, crosshatch and dots as fills, drawn in each series colour, so series can be told apart without colour',
+  setup(ctx) {
+    const S = {
+      angle: 45,
+      crossAngle: -45,
+      spacing: 7,
+      width: 2,
+      dash: 'none',
+      dot: 3,
+      gap: 4,
+      offset: 3.5,
+      cap: 'round',
+      swap: false,
+      mode: 'group',
+    };
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const names = ['Lines', 'Crosshatch', 'Dots', 'Checkerboard'];
+    const values = [
+      [30, 38, 35, 50],
+      [22, 27, 31, 36],
+      [14, 20, 16, 23],
+      [8, 11, 9, 14],
+    ];
+    const patterns = {
+      lines: new L.LinePattern({ id: 'lines' }),
+      hatch: new L.HatchPattern({ id: 'hatch' }),
+      dots: new L.DotPattern({ id: 'dots' }),
+      checks: new L.DotPattern({ id: 'checks', ...L.checkerboard(4) }),
+    };
+    const fills = ['url(#lines)', 'url(#hatch)', 'url(#dots)', 'url(#checks)'];
+    const bars = names.map((name, i) => new L.BarPath({ fill: fills[i] }));
+    const series = names.map(
+      (name, i) =>
+        new L.DomainSeries(
+          { name },
+          new L.FlatDataSource({ data: Float64Array.from(values[i]), regularDomain: { start: 0, step: 1 } }),
+          bars[i],
+        ),
+    );
+    const stack = new L.Stack({ mode: S.mode }, ...series);
+    const plane = new L.CartesianPlane(
+      {},
+      new L.Axis({ orientation: 'bottom' }, new L.BandScale({ categories: quarters })),
+      new L.Axis({ orientation: 'left', min: 0, nice: true }, new L.LinearScale()),
+      stack,
+    );
+    const chart = new L.Chart(
+      { theme: chartTheme(), onFlush: ctx.onFlush },
+      plane,
+      new L.Legend({ side: 'bottom' }),
+      ...Object.values(patterns),
+    );
+    const set = () => {
+      patterns.lines.setAttributes({
+        angle: S.angle,
+        spacing: S.spacing,
+        strokeWidth: S.width,
+        dash: S.dash === 'none' ? undefined : S.dash,
+      });
+      patterns.hatch.setAttributes({
+        angle: S.angle,
+        crossAngle: S.crossAngle,
+        spacing: S.spacing,
+        strokeWidth: S.width,
+        dash: S.dash === 'none' ? undefined : S.dash,
+      });
+      patterns.dots.setAttributes({ strokeWidth: S.dot, gapX: S.gap, offset: S.offset, cap: S.cap });
+      patterns.checks.setAttributes({ ...L.checkerboard(S.dot), cap: 'square' });
+    };
+    ctx.add(
+      ui.note(
+        'Each series fills with a pattern named in its fill as url(#id). The pattern takes the colour of the series, so it follows the palette and the theme: try Accessible, and Theme.',
+      ),
+      ui.seg({
+        label: 'layout',
+        options: [
+          ['group', 'side by side'],
+          ['stack', 'stacked'],
+        ],
+        value: S.mode,
+        onChange: (v) => {
+          S.mode = v;
+          stack.setAttribute('mode', v);
+        },
+      }),
+      ui.slider({ label: 'line angle (degrees)', min: -90, max: 90, step: 5, value: S.angle, onChange: (v) => ((S.angle = v), set()) }),
+      ui.slider({
+        label: 'crosshatch: second angle',
+        min: -90,
+        max: 90,
+        step: 5,
+        value: S.crossAngle,
+        onChange: (v) => ((S.crossAngle = v), set()),
+      }),
+      ui.slider({ label: 'line spacing', min: 3, max: 16, step: 1, value: S.spacing, onChange: (v) => ((S.spacing = v), set()) }),
+      ui.slider({ label: 'line width', min: 0.5, max: 5, step: 0.5, value: S.width, onChange: (v) => ((S.width = v), set()) }),
+      ui.seg({
+        label: 'line dashes',
+        options: [
+          ['none', 'solid'],
+          ['6 3', 'dashed'],
+          ['2 3', 'dotted'],
+        ],
+        value: S.dash,
+        onChange: (v) => ((S.dash = v), set()),
+      }),
+      ui.slider({
+        label: 'dot size (and checkerboard square)',
+        min: 1,
+        max: 8,
+        step: 0.5,
+        value: S.dot,
+        onChange: (v) => ((S.dot = v), set()),
+      }),
+      ui.slider({ label: 'dot gap', min: 0, max: 12, step: 1, value: S.gap, onChange: (v) => ((S.gap = v), set()) }),
+      ui.slider({
+        label: 'alternate rows shifted by',
+        min: 0,
+        max: 12,
+        step: 0.5,
+        value: S.offset,
+        onChange: (v) => ((S.offset = v), set()),
+      }),
+      ui.seg({
+        label: 'dot shape',
+        options: [
+          ['round', 'round'],
+          ['square', 'square'],
+        ],
+        value: S.cap,
+        onChange: (v) => ((S.cap = v), set()),
+      }),
+    );
+    set();
+    return { chart };
+  },
+});
+
+demos.push({
   id: 'trend',
   title: 'Trendlines',
-  blurb: 'Linear, polynomial, sinusoidal and loess fits, sampled across the view, extended past the data',
+  blurb: 'Linear, polynomial, sinusoidal, loess and stable (mean) fits, sampled across the view, extended past the data',
   setup(ctx) {
     const S = {
       shape: 'bend',
@@ -5297,6 +5444,8 @@ demos.push({
           return new L.PolynomialTrend({ ...common(), degree: S.degree }, source());
         case 'sine':
           return new L.SinusoidalTrend({ ...common(), ...(S.period > 0 ? { period: S.period } : {}) }, source());
+        case 'mean':
+          return new L.MeanTrend({ ...common(), smoothness: S.smoothness, kernel: S.kernel }, source());
         default:
           return new L.LoessTrend({ ...common(), smoothness: S.smoothness, kernel: S.kernel }, source());
       }
@@ -5369,6 +5518,7 @@ demos.push({
           ['poly', 'polynomial'],
           ['sine', 'sinusoid'],
           ['loess', 'loess'],
+          ['mean', 'mean (stable)'],
         ],
         value: S.kind,
         onChange: (v) => {
@@ -5399,18 +5549,18 @@ demos.push({
         },
       }),
       ui.slider({
-        label: 'smoothness (loess: 0 joins the points, 1 is the line)',
+        label: 'smoothness (loess/mean: 0 joins the points, 1 is the line/mean)',
         min: 0,
         max: 1,
         step: 0.01,
         value: S.smoothness,
         onChange: (v) => {
           S.smoothness = v;
-          if (S.kind === 'loess') trend.setAttribute('smoothness', v);
+          if (S.kind === 'loess' || S.kind === 'mean') trend.setAttribute('smoothness', v);
         },
       }),
       ui.seg({
-        label: 'kernel (loess)',
+        label: 'kernel (loess/mean)',
         options: [
           ['tricube', 'tricube'],
           ['gaussian', 'gaussian'],
@@ -5418,7 +5568,7 @@ demos.push({
         value: S.kernel,
         onChange: (v) => {
           S.kernel = v;
-          if (S.kind === 'loess') trend.setAttribute('kernel', v);
+          if (S.kind === 'loess' || S.kind === 'mean') trend.setAttribute('kernel', v);
         },
       }),
       ui.slider({
@@ -6304,6 +6454,13 @@ function select(id) {
 $('demos').replaceChildren(
   ...demos.map((d) => h('button', { type: 'button', 'data-id': d.id, title: d.blurb, onclick: () => select(d.id) }, d.title)),
 );
+$('accessible').addEventListener('click', () => {
+  const root = document.documentElement;
+  root.dataset.accessible = String(root.dataset.accessible !== 'true');
+  $('accessible').setAttribute('aria-pressed', root.dataset.accessible);
+  current?.chart.setAttribute('theme', chartTheme());
+  for (const fn of themeHooks) fn();
+});
 $('theme').addEventListener('click', () => {
   const root = document.documentElement;
   root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';

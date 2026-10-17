@@ -8,13 +8,13 @@ Every element class the library ships, in the order of the registry: where it go
 
 ## Contents
 
-[Chart](#chart) · [ChartGroup](#chartgroup) · [ChartGroupItem](#chartgroupitem) · [SharedRange](#sharedrange) · [SharedAxis](#sharedaxis) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [WorkerBoundary](#workerboundary) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [Slice](#slice) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
+[Chart](#chart) · [ChartGroup](#chartgroup) · [ChartGroupItem](#chartgroupitem) · [SharedRange](#sharedrange) · [SharedAxis](#sharedaxis) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [LinePattern](#linepattern) · [HatchPattern](#hatchpattern) · [DotPattern](#dotpattern) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [WorkerBoundary](#workerboundary) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [Slice](#slice) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [MeanTrend](#meantrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
 
 ## Chart
 
 The root: a theme, a size, and what is drawn on it.
 
-**In** none (the root) · **Holds** a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance
+**In** none (the root) · **Holds** a plane or a ChartGroup, ChartTitle, Legend, Cursor, ColorAxis, ScalarAxis, ColorKey, SizeKey, ChartSummary, Entrance, LinePattern, HatchPattern, DotPattern
 
 | Attribute | Type | |
 |---|---|---|
@@ -154,6 +154,53 @@ The series play an entrance when the chart first appears: bars grow, lines draw 
 |---|---|---|
 | `duration` | `number` | Milliseconds. Default 400. |
 | `easing` | `string` | A CSS easing: a keyword or `cubic-bezier(…)`. Default 'ease-out'. |
+
+## LinePattern
+
+A fill of parallel lines, named in a style as `url(#id)`; takes the colour of the series that uses it.
+
+**In** Chart · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `angle` | `number` | Degrees clockwise from the x axis. Default 45. |
+| `spacing` | `number` | The distance between lines, in pixels. Default 6. |
+| `dash` | `string` | An SVG dash array in pixels, such as '6 3'. Default none (solid). |
+| `stroke` | `string` | The colour of the lines or dots. |
+| `fill` | `string` | The tile's background. Default none. |
+| `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
+
+## HatchPattern
+
+A fill of two crossing sets of lines (a crosshatch), named in a style as `url(#id)`.
+
+**In** Chart · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `crossAngle` | `number` | The second family of lines. Default -45, so with the default `angle` the two cross at right angles. |
+| `angle` | `number` | Degrees clockwise from the x axis. Default 45. |
+| `spacing` | `number` | The distance between lines, in pixels. Default 6. |
+| `dash` | `string` | An SVG dash array in pixels, such as '6 3'. Default none (solid). |
+| `stroke` | `string` | The colour of the lines or dots. |
+| `fill` | `string` | The tile's background. Default none. |
+| `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
+
+## DotPattern
+
+A fill of rows of round or square dots (a checkerboard is square dots), named in a style as `url(#id)`.
+
+**In** Chart · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `cap` | `'round' \| 'square'` |  |
+| `gapX` | `number` |  |
+| `gapY` | `number` |  |
+| `offset` | `number` |  |
+| `stroke` | `string` | The colour of the lines or dots. |
+| `fill` | `string` | The tile's background. Default none. |
+| `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
 
 ## Cursor
 
@@ -872,6 +919,20 @@ Local linear regression: `smoothness` 0 joins the points, 1 is the line.
 | Attribute | Type | |
 |---|---|---|
 | `smoothness` | `number` | 0 to 1: 0 joins the points, 1 is the least-squares line, and between them the line is smoother the larger it is. Default 0.5. |
+| `kernel` | `'tricube' \| 'gaussian'` | How a point's weight falls with its distance. Default 'tricube'. |
+| `x` | `string` | A channel of the source to fit against instead of its domain. |
+| `extend` | `number \| readonly [number, number]` | How far past the data the line goes at each end, as a fraction of the data's span: one number, or `[before, after]`. Default 0. |
+| `count` | `number` | Samples, evenly spaced over the whole span, always. |
+
+## MeanTrend
+
+A weighted moving average: never leaves the data's range, flat past the ends. `smoothness` 0 joins the points, 1 is the mean.
+
+**In** a series · **Holds** 1 data
+
+| Attribute | Type | |
+|---|---|---|
+| `smoothness` | `number` | 0 to 1: 0 joins the points, 1 is their mean, and between them the line is smoother the larger it is. Default 0.5. |
 | `kernel` | `'tricube' \| 'gaussian'` | How a point's weight falls with its distance. Default 'tricube'. |
 | `x` | `string` | A channel of the source to fit against instead of its domain. |
 | `extend` | `number \| readonly [number, number]` | How far past the data the line goes at each end, as a fraction of the data's span: one number, or `[before, after]`. Default 0. |

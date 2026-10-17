@@ -23,7 +23,7 @@ import { Crosshair } from './crosshair.ts';
 import { ColorKey, SizeKey } from './key.ts';
 import { Legend } from './legend.ts';
 import { ColorAxis, ScalarAxis } from './mapped.ts';
-import { LinearTrend, LoessTrend, PolynomialTrend, SinusoidalTrend } from './trend.ts';
+import { LinearTrend, LoessTrend, MeanTrend, PolynomialTrend, SinusoidalTrend } from './trend.ts';
 import { HeatMap } from './heatmap.ts';
 import { CircleMarker, CrossMarker, DotMarker, PlusMarker, SquareMarker } from './marker.ts';
 import { BoxZoom } from './boxzoom.ts';
@@ -31,6 +31,7 @@ import { Density } from './density.ts';
 import { Brush } from './brush.ts';
 import { PanZoom } from './panzoom.ts';
 import { Entrance } from './entrance.ts';
+import { DotPattern, HatchPattern, LinePattern } from './pattern.ts';
 import { ChartSummary } from './summary.ts';
 import { CartesianPlane } from './plane.ts';
 import { PointerListener } from './pointer.ts';
@@ -56,6 +57,9 @@ export const registry: ElementRegistry = {
   ChartTooltip,
   ChartSummary,
   Entrance,
+  LinePattern,
+  HatchPattern,
+  DotPattern,
   Cursor,
   Crosshair,
   Legend,
@@ -110,6 +114,7 @@ export const registry: ElementRegistry = {
   PolynomialTrend,
   SinusoidalTrend,
   LoessTrend,
+  MeanTrend,
   ErrorBars,
   ErrorBand,
   DotMarker,

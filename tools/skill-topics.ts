@@ -80,6 +80,7 @@ export const TOPICS: Record<string, Topic> = {
       'PolynomialTrend',
       'SinusoidalTrend',
       'LoessTrend',
+      'MeanTrend',
       'ErrorBars',
       'ErrorBand',
     ],
@@ -117,8 +118,8 @@ export const TOPICS: Record<string, Topic> = {
   },
   'styling-output': {
     file: 'styling-output.md',
-    use: 'dark and custom themes, styling parts, React, a PNG, chart as JSON, your own element types',
-    elements: [],
+    use: 'dark, accessible and custom themes, pattern fills (hatching, dots), styling parts, React, a PNG, chart as JSON, your own element types',
+    elements: ['LinePattern', 'HatchPattern', 'DotPattern'],
   },
   troubleshooting: { file: 'troubleshooting.md', use: 'an error message or a chart that draws nothing or draws wrongly', elements: [] },
 };

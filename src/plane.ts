@@ -114,6 +114,11 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
    * The first two columns of `points`, normalized (0..1) through `first` and `second`, to plot-area pixels, in place.
    * The plane decides what the two axes mean spatially: a Cartesian plane looks at their sides.
    */
+  /**
+   * `fit` for planes that share a range with others (a group's `SharedAxis`): their axes begin, contribute and resolve in step, each
+   * stage waiting for every plane. `available` is the room the plane's chart was given.
+   */
+  abstract fitSteps(available: Rect): Generator<void>;
   abstract place(points: PointBuffer, first: Axis, second: Axis): void;
   /**
    * The inverse of `place` for one position: what a spot in plot pixels is in data terms, as the values `first` and
