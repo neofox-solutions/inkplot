@@ -280,7 +280,7 @@ const readouts = (() => {
   const draw = () => {
     timer = 0;
     shownAt = performance.now();
-    if (latest && current) renderStats(latest);
+    if (latest && current && history.length > 0) renderStats(latest);
   };
   return {
     show(stats) {
@@ -289,6 +289,12 @@ const readouts = (() => {
       const wait = 250 - (performance.now() - shownAt);
       if (wait <= 0) draw();
       else timer = setTimeout(draw, wait);
+    },
+    /** A new demo: what is waiting to be shown belongs to the old one. */
+    reset() {
+      clearTimeout(timer);
+      timer = 0;
+      latest = null;
     },
     refresh() {
       if (!timer && latest && performance.now() - shownAt >= 250) draw();
@@ -413,6 +419,7 @@ function mount(demo) {
   }
   history.length = 0;
   probe.reset();
+  readouts.reset();
   $('controls').replaceChildren();
   themeHooks = [];
   host.querySelectorAll('svg').forEach((n) => n.remove());
