@@ -10,12 +10,39 @@
 import type { Extent } from './geometry.ts';
 import type { ElementJSON } from './serialize.ts';
 
+/** How a group over the boundary splits the rows: by the values of a channel, the series in the order the keys first appear or sorted. */
+export interface PartitionSpec {
+  channel: string;
+  order: 'first' | 'sorted';
+  max: number;
+}
+
+/** What the worker counted when the rows were split by a spec: for each key, in the order of its series. */
+export interface PartitionMeta {
+  keys: number[];
+  omitted: number;
+  counts: number[];
+  domains: (Extent | null)[];
+  values: (Extent | null)[];
+  /** The extent of each of the other channels, for each key. */
+  channels: Record<string, (Extent | null)[]>;
+}
+
 /** What the boundary asks for. */
 export type ToWorker =
   /** Build the tree. `refs` is every named array and function-free value the tree refers to. */
-  | { kind: 'attach'; id: number; epoch: number; tree: ElementJSON; refs: Record<string, unknown> }
+  | { kind: 'attach'; id: number; epoch: number; tree: ElementJSON; refs: Record<string, unknown>; partition?: PartitionSpec | null }
   /** Change the tree to match, in place; `refs` holds only those that are new or replaced. */
-  | { kind: 'update'; id: number; epoch: number; tree: ElementJSON; refs: Record<string, unknown> }
+  | {
+      kind: 'update';
+      id: number;
+      epoch: number;
+      tree: ElementJSON;
+      refs: Record<string, unknown>;
+      partition?: PartitionSpec | null;
+      /** Rows that are shared with the page were changed in place: the worker's caches of them are out of date. */
+      touch?: boolean;
+    }
   /** Plan and fill with this context; `recycle` is a buffer of an earlier result, to write into again. */
   | {
       kind: 'fill';
@@ -26,6 +53,8 @@ export type ToWorker =
       domainRange: Extent;
       channels: string[];
       sequence: boolean;
+      /** Fill every key of the partition (the spec of the last attach or update), one block each. */
+      byKey?: boolean;
       recycle?: ArrayBuffer;
     }
   | { kind: 'detach'; id: number };
@@ -37,13 +66,26 @@ export interface WorkerMeta {
   valueExtent: Extent | null;
   channelNames: string[];
   channelExtents: Record<string, Extent | null>;
+  /** Present when the boundary was given a partition spec. */
+  partition?: PartitionMeta;
 }
 
 /** What the worker answers. */
 export type FromWorker =
   | { kind: 'meta'; id: number; epoch: number; meta: WorkerMeta }
   /** `buffer` holds `count` points of `stride` numbers, and comes back with the next `fill` as `recycle`. */
-  | { kind: 'result'; id: number; key: string; epoch: number; count: number; stride: number; extents: Extent[]; buffer: ArrayBuffer }
+  | {
+      kind: 'result';
+      id: number;
+      key: string;
+      epoch: number;
+      count: number;
+      stride: number;
+      extents: Extent[];
+      buffer: ArrayBuffer;
+      /** For a fill by key: the keys, the points of each (a block each in `buffer`, from the number `offsets` says) and their extents. `count` and `extents` are then empty. */
+      blocks?: { keys: number[]; sizes: number[]; offsets: number[]; extents: Extent[][] };
+    }
   /** `id` 0 is the worker as a whole (it failed to start, or crashed): every boundary on it takes the error as its own. */
   | { kind: 'error'; id: number; message: string };
 

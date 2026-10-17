@@ -4,5 +4,5 @@
   "extends": "./tsconfig.json",
   "compilerOptions": { "lib": ["es2021", "dom", "dom.iterable"], "types": [] },
   "include": ["src/*.ts"],
-  "exclude": ["src/*.test.ts", "src/fake-platform.ts"]
+  "exclude": ["src/*.test.ts", "src/fake-platform.ts", "src/node-worker.ts"]
 }

@@ -51,6 +51,7 @@ So the rules for speed follow from what is cached:
 - **Give a `FlatDataSource` typed arrays** (`Float64Array`) or plain number arrays and set `isSorted` if they already ascend. It reads them in place: no copy, no sort.
 - **Edit in place, then say so.** If you change a number in an array a source holds, call `source.invalidate()`. Replacing the whole attribute (`source.setAttribute('data', next)`) also works and is the safer default; in-place edits avoid allocating for a stream of updates.
 - **Decimate big data.** A `Decimator` between the series and its source reduces it to a few points per pixel column, keeping every peak and valley, and reads only the visible range, so zooming refills from the full data. The cost then grows with the plot's width, not the size of the data. See [Data](data.md#decimation) for the kernels (`MinMaxKernel`, `M4Kernel`, `LttbKernel`, `StrideKernel`).
+- **Move the work off the page.** A `WorkerBoundary` runs the source and its transforms in a worker, so a pan never waits on a large reduction. It pays above a few hundred thousand points. See [Data](data.md#working-in-a-worker).
 - **Avoid per-point objects for big data.** `ObjectDataSource` is for the thousands, `FlatDataSource` for the hundreds of thousands and more.
 
 ### Markers and mapped styles

@@ -245,6 +245,17 @@ export function partitionOf(source: DataSource, channel: string, order: Order, m
   };
 }
 
+/** The source at the bottom of a chain of data transforms: what a group splits. */
+export function leafOf(node: DataNode): DataSource {
+  let n: AnyElement = node;
+  while (!(n instanceof DataSource)) {
+    let next: AnyElement | undefined;
+    for (let c = n.firstChild; c; c = c.nextSibling) if (c instanceof DataSource || c instanceof DataTransform) next = c;
+    n = next ?? fail('a data transform has no source beneath it');
+  }
+  return n;
+}
+
 /** Whether `node` can serve a partition: a source that can be read in place, or a stage above one that says it can. */
 export function canPartition(node: DataNode): boolean {
   if (node instanceof DataSource) return true;

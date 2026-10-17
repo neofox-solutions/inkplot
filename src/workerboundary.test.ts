@@ -17,6 +17,7 @@ import {
   LoopbackWorker,
   MinMaxKernel,
   NullWorker,
+  SeriesGroup,
   StringPlatform,
   WorkerBoundary,
   type PlanContext,
@@ -78,10 +79,7 @@ test('worker boundary: nothing at first, then the points when they arrive', asyn
   const { chart, series } = chartOf(boundary);
   assert.equal(series.points.count, 0, 'empty axes on the first paint');
   assert.equal(boundary.pending, true);
-  for (let i = 0; i < 6 && boundary.pending; i++) {
-    await worker.idle();
-    chart.flush();
-  }
+  await chart.idle();
   assert.equal(boundary.pending, false, `settled (posted ${worker.posted})`);
   assert.equal(boundary.pointCount, 100_000);
   assert.deepEqual(boundary.domain(), { min: 0, max: 99_999 });
@@ -211,13 +209,8 @@ test('worker boundary: the entrance waits for the first points, and plays then',
   chart.attach(platform).flush();
   assert.equal(chart.awaitingData, true);
   assert.ok(!/data-ink-enter/.test(platform.toString()), 'empty axes: nothing to enter yet');
-  for (let i = 0; i < 4 && chart.awaitingData; i++) {
-    await worker.idle();
-    chart.flush();
-  }
+  await chart.idle();
   assert.equal(chart.awaitingData, false);
-  await worker.idle();
-  chart.flush();
   assert.match(platform.toString(), /data-ink-enter="sweep"/);
 });
 
@@ -250,4 +243,76 @@ test('serveWorker: answers on a port, whichever way the port listens', () => {
     stop();
   }
   assert.throws(() => serveWorker({}, { port: { postMessage() {} } }), /no worker scope/);
+});
+
+test('worker boundary: chart.idle waits for the answers and the flushes they cause, and rejects on an error', async () => {
+  const worker = new LoopbackWorker(createHost(registry));
+  const { chart, series } = chartOf(new WorkerBoundary({ worker, registry }, stages(wave(20_000))));
+  await chart.idle();
+  assert.ok(series.points.count > 100);
+  assert.equal(chart.needsFlush, false);
+  // Nothing on its way: idle is at once.
+  await chart.idle();
+  const broken = new LoopbackWorker(createHost({ FlatDataSource }));
+  const other = chartOf(new WorkerBoundary({ worker: broken, registry }, stages(wave(100))));
+  await assert.rejects(other.chart.idle(), /WorkerBoundary: .*unknown type/);
+});
+
+test('worker boundary: a group over a boundary is one request for every key, and the same series as without it', async () => {
+  const N = 40_000,
+    keys = 4;
+  const rows = new Float64Array(3 * N);
+  for (let i = 0; i < N; i++) rows.set([i, Math.sin(i / 90 + (i % keys)) * 5 + (i % keys) * 3, i % keys], 3 * i);
+  const flat = () => new FlatDataSource({ data: rows, stride: 3, channels: { k: 2 }, isSorted: true });
+  const grouped = (data: WorkerBoundary | Decimator) => {
+    const group = new SeriesGroup({ channel: 'k' }, data, new LinePath(new LinearCurve()));
+    const plane = new CartesianPlane({}, new Axis({}, new LinearScale()), new Axis({ orientation: 'left' }, new LinearScale()), group);
+    const chart = new Chart({ theme: lightTheme, width: W, height: H }, plane);
+    chart.attach(new StringPlatform({ width: W, height: H })).flush();
+    return { chart, plane };
+  };
+  const plain = grouped(new Decimator({}, new MinMaxKernel(), flat()));
+  const worker = new LoopbackWorker(createHost(registry));
+  const s = spy(worker);
+  const boundary = new WorkerBoundary({ worker: s.worker, registry }, new Decimator({}, new MinMaxKernel(), flat()));
+  const over = grouped(boundary);
+  assert.equal(over.plane.series.length, 0, 'no keys until the worker has counted');
+  await over.chart.idle();
+  assert.equal(over.plane.series.length, keys);
+  assert.deepEqual(
+    over.plane.series.map((x) => x.points.count),
+    plain.plane.series.map((x) => x.points.count),
+  );
+  over.plane.series.forEach((x, i) =>
+    assert.deepEqual(
+      pointsOf(x).filter((_, j) => j % 2 === 1),
+      pointsOf(plain.plane.series[i]!).filter((_, j) => j % 2 === 1),
+    ),
+  );
+  const fills = s.posted.filter((p) => p.message.kind === 'fill');
+  assert.ok(fills.length > 0 && fills.every((f) => (f.message as Extract<ToWorker, { kind: 'fill' }>).byKey));
+  const askedFor = new Set(fills.map((f) => (f.message as Extract<ToWorker, { kind: 'fill' }>).key));
+  assert.equal(fills.length, askedFor.size, 'each ask is made once, whatever the number of keys');
+  assert.ok(fills.length <= 3, `${fills.length} fills for ${keys} keys`);
+});
+
+test('worker boundary: a shared array is not copied, and an edit in place reaches the worker on refresh', async () => {
+  const shared = new Float64Array(new SharedArrayBuffer(8 * 2 * 5000));
+  shared.set(wave(5000));
+  const worker = new LoopbackWorker(createHost(registry));
+  const boundary = new WorkerBoundary({ worker, registry, shared: true }, stages(shared));
+  const { chart } = chartOf(boundary);
+  await chart.idle();
+  const before = boundary.valueExtent();
+  assert.ok(before && before.max > 5);
+  for (let i = 0; i < 5000; i++) shared[2 * i + 1] = (shared[2 * i + 1] ?? 0) * 2;
+  boundary.refresh();
+  await chart.idle();
+  const after = boundary.valueExtent();
+  assert.ok(after && Math.abs(after.max - 2 * before.max) < 1e-9, `${before.max} → ${after?.max}`);
+  // Not asked for: a shared array is an error that says how to ask.
+  assert.throws(
+    () => new WorkerBoundary({ worker: new NullWorker(createHost(registry)), registry }, stages(shared)).pointCount,
+    /SharedArrayBuffer: set `shared`/,
+  );
 });

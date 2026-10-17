@@ -173,6 +173,41 @@ Things to know:
 - **In a stack, decimate the sources before the stack**, not per series: decimation is per series and would thin each differently, so rows would no longer line up (`Stack` has `align` for that).
 - **Sources that are not sorted** still work under a decimator; they are sorted once into a copy. Set `isSorted` on data you know is ordered and it is read in place.
 
+## Working in a worker
+
+Decimating a few million points takes tens of milliseconds, and that is a frame the page cannot draw. A **`WorkerBoundary`** moves the stages inside it, the source and its transforms, to a Web Worker (or a Node worker thread). The chart draws at once with what it has, and again when the worker's answer arrives, so panning and zooming stay smooth however large the data. It pays when the work is longer than the round trip, roughly above a few hundred thousand points; below that, leave it out.
+
+The boundary holds a **description** of the stages, not the stages themselves. The page and the worker each build it from a **registry** (the classes the description may use, by name), so the worker's bundle carries only the classes it needs:
+
+```tsx
+// page
+import { WebWorker, WorkerBoundary } from 'inkplot';
+const worker = new WebWorker(new URL('./signal.worker.ts', import.meta.url));
+
+<DomainSeries name="Signal">
+  <WorkerBoundary worker={worker} registry={registry}>
+    <Decimator><MinMaxKernel /><FlatDataSource data={signal} isSorted regularDomain-start={0} regularDomain-step={1} /></Decimator>
+  </WorkerBoundary>
+  <LinePath><LinearCurve /></LinePath>
+</DomainSeries>
+
+// signal.worker.ts
+import { serveWorker, Decimator, FlatDataSource, MinMaxKernel } from 'inkplot/worker';
+serveWorker({ Decimator, FlatDataSource, MinMaxKernel });
+```
+
+`registry` on the page is the same map of names to classes. `new URL('./x.worker.ts', import.meta.url)` is the form Vite, webpack 5 and esbuild all bundle; `WebWorker` also takes a `Worker` you made yourself, and starts module workers by default (`{ worker: {} }` for a classic one). On Node use `NodeWorker` from `inkplot/node-worker`, and give the worker file `serveWorker(registry)`, which listens on `parentPort`.
+
+Things to know:
+
+- **Stale while revalidating.** One request is in flight at a time and only the newest waits behind it; while it runs the chart draws the last answer. Pan fast and you see slightly old data, never a stalled page. `await chart.idle()` resolves when the worker has answered and the chart has drawn it, which is what tests and exports should wait for.
+- **Copy or move.** By default the arrays are copied to the worker once, and the page keeps its rows (hits have a `row`, data can be edited). With `transfer`, the buffer moves instead: no second copy, but the page no longer has it. A moved array cannot be serialized to JSON afterwards.
+- **`shared` (opt-in).** With `shared` and arrays backed by a `SharedArrayBuffer`, nothing is copied at all. The page must be cross-origin isolated (`Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`). Without `shared`, a shared array is an error rather than a silent assumption. After writing into one, call `boundary.refresh()` so the worker recomputes.
+- **Groups.** A `SeriesGroup` may sit over a boundary: the worker splits the rows by key and answers every series in one request. The order must be `first` or `sorted`. A `Density` or `BoxStats` inside a boundary in a group is not supported.
+- **Axis width.** The value axis keeps the width it measured until the labels need clearly more or less. The first answer from the worker can therefore shift the plot a pixel or two from the same chart without a boundary.
+- **Other traffic.** If the worker carries other messages, give both ends the same `envelope` (a name, or `{ wrap, unwrap }`) so the two do not mix.
+- **Errors.** A failure in the worker (a thrown error, a bad message, a crash) is raised on the chart that asked.
+
 ## Writing a source
 
 A source implements `fill`, `scanDomain`, and optionally `orderedView`; the base class does ordering, caching and extents. See [Custom data and scales](../extending/custom-data-and-scales.md).

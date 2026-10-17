@@ -481,6 +481,7 @@ Runs the stages inside it in a worker: draws what it has, and what the worker se
 | `worker` (required) | `WorkerLike` | Where the stages inside run. |
 | `registry` (required) | `ElementRegistry` | The classes the description is made of, by the names the worker's registry knows them under. |
 | `transfer` | `boolean` | Move the arrays to the worker instead of copying them: fast and without a second copy, but the page no longer has the rows (a hit has no row, the data cannot be edited here). |
+| `shared` | `boolean` | Allow arrays that are backed by a `SharedArrayBuffer`, which the worker then reads where they are, with no copy: change them in place and call `refresh()`. |
 | `envelope` | `Envelope` | For a worker that carries other traffic too (see `Envelope`). |
 
 ## FlatDataSource

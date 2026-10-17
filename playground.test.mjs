@@ -327,6 +327,38 @@ test('playground', async () => {
   assert(big.in === 1e6 && big.drawn > 500 && big.drawn < 2000, JSON.stringify(big));
   console.log('big', JSON.stringify(big));
 
+  // ── The same chart with the decimation in a worker (a classic worker from a blob, in a page opened from a file).
+  await page.getByText('decimate in a worker', { exact: false }).click();
+  await page.evaluate(() => window.playground.current.chart.idle());
+  const worked = await page.evaluate(() => {
+    const chart = window.playground.current.chart,
+      L = window.inkplot;
+    const boundary = L.firstDescendantOfType(chart, L.WorkerBoundary);
+    return { boundary: !!boundary, points: boundary?.pointCount, drawn: chart.lastFlush.pointsDrawn, arrived: boundary?.arrived };
+  });
+  assert(worked.boundary && worked.arrived && worked.points === 1e6 && worked.drawn > 500 && worked.drawn < 2000, JSON.stringify(worked));
+  const workerJson = await page.evaluate(() => window.playground.roundTrip());
+  assert.equal(workerJson.copy, workerJson.live, 'the chart with a worker boundary reads back from its JSON');
+  await page.getByText('pan automatically', { exact: false }).click();
+  const workerPan = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const flushes = [];
+        const chart = window.playground.current.chart;
+        const was = chart.attrs.onFlush;
+        chart.setAttribute('onFlush', (st) => (flushes.push(st.total), was?.(st)));
+        setTimeout(() => {
+          chart.setAttribute('onFlush', was);
+          resolve({ n: flushes.length, max: Math.max(...flushes) });
+        }, 2000);
+      }),
+  );
+  console.log('worker pan', JSON.stringify(workerPan));
+  assert(workerPan.n > 30 && workerPan.max < 25, 'panning with the worker keeps the flush short: ' + JSON.stringify(workerPan));
+  await page.getByText('pan automatically', { exact: false }).click();
+  await page.getByText('decimate in a worker', { exact: false }).click();
+  await page.evaluate(() => window.playground.current.chart.idle());
+
   // ── JSON: every demo's chart is written as JSON and read back into a second chart that draws exactly the same.
   for (const id of ids) {
     await page.evaluate((i) => window.playground.select(i), id);

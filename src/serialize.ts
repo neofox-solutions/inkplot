@@ -184,7 +184,13 @@ function encode(v: unknown, path: string, w: Writing): unknown {
       a = v as unknown as ArrayLike<number>;
     if (!(TYPED as readonly string[]).includes(type)) return byReference(v, path, w, `a ${type}`);
     if (a.length > w.limit) return byReference(v, path, w, `${type} of ${a.length} numbers (the inline limit is ${w.limit})`);
-    return { $typed: type, data: Array.from(a, (n) => (Number.isFinite(n) ? n : n !== n ? null : String(n))) };
+    try {
+      return { $typed: type, data: Array.from(a, (n) => (Number.isFinite(n) ? n : n !== n ? null : String(n))) };
+    } catch (e) {
+      if (/detached/.test(messageOf(e)))
+        fail(`${at(path)}a ${type} whose buffer was moved to another thread (transferred), so there is nothing to write`);
+      throw e;
+    }
   }
   if (Array.isArray(v)) {
     if (v.length > w.limit) return byReference(v, path, w, `an array of ${v.length} values (the inline limit is ${w.limit})`);

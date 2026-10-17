@@ -472,6 +472,11 @@ export abstract class DataTransform<
    * point count, extents and channels. Null where the key's rows, as they are, answer.
    */
   keyStage?(partition: Partition, slot: number): DataNode | null;
+  /**
+   * For a stage that holds its rows somewhere else (a `WorkerBoundary`): the partition of them by a channel, as it knows it. A
+   * group asks for it in place of splitting the rows itself. It may have no keys yet, and has more when the rows have been counted.
+   */
+  partitionBy?(channel: string, order: 'first' | 'sorted', max: number): Partition | null;
 }
 
 /** A source or a transform. `DataNode<'x'>` is one the type checker knows offers a channel called x. */

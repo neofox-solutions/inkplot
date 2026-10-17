@@ -55,6 +55,7 @@
     "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
     "./react": "./src/react.ts",
     "./web-components": "./src/web-components.ts",
+    "./node-worker": "./src/node-worker.ts",
     "./worker": "./src/worker.ts"
   },
   "peerDependencies": {

@@ -4,12 +4,14 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { transformSync } from 'rolldown/utils';
+import { fileURLToPath } from 'node:url';
+import { bundle } from './tools/bundle.ts';
 
 const here = (p: string) => new URL(p, import.meta.url);
 const read = (p: string) => readFileSync(here(p), 'utf8');
 
 // The framework adapters need a framework or a page of custom elements, which this page is not; they have their own tests.
-const ADAPTERS = ['react.ts', 'web-components.ts', 'style-names.ts', 'adapt.ts'];
+const ADAPTERS = ['react.ts', 'web-components.ts', 'style-names.ts', 'adapt.ts', 'node-worker.ts'];
 const files = readdirSync(here('./src/'))
   .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && f !== 'fake-platform.ts' && !ADAPTERS.includes(f))
   .sort();
@@ -41,6 +43,22 @@ scripts += `<script type="text/plain" data-module="playground/jsx-demo">${jsxDem
 const gistemp = read('./playground/gistemp.js');
 if (/<\/script|<!--/i.test(gistemp)) throw new Error('the temperature record contains a sequence that would end its script element');
 scripts += `<script type="text/plain" data-module="playground/gistemp">${gistemp}</script>\n`;
+
+// The worker for the Big data demo: the library's own `serveWorker` with the classes the demo sends, as a classic script (a module
+// worker cannot start from a blob in a page that is opened from a file).
+const workerBundle = await bundle({
+  contents: `import { FlatDataSource, Decimator, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel } from 'inkplot';
+import { serveWorker } from 'inkplot/worker';
+serveWorker({ FlatDataSource, Decimator, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel });`,
+  resolveDir: fileURLToPath(here('./')),
+  type: 'js',
+  format: 'iife',
+  platform: 'browser',
+  minify: true,
+  alias: { inkplot: fileURLToPath(here('./src/index.ts')), 'inkplot/worker': fileURLToPath(here('./src/worker.ts')) },
+});
+if (/<\/script|<!--/i.test(workerBundle.code)) throw new Error('the worker contains a sequence that would end its script element');
+scripts += `<script type="text/plain" id="ink-worker">${workerBundle.code}</script>\n`;
 
 const app = read('./playground/app.js');
 if (/<\/script/i.test(app)) throw new Error('the app contains </script');

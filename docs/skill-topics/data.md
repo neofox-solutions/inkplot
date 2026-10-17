@@ -36,6 +36,10 @@ export function replace(next: Float64Array) { source.setAttribute('data', next);
 export function bump(i: number, v: number) { values[i] = v; source.invalidate(); }
 ```
 
+### In a worker
+
+For data too big to reduce on the page, put a `WorkerBoundary` between the series and the `Decimator`, and serve the same classes from the worker file with `serveWorker(registry)` (from `'inkplot/worker'`). The chart draws what it has and updates when the worker answers; `await chart.idle()` waits for that. `transfer` moves the arrays instead of copying them; `shared` (opt-in, needs cross-origin isolation) shares `SharedArrayBuffer` arrays and `refresh()` tells the worker they changed. Use `WebWorker(new URL('./x.worker.ts', import.meta.url))` in a browser and `NodeWorker` from `'inkplot/node-worker'` on Node. Only worth it above a few hundred thousand points.
+
 ## Notes
 
 | To… | Use |
@@ -111,6 +115,7 @@ Runs the stages inside it in a worker: draws what it has, and what the worker se
 | `worker` (required) | `WorkerLike` | Where the stages inside run. |
 | `registry` (required) | `ElementRegistry` | The classes the description is made of, by the names the worker's registry knows them under. |
 | `transfer` | `boolean` | Move the arrays to the worker instead of copying them: fast and without a second copy, but the page no longer has the rows (a hit has no row, the data cannot be edited here). |
+| `shared` | `boolean` | Allow arrays that are backed by a `SharedArrayBuffer`, which the worker then reads where they are, with no copy: change them in place and call `refresh()`. |
 | `envelope` | `Envelope` | For a worker that carries other traffic too (see `Envelope`). |
 
 ### MinMaxKernel

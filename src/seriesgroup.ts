@@ -21,7 +21,7 @@
 import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
 import type { Axis } from './axis.ts';
 import { type DataNode, DataSource, DataTransform } from './data.ts';
-import { canPartition, copyOf, KeySource, type Partition, partitionOf, refresh } from './partition.ts';
+import { canPartition, copyOf, KeySource, leafOf, type Partition, partitionOf, refresh } from './partition.ts';
 import { type AnyElement, type BaseAttributes, ChartElement, childrenOfType, type ElementRef, fail, resolveRef } from './element.ts';
 import { type ChartEvent, EVENT_PAINT } from './events.ts';
 import type { Size } from './geometry.ts';
@@ -78,17 +78,6 @@ function stageThatCannot(node: DataNode): string {
     n = below;
   }
 }
-/** The source at the bottom of a chain of data transforms: what the group splits. */
-function leafOf(node: DataNode): DataSource {
-  let n: AnyElement = node;
-  while (!(n instanceof DataSource)) {
-    let next: AnyElement | undefined;
-    for (let c = n.firstChild; c; c = c.nextSibling) if (c instanceof DataSource || c instanceof DataTransform) next = c;
-    n = next ?? fail('SeriesGroup: a data transform in the group has no source beneath it');
-  }
-  return n;
-}
-
 export class SeriesGroup
   extends ChartElement<Plane, [data: DataNode, ...renderers: AnySeriesRenderer[]], SeriesGroupAttributes>
   implements SeriesHolder
@@ -215,15 +204,22 @@ export class SeriesGroup
       );
     const leaf = leafOf(data);
     const old = this.#partition;
-    if (data === this.#source && old && old.source === leaf && old.version === leaf.version) {
+    const max = a.maxGroups ?? DEFAULT_MAX,
+      order = a.order ?? 'first';
+    // Rows that are kept somewhere else (a worker) are counted there, and the partition is what it last said.
+    let remote: Partition | null | undefined;
+    if (data instanceof DataTransform && data.partitionBy) {
+      if (typeof order === 'function')
+        fail('SeriesGroup: over a WorkerBoundary the series are in the order of `first` or `sorted`: a function cannot go to the worker');
+      remote = data.partitionBy(a.channel, order, max);
+    }
+    if (remote ? remote === old : data === this.#source && old && old.source === leaf && old.version === leaf.version) {
       // Only a stage above the source changed: the same rows, asked for again.
       this.#version = data.version;
       for (const part of this.#parts.values()) part.touch();
       return;
     }
-    const partition =
-      partitionOf(leaf, a.channel, a.order ?? 'first', a.maxGroups ?? DEFAULT_MAX) ??
-      fail(`SeriesGroup: the data has no channel "${a.channel}"`);
+    const partition = remote ?? partitionOf(leaf, a.channel, order, max) ?? fail(`SeriesGroup: the data has no channel "${a.channel}"`);
     this.#source = data;
     this.#version = data.version;
     this.#partition = partition;

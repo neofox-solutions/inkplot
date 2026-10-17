@@ -610,6 +610,27 @@ export default () => (
 
 To draw a window of the rows instead, or to animate one, put a `Slice` round the source (inside the `Decimator` if there is one): `<Slice last={300} end={n}>`. Rows are counted as `Array.prototype.slice` counts them, `last` keeps that many rows ending at `end`, and the axes fit the rows kept. Move the window with `setAttribute('end', n)`: the series refills and nothing else is touched. In a `SeriesGroup` the window is of each key's rows; `keyed={false}` windows the data as a whole instead.
 
+## Keep a big chart responsive with a worker
+
+When even a decimated chart stutters while panning, run the data stages in a worker. Wrap the `Decimator` in a `WorkerBoundary` and serve the same classes from the worker file; the chart draws what it has and updates when the worker answers. See [Data](../guide/data.md#working-in-a-worker) for sizes, `transfer`, `shared` and groups.
+
+```tsx
+// chart.tsx
+const worker = new WebWorker(new URL('./signal.worker.ts', import.meta.url));
+const registry = { Decimator, FlatDataSource, MinMaxKernel };
+
+<DomainSeries name="Signal">
+  <WorkerBoundary worker={worker} registry={registry}>
+    <Decimator><MinMaxKernel /><FlatDataSource data={signal} isSorted regularDomain-start={0} regularDomain-step={1} /></Decimator>
+  </WorkerBoundary>
+  <LinePath><LinearCurve /></LinePath>
+</DomainSeries>
+
+// signal.worker.ts
+import { Decimator, FlatDataSource, MinMaxKernel, serveWorker } from 'inkplot/worker';
+serveWorker({ Decimator, FlatDataSource, MinMaxKernel });
+```
+
 ## Draw a pie or ring chart
 
 A ring chart is a stack of bars on a polar plane. The **bars run round the circle**: a series' value is an angle, and its domain is a **ring**. Normalise the stack so each ring adds up to a whole turn; each series is then one segment of every ring, and each point of a series is one ring (so one point is a pie, with `innerRadius` for a doughnut).

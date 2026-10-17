@@ -139,6 +139,8 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
   #dataChanged = false;
   #flushCount = 0;
   #holds = 0;
+  readonly #watched = new Set<() => boolean>();
+  readonly #idlers: { resolve: () => void; reject: (e: unknown) => void }[] = [];
   private readonly counts: Counters = newCounters();
   private unschedule: Unsubscribe | null = null;
   private readonly subscriptions: Unsubscribe[] = [];
@@ -190,6 +192,8 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
     const p = this.platform;
     if (!p) return;
     this.#needsFlush = true;
+    // Whoever is waiting for the chart to be idle looks again once the change that caused this has finished.
+    if (this.#idlers.length) void Promise.resolve().then(() => this.#settle());
     if (p.schedule && !this.unschedule) {
       this.unschedule = p.schedule(() => {
         this.unschedule = null;
@@ -213,6 +217,38 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
   /** True while data that was promised has not arrived (see `holdEntrance`). */
   get awaitingData(): boolean {
     return this.#holds > 0;
+  }
+
+  /**
+   * Say that data is on its way: `pending()` is true while something has been asked for and has not come back (a worker's
+   * answer). `idle()` waits on the ones it is told of. Returns the function that stops telling.
+   */
+  watchData(pending: () => boolean): () => void {
+    this.#watched.add(pending);
+    return () => void this.#watched.delete(pending);
+  }
+  /**
+   * Resolves when the chart has nothing more to draw and nothing on its way: it flushes what is waiting, and waits for the
+   * data stages that run elsewhere (see `WorkerBoundary`) to answer and for the flush that follows each answer. For tests,
+   * and for exporting a chart whose data is computed in a worker. Rejects if a flush throws.
+   */
+  idle(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.#idlers.push({ resolve, reject });
+      this.#settle();
+    });
+  }
+  #settle(): void {
+    if (this.#idlers.length === 0) return;
+    try {
+      if (this.platform && this.#needsFlush) this.flush();
+      for (const pending of this.#watched) if (pending()) return;
+    } catch (e) {
+      for (const i of this.#idlers.splice(0)) i.reject(e);
+      return;
+    }
+    if (this.platform && this.#needsFlush) return;
+    for (const i of this.#idlers.splice(0)) i.resolve();
   }
 
   /** A data node changed: the next flush is the kind that may ease (see `transition`). Called by the data stages, not by apps. */

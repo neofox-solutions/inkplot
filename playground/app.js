@@ -2229,15 +2229,29 @@ demos.push({
 demos.push({
   id: 'big',
   title: 'Big data',
-  blurb: 'Decimation kernels over up to 10 million points',
+  blurb: 'Decimation kernels over up to 10 million points, on this thread or in a worker',
   setup(ctx) {
-    const S = { n: 1e6, shape: 'noisy', storage: 'regular', kernel: 'minmax', seed: 1, sorted: true };
+    const S = {
+      n: 1e6,
+      shape: 'noisy',
+      storage: 'regular',
+      kernel: 'minmax',
+      seed: 1,
+      sorted: true,
+      resolution: 1,
+      worker: false,
+      transfer: false,
+      shared: false,
+      pan: false,
+    };
+    const isolated = typeof crossOriginIsolated === 'boolean' && crossOriginIsolated;
     const x = new L.Axis({ orientation: 'bottom', title: 't' }, new L.LinearScale());
     const y = new L.Axis({ orientation: 'left', title: 'value', nice: true }, new L.LinearScale());
     const KERNELS = { minmax: L.MinMaxKernel, m4: L.M4Kernel, lttb: L.LttbKernel, stride: L.StrideKernel };
     const gen = h('pre', { class: 'readout' });
     const warn = h('p', { class: 'note warn' });
-    let source;
+    const status = h('pre', { class: 'readout' });
+    let source, worker, boundary, sharedData;
     const makeSource = () => {
       const t0 = performance.now();
       const ys = shape(S.shape, S.n, S.seed),
@@ -2259,26 +2273,65 @@ demos.push({
           gen.textContent = `generated in ${ms(performance.now() - t0)} ms`;
           return o;
         }
-        default:
-          s = { data: ys, regularDomain: { start: 0, step } };
+        default: {
+          let data = ys;
+          sharedData = null;
+          // On shared memory the worker reads the array where it is, and the page can change it in place.
+          if (S.worker && S.shared) {
+            data = sharedData = new Float64Array(new SharedArrayBuffer(8 * S.n));
+            data.set(ys);
+          }
+          s = { data, regularDomain: { start: 0, step } };
+        }
       }
       gen.textContent = `generated in ${ms(performance.now() - t0)} ms`;
       return new L.FlatDataSource(s);
     };
     source = makeSource();
-    const decimator = new L.Decimator({}, new KERNELS.minmax(), source);
+    let decimator = new L.Decimator({}, new KERNELS.minmax(), source);
     const line = new L.LinePath({ stroke: PALETTE[0], strokeWidth: 1 }, new L.LinearCurve());
+    const series = new L.DomainSeries(decimator, line);
+    const workerCode = document.getElementById('ink-worker')?.textContent ?? '';
+    const registry = {
+      FlatDataSource: L.FlatDataSource,
+      Decimator: L.Decimator,
+      MinMaxKernel: L.MinMaxKernel,
+      M4Kernel: L.M4Kernel,
+      LttbKernel: L.LttbKernel,
+      StrideKernel: L.StrideKernel,
+    };
+    // A classic worker made from the code in the page: it starts wherever the page is opened from, a file included.
+    const getWorker = () =>
+      (worker ??= new L.WebWorker(URL.createObjectURL(new Blob([workerCode], { type: 'text/javascript' })), { worker: {} }));
+    const useWorker = () => S.worker && S.storage !== 'objects';
+    let answers = 0;
+    const updateStatus = () => {
+      status.textContent = !useWorker()
+        ? 'decimating on this thread'
+        : `worker · ${boundary?.pending ? 'waiting for an answer' : 'up to date'} · ${S.transfer && !S.shared ? 'array moved' : S.shared ? 'shared memory' : 'array copied'}`;
+    };
     const chart = new L.Chart(
-      { theme: chartTheme(), onFlush: ctx.onFlush },
-      new L.CartesianPlane({ frame: true }, x, y, new L.DomainSeries(decimator, line)),
+      { theme: chartTheme(), onFlush: (st) => (ctx.onFlush(st), updateStatus()) },
+      new L.CartesianPlane({ frame: true }, x, y, series),
     );
     const checkWarning = () => {
       warn.textContent =
         S.kernel === 'off' && S.n > 200000 ? `Without a kernel this draws ${fmt(S.n, 0)} points. Expect a very large path.` : '';
     };
+    // New data, and the stages round it as the settings say: on this thread, or inside a boundary to a worker.
     const rebuild = () => {
-      decimator.setChild(1, makeSource());
+      series.remove(boundary ?? decimator);
+      decimator = new L.Decimator(
+        { enabled: S.kernel !== 'off', resolution: S.resolution },
+        new KERNELS[S.kernel === 'off' ? 'minmax' : S.kernel](),
+        makeSource(),
+      );
+      boundary = useWorker()
+        ? new L.WorkerBoundary({ worker: getWorker(), registry, transfer: S.transfer && !S.shared, shared: S.shared }, decimator)
+        : null;
+      series.insertBefore(boundary ?? decimator, line);
       checkWarning();
+      updateStatus();
     };
     ctx.add(
       ui.slider({
@@ -2360,16 +2413,81 @@ demos.push({
         max: 4,
         step: 0.25,
         value: 1,
-        onChange: (v) => decimator.setAttribute('resolution', v),
+        onChange: (v) => decimator.setAttribute('resolution', (S.resolution = v)),
       }),
       ui.slider({ label: 'stroke width', min: 0.5, max: 4, step: 0.5, value: 1, onChange: (v) => line.setAttribute('strokeWidth', v) }),
+      ...(workerCode
+        ? [
+            ui.toggle({
+              label: 'decimate in a worker',
+              value: S.worker,
+              onChange: (v) => {
+                S.worker = v;
+                rebuild();
+              },
+            }),
+            ui.toggle({
+              label: 'move the array, do not copy it (the JSON tab cannot write it then)',
+              value: S.transfer,
+              onChange: (v) => {
+                S.transfer = v;
+                rebuild();
+              },
+            }),
+            ...(isolated
+              ? [
+                  ui.toggle({
+                    label: 'shared memory (SharedArrayBuffer; y only)',
+                    value: S.shared,
+                    onChange: (v) => {
+                      S.shared = v;
+                      rebuild();
+                    },
+                  }),
+                  ui.buttons([
+                    'Change a region in place (shared)',
+                    () => {
+                      if (!sharedData || !boundary) return;
+                      const from = Math.floor(Math.random() * 0.8 * S.n),
+                        to = from + Math.floor(0.1 * S.n);
+                      const lift = 4 * (Math.random() - 0.5) * (y.view?.max ?? 10);
+                      for (let i = from; i < to; i++) sharedData[i] += lift;
+                      boundary.refresh();
+                    },
+                  ]),
+                ]
+              : [
+                  ui.note(
+                    'Shared memory needs a page that is cross-origin isolated (served with COOP and COEP headers), which this one is not.',
+                  ),
+                ]),
+            ui.toggle({
+              label: 'pan automatically (watch flush max)',
+              value: S.pan,
+              onChange: (v) => {
+                S.pan = v;
+                const t0 = performance.now();
+                const step = (now) => {
+                  if (!S.pan) return;
+                  const t = ((now - t0) / 8000) % 2,
+                    at = t < 1 ? t : 2 - t;
+                  x.setAttributes({ min: at * 9, max: at * 9 + 1 });
+                  requestAnimationFrame(step);
+                };
+                if (v) requestAnimationFrame(step);
+                else x.setAttributes({ min: undefined, max: undefined });
+              },
+            }),
+            status,
+          ]
+        : []),
       gen,
       warn,
       ui.note(
         'Object rows are loaded once into numbers on each change, so they cost memory and time at the top end. Unflagged data is copied and, if it is out of order, sorted.',
       ),
     );
-    return { chart };
+    return { chart, dispose: () => ((S.pan = false), worker?.terminate()) };
   },
 });
 
@@ -6206,6 +6324,8 @@ async function roundTrip() {
   const chart = L.fromJSON(wire, pageRegistry(), { refs: current.refs, inlineLimit: JSON_LIMIT });
   chart.attach(platform);
   chart.flush();
+  // Stages that run elsewhere (a worker) answer later: both charts are drawn once they have.
+  await Promise.all([chart.idle(), current.chart.idle()]);
   const norm = (n) => n.outerHTML.replace(/clip\d+/g, 'clip').replace(/grad\d+/g, 'grad');
   const result = {
     live: norm(host.querySelector('svg')),

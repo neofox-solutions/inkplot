@@ -24,12 +24,15 @@ import { type AttrTypesFor, BOOLEAN } from './attrs.ts';
 import { type DataNode, DataSource, DataTransform, type FillPlan, type FillResult, type PlanContext } from './data.ts';
 import { type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
+import { leafOf, type Partition, type PartitionedPlan } from './partition.ts';
 import { Refs, toJSON, type ElementRegistry } from './serialize.ts';
 import {
   type Envelope,
   envelopeOf,
   type Enveloping,
   type FromWorker,
+  type PartitionMeta,
+  type PartitionSpec,
   type ToWorker,
   type WorkerLike,
   type WorkerMeta,
@@ -42,6 +45,12 @@ export interface WorkerBoundaryAttributes extends BaseAttributes {
   registry: ElementRegistry;
   /** Move the arrays to the worker instead of copying them: fast and without a second copy, but the page no longer has the rows (a hit has no row, the data cannot be edited here). A `SharedArrayBuffer` is never copied or moved. */
   transfer?: boolean;
+  /**
+   * Allow arrays that are backed by a `SharedArrayBuffer`, which the worker then reads where they are, with no copy: change them in
+   * place and call `refresh()`. Off by default, because it needs a page that is cross-origin isolated, and because the worker reads
+   * the array while the page may be writing it, which is the page's to arrange (write between refreshes, or accept a torn frame).
+   */
+  shared?: boolean;
   /** For a worker that carries other traffic too (see `Envelope`). The worker has to be given the same. */
   envelope?: Envelope;
 }
@@ -49,6 +58,7 @@ export interface WorkerBoundaryAttributes extends BaseAttributes {
 interface Request {
   key: string;
   context: PlanContext;
+  byKey: boolean;
 }
 interface Result {
   key: string;
@@ -56,6 +66,48 @@ interface Result {
   stride: number;
   extents: readonly Extent[];
   buffer: ArrayBuffer;
+}
+
+/** The points of every key of a partition, as the worker sent them: a block each. */
+interface Blocks {
+  stride: number;
+  buffer: ArrayBuffer;
+  /** Where the block of a key is: its place among the blocks. */
+  index: Map<number, number>;
+  sizes: number[];
+  offsets: number[];
+  extents: Extent[][];
+}
+
+const EMPTY_META: PartitionMeta = { keys: [], omitted: 0, counts: [], domains: [], values: [], channels: {} };
+const NO_ROWS: Partition['view'] = { data: new Float64Array(0), count: 0, stride: 2, domainOffset: 0, valueOffset: 1, regularDomain: null };
+
+/** What a group is given for rows that are in a worker: the counts and extents the worker made of them, and no rows. */
+function remotePartition(source: DataSource, spec: PartitionSpec, meta: PartitionMeta, version: number): Partition {
+  const slots = new Map(meta.keys.map((k, i) => [k, i]));
+  const nothing = meta.keys.map(() => null);
+  return {
+    channel: spec.channel,
+    source,
+    view: NO_ROWS,
+    keyOffset: -1,
+    version,
+    keys: meta.keys,
+    omitted: meta.omitted,
+    storageRow: () => -1,
+    counts: Int32Array.from(meta.counts),
+    firstRows: new Int32Array(0),
+    lastRows: new Int32Array(0),
+    domains: meta.domains,
+    values: meta.values,
+    slotOf: (key) => slots.get(key) ?? -1,
+    table: new Int32Array(0),
+    tableOnly: false,
+    rows: () => [],
+    alone: () => [],
+    gathered: false,
+    channelExtents: (name) => meta.channels[name] ?? nothing,
+  };
 }
 
 let nextId = 1;
@@ -75,6 +127,10 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
   #dirty = true;
   #meta: WorkerMeta | null = null;
   #result: Result | null = null;
+  #blocks: Blocks | null = null;
+  #spec: PartitionSpec | null = null;
+  #touch = false;
+  #remote: { meta: PartitionMeta; partition: Partition } | null = null;
   #spare: ArrayBuffer | null = null;
   #wanted = '';
   #inflight: Request | null = null;
@@ -85,6 +141,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
   #replying = false;
   // Told to the chart until the first points arrive, so an entrance waits for them.
   #release: (() => void) | null = null;
+  #unwatch: (() => void) | null = null;
 
   constructor(...args: ConstructorParameters<typeof DataTransform<WorkerBoundaryAttributes, [source: DataNode]>>) {
     super(...args);
@@ -92,16 +149,22 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       fail('WorkerBoundary: what is inside has to be a data source or transform');
   }
 
+  /** Rows shared with the worker (see `shared`) were changed in place: it counts, thins and draws them again. */
+  refresh(): void {
+    this.#touch = true;
+    this.invalidate();
+  }
+
   get source(): DataNode {
     return this.child(0, DataSource, DataTransform);
   }
   /** The worker's side of the data: the points that have arrived, or nothing yet. */
   get arrived(): boolean {
-    return this.#result !== null;
+    return this.#result !== null || this.#blocks !== null;
   }
   /** True while a request is out or waiting, or the worker has not yet answered the description: the chart is drawing what it had. */
   get pending(): boolean {
-    return this.#inflight !== null || this.#waiting !== null || this.#meta === null || this.#dirty;
+    return this.#error === null && (this.#inflight !== null || this.#waiting !== null || this.#meta === null || this.#dirty);
   }
 
   override invalidate(): void {
@@ -136,20 +199,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
   }
 
   plan(context: PlanContext): FillPlan {
-    if (this.#error) {
-      const e = this.#error;
-      this.#error = null;
-      throw e;
-    }
-    this.#sync();
-    const key = `${this.#epoch}|${context.width}|${context.domainRange.min},${context.domainRange.max}|${context.channels.join(',')}|${context.sequence ? 1 : 0}`;
-    if (key !== this.#wanted) {
-      this.#wanted = key;
-      const request: Request = { key, context };
-      if (this.#inflight) this.#waiting = request;
-      else this.#send(request);
-    }
-    if (this.#error) return this.plan(context);
+    this.#ask(context, false);
     const have = this.#result,
       stride = 2 + context.channels.length;
     // What arrived for other channels is not laid out like this plot's points, and cannot stand in for them.
@@ -160,6 +210,73 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
         const r = this.#result ?? have;
         out.set(new Float64Array(r.buffer, 0, r.count * r.stride).subarray(0, out.length));
         return { count: Math.min(r.count, Math.floor(out.length / r.stride)), extents: r.extents };
+      },
+    };
+  }
+
+  /** Throw what the worker threw; send the description if it changed; ask for these points unless they are the last ones asked for. */
+  #ask(context: PlanContext, byKey: boolean): void {
+    if (this.#error) {
+      const e = this.#error;
+      this.#error = null;
+      throw e;
+    }
+    this.#sync();
+    const key = `${this.#epoch}|${byKey ? 'k' : 'p'}|${context.width}|${context.domainRange.min},${context.domainRange.max}|${context.channels.join(',')}|${context.sequence ? 1 : 0}`;
+    if (key !== this.#wanted) {
+      this.#wanted = key;
+      const request: Request = { key, context, byKey };
+      if (this.#inflight) this.#waiting = request;
+      else this.#send(request);
+    }
+    if (this.#error) this.#ask(context, byKey);
+  }
+
+  // ─── Groups: the worker splits the rows by a channel, and the group asks for each key's points ───
+
+  override partitionable(): boolean {
+    const s = this.source;
+    return s instanceof DataSource || s.partitionable?.() === true;
+  }
+  override partitionBy(channel: string, order: 'first' | 'sorted', max: number): Partition | null {
+    const held = this.#spec;
+    if (!held || held.channel !== channel || held.order !== order || held.max !== max) {
+      this.#spec = { channel, order, max };
+      this.#remote = null;
+      this.#dirty = true;
+    }
+    this.#sync();
+    const meta = this.#meta?.partition;
+    if (!meta) {
+      // The worker has not counted yet: no keys, so no series, until it has.
+      return (this.#remote ??= {
+        meta: EMPTY_META,
+        partition: remotePartition(leafOf(this.source), this.#spec ?? { channel, order, max }, EMPTY_META, 0),
+      }).partition;
+    }
+    if (this.#remote?.meta !== meta)
+      this.#remote = { meta, partition: remotePartition(leafOf(this.source), this.#spec ?? { channel, order, max }, meta, this.#version) };
+    return this.#remote.partition;
+  }
+  override planPartitioned(context: PlanContext, partition: Partition): PartitionedPlan {
+    this.#ask(context, true);
+    const stride = 2 + context.channels.length;
+    const blockOf = (slot: number): number => {
+      const b = this.#blocks;
+      return b && b.stride === stride ? (b.index.get(partition.keys[slot] ?? NaN) ?? -1) : -1;
+    };
+    return {
+      capacity: (slot) => {
+        const at = blockOf(slot);
+        return at < 0 ? 0 : (this.#blocks?.sizes[at] ?? 0);
+      },
+      fill: (slot, out) => {
+        const b = this.#blocks,
+          at = blockOf(slot);
+        if (!b || at < 0) return { count: 0, extents: [] };
+        const n = Math.min(b.sizes[at] ?? 0, Math.floor(out.length / stride));
+        out.set(new Float64Array(b.buffer, (b.offsets[at] ?? 0) * 8, n * stride));
+        return { count: n, extents: b.extents[at] ?? [] };
       },
     };
   }
@@ -175,10 +292,14 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
     this.#stop = null;
     this.#release?.();
     this.#release = null;
+    this.#unwatch?.();
+    this.#unwatch = null;
     this.#attached = false;
     this.#dirty = true;
     this.#meta = null;
     this.#result = null;
+    this.#blocks = null;
+    this.#remote = null;
     this.#inflight = this.#waiting = null;
     this.#wanted = '';
     this.#sent.clear();
@@ -190,7 +311,8 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
     this.#dirty = false;
     const a = this.attrs;
     if (!this.#wire) this.#wire = envelopeOf(a.envelope);
-    if (!this.#release && !this.#result) this.#release = this.chart?.holdEntrance() ?? null;
+    if (!this.#release && !this.#result && !this.#blocks) this.#release = this.chart?.holdEntrance() ?? null;
+    if (!this.#unwatch) this.#unwatch = this.chart?.watchData(() => this.pending) ?? null;
     if (!this.#stop) {
       const wire = this.#wire;
       this.#stop = a.worker.subscribe((data) => {
@@ -198,7 +320,18 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
         if (m && typeof m === 'object' && (m.id === this.#id || (m.kind === 'error' && m.id === 0))) this.#receive(m);
       });
     }
-    const tree = toJSON(this.source, a.registry, { refs: this.#refs });
+    let tree;
+    try {
+      tree = toJSON(this.source, a.registry, { refs: this.#refs });
+    } catch (e) {
+      const text = e instanceof Error ? e.message : String(e);
+      if (/detached/.test(text))
+        fail(
+          'WorkerBoundary: an array of the description was moved to a worker (`transfer`) and is not here any more: ' +
+            'give each boundary its own array, or leave `transfer` off to copy it',
+        );
+      throw e;
+    }
     const refs: Record<string, unknown> = {},
       transfer: ArrayBuffer[] = [];
     for (const name of this.#refs.names) {
@@ -206,13 +339,30 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       if (this.#sent.get(name) === value) continue;
       this.#sent.set(name, value);
       refs[name] = value;
+      if (!a.shared && ArrayBuffer.isView(value) && typeof SharedArrayBuffer !== 'undefined' && value.buffer instanceof SharedArrayBuffer)
+        fail(
+          `WorkerBoundary: "${name}" is backed by a SharedArrayBuffer: set \`shared\` to share it with the worker (the page has to be cross-origin isolated)`,
+        );
       if (a.transfer && ArrayBuffer.isView(value) && value.buffer instanceof ArrayBuffer && !this.#moved.has(value.buffer)) {
         this.#moved.add(value.buffer);
         transfer.push(value.buffer);
       }
     }
+    const touch = this.#touch;
+    this.#touch = false;
     this.#epoch++;
-    this.#post({ kind: this.#attached ? 'update' : 'attach', id: this.#id, epoch: this.#epoch, tree, refs }, transfer);
+    this.#post(
+      {
+        kind: this.#attached ? 'update' : 'attach',
+        id: this.#id,
+        epoch: this.#epoch,
+        tree,
+        refs,
+        partition: this.#spec,
+        touch: touch || undefined,
+      },
+      transfer,
+    );
     this.#attached = true;
   }
 
@@ -231,6 +381,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
         domainRange: c.domainRange,
         channels: [...c.channels],
         sequence: c.sequence ?? false,
+        byKey: request.byKey,
         recycle,
       },
       recycle ? [recycle] : [],
@@ -261,8 +412,20 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       case 'result': {
         this.#release?.();
         this.#release = null;
-        if (this.#result) this.#spare = this.#result.buffer;
-        this.#result = { key: m.key, count: m.count, stride: m.stride, extents: m.extents, buffer: m.buffer };
+        // The buffer of the answer this one replaces goes back with the next request.
+        const replaced = m.blocks ? this.#blocks?.buffer : this.#result?.buffer;
+        if (replaced) this.#spare = replaced;
+        const blocks = m.blocks;
+        if (blocks)
+          this.#blocks = {
+            stride: m.stride,
+            buffer: m.buffer,
+            index: new Map(blocks.keys.map((k, i) => [k, i])),
+            sizes: blocks.sizes,
+            offsets: blocks.offsets,
+            extents: blocks.extents,
+          };
+        else this.#result = { key: m.key, count: m.count, stride: m.stride, extents: m.extents, buffer: m.buffer };
         this.#inflight = null;
         const next = this.#waiting;
         this.#waiting = null;
