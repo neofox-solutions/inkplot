@@ -210,7 +210,7 @@ test('worker boundary: the entrance waits for the first points, and plays then',
   Object.assign(platform, { setTransition: () => {} });
   chart.attach(platform).flush();
   assert.equal(chart.awaitingData, true);
-  assert.doesNotMatch(platform.toString(), /data-ink-enter/, 'empty axes: nothing to enter yet');
+  assert.ok(!/data-ink-enter/.test(platform.toString()), 'empty axes: nothing to enter yet');
   for (let i = 0; i < 4 && chart.awaitingData; i++) {
     await worker.idle();
     chart.flush();
