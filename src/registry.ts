@@ -15,6 +15,7 @@ import { ErrorBand, ErrorBars } from './errors.ts';
 import { LinearCurve } from './curve.ts';
 import { ArcCurve, BasisCurve, BumpCurve, CardinalCurve, CatmullRomCurve, MonotoneCurve, NaturalCurve, QuadraticCurve } from './curves.ts';
 import { CompositeDataSource, FlatDataSource, ObjectDataSource, SyntheticDataSource } from './sources.ts';
+import { LinkedData } from './linkeddata.ts';
 import { Slice } from './slice.ts';
 import { Decimator, LttbKernel, M4Kernel, MinMaxKernel, StrideKernel } from './decimation.ts';
 import { ChartTitle, ChartTooltip } from './furniture.ts';
@@ -88,6 +89,7 @@ export const registry: ElementRegistry = {
   SyntheticDataSource,
   Decimator,
   Slice,
+  LinkedData,
   MinMaxKernel,
   M4Kernel,
   LttbKernel,

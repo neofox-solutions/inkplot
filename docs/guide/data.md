@@ -173,6 +173,42 @@ Things to know:
 - **In a stack, decimate the sources before the stack**, not per series: decimation is per series and would thin each differently, so rows would no longer line up (`Stack` has `align` for that).
 - **Sources that are not sorted** still work under a decimator; they are sorted once into a copy. Set `isSorted` on data you know is ordered and it is read in place.
 
+## Sharing data between charts
+
+When several charts show the same data, give each its own source over the same typed array and it works. A **`LinkedData`** adds one place to change it: it stands where a series wants its data and answers with the data of another source or transform, its version, its extents and its very storage, read in place. Change the source and every chart that links to it draws again.
+
+The source is a child of the chart (or of a `ChartGroupItem`), where it draws nothing and has an `id`; `LinkedData` takes that id. What does depend on where it is drawn stays at each site: put a `Decimator` (thinning depends on the width) or a `Slice` around the link. `channels` renames channels on the way (`{ x: 'time' }` makes the source's `time` the channel `x` here); the others keep their names.
+
+```tsx live title="One source, two views of it" height=300
+import { Axis, CartesianPlane, Chart, ChartGroup, ChartGroupItem, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, LinkedData, Slice, lightTheme } from 'inkplot';
+
+const trace = Float64Array.from({ length: 400 }, (_, i) => Math.sin(i / 20) + Math.sin(i / 3) / 4);
+const cell = (window?: number) => (
+  <ChartGroupItem>
+    <CartesianPlane>
+      <Axis orientation="bottom"><LinearScale /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <DomainSeries>
+        {window ? <Slice last={window}><LinkedData source="trace" /></Slice> : <LinkedData source="trace" />}
+        <LinePath><LinearCurve /></LinePath>
+      </DomainSeries>
+    </CartesianPlane>
+  </ChartGroupItem>
+);
+
+export default () => (
+  <Chart theme={lightTheme}>
+    <FlatDataSource id="trace" data={trace} regularDomain={{ start: 0, step: 1 }} isSorted />
+    <ChartGroup columns={2}>
+      {cell()}
+      {cell(60)}
+    </ChartGroup>
+  </Chart>
+);
+```
+
+Charts cannot see into each other, so to link from one chart to another pass the element (`new LinkedData({ source: shared })`), not an id; JSON writes it as a ref. A link in another chart listens for as long as it is attached.
+
 ## Working in a worker
 
 Decimating a few million points takes tens of milliseconds, and that is a frame the page cannot draw. A **`WorkerBoundary`** moves the stages inside it, the source and its transforms, to a Web Worker (or a Node worker thread). The chart draws at once with what it has, and again when the worker's answer arrives, so panning and zooming stay smooth however large the data. It pays when the work is longer than the round trip, roughly above a few hundred thousand points; below that, leave it out.

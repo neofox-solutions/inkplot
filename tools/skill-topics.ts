@@ -109,6 +109,7 @@ export const TOPICS: Record<string, Topic> = {
       'SyntheticDataSource',
       'Decimator',
       'Slice',
+      'LinkedData',
       'WorkerBoundary',
       'MinMaxKernel',
       'M4Kernel',

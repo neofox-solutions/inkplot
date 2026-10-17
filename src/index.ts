@@ -366,6 +366,7 @@ export { type LineChartOptions, lineChart } from './simple.ts';
 export type { ChartShortcutOptions, SeriesInput } from './shortcut.ts';
 export { type BarChartOptions, barChart } from './barchart.ts';
 export { Slice, type SliceAttributes } from './slice.ts';
+export { LinkedData, type LinkedDataAttributes } from './linkeddata.ts';
 export { type PieChartOptions, type PieSlice, pieChart } from './pie.ts';
 export { type MoveViewOptions, moveView, parseEasing } from './viewtween.ts';
 export {

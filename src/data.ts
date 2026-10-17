@@ -85,6 +85,18 @@ export interface PointView {
   readonly channelOffsets?: Readonly<Record<string, number>>;
 }
 
+/** Who wants to hear that a stage changed (a `LinkedData` in another chart): kept only once someone asks. */
+class Watchers {
+  #fns: Set<() => void> | null = null;
+  add(fn: () => void): () => void {
+    (this.#fns ??= new Set()).add(fn);
+    return () => void this.#fns?.delete(fn);
+  }
+  fire(): void {
+    if (this.#fns) for (const fn of this.#fns) fn();
+  }
+}
+
 /**
  * What the type checker knows of the channels a stage offers, so that a series asking for one by name can be checked
  * against its source. A stage whose channels are not spelled out (`string`) is not checked.
@@ -204,6 +216,7 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   /** Type checking only: the channel names this source offers. Never present at run time. */
   declare readonly offers?: Offers<Channel>;
   #version = 0;
+  readonly #watchers = new Watchers();
   private domainCache: { version: number; extent: Extent | null } | null = null;
   private valueCache: { version: number; extent: Extent | null } | null = null;
   private channelCache: { version: number; byName: Map<string, Extent | null> } | null = null;
@@ -343,6 +356,11 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
     this.#version++;
     this.chart?.noteDataChange();
     super.invalidate();
+    this.#watchers.fire();
+  }
+  /** Call `fn` whenever this stage changes, until the function this returns is called: how a `LinkedData` in another chart hears of it. */
+  watch(fn: () => void): () => void {
+    return this.#watchers.add(fn);
   }
 
   /** Cached per version; an in-place source only looks at its two ends, a managed one already knows. */
@@ -453,6 +471,16 @@ export abstract class DataTransform<
   declare readonly offers?: Offers<Channel>;
   abstract get version(): number;
   abstract get pointCount(): number;
+  readonly #watchers = new Watchers();
+  /** What anything beneath bubbles up through: those who are watching this stage hear of it too. */
+  override invalidate(): void {
+    super.invalidate();
+    this.#watchers.fire();
+  }
+  /** Call `fn` whenever this stage or what is beneath it changes, until the function this returns is called. */
+  watch(fn: () => void): () => void {
+    return this.#watchers.add(fn);
+  }
   /** The channels it delivers by name. Default none; a transform that passes its source's through, or makes its own, says so. */
   get channelNames(): readonly string[] {
     return [];

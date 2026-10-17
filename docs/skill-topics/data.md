@@ -40,6 +40,10 @@ export function bump(i: number, v: number) { values[i] = v; source.invalidate();
 
 For data too big to reduce on the page, put a `WorkerBoundary` between the series and the `Decimator`, and serve the same classes from the worker file with `serveWorker(registry)` (from `'inkplot/worker'`). The chart draws what it has and updates when the worker answers; `await chart.idle()` waits for that. `transfer` moves the arrays instead of copying them; `shared` (opt-in, needs cross-origin isolation) shares `SharedArrayBuffer` arrays and `refresh()` tells the worker they changed. Use `WebWorker(new URL('./x.worker.ts', import.meta.url))` in a browser and `NodeWorker` from `'inkplot/node-worker'` on Node. Only worth it above a few hundred thousand points.
 
+### One source in several places
+
+Give the source an `id` and make it a child of the `Chart` (or a `ChartGroupItem`), where it draws nothing; each series reads it through `<LinkedData source="id" />`, inside its own `Decimator` or `Slice` if it needs one. A change to the source redraws every chart that links to it. `channels={{ x: 'time' }}` renames a channel on the way. Across separate charts an id cannot be seen: pass the element, `new LinkedData({ source: shared })`.
+
 ## Notes
 
 | To… | Use |
@@ -103,6 +107,17 @@ Keeps a window of rows of the data: move it to animate.
 | `end` | `number` | One past the last row kept. Default all. |
 | `last` | `number` | Keep this many rows ending at `end`, instead of from `start`. |
 | `keyed` | `boolean` | In a `SeriesGroup`: window the rows of each series on their own (the default), or, when false, the rows of the data as a whole, as they stand before they are split by key. |
+
+### LinkedData
+
+The data of another source or transform, elsewhere in the chart or in another chart.
+
+**In** a series, or a transform · **Holds** none
+
+| Attribute | Type | |
+|---|---|---|
+| `source` (required) | `ElementRef<DataNode>` | The stage to forward to: a source or a transform, as an element or the id of one in the same chart. |
+| `channels` | `Readonly<Record<string, string>>` | Channels this stage calls by other names: `{ trace: 'ch2' }` makes the channel `ch2` of the source `trace` here. |
 
 ### WorkerBoundary
 

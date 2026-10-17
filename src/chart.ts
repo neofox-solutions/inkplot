@@ -21,6 +21,7 @@ import type { Cursor } from './cursor.ts';
 import { type Insets, type Rect } from './geometry.ts';
 import type { ColorAxis, ScalarAxis } from './mapped.ts';
 import type { ColorKey, SizeKey } from './key.ts';
+import type { DataNode } from './data.ts';
 import type { Pattern } from './pattern.ts';
 import type { Legend } from './legend.ts';
 import type { ChartSummary } from './summary.ts';
@@ -114,6 +115,8 @@ export interface ChartChildMap {
   summary: ChartSummary;
   entrance: Entrance;
   pattern: Pattern;
+  /** Data for the stages of the plot to link to (`LinkedData`): nothing draws it. */
+  data: DataNode;
   group: ChartGroup;
 }
 export type ChartChildren = ChartChildMap[keyof ChartChildMap][];
