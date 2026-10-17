@@ -1,6 +1,6 @@
 {
   "name": "inkplot-dev",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "A small, tree-shakeable chart library for the web and servers: a tree of elements you keep, drawn as SVG.",
   "license": "MIT",
   "repository": {
