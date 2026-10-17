@@ -184,7 +184,7 @@ test('hit', () => {
     ];
     const series = new XYSeries(
       { x: 'x', hit: 'point' },
-      new ObjectDataSource({ source: rows, value: 'y', channels: { x: 'x', w: 'w' } }),
+      new ObjectDataSource({ source: rows, channels: { x: 'x', y: 'y', w: 'w' } }),
       new LinePath(new LinearCurve()),
     );
     const plane = new CartesianPlane({}, xAxis(), yAxis(), series);
@@ -247,8 +247,7 @@ test('hit', () => {
           { x: 1, y: 1 },
           { x: 4, y: 4 },
         ],
-        value: 'y',
-        channels: { x: 'x' },
+        channels: { x: 'x', y: 'y' },
       }),
       new LinePath(new LinearCurve()),
     );

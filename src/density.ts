@@ -14,7 +14,7 @@
  *   one dimension    domain = the bin's centre, value = the statistic (`stat`)
  *   two or more      domain = the first dimension's centre, value = the second's, and each further dimension is a channel of its name
  *
- * and these channels in any case: `domain` (the first dimension's centre again, since an `XYSeries` takes its x from a channel), `count` (the points in the bin), `sum` (the total of the `weight` channel, which
+ * and these channels in any case: `domain` (the first dimension's centre again, as a channel by name), `count` (the points in the bin), `sum` (the total of the `weight` channel, which
  * is `count` when there is none), `mean` (`sum / count`), `fraction` (the bin's share of the total), `density` (the share per unit
  * of the bin's size, so a histogram of it has area 1), and `width` and `height`: the size of the bin along the first and the
  * second dimension, so a renderer can draw a bin as the box it is. `weight` is what each point counts for: left out, a point

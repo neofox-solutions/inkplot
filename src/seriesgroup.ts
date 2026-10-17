@@ -48,8 +48,10 @@ export interface SeriesGroupAttributes extends BaseAttributes {
   /** The axes of every series (as a `DomainSeries` names them). */
   domainAxis?: ElementRef<Axis>;
   valueAxis?: ElementRef<Axis>;
-  /** The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave it out for `DomainSeries`. */
+  /** The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave `x` and `y` out for `DomainSeries`. Default 'x'. */
   x?: string;
+  /** The channel that is y, for `XYSeries`. Default 'y'. */
+  y?: string;
   xAxis?: ElementRef<Axis>;
   yAxis?: ElementRef<Axis>;
   /** What a missing value means in every series (see `Series`). */
@@ -252,11 +254,12 @@ export class SeriesGroup
   private seriesAttributes(key: number): Record<string, unknown> {
     const a = this.attrs;
     const attrs: Record<string, unknown> = { name: a.name ? a.name(key) : String(key), gaps: a.gaps };
-    if (a.x === undefined) {
+    if (a.x === undefined && a.y === undefined) {
       attrs.domainAxis = a.domainAxis;
       attrs.valueAxis = a.valueAxis;
     } else {
       attrs.x = a.x;
+      attrs.y = a.y;
       attrs.xAxis = a.xAxis;
       attrs.yAxis = a.yAxis;
     }
@@ -269,7 +272,7 @@ export class SeriesGroup
     const suffix = String(key);
     const renderers: AnySeriesRenderer[] = [];
     for (const c of this) if (c instanceof SeriesRenderer) renderers.push(copyOf(c, suffix));
-    return this.attrs.x === undefined
+    return this.attrs.x === undefined && this.attrs.y === undefined
       ? new DomainSeries(attrs, data, ...renderers)
       : new XYSeries(attrs as { x: string }, data, ...renderers);
   }

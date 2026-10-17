@@ -222,7 +222,7 @@ More: [Series and renderers](../guide/series.md#curves).
 
 ## Draw a scatter plot
 
-A scatter has two values per point and no order, so it uses an `XYSeries`: the source's `value` is y, and x is a named **channel** of the source. Markers draw the points.
+A scatter has two values per point and no order, so it uses an `XYSeries`: x and y are named **channels** of the source. Markers draw the points.
 
 ```tsx live title="A scatter plot" height=280
 import { Axis, CartesianPlane, Chart, CircleMarker, LinearScale, ObjectDataSource, XYSeries, lightTheme } from 'inkplot';
@@ -240,8 +240,8 @@ export default () => (
     <CartesianPlane frame>
       <Axis orientation="bottom" title="Dose"><LinearScale /></Axis>
       <Axis orientation="left" title="Response"><LinearScale /></Axis>
-      <XYSeries name="Samples" x="x">
-        <ObjectDataSource source={points} value="y" channels={{ x: 'x' }} />
+      <XYSeries name="Samples">
+        <ObjectDataSource source={points} channels={{ x: 'x', y: 'y' }} />
         <CircleMarker size={3} opacity={0.7} />
       </XYSeries>
     </CartesianPlane>
@@ -270,8 +270,8 @@ export default () => (
     <CartesianPlane frame>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries x="x">
-        <ObjectDataSource source={rows} value="y" channels={{ x: 'x', temperature: 'temperature', mass: 'mass' }} />
+      <XYSeries>
+        <ObjectDataSource source={rows} channels={{ x: 'x', y: 'y', temperature: 'temperature', mass: 'mass' }} />
         <CircleMarker opacity={0.85} bind={{ fill: { axis: 'heat', channel: 'temperature' }, size: { axis: 'weight', channel: 'mass' } }} />
       </XYSeries>
     </CartesianPlane>

@@ -21,7 +21,7 @@ Find the symptom, read the cause, apply the fix. Errors are thrown by the elemen
 | `too many axes without an orientation` | More than the defaults (two) axes, with some left to the default orientation. | Give each axis an `orientation`. |
 | `a floating axis needs an axis on the other orientation to cross` | `crossesAt` without a crossing axis. | Add one on the other orientation, or name it with `crossAxis`. |
 | `no element with id "x"` / `element "x" is not a Y` | A ref (`bind`, `domainAxis`, `dimension`…) names an id that does not exist, or names the wrong kind of element. | Check the `id` is on the element and is spelt the same. |
-| `the data has no channel "x"` | A binding, an `XYSeries` `x`, or a tooltip asks for a channel the source does not deliver. | Declare it: `channels={{ x: 'x' }}` (object and column sources), `channels` offsets (flat). |
+| `the data has no channel "x"` | A binding, an `XYSeries` `x` or `y`, or a tooltip asks for a channel the source does not deliver. | Declare it: `channels={{ x: 'x', y: 'y' }}` (object and column sources), `channels` offsets (flat; plain pairs have `x` and `y` already). A transform's output is `x="domain" y="value"`. |
 | `a Decimator cannot carry channels: bind on undecimated data…` | Channels bound through a `Decimator`. | Put the decimator only on series with no channels; bind on undecimated data. |
 | `a Decimator needs a domain that is a position on an axis…` | A decimator on an `XYSeries`, whose x is a channel and not an axis position. | Draw an XY series undecimated. |
 | `a Decimator needs a regular domain that ascends` | `regularDomain` with a non-positive step. | Use a positive `step`. |

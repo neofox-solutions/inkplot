@@ -664,10 +664,14 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
 
 export interface XYSeriesAttributes<Channel extends string = string> extends SeriesAttributes {
   /**
-   * The channel of the source that is x. The source's `value` is y, and its domain is only the order the points are
-   * drawn in. The type checker confirms the source offers this channel when its channels are spelled out.
+   * The channel of the source that is x. Default 'x', which a `FlatDataSource` of x,y pairs offers by itself. The source's
+   * domain is only the order the points are drawn in. The type checker confirms the source offers the channel when its
+   * channels are spelled out. `'domain'` is the source's own domain column (what a transform that makes a sequence of
+   * positions, like a trendline or a density, writes its x to).
    */
-  x: Channel;
+  x?: Channel;
+  /** The channel that is y. Default 'y'. `'value'` is the source's own value column, which is where a transform writes its y. */
+  y?: Channel;
   /** Default: the plane's first axis (a Cartesian plane's horizontal one). */
   xAxis?: ElementRef<Axis>;
   /** Default: the plane's second axis (the vertical one). */
@@ -677,8 +681,9 @@ export interface XYSeriesAttributes<Channel extends string = string> extends Ser
 /**
  * Two values per point, one on each axis, joined in the order the source holds them: a scatter, a trajectory, a loop.
  *
- * The source's domain is only the sequence (leave `domain` out and it is the row's index), and its `value` is y. x
- * is a channel, named by the `x` attribute. Because order is all the domain means:
+ * The source's domain is only the sequence (leave `domain` out and it is the row's index). x and y are channels, named by
+ * the `x` and `y` attributes (default 'x' and 'y'; a `FlatDataSource` of x,y pairs has both without being told). Because
+ * order is all the domain means:
  *  - every point is always read, whatever the view: there is nothing to window by;
  *  - a `Decimator` refuses it, since kernels thin by pixel column of the domain; draw it undecimated (markers already
  *    leave out what is off the plot);
@@ -702,12 +707,29 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   get secondAxis(): Axis {
     return this.yAxis;
   }
-  // The data is [order, y, x, ...bound channels]: x is asked for ahead of the channels the renderers bind.
+  /**
+   * What is asked of the source for x and y, ahead of the channels the renderers bind: the names that are channels, and the
+   * column of the data each coordinate is read from (the source's own domain and value columns for 'domain' and 'value').
+   */
+  #wanted(): { names: string[]; x: number; y: number } {
+    const names: string[] = [];
+    const column = (name: string) => {
+      if (name === 'domain') return 0;
+      if (name === 'value') return 1;
+      let i = names.indexOf(name);
+      if (i < 0) i = names.push(name) - 1;
+      return 2 + i;
+    };
+    const x = column(this.attrs.x ?? 'x'),
+      y = column(this.attrs.y ?? 'y');
+    return { names, x, y };
+  }
+  // The data is [order, value, ...x and y where they are channels, ...bound channels].
   protected get firstColumn(): number {
-    return 2;
+    return this.#wanted().x;
   }
   protected get secondColumn(): number {
-    return 1;
+    return this.#wanted().y;
   }
 
   resolveAxes(plane: Plane): void {
@@ -723,27 +745,31 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   resolveDomain(): void {}
 
   load(estimate: Size): void {
+    const { names, x: xc, y: yc } = this.#wanted();
     const ext = this.fill({
       ...estimate,
       domainRange: { min: -Infinity, max: Infinity },
       sequence: true,
-      channels: [this.attrs.x, ...this.channels],
+      channels: [...names, ...this.channels],
     });
-    const x = ext[2] ?? NO_EXTENT,
-      y = ext[1] ?? NO_EXTENT;
+    const x = ext[xc] ?? NO_EXTENT,
+      y = ext[yc] ?? NO_EXTENT;
     this.xAxis.contribute(x.min, x.max);
     this.yAxis.contribute(y.min, y.max);
     this.contributeChannels();
   }
 
+  #extentOf(name: string): Extent | null {
+    return name === 'domain' ? this.data.domain() : name === 'value' ? this.data.valueExtent() : this.data.channelExtent(name);
+  }
   ownExtent(role: 'first' | 'second'): Extent | null {
-    return role === 'first' ? this.data.channelExtent(this.attrs.x) : this.data.valueExtent();
+    return this.#extentOf(role === 'first' ? (this.attrs.x ?? 'x') : (this.attrs.y ?? 'y'));
   }
   extentFor(axis: Axis): Extent | null {
     return axis === this.xAxis
-      ? this.widened(axis, this.data.channelExtent(this.attrs.x))
+      ? this.widened(axis, this.#extentOf(this.attrs.x ?? 'x'))
       : axis === this.yAxis
-        ? this.widened(axis, this.data.valueExtent())
+        ? this.widened(axis, this.#extentOf(this.attrs.y ?? 'y'))
         : null;
   }
 }

@@ -482,7 +482,8 @@ Points with x and y both from the data.
 
 | Attribute | Type | |
 |---|---|---|
-| `x` (required) | `Channel` | The channel of the source that is x. |
+| `x` | `Channel` | The channel of the source that is x. Default 'x', which a `FlatDataSource` of x,y pairs offers by itself. |
+| `y` | `Channel` | The channel that is y. Default 'y'. |
 | `xAxis` | `ElementRef<Axis>` | Default: the plane's first axis (a Cartesian plane's horizontal one). |
 | `yAxis` | `ElementRef<Axis>` | Default: the plane's second axis (the vertical one). |
 | `name` | `string` | What the series is called where it is named: a tooltip's heading. |
@@ -512,7 +513,8 @@ One series for each value of a channel of the data, each drawn with a copy of th
 | `name` | `(key: number) => string` | What a series is called, from its key. Default: the key as text. |
 | `domainAxis` | `ElementRef<Axis>` | The axes of every series (as a `DomainSeries` names them). |
 | `valueAxis` | `ElementRef<Axis>` |  |
-| `x` | `string` | The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave it out for `DomainSeries`. |
+| `x` | `string` | The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave `x` and `y` out for `DomainSeries`. Default 'x'. |
+| `y` | `string` | The channel that is y, for `XYSeries`. Default 'y'. |
 | `xAxis` | `ElementRef<Axis>` |  |
 | `yAxis` | `ElementRef<Axis>` |  |
 | `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
@@ -562,8 +564,8 @@ Rows as objects, read by property name.
 |---|---|---|
 | `source` (required) | `readonly Row[]` |  |
 | `domain` | `Field<Row>` | Where each row is along the domain. |
-| `value` (required) | `Field<Row>` |  |
-| `channels` | `Readonly<Record<Channel, Field<Row>>>` | Extra columns that bindings can address by name: a size, a colour, a category, the x of an XY plot. |
+| `value` | `Field<Row>` | The number a domain series plots. |
+| `channels` | `Readonly<Record<Channel, Field<Row>>>` | Extra columns that bindings can address by name: a size, a colour, a category, the x and y of an XY plot. |
 | `isSorted` | `boolean` | The stored points already ascend in the domain. Default false. |
 | `wrap` | `number` | The domain repeats with this period, and the source delivers one more point: the first, again, one period on. |
 
@@ -577,7 +579,7 @@ Separate columns.
 |---|---|---|
 | `count` (required) | `number` |  |
 | `domain` (required) | `Column` | Where each row is along the domain: for a made-up domain, `(i) => start + step * i`. |
-| `value` (required) | `Column` |  |
+| `value` | `Column` | The number a domain series plots. |
 | `channels` | `Readonly<Record<Channel, Column>>` | Extra columns that bindings and tooltips can address by name. |
 | `isSorted` | `boolean` | The stored points already ascend in the domain. Default false. |
 | `wrap` | `number` | The domain repeats with this period, and the source delivers one more point: the first, again, one period on. |

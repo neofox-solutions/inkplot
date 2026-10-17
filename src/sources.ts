@@ -24,8 +24,9 @@ export interface ObjectDataSourceAttributes<Row, Channel extends string = string
   source: readonly Row[];
   /** Where each row is along the domain. Leave it out and it is the row's index: 0, 1, 2 ... in order. */
   domain?: Field<Row>;
-  value: Field<Row>;
-  /** Extra columns that bindings can address by name: a size, a colour, a category, the x of an XY plot. */
+  /** The number a domain series plots. Leave it out when the series reads its numbers from `channels` (an `XYSeries` does). */
+  value?: Field<Row>;
+  /** Extra columns that bindings can address by name: a size, a colour, a category, the x and y of an XY plot. */
   channels?: Readonly<Record<Channel, Field<Row>>>;
 }
 /** Rows as objects. Convenient and not the fastest: reading goes through the field accessors, so the numbers are loaded into the managed buffer once per change. */
@@ -68,6 +69,7 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
     const { source, domain, value, channels } = this.attrs;
     const xFn = typeof domain === 'function' ? domain : null;
     const yFn = typeof value === 'function' ? value : null;
+    const noValue = value === undefined;
     const names = context.channels,
       k = names.length,
       stride = 2 + k;
@@ -85,7 +87,7 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
     for (let i = 0; i < n; i++) {
       const row = source[i]!;
       const x = xFn ? xFn(row, i) : domain === undefined ? i : num((row as Record<string | number, unknown>)[domain as string]);
-      const y = yFn ? yFn(row, i) : num((row as Record<string | number, unknown>)[value as string]);
+      const y = yFn ? yFn(row, i) : noValue ? NaN : num((row as Record<string | number, unknown>)[value as string]);
       out[stride * i] = x;
       out[stride * i + 1] = y;
       if (x < xMin) xMin = x;
@@ -121,7 +123,12 @@ export interface FlatDataSourceAttributes<Channel extends string = string> exten
   count?: number;
   /** Evenly spaced domain with no stored x values: a y-only array. */
   regularDomain?: { start: number; step: number };
-  /** Extra columns that bindings can address by name, as offsets within a point's `stride` numbers. */
+  /**
+   * Extra columns that bindings can address by name, as offsets within a point's `stride` numbers. Left out, a source of
+   * x,y pairs (a `stride` of 2) offers its two numbers as `x` and `y`, which is what an `XYSeries` reads: x first, y second.
+   * With a stored domain that is the domain and the value, so the points are drawn in order of x; with a `regularDomain` the
+   * order is that of the array, which is what a path wants.
+   */
   channels?: Readonly<Record<Channel, number>>;
 }
 /** Numbers in a typed array (or any numeric array), read where they are: the fast path for large data. */
@@ -140,8 +147,14 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
   get pointCount(): number {
     return this.attrs.count ?? Math.floor(this.attrs.data.length / this.stride);
   }
+  /** The channels by offset: those given, or for plain x,y pairs the two numbers, x first. */
+  private get channelOffsets(): Readonly<Record<string, number>> | undefined {
+    const a = this.attrs;
+    if (a.channels || this.stride !== 2) return a.channels;
+    return a.regularDomain ? { x: 0, y: 1 } : { x: a.domainOffset ?? 0, y: a.valueOffset ?? 1 };
+  }
   override get channelNames(): readonly string[] {
-    return Object.keys(this.attrs.channels ?? {});
+    return Object.keys(this.channelOffsets ?? {});
   }
   /** A regular domain ascends by construction (if its step is positive); anything else says so with `isSorted`. */
   protected override get ordered(): boolean {
@@ -159,7 +172,7 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
       domainOffset: a.domainOffset ?? 0,
       valueOffset: a.valueOffset ?? (r ? 0 : 1),
       regularDomain: r ?? null,
-      channelOffsets: a.channels,
+      channelOffsets: this.channelOffsets,
     };
   }
 
@@ -173,16 +186,15 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
   }
 
   protected fill(out: Float64Array, context: PlanContext): FillResult {
-    const { data, regularDomain: r, domainOffset = 0, channels } = this.attrs;
+    const { data, regularDomain: r, domainOffset = 0 } = this.attrs;
+    const channels = this.channelOffsets;
     const stride = this.stride,
       n = this.pointCount;
     const valueOffset = this.attrs.valueOffset ?? (r ? 0 : 1);
     const names = context.channels,
       k = names.length,
       os = 2 + k;
-    const offsets = names.map(
-      (name) => (channels as Readonly<Record<string, number>> | undefined)?.[name] ?? fail(`the data has no channel "${name}"`),
-    );
+    const offsets = names.map((name) => channels?.[name] ?? fail(`the data has no channel "${name}"`));
     const cMin = new Float64Array(k).fill(Infinity),
       cMax = new Float64Array(k).fill(-Infinity);
     let xMin = Infinity,
@@ -295,7 +307,8 @@ export interface CompositeDataSourceAttributes<Channel extends string = string> 
   count: number;
   /** Where each row is along the domain: for a made-up domain, `(i) => start + step * i`. */
   domain: Column;
-  value: Column;
+  /** The number a domain series plots. Leave it out when the series reads its numbers from `channels` (an `XYSeries` does). */
+  value?: Column;
   /** Extra columns that bindings and tooltips can address by name. */
   channels?: Readonly<Record<Channel, Column>>;
 }
@@ -327,7 +340,7 @@ export class CompositeDataSource<Channel extends string = string> extends DataSo
   protected fill(out: Float64Array, context: PlanContext): FillResult {
     const { count: n, channels } = this.attrs;
     const xAt = reader(this.attrs.domain),
-      yAt = reader(this.attrs.value);
+      yAt = this.attrs.value === undefined ? () => NaN : reader(this.attrs.value);
     const names = context.channels,
       k = names.length,
       stride = 2 + k;

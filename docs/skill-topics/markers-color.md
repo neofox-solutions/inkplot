@@ -7,7 +7,7 @@ Read `SKILL.md` first (rules, template, and the attributes of `Chart`, `Cartesia
 ## Scatter, coloured by a value, with a key
 
 
-`XYSeries` takes x from a channel (`x="x"` names the channel; the source's `domain` is not used and can be left out), and y from the source's `value`. Colour comes from a `ColorAxis` (a child of the **chart**, beside the plane) that the marker binds to by id. A `ColorKey` shows it.
+`XYSeries` takes x and y from channels (`x` and `y` name them, default `'x'` and `'y'`; the source's `domain` is not used and can be left out, and neither is `value`). A `FlatDataSource` of plain x,y pairs (`stride={2}`) has both channels by itself. Colour comes from a `ColorAxis` (a child of the **chart**, beside the plane) that the marker binds to by id. A `ColorKey` shows it.
 
 ```tsx check title="Coloured scatter"
 /** @jsxImportSource inkplot */
@@ -20,8 +20,8 @@ export const chart = (
     <CartesianPlane>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries name="Readings" x="x">
-        <ObjectDataSource source={rows} value="y" channels={{ x: 'x', temp: 'temp' }} />
+      <XYSeries name="Readings">
+        <ObjectDataSource source={rows} channels={{ x: 'x', y: 'y', temp: 'temp' }} />
         <CircleMarker size={5} bind={{ fill: { axis: 'heat', channel: 'temp' } }} />
       </XYSeries>
     </CartesianPlane>
@@ -44,8 +44,8 @@ export const chart = (
     <CartesianPlane>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries name="Items" x="x">
-        <ObjectDataSource source={rows} value="y" channels={{ x: 'x', mass: 'weight' }} />
+      <XYSeries name="Items">
+        <ObjectDataSource source={rows} channels={{ x: 'x', y: 'y', mass: 'weight' }} />
         <CircleMarker bind={{ size: { axis: 'size', channel: 'mass' } }} />
       </XYSeries>
     </CartesianPlane>
@@ -77,7 +77,8 @@ Points with x and y both from the data.
 
 | Attribute | Type | |
 |---|---|---|
-| `x` (required) | `Channel` | The channel of the source that is x. |
+| `x` | `Channel` | The channel of the source that is x. Default 'x', which a `FlatDataSource` of x,y pairs offers by itself. |
+| `y` | `Channel` | The channel that is y. Default 'y'. |
 | `xAxis` | `ElementRef<Axis>` | Default: the plane's first axis (a Cartesian plane's horizontal one). |
 | `yAxis` | `ElementRef<Axis>` | Default: the plane's second axis (the vertical one). |
 | `name` | `string` | What the series is called where it is named: a tooltip's heading. |

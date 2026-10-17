@@ -179,7 +179,7 @@ test('trend', () => {
     const source = new ObjectDataSource({ source: pts, domain: 't', value: 'v', channels: { x: 'x' } });
     const trend = new LinearTrend({ x: 'x', count: 10 }, source);
     near(trend.fit!.coefficients![1]!, -0.5, 'slope against the channel');
-    const series = new XYSeries({ x: 'domain' }, trend, new LinePath(new LinearCurve()));
+    const series = new XYSeries({ x: 'domain', y: 'value' }, trend, new LinePath(new LinearCurve()));
     const chart = new Chart(
       { theme: lightTheme, width: 300, height: 200 },
       new CartesianPlane({}, new Axis({}, new LinearScale()), new Axis({ orientation: 'left' }, new LinearScale()), series),

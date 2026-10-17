@@ -395,7 +395,7 @@ test('panzoom', async () => {
     const rows = Array.from({ length: 60 }, (_, i) => ({ x: Math.sin(i * 0.3) * 8, y: Math.cos(i * 0.5) * 5 }));
     const series = new XYSeries(
       { x: 'x' },
-      new ObjectDataSource({ source: rows, value: 'y', channels: { x: 'x' } }),
+      new ObjectDataSource({ source: rows, channels: { x: 'x', y: 'y' } }),
       new LinePath(new LinearCurve()),
     );
     const pz = new PanZoom({});

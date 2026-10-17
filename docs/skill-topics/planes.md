@@ -31,7 +31,7 @@ export const chart = (
 ```
 
 
-Raw readings on a polar plane are a scatter: an `XYSeries` whose `x` is the channel that carries the angle, the data value as the radius. The angle axis spans whatever range you give it round the full turn, so angles in degrees need no conversion: `min={0} max={360}`. `bind` colours the points by another channel, here the time, through a `ColorAxis`.
+Raw readings on a polar plane are a scatter: an `XYSeries` whose `x` is the channel that carries the angle and `y` the channel that is the radius. The angle axis spans whatever range you give it round the full turn, so angles in degrees need no conversion: `min={0} max={360}`. `bind` colours the points by another channel, here the time, through a `ColorAxis`.
 
 ```tsx check title="Polar scatter, angle in degrees, coloured by time" height=420
 /** @jsxImportSource inkplot */
@@ -44,8 +44,8 @@ export const chart = (
     <PolarPlane>
       <Axis orientation="angle" min={0} max={360} ticks={[0, 45, 90, 135, 180, 225, 270, 315]} format={(v: number) => `${v}°`}><LinearScale /></Axis>
       <Axis orientation="radius" min={0}><LinearScale /></Axis>
-      <XYSeries name="Readings" x="angle">
-        <ObjectDataSource source={rows} value="volts" channels={{ angle: 'deg', time: 't' }} />
+      <XYSeries name="Readings" x="angle" y="volts">
+        <ObjectDataSource source={rows} channels={{ angle: 'deg', volts: 'volts', time: 't' }} />
         <CircleMarker size={3} bind={{ fill: { axis: 'time', channel: 'time' } }} />
       </XYSeries>
     </PolarPlane>

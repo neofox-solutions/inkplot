@@ -4756,7 +4756,7 @@ demos.push({
       new L.LinearScale(),
     );
     // No domain: it is the row's index. `wrap` puts the first row again after the last, so the loop closes.
-    const source = new L.ObjectDataSource({ source: lissajous(400, 3, 2, 0.5), value: 'y', channels: { x: 'x' }, wrap: 400 });
+    const source = new L.ObjectDataSource({ source: lissajous(400, 3, 2, 0.5), channels: { x: 'x', y: 'y' }, wrap: 400 });
     const plane = new L.CartesianPlane(
       { frame: true },
       x,
@@ -4859,7 +4859,7 @@ demos.push({
         },
       }),
       ui.note(
-        "The source has no domain, so a point's place in the order is its index, and `XYSeries` takes x from a channel and y from the value. Pan and zoom move both axes, and the crossing axes slide with the view, holding at the edge when the origin leaves it. A `Decimator` would refuse this series: thinning by pixel column means nothing for a path.",
+        "The source has no domain, so a point's place in the order is its index, and `XYSeries` takes x and y from channels of the source (named `x` and `y` here). Pan and zoom move both axes, and the crossing axes slide with the view, holding at the edge when the origin leaves it. A `Decimator` would refuse this series: thinning by pixel column means nothing for a path.",
       ),
     );
     return { chart };
@@ -4905,7 +4905,7 @@ demos.push({
       },
       new L.LinearScale(),
     );
-    const source = new L.ObjectDataSource({ source: rows, value: 'y', channels: { x: 'x', g: 'g' } });
+    const source = new L.ObjectDataSource({ source: rows, channels: { x: 'x', y: 'y', g: 'g' } });
     const dots = new L.CircleMarker({ size: 3, opacity: 0.7, bind: { fill: { axis: group, channel: 'g' } } });
     const plane = new L.CartesianPlane({ frame: true }, x, y, new L.XYSeries({ x: 'x' }, source, dots), new L.PanZoom({}));
     const chart = new L.Chart(
@@ -5128,7 +5128,7 @@ demos.push({
       );
       density = new L.Density(attrs(), source());
       cells = makeCells();
-      series = new L.XYSeries({ x: 'domain' }, density, cells);
+      series = new L.XYSeries({ x: 'domain', y: 'value' }, density, cells);
       return polar
         ? new L.PolarPlane({}, x, y, series, new L.PanZoom({ direction: 'both' }))
         : new L.CartesianPlane({ frame: true }, x, y, series, new L.PanZoom({ direction: 'both' }));
@@ -5975,7 +5975,7 @@ demos.push({
     let rows = r0();
     const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'x', padding: 0.04 }, new L.LinearScale());
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', padding: 0.04 }, new L.LinearScale());
-    const source = () => new L.ObjectDataSource({ source: rows, value: 'y', channels: { x: 'x' } });
+    const source = () => new L.ObjectDataSource({ source: rows, channels: { x: 'x', y: 'y' } });
     const read = ui.readout();
     const report = (b) => {
       if (!b) {

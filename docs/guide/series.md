@@ -27,7 +27,7 @@ Both take these attributes:
 | `gaps` | What a missing value means ([below](#gaps)). |
 | `id`, `meta`, `style` | As on every element. |
 
-`DomainSeries` adds `domainAxis` and `valueAxis` (an axis or its id) to say which axes it is drawn against; the default is the plane's first axis on each side. `XYSeries` has `xAxis`, `yAxis` and the required `x`, the name of the channel that is x.
+`DomainSeries` adds `domainAxis` and `valueAxis` (an axis or its id) to say which axes it is drawn against; the default is the plane's first axis on each side. `XYSeries` has `xAxis`, `yAxis`, and `x` and `y`, the names of the channels that are x and y (default `'x'` and `'y'`).
 
 **The series colour.** A series takes a colour from the theme's palette, by its position among the plane's series (round again when there are more series than colours). It is only a default: a renderer's own `stroke` or `fill`, or any `style`, beats it. Hidden series keep their place, so toggling one never changes the others' colours.
 
@@ -37,7 +37,7 @@ The source delivers ascending in the domain and only the visible part is read, s
 
 ### `XYSeries`
 
-The source's `value` is y, and x is a **channel** named by the `x` attribute. The source's domain is only the order points are drawn in (leave `domain` out and it is the row's index). Because order is all the domain means:
+x and y are **channels** of the source, named by the `x` and `y` attributes (default `'x'` and `'y'`, so a source that calls its columns that needs no attributes at all). The source's domain is only the order points are drawn in (leave `domain` out and it is the row's index). The source's own columns are always there too, as the channels `'domain'` and `'value'`: that is how a transform's output (a `Density`, a trendline) is read. Because order is all the domain means:
 
 - every point is always read, whatever the view: there is nothing to window by;
 - a `Decimator` refuses it;
@@ -55,8 +55,8 @@ export default () => (
     <CartesianPlane frame>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries name="Path" x="x">
-        <ObjectDataSource source={path} value="y" channels={{ x: 'x' }} wrap={n} />
+      <XYSeries name="Path">
+        <ObjectDataSource source={path} channels={{ x: 'x', y: 'y' }} wrap={n} />
         <LinePath strokeWidth={1.5}><LinearCurve /></LinePath>
       </XYSeries>
       <PanZoom />
@@ -286,7 +286,7 @@ export default () => (
 );
 ```
 
-The series are real ones: each has a name, a palette colour, a legend entry and hits, and takes part in the axes' ranges as any series does. A key is a number (every channel is), and `name` turns it into the series' name; the default is the number as text. `order` sets the order, and so the palette colours: `'first'` (the default, the order the keys first appear along the domain), `'sorted'`, or a comparison function. `maxGroups` (default 100) bounds the series made; `omitted` says how many keys were left out. `x` makes the series `XYSeries` (a path or scatter for each key, a heat map) in place of `DomainSeries`, with `xAxis` and `yAxis` for `domainAxis` and `valueAxis`.
+The series are real ones: each has a name, a palette colour, a legend entry and hits, and takes part in the axes' ranges as any series does. A key is a number (every channel is), and `name` turns it into the series' name; the default is the number as text. `order` sets the order, and so the palette colours: `'first'` (the default, the order the keys first appear along the domain), `'sorted'`, or a comparison function. `maxGroups` (default 100) bounds the series made; `omitted` says how many keys were left out. `x` or `y` makes the series `XYSeries` (a path or scatter for each key, a heat map) in place of `DomainSeries`, with `xAxis` and `yAxis` for `domainAxis` and `valueAxis`.
 
 The rows are split first and the template's transforms run on each series' own rows: a `Decimator` thins each series to the width of the plot, and `BoxStats` summarises each series' samples. The group channel is used up by the split: a renderer in the group cannot bind it.
 
@@ -526,7 +526,7 @@ export default () => (
 
 With neither `width` nor `bins`, the Freedman–Diaconis rule picks a width from the spread of the points. A bin is closed on the left and open on the right, except the last, which holds the top edge. Points with a gap (`NaN`) in any dimension or in the weight are left out.
 
-The output also has channels, whatever the dimensions: `count`, `sum`, `mean`, `fraction` (the bin's share of the total), `density` (the share per unit of bin size, so a histogram of it has area 1), and `width` and `height` (the bin's size along the first and second dimension). With two or more dimensions the first is the domain and the second is the value (both bin centres), and each further one is a channel of its own name, so a **two-dimensional** binning is the input to a [heat map](#heat-maps). `domain` is also a channel (the first dimension's centre), which is what an `XYSeries` reads x from. To get the bins as a table, `readTable(density)` ([the recipe](../start/recipes.md#export-the-chart-as-a-table)).
+The output also has channels, whatever the dimensions: `count`, `sum`, `mean`, `fraction` (the bin's share of the total), `density` (the share per unit of bin size, so a histogram of it has area 1), and `width` and `height` (the bin's size along the first and second dimension). With two or more dimensions the first is the domain and the second is the value (both bin centres), and each further one is a channel of its own name, so a **two-dimensional** binning is the input to a [heat map](#heat-maps). The first two dimensions are also the source's own `domain` and `value` columns, which is what an `XYSeries` reads (`x="domain" y="value"`). To get the bins as a table, `readTable(density)` ([the recipe](../start/recipes.md#export-the-chart-as-a-table)).
 
 ## Heat maps
 
@@ -547,7 +547,7 @@ export default () => (
     <CartesianPlane>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries x="domain">
+      <XYSeries x="domain" y="value">
         <Density by={['domain', 'value']} width={0.4}>
           <ObjectDataSource source={points} domain="x" value="y" />
         </Density>
@@ -560,7 +560,7 @@ export default () => (
 );
 ```
 
-`Density` gives each bin as a point at its centre with the channels `count`, `width`, `height` and the rest ([above](#histograms-and-binning)); `x="domain"` takes the first dimension's centre as x, and `HeatMap` reads each cell's size from `width` and `height`. Without `Density`, any point can be a cell: give the sizes yourself.
+`Density` gives each bin as a point at its centre with the channels `count`, `width`, `height` and the rest ([above](#histograms-and-binning)); `x="domain" y="value"` take the first dimension's centre as x and the second's as y, and `HeatMap` reads each cell's size from `width` and `height`. Without `Density`, any point can be a cell: give the sizes yourself.
 
 | Attribute | Default | Meaning |
 |---|---|---|
@@ -613,10 +613,10 @@ export default () => (
 
 `extend` lets the line run past the data at each end, as a fraction of the data's span (a number, or `[before, after]`): that is how a trendline is **extrapolated**. A polynomial or a sinusoid extrapolates by its formula, a loess line by its local line at the end of the data, continued with a slope taken over a wide reach.
 
-On a scatter (an `XYSeries`) the points are fitted against a channel: `x` names it, and the trendline's own points have the sampled positions as the channel `domain`.
+On a scatter (an `XYSeries`) the points are fitted against a channel: `x` names it, and the trendline's own points are read with `x="domain" y="value"`.
 
 ```tsx
-<XYSeries x="domain">
+<XYSeries x="domain" y="value">
   <LinearTrend x="height">
     <ObjectDataSource source={people} value="weight" channels={{ height: 'height' }} />
   </LinearTrend>

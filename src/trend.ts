@@ -20,7 +20,7 @@
  *
  * It fits the source's value against its domain. `x` names a channel of the source to fit against instead, which is how a
  * scatter (an `XYSeries`) gets a trendline: `<LinearTrend x="x">`. Its own points have the sampled positions as the domain
- * and as the channel `domain`, which is what an `XYSeries` reads x from. A point with a gap in either column is left out of the fit.
+ * and the fitted values as the value, which is what an `XYSeries` reads with `x="domain" y="value"`. A point with a gap in either column is left out of the fit.
  *
  * Read it from code too, outside any chart: `trend.evaluate(x)` is the fitted value at a number, or at every number of an
  * array (a `Float64Array` back), and `trend.fit` says how good the fit is: the number of points, `r2`, `rmse`, and what the

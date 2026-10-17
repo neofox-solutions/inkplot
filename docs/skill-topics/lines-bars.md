@@ -69,7 +69,8 @@ One series for each value of a channel of the data, each drawn with a copy of th
 | `name` | `(key: number) => string` | What a series is called, from its key. Default: the key as text. |
 | `domainAxis` | `ElementRef<Axis>` | The axes of every series (as a `DomainSeries` names them). |
 | `valueAxis` | `ElementRef<Axis>` |  |
-| `x` | `string` | The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave it out for `DomainSeries`. |
+| `x` | `string` | The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave `x` and `y` out for `DomainSeries`. Default 'x'. |
+| `y` | `string` | The channel that is y, for `XYSeries`. Default 'y'. |
 | `xAxis` | `ElementRef<Axis>` |  |
 | `yAxis` | `ElementRef<Axis>` |  |
 | `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |

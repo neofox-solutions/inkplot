@@ -250,7 +250,7 @@ test('seriesgroup', () => {
     ];
     const heat = new ColorAxis({ id: 'heat', ramp: ['#ffffff', '#ff0000'] }, new LinearScale());
     const group = new SeriesGroup(
-      { channel: 'f', x: 'domain' },
+      { channel: 'f', x: 'domain', y: 'value' },
       new Density(
         { by: ['domain', 'value'], width: 1 },
         new ObjectDataSource({ source: rows, domain: 'x', value: 'y', channels: { f: 'f' } }),

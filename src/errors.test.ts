@@ -159,7 +159,7 @@ test('errors', async () => {
       y = new Axis({ orientation: 'left' }, new LinearScale());
     const s = new XYSeries(
       { x: 'x' },
-      new ObjectDataSource({ source: pts, domain: 'x', value: 'y', channels: { x: 'x', ex: 'ex' } }),
+      new ObjectDataSource({ source: pts, domain: 'x', channels: { x: 'x', y: 'y', ex: 'ex' } }),
       new ErrorBars({ error: 'ex', along: 'domain' }),
     );
     const platform = new FakePlatform({ width: 400, height: 300 });

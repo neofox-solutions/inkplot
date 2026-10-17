@@ -40,7 +40,7 @@ test('series', () => {
     { x: 5, y: 8, w: 80 },
     { x: 3, y: 6, w: 60 },
   ];
-  const source = () => new ObjectDataSource({ source: rows, value: 'y', channels: { x: 'x', w: 'w' } });
+  const source = () => new ObjectDataSource({ source: rows, channels: { x: 'x', y: 'y', w: 'w' } });
 
   // ── An XY series puts x on the first axis and y on the second, in the order given, with the domain as the index.
   {
@@ -102,7 +102,7 @@ test('series', () => {
       stride: 2,
       regularDomain: { start: 0, step: 1 },
       valueOffset: 1,
-      channels: { x: 0 },
+      channels: { x: 0, y: 1 },
     });
     const x = new Axis({ orientation: 'bottom', min: 0, max: 10 }, lin()),
       y = new Axis({ orientation: 'left', min: 0, max: 10 }, lin());
@@ -113,11 +113,34 @@ test('series', () => {
     near(series.points.data[3]!, 0.6 * plane.rect.height);
   }
 
+  // ── Plain x,y pairs need no naming: x is the first number of a point and y the second.
+  {
+    const pairs = new FlatDataSource({ data: new Float64Array([1, 2, 9, 4, 5, 8]), regularDomain: { start: 0, step: 1 }, stride: 2 });
+    const x = new Axis({ orientation: 'bottom', min: 0, max: 10 }, lin()),
+      y = new Axis({ orientation: 'left', min: 0, max: 10 }, lin());
+    const series = new XYSeries({}, pairs, new LinePath(new LinearCurve()));
+    const plane = new CartesianPlane({}, x, y, series);
+    render(plane);
+    near(series.points.data[0]!, 0.1 * plane.rect.width);
+    near(series.points.data[3]!, 0.6 * plane.rect.height);
+    near(series.points.data[4]!, 0.5 * plane.rect.width);
+    // With a stored domain the pairs are in order of x, as a line is.
+    const sorted = new XYSeries({}, new FlatDataSource({ data: new Float64Array([1, 2, 9, 4, 5, 8]) }));
+    const plane2 = new CartesianPlane(
+      {},
+      new Axis({ orientation: 'bottom', min: 0, max: 10 }, lin()),
+      new Axis({ orientation: 'left', min: 0, max: 10 }, lin()),
+      sorted,
+    );
+    render(plane2);
+    near(sorted.points.data[2]!, 0.5 * plane2.rect.width);
+  }
+
   // ── Wrap closes a loop: the first point once more, one period on.
   {
     const x = new Axis({ orientation: 'bottom', min: 0, max: 10 }, lin()),
       y = new Axis({ orientation: 'left', min: 0, max: 10 }, lin());
-    const loop = new ObjectDataSource({ source: rows, value: 'y', channels: { x: 'x' }, wrap: 4 });
+    const loop = new ObjectDataSource({ source: rows, channels: { x: 'x', y: 'y' }, wrap: 4 });
     const series = new XYSeries({ x: 'x' }, loop, new LinePath(new LinearCurve()));
     render(new CartesianPlane({}, x, y, series));
     const p = series.points;
@@ -134,10 +157,9 @@ test('series', () => {
         { a: 90, r: 10 },
         { a: 0, r: 5 },
       ],
-      value: 'r',
-      channels: { a: 'a' },
+      channels: { a: 'a', r: 'r' },
     });
-    const series = new XYSeries({ x: 'a' }, spots, new LinePath(new LinearCurve()));
+    const series = new XYSeries({ x: 'a', y: 'r' }, spots, new LinePath(new LinearCurve()));
     const plane = new PolarPlane({}, angle, radius, series);
     render(plane);
     const p = series.points,
@@ -184,23 +206,26 @@ test('series', () => {
     // @ts-expect-error the source has channels x and w, not z
     new XYSeries({ x: 'z' }, source(), new LinePath(new LinearCurve()));
     // @ts-expect-error a source with only w has no x
-    new XYSeries({ x: 'x' }, new ObjectDataSource({ source: rows, value: 'y', channels: { w: 'w' } }), new LinePath(new LinearCurve()));
+    new XYSeries({ x: 'x' }, new ObjectDataSource({ source: rows, channels: { w: 'w' } }), new LinePath(new LinearCurve()));
     // @ts-expect-error a source with no channels at all has none to be x
-    new XYSeries({ x: 'x' }, new ObjectDataSource({ source: rows, value: 'y', channels: {} }), new LinePath(new LinearCurve()));
+    new XYSeries({ x: 'x' }, new ObjectDataSource({ source: rows, channels: {} }), new LinePath(new LinearCurve()));
     new XYSeries(
-      { x: 'x' },
-      new FlatDataSource({ data: new Float64Array(4), stride: 2, regularDomain: { start: 0, step: 1 }, channels: { x: 0 } }),
+      { x: 'x', y: 'y' },
+      new FlatDataSource({ data: new Float64Array(4), stride: 2, regularDomain: { start: 0, step: 1 }, channels: { x: 0, y: 1 } }),
       new LinePath(new LinearCurve()),
     );
     new XYSeries(
-      { x: 'q' },
       // @ts-expect-error a typed-array source's channels are checked the same way
+      { x: 'q' },
       new FlatDataSource({ data: new Float64Array(4), stride: 2, regularDomain: { start: 0, step: 1 }, channels: { x: 0 } }),
       new LinePath(new LinearCurve()),
     );
     // A transform does not say what it offers, so it is not checked: its source's channels are checked when it fills.
     new XYSeries({ x: 'anything' }, new Decimator({}, new MinMaxKernel(), source()), new LinePath(new LinearCurve()));
     new XYSeries({ x: 'x' }, source()); // renderers are optional
+    // @ts-expect-error y is checked like x
+    new XYSeries({ y: 'z' }, source(), new LinePath(new LinearCurve()));
+    new XYSeries({ x: 'domain', y: 'value' }, new Decimator({}, new MinMaxKernel(), source())); // the source's own columns are always there
   }
   // ── Missing values: a line breaks at them by default, can go across them, or take them as zero.
   {

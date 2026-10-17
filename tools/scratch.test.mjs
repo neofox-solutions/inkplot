@@ -170,7 +170,7 @@ export default [histogram(), { name: 'Box by group', caption: 'Quartiles per gro
       `
 const own = histogram();
 [...own][0].append(new PanZoom());
-const ring = () => (<Chart theme={lightTheme} width={420} height={420}><PolarPlane><Axis orientation="angle" min={0} max={360}><LinearScale /></Axis><Axis orientation="radius" min={0}><LinearScale /></Axis><XYSeries name="p" x="angle"><ObjectDataSource source={rows} value="v" channels={{ angle: 't' }} /><CircleMarker size={3} /></XYSeries></PolarPlane></Chart>);
+const ring = () => (<Chart theme={lightTheme} width={420} height={420}><PolarPlane><Axis orientation="angle" min={0} max={360}><LinearScale /></Axis><Axis orientation="radius" min={0}><LinearScale /></Axis><XYSeries name="p" x="angle" y="v"><ObjectDataSource source={rows} channels={{ angle: 't', v: 'v' }} /><CircleMarker size={3} /></XYSeries></PolarPlane></Chart>);
 export default [own, { name: 'Plain', interactive: false, chart: box() }, { name: 'Ring', chart: ring() }];`,
     ),
   );

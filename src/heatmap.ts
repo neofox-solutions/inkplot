@@ -1,7 +1,7 @@
 /**
  * Heat maps: a rectangle for each point, coloured by a channel.
  *
- *   <XYSeries>
+ *   <XYSeries x="domain" y="value">
  *     <Density width={[5, 5]} by={['domain', 'value']}><ObjectDataSource source={rows} domain="x" value="y" /></Density>
  *     <HeatMap bind={{ fill: { axis: heat, channel: 'count' } }} />
  *   </XYSeries>

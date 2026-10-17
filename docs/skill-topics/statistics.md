@@ -46,7 +46,7 @@ export const chart = (
     <CartesianPlane>
       <Axis orientation="bottom" title="x"><LinearScale /></Axis>
       <Axis orientation="left" title="y"><LinearScale /></Axis>
-      <XYSeries name="Points" x="domain">
+      <XYSeries name="Points" x="domain" y="value">
         <Density by={['domain', 'value']} width={0.5}>
           <ObjectDataSource source={pts} domain="x" value="y" />
         </Density>
@@ -59,7 +59,7 @@ export const chart = (
 ) as Chart;
 ```
 
-Two dimensions: `by={['domain', 'value']}` (domain is x, value is y, or any channel name). The output has `domain` (x of the cell centre), `value` (y), `count`, `sum`, `mean`, `fraction`, `density`, `width` and `height`. `x="domain"` is what lets an `XYSeries` use the `Density` output. Colour by `bind={{ fill: { axis: 'heat', channel: 'count' } }}` (the channel is any output name below: `count`, `sum`, `mean`, `fraction`, `density`); the ramp names (`'viridis'`, `'magma'`, `'turbo'`, `'blues'`, `'greys'`, `'diverging'`) are set on the `ColorAxis` (see `markers-color`). The axes reach the outer edges of the outer cells. `cellWidth` alone draws square cells; set `cellHeight` too for rectangles. They must match the bin `width` (a number for both, or `[w, h]` such as `width={[2, 1]}` with `cellWidth={2} cellHeight={1}`). Cells with no points are left out in two dimensions (`empty="omit"` is the default there; one-dimensional bins keep zeros).
+Two dimensions: `by={['domain', 'value']}` (domain is x, value is y, or any channel name). The output has `domain` (x of the cell centre), `value` (y), `count`, `sum`, `mean`, `fraction`, `density`, `width` and `height`. `x="domain" y="value"` is what lets an `XYSeries` use the `Density` output. Colour by `bind={{ fill: { axis: 'heat', channel: 'count' } }}` (the channel is any output name below: `count`, `sum`, `mean`, `fraction`, `density`); the ramp names (`'viridis'`, `'magma'`, `'turbo'`, `'blues'`, `'greys'`, `'diverging'`) are set on the `ColorAxis` (see `markers-color`). The axes reach the outer edges of the outer cells. `cellWidth` alone draws square cells; set `cellHeight` too for rectangles. They must match the bin `width` (a number for both, or `[w, h]` such as `width={[2, 1]}` with `cellWidth={2} cellHeight={1}`). Cells with no points are left out in two dimensions (`empty="omit"` is the default there; one-dimensional bins keep zeros).
 
 ```tsx check title="Box plot from samples, with outliers"
 /** @jsxImportSource inkplot */
@@ -126,8 +126,8 @@ export const chart = (
     <CartesianPlane>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries name="Data" x="x">
-        <ObjectDataSource source={rows} domain="x" value="y" channels={{ x: 'x' }} />
+      <XYSeries name="Data">
+        <ObjectDataSource source={rows} domain="x" channels={{ x: 'x', y: 'y' }} />
         <CircleMarker size={4} />
       </XYSeries>
       <DomainSeries name="Trend">

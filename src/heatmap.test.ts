@@ -31,7 +31,7 @@ test('heatmap', () => {
 
   function build(map: HeatMap, data: object = grid(), x = 'domain') {
     const heat = new ColorAxis({ id: 'heat', ramp: ['#ffffff', '#ff0000'] }, lin());
-    const series = new XYSeries({ x }, data as never, map);
+    const series = new XYSeries({ x, y: 'value' }, data as never, map);
     const plane = new CartesianPlane({}, new Axis({}, lin()), new Axis({ orientation: 'left' }, lin()), series);
     const chart = new Chart({ theme: lightTheme, width: 300, height: 300 }, plane, heat);
     const platform = new StringPlatform({ width: 300, height: 300 });
@@ -56,7 +56,11 @@ test('heatmap', () => {
   {
     // Colour steps: cells with different counts land in different paths, the same counts share one.
     const heat = new ColorAxis({ id: 'heat', ramp: ['#ffffff', '#ff0000'] }, lin());
-    const series = new XYSeries({ x: 'domain' }, grid(), new HeatMap({ maxNodes: 16, bind: { fill: { axis: heat, channel: 'count' } } }));
+    const series = new XYSeries(
+      { x: 'domain', y: 'value' },
+      grid(),
+      new HeatMap({ maxNodes: 16, bind: { fill: { axis: heat, channel: 'count' } } }),
+    );
     const chart = new Chart(
       { theme: lightTheme, width: 300, height: 300 },
       new CartesianPlane({}, new Axis({}, lin()), new Axis({ orientation: 'left' }, lin()), series),
@@ -111,7 +115,7 @@ test('heatmap', () => {
   }
   {
     // A polar plane places the same corners: straight-edged wedges, nothing NaN.
-    const series = new XYSeries({ x: 'domain' }, grid(), new HeatMap({}));
+    const series = new XYSeries({ x: 'domain', y: 'value' }, grid(), new HeatMap({}));
     const plane = new PolarPlane({}, new Axis({ orientation: 'angle' }, lin()), new Axis({ orientation: 'radius' }, lin()), series);
     const chart = new Chart({ theme: lightTheme, width: 300, height: 300 }, plane);
     const platform = new StringPlatform({ width: 300, height: 300 });
@@ -133,7 +137,11 @@ test('heatmap', () => {
   {
     // maxNodes too small for a bound style fails at attach.
     const heat = new ColorAxis({ id: 'heat' }, lin());
-    const series = new XYSeries({ x: 'domain' }, grid(), new HeatMap({ maxNodes: 1, bind: { fill: { axis: heat, channel: 'count' } } }));
+    const series = new XYSeries(
+      { x: 'domain', y: 'value' },
+      grid(),
+      new HeatMap({ maxNodes: 1, bind: { fill: { axis: heat, channel: 'count' } } }),
+    );
     const chart = new Chart(
       { theme: lightTheme },
       new CartesianPlane({}, new Axis({}, lin()), new Axis({ orientation: 'left' }, lin()), series),

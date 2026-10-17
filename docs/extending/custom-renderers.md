@@ -32,8 +32,8 @@ export default () => (
     <CartesianPlane>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries x="x">
-        <ObjectDataSource source={rows} value="y" channels={{ x: 'x' }} />
+      <XYSeries>
+        <ObjectDataSource source={rows} channels={{ x: 'x', y: 'y' }} />
         <DiamondMarker size={7} />
       </XYSeries>
     </CartesianPlane>

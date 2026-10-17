@@ -72,8 +72,8 @@ export default () => (
     <CartesianPlane>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries x="x">
-        <ObjectDataSource source={rows} value="y" channels={{ x: 'x', t: 't' }} />
+      <XYSeries>
+        <ObjectDataSource source={rows} channels={{ x: 'x', y: 'y', t: 't' }} />
         <DotMarker size={2} bind={{ stroke: { axis: 'age', channel: 't' } }} />
       </XYSeries>
     </CartesianPlane>

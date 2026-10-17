@@ -218,8 +218,8 @@ export default () => (
     <CartesianPlane>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries x="x">
-        <ObjectDataSource source={rows} value="y" channels={{ x: 'x', load: 'load' }} />
+      <XYSeries>
+        <ObjectDataSource source={rows} channels={{ x: 'x', y: 'y', load: 'load' }} />
         <CircleMarker size={6} bind={{ fill: { axis: 'light', channel: 'load' } }} />
       </XYSeries>
     </CartesianPlane>

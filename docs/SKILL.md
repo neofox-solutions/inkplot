@@ -231,8 +231,8 @@ Rows as objects, read by property name.
 |---|---|---|
 | `source` (required) | `readonly Row[]` |  |
 | `domain` | `Field<Row>` | Where each row is along the domain. |
-| `value` (required) | `Field<Row>` |  |
-| `channels` | `Readonly<Record<Channel, Field<Row>>>` | Extra columns that bindings can address by name: a size, a colour, a category, the x of an XY plot. |
+| `value` | `Field<Row>` | The number a domain series plots. |
+| `channels` | `Readonly<Record<Channel, Field<Row>>>` | Extra columns that bindings can address by name: a size, a colour, a category, the x and y of an XY plot. |
 | `isSorted` | `boolean` | The stored points already ascend in the domain. Default false. |
 | `wrap` | `number` | The domain repeats with this period, and the source delivers one more point: the first, again, one period on. |
 

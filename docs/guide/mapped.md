@@ -18,8 +18,8 @@ export default () => (
     <CartesianPlane>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries x="x">
-        <ObjectDataSource source={rows} value="y" channels={{ x: 'x', reading: 'reading' }} />
+      <XYSeries>
+        <ObjectDataSource source={rows} channels={{ x: 'x', y: 'y', reading: 'reading' }} />
         <CircleMarker size={6} bind={{ fill: { axis: 'heat', channel: 'reading' } }} />
       </XYSeries>
     </CartesianPlane>
@@ -81,8 +81,8 @@ export default () => (
     <CartesianPlane frame>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
-      <XYSeries x="x">
-        <ObjectDataSource source={rows} value="y" channels={{ x: 'x', region: 'region' }} />
+      <XYSeries>
+        <ObjectDataSource source={rows} channels={{ x: 'x', y: 'y', region: 'region' }} />
         <CircleMarker size={6} opacity={0.85} bind={{ fill: { axis: 'region', channel: 'region' } }} />
       </XYSeries>
     </CartesianPlane>

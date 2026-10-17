@@ -11,7 +11,7 @@ A series' first child is its **data**: an element that holds, or generates, the 
 
 ## The model: domain, value, channels
 
-A point has a **domain** (where it is along the series' first axis, usually x or time), a **value** (what is plotted against the second axis, usually y), and optionally named **channels**: extra numbers per point, used by [bindings](mapped.md) (a marker's size or colour), by an `XYSeries` (its x), and shown in tooltips.
+A point has a **domain** (where it is along the series' first axis, usually x or time), a **value** (what is plotted against the second axis, usually y), and optionally named **channels**: extra numbers per point, used by [bindings](mapped.md) (a marker's size or colour), by an `XYSeries` (its x and y), and shown in tooltips.
 
 Sources always **deliver points in ascending order of domain**, whatever the storage order was. If your data is already ascending, say so with `isSorted` and a source reads it in place, with no copy and no sort; otherwise it sorts a copy once per change.
 
@@ -48,8 +48,8 @@ export default () => (
     <CartesianPlane frame>
       <Axis orientation="bottom"><LinearScale /></Axis>
       <Axis orientation="left" include={[0]}><LinearScale /></Axis>
-      <XYSeries x="x">
-        <FlatDataSource data={readings} stride={3} valueOffset={1} channels={{ x: 0, weight: 2 }} />
+      <XYSeries>
+        <FlatDataSource data={readings} stride={3} channels={{ x: 0, y: 1, weight: 2 }} />
         <CircleMarker bind={{ size: { axis: 'w', channel: 'weight' } }} opacity={0.8} />
       </XYSeries>
     </CartesianPlane>
@@ -58,7 +58,7 @@ export default () => (
 );
 ```
 
-> **Note.** For an `XYSeries` the x is a channel (here the first column), and the domain is only the order the points are drawn in. With no `domainOffset`, a flat source takes column 0 as the domain too, which sorts the points by it. For a path that must stay in the order you gave (a trajectory), see [Series and renderers](series.md#xyseries).
+> **Note.** For an `XYSeries` x and y are channels (here the first two columns), and the domain is only the order the points are drawn in. With no `domainOffset`, a flat source takes column 0 as the domain too, which sorts the points by it. A flat source of plain pairs (`stride={2}`, no `channels`) offers its two numbers as `x` and `y` by itself; add `regularDomain` and they stay in the order of the array. For a path that must stay in the order you gave (a trajectory), see [Series and renderers](series.md#xyseries).
 
 ## `ObjectDataSource`
 

@@ -182,9 +182,9 @@ test('dimension', () => {
       data: Float64Array.from([1, 2, 3, 4]),
       stride: 2,
       regularDomain: { start: 0, step: 1 },
-      channels: { x: 1 },
+      channels: { x: 1, y: 0 },
     });
-    const series = new XYSeries({ x: 'x' }, data, new DotMarker({ size: 5 }));
+    const series = new XYSeries({ x: 'x', y: 'y' }, data, new DotMarker({ size: 5 }));
     mount(new CartesianPlane({}, x, y, series));
     assert(x.range.min < 2 && y.range.min < 1, 'both axes grew past the data');
   }

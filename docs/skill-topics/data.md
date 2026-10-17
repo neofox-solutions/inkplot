@@ -61,7 +61,7 @@ Separate columns.
 |---|---|---|
 | `count` (required) | `number` |  |
 | `domain` (required) | `Column` | Where each row is along the domain: for a made-up domain, `(i) => start + step * i`. |
-| `value` (required) | `Column` |  |
+| `value` | `Column` | The number a domain series plots. |
 | `channels` | `Readonly<Record<Channel, Column>>` | Extra columns that bindings and tooltips can address by name. |
 | `isSorted` | `boolean` | The stored points already ascend in the domain. Default false. |
 | `wrap` | `number` | The domain repeats with this period, and the source delivers one more point: the first, again, one period on. |
