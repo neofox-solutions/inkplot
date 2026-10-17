@@ -5275,8 +5275,9 @@ demos.push({
       gap: 4,
       offset: 3.5,
       cap: 'round',
-      swap: false,
       mode: 'group',
+      outline: true,
+      background: true,
     };
     const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
     const names = ['Lines', 'Crosshatch', 'Dots', 'Checkerboard'];
@@ -5315,7 +5316,17 @@ demos.push({
       new L.Legend({ side: 'bottom' }),
       ...Object.values(patterns),
     );
+    // An outline in the series' own colour gives each bar a clear edge, and a background of the page's colour keeps the gridlines from showing through the gaps between lines.
+    const looks = () => {
+      const palette = chartTheme().palette;
+      bars.forEach((bar, i) =>
+        bar.setAttributes({ stroke: S.outline ? palette[i % palette.length] : undefined, strokeWidth: S.outline ? 2 : undefined }),
+      );
+      for (const p of Object.values(patterns)) p.setAttribute('fill', S.background ? pageBackground() : undefined);
+    };
+    ctx.onTheme(looks);
     const set = () => {
+      looks();
       patterns.lines.setAttributes({
         angle: S.angle,
         spacing: S.spacing,
@@ -5347,6 +5358,12 @@ demos.push({
           S.mode = v;
           stack.setAttribute('mode', v);
         },
+      }),
+      ui.toggle({ label: 'outline in the series colour', value: S.outline, onChange: (v) => ((S.outline = v), set()) }),
+      ui.toggle({
+        label: 'background: the page colour, so gridlines do not show through',
+        value: S.background,
+        onChange: (v) => ((S.background = v), set()),
       }),
       ui.slider({ label: 'line angle (degrees)', min: -90, max: 90, step: 5, value: S.angle, onChange: (v) => ((S.angle = v), set()) }),
       ui.slider({
@@ -6459,6 +6476,12 @@ $('accessible').addEventListener('click', () => {
   root.dataset.accessible = String(root.dataset.accessible !== 'true');
   $('accessible').setAttribute('aria-pressed', root.dataset.accessible);
   current?.chart.setAttribute('theme', chartTheme());
+  // The font arrives after the first draw; text was measured in the fallback, so draw again when it is in.
+  if (root.dataset.accessible === 'true')
+    document.fonts?.load('14px OpenDyslexic').then(
+      () => current?.chart.invalidate(),
+      () => {},
+    );
   for (const fn of themeHooks) fn();
 });
 $('theme').addEventListener('click', () => {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { Legend, StringPlatform, lightTheme, pieChart } from './index.ts';
+import { DotPattern, HatchPattern, Legend, StringPlatform, lightTheme, pieChart } from './index.ts';
 import { test } from 'vite-plus/test';
 
 function draw(chart: ReturnType<typeof pieChart>): string {
@@ -36,4 +36,20 @@ test('pie', () => {
   assert(some.includes('Mobile') && !some.includes('Other'));
   // Extras are the chart's other children.
   assert(draw(pieChart(slices, { theme: lightTheme, width: 400, height: 300, extras: [new Legend({})] })).includes('Desktop'));
+});
+
+// A slice is a BarPath, so a pattern is a slice's colour like any other fill: and the slice's own colour from the palette is what it is drawn in.
+test('pie slices take patterns', () => {
+  const svg = draw(
+    pieChart(
+      [
+        { name: 'Mobile', value: 60, color: 'url(#hatch)' },
+        { name: 'Desktop', value: 30, color: 'url(#dots)' },
+        { name: 'Other', value: 10 },
+      ],
+      { theme: lightTheme, width: 400, height: 300, extras: [new HatchPattern({ id: 'hatch' }), new DotPattern({ id: 'dots' })] },
+    ),
+  );
+  assert.equal([...svg.matchAll(/<pattern /g)].length, 4, 'a plain one and one in the slice colour, for each pattern');
+  assert.equal([...svg.matchAll(/<path [^>]*fill="url\(#[^"]+\)"/g)].length, 2, 'two slices are patterned, the third is flat');
 });

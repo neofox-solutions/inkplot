@@ -193,6 +193,8 @@ All of them take `stroke`, `fill` (the background of the tile, default none) and
 
 **Your own.** `linePattern(surface, node, key, options)` and `dotPattern(...)` are the two functions the patterns above call: a pattern of your own is a subclass of `Pattern` whose `drawTile` calls one of them (or both, in a pattern that alternates), or draws anything else into the tile (an image, glyphs). The tile of a line pattern is one cell of the lattice the lines make, so it repeats exactly at any angle and a dash array is fitted to it (a whole number of cycles each a little longer or shorter than you asked); a crosshatch of two angles shares one tile.
 
+**Pie slices** are bars, so a slice's `color` can be a pattern too: `{ name: 'Mobile', value: 60, color: 'url(#hatch)' }`, with the pattern in the shortcut's `extras`.
+
 **Two things to know.** An `id` is looked up from the element that uses it, outward, so put patterns on the chart; the same `id` on two patterns in different charts of a group is two patterns, but in one SVG their ids are one namespace. And a pattern is a paint: it can be the `fill` of a bar, an area, a marker, a box or a heat cell, but a line's `color` is a stroke, which draws a pattern as a thin line of lines; use it on the thick strokes of an outline.
 
 ## In markup
