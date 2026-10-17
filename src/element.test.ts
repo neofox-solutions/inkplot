@@ -13,6 +13,12 @@ import {
   StringPlatform,
   LogScale,
   toSvgString,
+  descendantsOfType,
+  findById,
+  firstDescendantOfType,
+  resolveRef,
+  walk,
+  type AnyElement,
 } from './index.ts';
 import { test } from 'vite-plus/test';
 
@@ -85,4 +91,88 @@ test('element', () => {
     // Replacing a child that is not there is a clear error too.
     assert.throws(() => axisWith().setChild(0, new LinearScale()), /Axis: has no child 0 to replace/);
   }
+});
+
+test('element lookups stay right while the tree changes', () => {
+  const axis = (id?: string) => new Axis({ ...(id && { id }), orientation: 'left' }, new LinearScale());
+  const plane = (...axes: Axis[]) => new CartesianPlane({}, ...axes);
+  const x = axis('x'),
+    y = axis('y');
+  const p = plane(x, y);
+  const chart = new Chart({ theme: lightTheme, width: 100, height: 100 }, p);
+  const at = (id: string, from: AnyElement = chart) => resolveRef(id, from);
+
+  // Found from anywhere in the tree, and the answer is kept (the same element each time).
+  assert.equal(at('y'), y);
+  assert.equal(at('y', x), y);
+  assert.equal(x.chart, chart);
+  assert.equal(x.treeRoot, chart);
+  assert.equal(at('y'), y);
+
+  // A new element is found; a removed one is not.
+  const late = axis('late');
+  assert.throws(() => at('late'), /no element with id "late"/);
+  p.append(late);
+  assert.equal(at('late'), late);
+  p.remove(late);
+  assert.throws(() => at('late'), /no element with id "late"/);
+  assert.equal(late.chart, null);
+  assert.equal(late.treeRoot, late);
+
+  // An id that is set or changed or taken away is followed.
+  late.setAttribute('id', 'renamed');
+  p.append(late);
+  assert.equal(at('renamed'), late);
+  late.setAttribute('id', 'again');
+  assert.throws(() => at('renamed'), /no element/);
+  assert.equal(at('again'), late);
+  late.setAttribute('id', undefined);
+  assert.throws(() => at('again'), /no element/);
+
+  // The first in tree order wins, as it always did, and what is first changes with the tree.
+  const twin = axis('x');
+  p.insertBefore(twin, x);
+  assert.equal(at('x'), twin);
+  p.remove(twin);
+  assert.equal(at('x'), x);
+
+  // An element moved to another chart answers for that chart.
+  const other = new Chart({ theme: lightTheme, width: 100, height: 100 }, plane(axis('only-here')));
+  const moving = plane(axis('m'));
+  chart.append(moving);
+  assert.equal(moving.chart, chart);
+  assert.equal(at('m'), firstDescendantOfType(moving, Axis));
+  chart.remove(moving);
+  other.append(moving);
+  assert.equal(moving.chart, other);
+  assert.equal(firstDescendantOfType(moving, Axis)?.chart, other);
+  assert.throws(() => at('m'), /no element with id "m"/);
+  assert.equal(resolveRef('m', moving), firstDescendantOfType(moving, Axis));
+
+  // A tree not yet in a chart has no chart, then has one.
+  const loose = plane(axis('l'));
+  assert.equal(loose.chart, null);
+  assert.equal(resolveRef('l', loose), firstDescendantOfType(loose, Axis));
+  const later = new Chart({ theme: lightTheme, width: 100, height: 100 });
+  later.append(loose);
+  assert.equal(loose.chart, later);
+
+  // findById on part of the tree looks only there; walk and the descendant finders keep their order.
+  assert.equal(findById(p, 'y'), y);
+  assert.equal(findById(p, 'nope'), undefined);
+  const order: string[] = [];
+  walk(chart, (e) => void order.push(e.constructor.name));
+  assert.deepEqual(order.slice(0, 3), ['Chart', 'CartesianPlane', 'Axis']);
+  assert.equal(firstDescendantOfType(chart, Axis), x);
+  assert.equal(descendantsOfType(chart, Axis).length, 3, 'x, y and the one put back');
+  // A visitor may take the element it is on out of the tree.
+  const doomed = plane(axis('a'), axis('b'), axis('c'));
+  const seen: string[] = [];
+  walk(doomed, (e) => {
+    if (e instanceof Axis) {
+      seen.push(String(e.attrs.id));
+      doomed.remove(e);
+    }
+  });
+  assert.deepEqual(seen, ['a', 'b', 'c']);
 });

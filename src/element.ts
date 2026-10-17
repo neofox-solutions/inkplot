@@ -100,6 +100,13 @@ export interface MountContext {
 }
 
 /** The answer of an element that did not respond to MEASURE: it wants nothing and can take anything. */
+/**
+ * Counts every change that can alter what an element can be found as, or which tree it is in: a child added or removed, an id set.
+ * What is looked up from the tree (an element's chart and root, an id) is kept with the number it was found at and trusted while the
+ * number is the same, so the lookups that happen many times in a flush cost one comparison. Edits are rare next to flushes.
+ */
+let treeVersion = 0;
+
 const NO_REQUEST: LayoutRequest = { min: { width: 0, height: 0 }, max: { width: Infinity, height: Infinity } };
 
 /**
@@ -178,9 +185,25 @@ export abstract class ChartElement<
     if (!this.#parent) fail(`${this.constructor.name} has no parent`);
     return this.#parent as Parent & AnyElement;
   }
-  /** The root chart, if this element is in a tree that has one. */
+  #chart: Chart | null = null;
+  #chartAt = -1;
+  #root: AnyElement | null = null;
+  #rootAt = -1;
+  /** The root chart, if this element is in a tree that has one. Found by walking up once, then kept until the tree is edited. */
   get chart(): Chart | null {
-    return this.#parent ? this.#parent.chart : null;
+    if (this.#chartAt !== treeVersion) {
+      this.#chart = this.#parent ? this.#parent.chart : null;
+      this.#chartAt = treeVersion;
+    }
+    return this.#chart;
+  }
+  /** The top of the tree this element is in (itself, if it has no parent): where an id is looked up from. Kept like `chart`. */
+  get treeRoot(): AnyElement {
+    if (this.#rootAt !== treeVersion) {
+      this.#root = this.#parent ? this.#parent.treeRoot : (this as AnyElement);
+      this.#rootAt = treeVersion;
+    }
+    return this.#root as AnyElement;
   }
   /** Like `chart`, for code that only runs inside a chart (painting, input): fails loudly rather than returning null. */
   requireChart(): Chart {
@@ -289,6 +312,7 @@ export abstract class ChartElement<
   /** Write an attribute and say whether it changed, without telling the chart. Subclasses use it where the chart is already laying out. */
   protected put<K extends keyof Attrs>(name: K, value: Attrs[K]): boolean {
     if (this.#attrs[name] === value) return false;
+    if (name === 'id') treeVersion++;
     if (value === undefined) delete this.#attrs[name];
     else this.#attrs[name] = value;
     return true;
@@ -299,6 +323,7 @@ export abstract class ChartElement<
     if (child.#parent) fail('element already has a parent');
     let prev: AnyElement | null = null;
     for (let c = this.#first; c && c !== before; c = c.#next) prev = c;
+    treeVersion++;
     child.#parent = this;
     child.#next = before;
     if (prev) prev.#next = child;
@@ -309,6 +334,7 @@ export abstract class ChartElement<
     let c = this.#first;
     for (; c && c !== child; c = c.#next) prev = c;
     if (!c) fail('element is not a child of this element');
+    treeVersion++;
     if (prev) prev.#next = child.#next;
     else this.#first = child.#next;
     child.#next = child.#parent = null;
@@ -487,19 +513,42 @@ export abstract class ChartElement<
 /** Depth-first, parents before children. Returning `false` from `visit` skips that element's subtree. */
 export function walk(root: AnyElement, visit: (element: AnyElement, depth: number) => boolean | void, depth = 0): void {
   if (visit(root, depth) === false) return;
-  for (const c of root) walk(c, visit, depth + 1);
+  // The next sibling is read before the visit of the one before, as the iterator does: a visitor may take the element it is on out of the tree.
+  for (let c = root.firstChild; c;) {
+    const next = c.nextSibling;
+    walk(c, visit, depth + 1);
+    c = next;
+  }
+}
+/** The first element at or under `element` for which `test` holds, stopping as soon as there is one. */
+function firstWhere(element: AnyElement, test: (e: AnyElement) => boolean): AnyElement | undefined {
+  if (test(element)) return element;
+  for (let c = element.firstChild; c; c = c.nextSibling) {
+    const found = firstWhere(c, test);
+    if (found) return found;
+  }
+  return undefined;
 }
 /** The first element under `root` (or `root` itself) with this id. */
 export function findById<T extends AnyElement = AnyElement>(root: AnyElement, id: string): T | undefined {
-  let found: AnyElement | undefined;
-  walk(root, (e) => {
-    if (found) return false;
-    if (e.attrs.id === id) {
-      found = e;
-      return false;
-    }
-  });
-  return found as T | undefined;
+  return firstWhere(root, (e) => e.attrs.id === id) as T | undefined;
+}
+
+/** What each tree's ids are, as of the tree version it was made at. Trees that are let go are let go of. */
+const idIndexes = new WeakMap<AnyElement, { at: number; byId: Map<string, AnyElement> }>();
+/** The first element of the whole tree below `root` with this id, from an index that is made once and remade after the tree is edited. */
+function findInTree(root: AnyElement, id: string): AnyElement | undefined {
+  let index = idIndexes.get(root);
+  if (!index || index.at !== treeVersion) {
+    const byId = new Map<string, AnyElement>();
+    walk(root, (e) => {
+      const own = e.attrs.id;
+      if (typeof own === 'string' && !byId.has(own)) byId.set(own, e);
+    });
+    index = { at: treeVersion, byId };
+    idIndexes.set(root, index);
+  }
+  return index.byId.get(id);
 }
 /** Every element below `root` of a class, in tree order. */
 export function descendantsOfType<T extends AnyElement>(root: AnyElement, type: ElementClass<T>): T[] {
@@ -511,15 +560,15 @@ export function descendantsOfType<T extends AnyElement>(root: AnyElement, type: 
 }
 /** The first element below `root` of a class, stopping the walk as soon as it is found. */
 export function firstDescendantOfType<T extends AnyElement>(root: AnyElement, type: ElementClass<T>): T | undefined {
-  let found: T | undefined;
-  walk(root, (e) => {
-    if (found) return false;
-    if (e !== root && e instanceof type) {
-      found = e;
-      return false;
+  const find = (parent: AnyElement): T | undefined => {
+    for (let c = parent.firstChild; c; c = c.nextSibling) {
+      if (c instanceof type) return c;
+      const found = find(c);
+      if (found) return found;
     }
-  });
-  return found;
+    return undefined;
+  };
+  return find(root);
 }
 /** The direct children of a class; use it when the parent's children are mixed (an axis next to series). */
 export function childrenOfType<T extends AnyElement>(parent: AnyElement, type: ElementClass<T>): T[] {
@@ -541,9 +590,7 @@ export function resolveRef<T extends AnyElement>(ref: ElementRef<T> | undefined,
   if (ref === undefined) return undefined;
   let el: AnyElement | undefined;
   if (typeof ref === 'string') {
-    let root: AnyElement = from;
-    while (root.parent) root = root.parent;
-    el = findById(root, ref);
+    el = findInTree(from.treeRoot, ref);
     if (!el) fail(`no element with id "${ref}"`);
   } else {
     el = ref;
