@@ -608,7 +608,7 @@ export default () => (
 
 `isSorted` tells the source the data is in order, so it is read where it is and never copied. More: [Performance and size](../guide/performance.md).
 
-To draw a window of the rows instead, or to animate one, put a `Slice` round the source (inside the `Decimator` if there is one): `<Slice last={300} end={n}>`. Rows are counted as `Array.prototype.slice` counts them, `last` keeps that many rows ending at `end`, and the axes fit the rows kept. Move the window with `setAttribute('end', n)`: the series refills and nothing else is touched.
+To draw a window of the rows instead, or to animate one, put a `Slice` round the source (inside the `Decimator` if there is one): `<Slice last={300} end={n}>`. Rows are counted as `Array.prototype.slice` counts them, `last` keeps that many rows ending at `end`, and the axes fit the rows kept. Move the window with `setAttribute('end', n)`: the series refills and nothing else is touched. In a `SeriesGroup` the window is of each key's rows; `keyed={false}` windows the data as a whole instead.
 
 ## Draw a pie or ring chart
 

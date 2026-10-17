@@ -1,6 +1,28 @@
 // Partitions: the rows of a source split by a channel, and the keyed reduction, against decimating each key's rows alone.
 import assert from 'node:assert/strict';
-import { Decimator, FlatDataSource, LttbKernel, M4Kernel, MinMaxKernel, StrideKernel, type DecimationKernel } from './index.ts';
+import {
+  Axis,
+  CartesianPlane,
+  Chart,
+  DataTransform,
+  Decimator,
+  FlatDataSource,
+  LinePath,
+  LinearCurve,
+  LinearScale,
+  LttbKernel,
+  M4Kernel,
+  MinMaxKernel,
+  SeriesGroup,
+  Slice,
+  StrideKernel,
+  StringPlatform,
+  lightTheme,
+  type BaseAttributes,
+  type DataNode,
+  type DecimationKernel,
+  type FillPlan,
+} from './index.ts';
 import { partitionOf, planPartitioned } from './partition.ts';
 import { test } from 'vite-plus/test';
 
@@ -91,4 +113,76 @@ test('partition: keyed reduction equals reducing each key alone', () => {
   check([3, -3, 2.5, 7, 100000, 0], 100000, false);
   // Whole numbers only, which are read from the table.
   check([3, 1, 4, 7, 5, 0], 5, true);
+});
+
+// ─── In a group: the transforms that work on the rows of each key ───
+
+function groupOf(...template: ConstructorParameters<typeof SeriesGroup> extends [unknown, ...infer R] ? R : never) {
+  const group = new SeriesGroup({ channel: 'k' }, ...template);
+  const plane = new CartesianPlane({}, new Axis({}, new LinearScale()), new Axis({ orientation: 'left' }, new LinearScale()), group);
+  const chart = new Chart({ theme: lightTheme, width: 400, height: 300 }, plane);
+  chart.attach(new StringPlatform({ width: 400, height: 300 })).flush();
+  return { group, plane, chart };
+}
+const interleaved = (n: number, keys = 2) => {
+  const data = new Float64Array(n * 3);
+  for (let i = 0; i < n; i++) data.set([i, Math.sin(i / 7) * 10 + (i % keys), i % keys], 3 * i);
+  return new FlatDataSource({ data, stride: 3, channels: { k: 2 }, isSorted: true });
+};
+
+test('partition: a Slice in a group windows each key, or the data as a whole', () => {
+  const rowsOf = (keyed: boolean | undefined) => {
+    const slice = new Slice({ last: 6, keyed }, interleaved(20));
+    const { plane, chart } = groupOf(slice, new LinePath(new LinearCurve()));
+    return { slice, plane, chart, counts: plane.series.map((s) => s.points.count) };
+  };
+  assert.deepEqual(rowsOf(undefined).counts, [6, 6], 'each key has its own last 6');
+  assert.deepEqual(rowsOf(true).counts, [6, 6]);
+  assert.deepEqual(rowsOf(false).counts, [3, 3], 'the last 6 rows of the data are 3 of each key');
+  // Moving the window reaches every series, for both.
+  for (const keyed of [true, false]) {
+    const { slice, plane, chart } = rowsOf(keyed);
+    slice.setAttributes({ last: 4, end: 10 });
+    chart.flush();
+    assert.deepEqual(
+      plane.series.map((s) => s.points.count),
+      keyed ? [4, 4] : [2, 2],
+      `keyed ${keyed} after moving`,
+    );
+  }
+  // A window of the whole has to sit on the source.
+  assert.throws(
+    () => groupOf(new Slice({ keyed: false }, new Slice({ last: 5 }, interleaved(20))), new LinePath(new LinearCurve())),
+    /directly on the source/,
+  );
+});
+
+test('partition: a Decimator over a Slice in a group, and a stage that cannot be split', () => {
+  const { plane } = groupOf(
+    new Decimator({}, new MinMaxKernel(), new Slice({ last: 3000 }, interleaved(8000))),
+    new LinePath(new LinearCurve()),
+  );
+  assert.equal(plane.series.length, 2);
+  for (const s of plane.series) assert.ok(s.points.count > 0 && s.points.count < 800, `${s.points.count} points`);
+  class Plain extends DataTransform<BaseAttributes, [source: DataNode]> {
+    get version() {
+      return 0;
+    }
+    get pointCount() {
+      return 0;
+    }
+    domain() {
+      return null;
+    }
+    valueExtent() {
+      return null;
+    }
+    channelExtent() {
+      return null;
+    }
+    plan(): FillPlan {
+      return { capacity: 0, fill: () => ({ count: 0, extents: [] }) };
+    }
+  }
+  assert.throws(() => groupOf(new Plain({}, interleaved(10)), new LinePath(new LinearCurve())), /Plain cannot work on the rows of a key/);
 });

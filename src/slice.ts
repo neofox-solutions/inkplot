@@ -7,9 +7,10 @@
  * the window and not the whole of the data.
  */
 /* oxlint-disable typescript/no-non-null-assertion -- stride-addressed rows of a flat buffer: every index is bounded by the row count */
-import { type AttrTypesFor, NUMBER } from './attrs.ts';
+import { type AttrTypesFor, BOOLEAN, NUMBER } from './attrs.ts';
 import { type DataNode, DataSource, DataTransform, type FillPlan, NO_POINTS, type PlanContext } from './data.ts';
-import { type BaseAttributes, ChartElement } from './element.ts';
+import { KeyedTransform, type Partition, type PartitionedPlan, rawPlan } from './partition.ts';
+import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 
 /** Which rows to keep, by the rules of `Array.prototype.slice`: a negative `start` or `end` counts from the end. */
@@ -20,14 +21,21 @@ export interface SliceAttributes extends BaseAttributes {
   end?: number;
   /** Keep this many rows ending at `end`, instead of from `start`. */
   last?: number;
+  /**
+   * In a `SeriesGroup`: window the rows of each series on their own (the default), or, when false, the rows of the data as a
+   * whole, as they stand before they are split by key. `last: 300` is then the last 300 rows of the data, which is a few of
+   * each series. It has to sit directly on the source to do that. Outside a group it makes no difference.
+   */
+  keyed?: boolean;
 }
 
-export class Slice extends DataTransform<SliceAttributes, [source: DataNode]> {
+export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
     start: NUMBER,
     end: NUMBER,
     last: NUMBER,
+    keyed: BOOLEAN,
   } satisfies AttrTypesFor<SliceAttributes>;
 
   #version = 0;
@@ -79,6 +87,30 @@ export class Slice extends DataTransform<SliceAttributes, [source: DataNode]> {
     };
   }
 
+  /** The rows kept of `n`, by the rules of `Array.prototype.slice`. */
+  #bounds(n: number): [first: number, end: number] {
+    const a = this.attrs;
+    const norm = (v: number | undefined, dflt: number) => {
+      if (v === undefined) return dflt;
+      const i = Math.trunc(v);
+      return Math.min(n, Math.max(0, i < 0 ? n + i : i));
+    };
+    const end = norm(a.end, n);
+    const first = a.last !== undefined ? Math.max(0, end - Math.max(0, Math.trunc(a.last))) : norm(a.start, 0);
+    return [first, Math.max(first, end)];
+  }
+
+  override keyStage(partition: Partition, slot: number): DataNode | null {
+    return this.attrs.keyed === false ? null : super.keyStage(partition, slot);
+  }
+  /** In a group with `keyed` false, the window is of the rows of the data as a whole and each key gets the part of it that is its own. */
+  override planPartitioned(context: PlanContext, partition: Partition): PartitionedPlan {
+    if (this.attrs.keyed !== false) return super.planPartitioned(context, partition);
+    if (!(this.source instanceof DataSource))
+      fail('a Slice with keyed set to false has to sit directly on the source, which is what it windows');
+    return rawPlan(partition, context, this.#bounds(partition.view.count));
+  }
+
   /** The kept rows of the whole source, with the extents of those rows: cached against the version and the channels asked for. */
   #rows(channels: readonly string[]): { count: number; extents: readonly Extent[] } {
     const source = this.source;
@@ -91,15 +123,8 @@ export class Slice extends DataTransform<SliceAttributes, [source: DataNode]> {
     if (this.#cache?.key === key) return this.#cache;
     if (this.#scratch.length < inner.capacity * stride) this.#scratch = new Float64Array(inner.capacity * stride);
     const n = inner.fill(this.#scratch).count;
-    const a = this.attrs;
-    const norm = (v: number | undefined, dflt: number) => {
-      if (v === undefined) return dflt;
-      const i = Math.trunc(v);
-      return Math.min(n, Math.max(0, i < 0 ? n + i : i));
-    };
-    const end = norm(a.end, n);
-    const first = a.last !== undefined ? Math.max(0, end - Math.max(0, Math.trunc(a.last))) : norm(a.start, 0);
-    const count = Math.max(0, end - first);
+    const [first, end] = this.#bounds(n);
+    const count = end - first;
     const extents: Extent[] = [];
     for (let c = 0; c < stride; c++) {
       let min = Infinity,

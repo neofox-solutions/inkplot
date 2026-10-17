@@ -20,7 +20,7 @@ import {
   type PlanContext,
   type PointView,
 } from './data.ts';
-import { type Partition, type PartitionedPlan, planPartitioned, TABLE_BASE } from './partition.ts';
+import { KeyedTransform, type Partition, type PartitionedPlan, planPartitioned, TABLE_BASE } from './partition.ts';
 import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 
@@ -623,7 +623,7 @@ function windowSplit(v: PointView, range: Extent): [number, number] {
  * Only the visible part of the domain is read, so zooming in refills from the full data again.
  * Sources always deliver points ascending in the domain, so any source works; one flagged `isSorted` is read in place.
  */
-export class Decimator extends DataTransform<DecimatorAttributes, [kernel: DecimationKernel, source: DataNode]> {
+export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: DecimationKernel, source: DataNode]> {
   #version = 0;
   #scratch = new Float64Array(0);
 
@@ -698,11 +698,6 @@ export class Decimator extends DataTransform<DecimatorAttributes, [kernel: Decim
     };
   }
 
-  override partitionable(): boolean {
-    const source = this.source;
-    return source instanceof DataSource && source.view()?.channelOffsets !== undefined;
-  }
-
   /** What the last pass over a partition made, for every key, so the keys that follow the first in a flush cost a copy and no more. */
   #keyed: {
     partition: Partition;
@@ -715,7 +710,15 @@ export class Decimator extends DataTransform<DecimatorAttributes, [kernel: Decim
     outs: Float64Array[];
   } | null = null;
 
-  /** `plan` for one key of a partition: a key with few rows is passed on as it is; the others are reduced together, in one pass. */
+  /** A `Decimator` leaves the extents and channels of a key as its source has them. */
+  override keyStage(partition: Partition, slot: number): DataNode | null {
+    const source = this.source;
+    return source instanceof DataSource ? null : (source.keyStage?.(partition, slot) ?? null);
+  }
+  /**
+   * `plan` for one key of a partition: a key with few rows is passed on as it is. The others are reduced together in one pass over
+   * the source's rows when the source is directly beneath; over a stage between (a `Slice`), each key is reduced from what that stage makes of it.
+   */
   override planPartitioned(context: PlanContext, partition: Partition): PartitionedPlan {
     const inner = planPartitioned(this.source, context, partition);
     const a = this.attrs;
@@ -725,6 +728,7 @@ export class Decimator extends DataTransform<DecimatorAttributes, [kernel: Decim
     if (context.channels.length > 0) fail('a Decimator cannot carry channels: bind on undecimated data, or turn the Decimator off');
     const columns = Math.max(3, Math.floor(context.width * (a.resolution ?? 1)));
     const capacity = this.kernel.capacity(columns);
+    if (!(this.source instanceof DataSource)) return this.#viaSource(inner, columns, capacity, context.domainRange);
     const small = (slot: number) => partition.counts[slot]! <= capacity;
     return {
       capacity: (slot) => (small(slot) ? inner.capacity(slot) : capacity),
@@ -734,6 +738,35 @@ export class Decimator extends DataTransform<DecimatorAttributes, [kernel: Decim
         const made = pass.results.get(slot) ?? fail('a Decimator was asked for a key it did not reduce');
         out.set((pass.outs[slot] ?? fail('a Decimator has no room for a key')).subarray(0, 2 * made.count));
         return made;
+      },
+    };
+  }
+  /** Each key reduced from what the stage beneath makes of it, as a `Decimator` does over any stage. */
+  #viaSource(inner: PartitionedPlan, columns: number, capacity: number, range: Extent): PartitionedPlan {
+    const kernel = this.kernel;
+    return {
+      capacity: (slot) => Math.min(inner.capacity(slot), capacity),
+      fill: (slot, out) => {
+        const room = inner.capacity(slot);
+        if (room <= capacity) return inner.fill(slot, out);
+        if (this.#scratch.length < room * 2) this.#scratch = new Float64Array(room * 2);
+        const filled = inner.fill(slot, this.#scratch);
+        const all: PointView = {
+          data: this.#scratch,
+          count: filled.count,
+          stride: 2,
+          domainOffset: 0,
+          valueOffset: 1,
+          regularDomain: null,
+        };
+        const windowed = windowView(all, range);
+        const t0 = performance.now();
+        const r = kernel.reduce(windowed, range, columns, out, capacity);
+        const counters = this.countersOrNull;
+        if (counters) counters.stages.decimate += performance.now() - t0;
+        const n = windowed.count;
+        const x = (i: number) => windowed.data[i * windowed.stride + windowed.domainOffset]!;
+        return { count: r.count, extents: [n > 0 ? { min: x(0), max: x(n - 1) } : NO_POINTS, { min: r.yMin, max: r.yMax }] };
       },
     };
   }

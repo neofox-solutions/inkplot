@@ -31,6 +31,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, AUTO, NUMBER, STRING } from './attrs.ts';
 import { type DataNode, DataSource, DataTransform, type FillPlan, type PlanContext } from './data.ts';
+import { KeyedTransform } from './partition.ts';
 import { type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 
@@ -72,7 +73,7 @@ const DEFAULT_SAMPLES = 512;
 const NONE: Extent = { min: Infinity, max: -Infinity };
 
 /** The base of trendlines: reads the points, fits them once for each change, and samples the curve. */
-export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttributes> extends DataTransform<A, [source: DataNode]> {
+export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttributes> extends KeyedTransform<A, [source: DataNode]> {
   static override attrTypes = {
     ...DataTransform.attrTypes,
     x: STRING,

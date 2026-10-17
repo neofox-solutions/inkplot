@@ -98,6 +98,7 @@ Keeps a window of rows of the data: move it to animate.
 | `start` | `number` | The first row kept. Default 0. |
 | `end` | `number` | One past the last row kept. Default all. |
 | `last` | `number` | Keep this many rows ending at `end`, instead of from `start`. |
+| `keyed` | `boolean` | In a `SeriesGroup`: window the rows of each series on their own (the default), or, when false, the rows of the data as a whole, as they stand before they are split by key. |
 
 ### MinMaxKernel
 

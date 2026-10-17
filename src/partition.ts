@@ -6,8 +6,17 @@
  * (a `Decimator`) can do it for every key in one pass over the storage, instead of once for each key over its own copy.
  */
 /* oxlint-disable typescript/no-non-null-assertion -- stride-addressed rows of a view: every index is bounded by the row count */
-import { DataSource, type DataNode, type FillResult, NO_POINTS, type PlanContext, type PointView } from './data.ts';
-import { fail } from './element.ts';
+import {
+  DataSource,
+  DataTransform,
+  type DataNode,
+  type FillPlan,
+  type FillResult,
+  NO_POINTS,
+  type PlanContext,
+  type PointView,
+} from './data.ts';
+import { type AnyElement, type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 
 /** Integer keys in this range are found with a table; any other key (a fraction, a large number) with a map. */
@@ -24,7 +33,7 @@ export interface PartitionedPlan {
 export interface Partition {
   readonly channel: string;
   readonly source: DataSource;
-  /** The source's rows in place, with the channel among its offsets. */
+  /** The source's rows, in place when it can offer them (else one copy of them), with the channel among its offsets. */
   readonly view: PointView;
   readonly keyOffset: number;
   /** The version of the source this was made at. */
@@ -33,6 +42,8 @@ export interface Partition {
   readonly keys: readonly number[];
   /** How many keys were left out because there were more than were wanted. */
   readonly omitted: number;
+  /** The storage row of row `i` of `view`: what an edit to that point has to aim at. */
+  storageRow(i: number): number;
   /** The rows each key has. */
   readonly counts: Int32Array;
   /** The first and last row of each key in `view`. */
@@ -63,13 +74,25 @@ export interface Partition {
 type Order = 'first' | 'sorted' | ((a: number, b: number) => number);
 
 /**
- * Split the rows of `source` by `channel`. Null when the source cannot be read in place with that channel among its columns
- * (then the rows have to be copied out by key, as a group does when it cannot partition).
+ * Split the rows of `source` by `channel`. Null when the source has no such channel. A source that cannot offer its rows in
+ * place (one that makes them up as it is asked) is filled once into a buffer, which is the only copy there is.
  */
 export function partitionOf(source: DataSource, channel: string, order: Order, max: number): Partition | null {
-  const view = source.view();
-  const keyOffset = view?.channelOffsets?.[channel];
-  if (!view || keyOffset === undefined) return null;
+  let view = source.view();
+  let storageRow = (i: number) => source.storageRow(i);
+  if (view?.channelOffsets?.[channel] === undefined) {
+    const names = source.channelNames;
+    if (!names.includes(channel)) return null;
+    const stride = 2 + names.length;
+    const plan = source.plan({ width: 1, height: 1, domainRange: { min: -Infinity, max: Infinity }, channels: names });
+    const buffer = new Float64Array(plan.capacity * stride);
+    const filled = plan.fill(buffer);
+    const channelOffsets: Record<string, number> = {};
+    names.forEach((name, i) => (channelOffsets[name] = 2 + i));
+    view = { data: buffer, count: filled.count, stride, domainOffset: 0, valueOffset: 1, regularDomain: null, channelOffsets };
+    storageRow = filled.rowOf ?? ((i) => i);
+  }
+  const keyOffset = view.channelOffsets?.[channel] ?? fail(`the data has no channel "${channel}"`);
   const d = view.data,
     s = view.stride,
     n = view.count,
@@ -156,6 +179,7 @@ export function partitionOf(source: DataSource, channel: string, order: Order, m
     view,
     keyOffset,
     version: source.version,
+    storageRow,
     keys,
     omitted: Math.max(0, found.length - kept.length),
     counts,
@@ -223,7 +247,7 @@ export function partitionOf(source: DataSource, channel: string, order: Order, m
 
 /** Whether `node` can serve a partition: a source that can be read in place, or a stage above one that says it can. */
 export function canPartition(node: DataNode): boolean {
-  if (node instanceof DataSource) return node.view()?.channelOffsets !== undefined;
+  if (node instanceof DataSource) return true;
   return node.partitionable?.() === true;
 }
 
@@ -235,7 +259,7 @@ export function planPartitioned(node: DataNode, context: PlanContext, partition:
 }
 
 /** All the rows of a key, as a source's own `plan` gives them: the domain, the value, then the channels asked for. */
-function rawPlan(p: Partition, context: PlanContext): PartitionedPlan {
+export function rawPlan(p: Partition, context: PlanContext, window?: readonly [first: number, end: number]): PartitionedPlan {
   const v = p.view,
     d = v.data,
     s = v.stride;
@@ -244,10 +268,32 @@ function rawPlan(p: Partition, context: PlanContext): PartitionedPlan {
   const k = offsets.length,
     os = 2 + k;
   const reg = v.regularDomain;
+  // The rows of a key that lie within the window of rows, if there is one: a key's rows ascend, so they are found by searching.
+  const bounds = (slot: number): [number, number] => {
+    const rows = p.rows()[slot]!;
+    if (!window) return [0, rows.length];
+    const search = (at: number) => {
+      let a = 0,
+        b = rows.length;
+      while (a < b) {
+        const mid = (a + b) >>> 1;
+        if (rows[mid]! < at) a = mid + 1;
+        else b = mid;
+      }
+      return a;
+    };
+    return [search(window[0]), search(window[1])];
+  };
   return {
-    capacity: (slot) => p.counts[slot]!,
+    capacity: (slot) => {
+      if (!window) return p.counts[slot]!;
+      const [a, b] = bounds(slot);
+      return b - a;
+    },
     fill(slot, out) {
-      const rows = p.rows()[slot]!;
+      const all = p.rows()[slot]!;
+      const [from, to] = bounds(slot);
+      const rows = window ? all.subarray(from, to) : all;
       const n = rows.length;
       if (n === 0) return { count: 0, extents: [NO_POINTS, NO_POINTS, ...names.map(() => NO_POINTS)] };
       const lo = new Float64Array(os).fill(Infinity),
@@ -270,7 +316,161 @@ function rawPlan(p: Partition, context: PlanContext): PartitionedPlan {
       }
       const extents: Extent[] = [];
       for (let c = 0; c < os; c++) extents.push(lo[c]! <= hi[c]! ? { min: lo[c]!, max: hi[c]! } : NO_POINTS);
-      return { count: n, extents, rowOf: (m) => p.source.storageRow(rows[m]!) };
+      return { count: n, extents, rowOf: (m) => p.storageRow(rows[m]!) };
     },
   };
+}
+
+// ─── The rows of one key as a data source, and the transforms that work on them ───
+
+/**
+ * An element made again from its class and attributes, children too (every element is `new X(attrs, ...children)`), with the
+ * suffix added to each id. In a chain of data stages the source at the bottom is not copied but replaced by `leaf`.
+ */
+export function copyOf<E extends AnyElement>(e: E, suffix: string, leaf?: DataSource): E {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- the leaf stands in for the source it replaces, which is the same kind of element
+  if (leaf && e instanceof DataSource) return leaf as unknown as E;
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- elements are copied without knowing their classes: a constructor is known only structurally
+  const Class = e.constructor as new (...args: unknown[]) => E;
+  const attrs: Record<string, unknown> = { ...e.attrs };
+  if (typeof attrs.id === 'string') attrs.id = `${attrs.id}/${suffix}`;
+  const children: AnyElement[] = [];
+  for (let c = e.firstChild; c; c = c.nextSibling) children.push(copyOf(c, suffix, leaf));
+  return new Class(attrs, ...children);
+}
+/** Bring a copy's attributes back in line with what it was copied from, children too, leaving alone the attributes in `keep` (a group binds them). */
+export function refresh(from: AnyElement, to: AnyElement, keep: ReadonlySet<string>): void {
+  if (from instanceof DataSource) return;
+  const patch: Record<string, unknown> = {};
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- an attribute bag read by name: its keys are known only at run time
+  const was = to.attrs as Record<string, unknown>,
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- as above
+    is = from.attrs as Record<string, unknown>;
+  for (const k of Object.keys(is)) if (k !== 'id' && !keep.has(k) && was[k] !== is[k]) patch[k] = is[k];
+  for (const k of Object.keys(was)) if (k !== 'id' && !keep.has(k) && !(k in is)) patch[k] = undefined;
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- the patch was made from the copy's own attributes
+  if (Object.keys(patch).length > 0) to.setAttributes(patch as never);
+  for (let f = from.firstChild, t = to.firstChild; f && t; f = f.nextSibling, t = t.nextSibling) refresh(f, t, keep);
+}
+
+/**
+ * The rows of one key of a partition, as a data source. The data of a group's series is one, answering with what the template's
+ * stages make of the key (`top`); the bottom of a copy of a stage is one too, answering with the key's rows as they are.
+ */
+export class KeySource extends DataSource {
+  #partition: Partition | null = null;
+  #slot = 0;
+  #names: readonly string[] = [];
+  #top: (() => DataNode) | null;
+
+  constructor(top: (() => DataNode) | null = null) {
+    super({});
+    this.#top = top;
+  }
+  /** Take the key at `slot` of a new partition. */
+  load(partition: Partition, slot: number, names: readonly string[]): void {
+    this.#partition = partition;
+    this.#slot = slot;
+    this.#names = names;
+    this.invalidate();
+  }
+  /** Something above the source changed (a Decimator's resolution): the points are asked for again. */
+  touch(): void {
+    this.invalidate();
+  }
+  /** What answers for the key's extents and channels: the stage that stands for the template on it, or null for the rows as they are. */
+  #stage(): DataNode | null {
+    const top = this.#top?.();
+    if (!top || top instanceof DataSource || !this.#partition) return null;
+    return top.keyStage?.(this.#partition, this.#slot) ?? null;
+  }
+  get pointCount(): number {
+    return this.#stage()?.pointCount ?? this.#partition?.counts[this.#slot] ?? 0;
+  }
+  override get channelNames(): readonly string[] {
+    return this.#stage()?.channelNames ?? this.#names;
+  }
+  protected override get ordered(): boolean {
+    return true;
+  }
+  protected scanDomain(): Extent | null {
+    return this.#partition?.domains[this.#slot] ?? null;
+  }
+  override domain(): Extent | null {
+    const stage = this.#stage();
+    return stage ? stage.domain() : super.domain();
+  }
+  override valueExtent(): Extent | null {
+    const stage = this.#stage();
+    return stage ? stage.valueExtent() : (this.#partition?.values[this.#slot] ?? null);
+  }
+  override channelExtent(name: string): Extent | null {
+    const stage = this.#stage();
+    return stage ? stage.channelExtent(name) : (this.#partition?.channelExtents(name)[this.#slot] ?? null);
+  }
+  protected fill(): FillResult {
+    return fail('the rows of a key are read through plan');
+  }
+  override plan(context: PlanContext): FillPlan {
+    const partition = this.#partition ?? fail('a key has no rows');
+    const plan = this.#top ? planPartitioned(this.#top(), context, partition) : rawPlan(partition, context);
+    const slot = this.#slot;
+    return { capacity: plan.capacity(slot), fill: (out) => plan.fill(slot, out) };
+  }
+}
+
+/**
+ * A data transform that can work on the rows of a `SeriesGroup`'s series. By default it does what it does to the rows of each
+ * key on their own: it makes a copy of itself (and of whatever is beneath it) for every key, with the rows of the key at the bottom,
+ * and keeps the copies in line with itself. A transform that can serve all the keys better overrides `planPartitioned` (a
+ * `Decimator` does the whole partition in one pass), and may hand the choice to an attribute (a `Slice` can window the data as a whole).
+ * A transform that does not extend this cannot be used in a group.
+ */
+export abstract class KeyedTransform<
+  A extends BaseAttributes = BaseAttributes,
+  Children extends readonly AnyElement[] = [source: DataNode],
+  Channel extends string = string,
+> extends DataTransform<A, Children, Channel> {
+  #keyed: { partition: Partition; copies: { copy: DataNode; at: number }[] } | null = null;
+
+  /** The stage this one reads: the last of its children that is a data stage. */
+  protected get input(): DataNode {
+    let found: DataNode | null = null;
+    for (let c = this.firstChild; c; c = c.nextSibling) if (c instanceof DataSource || c instanceof DataTransform) found = c;
+    return found ?? fail(`${this.constructor.name} has no data beneath it`);
+  }
+  override partitionable(): boolean {
+    return canPartition(this.input);
+  }
+  override planPartitioned(context: PlanContext, partition: Partition): PartitionedPlan {
+    const plans = new Map<number, FillPlan>();
+    const planOf = (slot: number): FillPlan => {
+      let plan = plans.get(slot);
+      if (!plan) plans.set(slot, (plan = this.#copyFor(partition, slot).plan(context)));
+      return plan;
+    };
+    return { capacity: (slot) => planOf(slot).capacity, fill: (slot, out) => planOf(slot).fill(out) };
+  }
+  override keyStage(partition: Partition, slot: number): DataNode | null {
+    return this.#copyFor(partition, slot);
+  }
+  #copyFor(partition: Partition, slot: number): DataNode {
+    let keyed = this.#keyed;
+    if (!keyed || keyed.partition !== partition) keyed = this.#keyed = { partition, copies: [] };
+    let made = keyed.copies[slot];
+    if (!made) {
+      const leaf = new KeySource();
+      leaf.load(
+        keyed.partition,
+        slot,
+        keyed.partition.source.channelNames.filter((n) => n !== keyed.partition.channel),
+      );
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- a copy of this transform is the same kind of node
+      made = keyed.copies[slot] = { copy: copyOf<AnyElement>(this, String(slot), leaf) as DataNode, at: this.version };
+    } else if (made.at !== this.version) {
+      refresh(this, made.copy, new Set());
+      made.at = this.version;
+    }
+    return made.copy;
+  }
 }

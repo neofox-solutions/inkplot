@@ -29,6 +29,7 @@
 import { type AttrTypesFor, AUTO, STRING } from './attrs.ts';
 import { quantile } from './quantile.ts';
 import { type DataNode, DataSource, DataTransform, type FillPlan, type PlanContext } from './data.ts';
+import { KeyedTransform } from './partition.ts';
 import { type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 
@@ -58,7 +59,7 @@ interface Computed {
   outlierValue: Float64Array;
 }
 
-export class BoxStats extends DataTransform<BoxStatsAttributes, [source: DataNode]> {
+export class BoxStats extends KeyedTransform<BoxStatsAttributes, [source: DataNode]> {
   static override attrTypes = {
     ...DataTransform.attrTypes,
     output: STRING,

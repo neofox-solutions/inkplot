@@ -467,6 +467,11 @@ export abstract class DataTransform<
   partitionable?(): boolean;
   /** Like `plan`, for the rows of each key of a partition of its source: the points of a key are asked for by its slot. */
   planPartitioned?(context: PlanContext, partition: Partition): PartitionedPlan;
+  /**
+   * The stage that stands for this one on the rows of one key, when it is not the rows themselves: what answers for the key's
+   * point count, extents and channels. Null where the key's rows, as they are, answer.
+   */
+  keyStage?(partition: Partition, slot: number): DataNode | null;
 }
 
 /** A source or a transform. `DataNode<'x'>` is one the type checker knows offers a channel called x. */

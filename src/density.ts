@@ -33,6 +33,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, AUTO, NUMBER, STRING } from './attrs.ts';
 import { type DataNode, DataSource, DataTransform, type FillPlan, type PlanContext } from './data.ts';
+import { KeyedTransform } from './partition.ts';
 import { type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 import { quantile } from './quantile.ts';
@@ -84,7 +85,7 @@ interface Computed {
 const list = <T>(v: T | readonly T[] | undefined, k: number): T | undefined =>
   Array.isArray(v) ? (v as readonly T[])[k] : (v as T | undefined);
 
-export class Density extends DataTransform<DensityAttributes, [source: DataNode]> {
+export class Density extends KeyedTransform<DensityAttributes, [source: DataNode]> {
   static override attrTypes = {
     ...DataTransform.attrTypes,
     by: AUTO,
