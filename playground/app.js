@@ -166,7 +166,8 @@ function onFlush(stats) {
   if (stats.filled === 0 && stats.attributeWrites === 0) return;
   history.push(stats.total);
   if (history.length > 60) history.shift();
-  renderStats(stats);
+  probe.afterFlush(stats);
+  readouts.show(stats);
   if (tab === 'json') jsonPanel.refresh();
   else if (tab === 'svg') svgPanel.soon();
   else renderPanel();
@@ -183,6 +184,147 @@ const svgPanel = {
     }, 150);
   },
 };
+
+// ── Profiling aids ──────────────────────────────────────────────────────────
+// What the browser does with a flush is not in the flush's own time: it styles, lays out and paints afterwards. These estimate it from the page
+// (a profiler gives the exact figures; these are for a quick look, and the markers below are for finding the flush in one).
+//  · render: from the end of a flush to the first task after the frame was drawn (a message posted during the frame is handled after the browser
+//    has styled, laid out and painted), so it is style + layout + paint, as the page saw it. Exact in a frame callback, a loose upper bound elsewhere.
+//  · layout probe: optional. It forces style and layout right after the flush and times that, which is the layout cost of the flush alone. Forcing it
+//    takes that work out of the frame, so the render estimate falls by about as much; read one or the other.
+//  · timer: the smallest step `performance.now()` is seen to make. A page that is not cross-origin isolated gets it coarsened by the browser.
+//  · user timing: every flush is a `measure` named "inkplot flush", which the Chrome and Firefox profilers draw as a marker on the timeline.
+const probe = (() => {
+  const keep = (a, v) => (a.push(v), a.length > 60 && a.shift());
+  const state = {
+    render: [],
+    layout: [],
+    interval: [],
+    busy: [],
+    forceLayout: false,
+    last: 0,
+    timer: null,
+    pending: 0,
+  };
+  const channel = typeof MessageChannel === 'function' ? new MessageChannel() : null;
+  const waiting = [];
+  if (channel) {
+    channel.port1.onmessage = () => {
+      const t = performance.now(),
+        { end, flush, at } = waiting.shift() ?? {};
+      if (end === undefined) return;
+      const render = t - end;
+      keep(state.render, render);
+      if (at > 0) keep(state.busy, ((flush + render) / at) * 100);
+      readouts.refresh();
+    };
+  }
+  /** The finest step `performance.now()` takes, seen over a short spin; null if it never moves. */
+  const measureTimer = () => {
+    let best = Infinity;
+    for (let i = 0, last = performance.now(); i < 20000; i++) {
+      const t = performance.now(),
+        d = t - last;
+      if (d > 0) {
+        best = Math.min(best, d);
+        last = t;
+      }
+    }
+    return Number.isFinite(best) ? best : null;
+  };
+  state.timer = measureTimer();
+  return {
+    state,
+    afterFlush(stats) {
+      const end = performance.now();
+      const at = state.last ? end - state.last : 0;
+      state.last = end;
+      if (at > 0 && at < 2000) keep(state.interval, at);
+      // The flush as a marker for a profiler. The entries are not needed here, so they are not allowed to pile up.
+      try {
+        performance.measure('inkplot flush', {
+          start: end - stats.total,
+          end,
+          detail: { filled: stats.filled, writes: stats.attributeWrites, drawn: stats.pointsDrawn },
+        });
+        if (++state.pending > 100) {
+          state.pending = 0;
+          performance.clearMeasures('inkplot flush');
+        }
+      } catch {
+        // an older browser: no user timing detail
+      }
+      if (state.forceLayout) {
+        const svg = host.querySelector('svg');
+        const t0 = performance.now();
+        if (svg) svg.getBoundingClientRect();
+        keep(state.layout, performance.now() - t0);
+      }
+      if (channel) {
+        waiting.push({ end: performance.now(), flush: stats.total, at });
+        channel.port2.postMessage(0);
+      }
+    },
+    reset() {
+      for (const k of ['render', 'layout', 'interval', 'busy']) state[k].length = 0;
+      state.last = 0;
+    },
+  };
+})();
+
+/** The readouts are redrawn at most four times a second: rewriting them on every flush of an animation would be page layout of their own, in what is being measured. */
+const readouts = (() => {
+  let latest = null,
+    timer = 0,
+    shownAt = 0;
+  const draw = () => {
+    timer = 0;
+    shownAt = performance.now();
+    if (latest && current) renderStats(latest);
+  };
+  return {
+    show(stats) {
+      latest = stats;
+      if (timer) return;
+      const wait = 250 - (performance.now() - shownAt);
+      if (wait <= 0) draw();
+      else timer = setTimeout(draw, wait);
+    },
+    refresh() {
+      if (!timer && latest && performance.now() - shownAt >= 250) draw();
+    },
+  };
+})();
+
+const stat = (a) => {
+  if (a.length === 0) return null;
+  const sorted = [...a].sort((x, y) => x - y);
+  const at = (q) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
+  return { median: at(0.5), p95: at(0.95), max: sorted[sorted.length - 1], n: a.length };
+};
+/** Milliseconds: a third decimal when the timer can tell. */
+const msf = (v) => (v < 1 && (probe.state.timer ?? 1) <= 0.011 ? v.toFixed(3) : ms(v));
+const micro = (v) => (v === null ? 'n/a' : v < 0.001 ? '< 1 µs' : v < 1 ? `${+(v * 1000).toPrecision(2)} µs` : `${+v.toPrecision(2)} ms`);
+const layoutToggle = h('input', {
+  type: 'checkbox',
+  id: 'probe-layout',
+  onchange: (e) => {
+    probe.state.forceLayout = e.target.checked;
+    probe.state.layout.length = 0;
+    probe.state.render.length = 0;
+  },
+});
+const layoutToggleLabel = h(
+  'label',
+  {
+    class: 'probe-toggle',
+    for: 'probe-layout',
+    title:
+      'Forces style and layout right after each flush and times it. That takes the work out of the frame, so the render figure falls to match.',
+  },
+  layoutToggle,
+  ' measure layout (forces it)',
+);
 
 function renderStats(s) {
   const sorted = [...history].sort((a, b) => a - b);
@@ -226,8 +368,40 @@ function renderStats(s) {
         kv('svg nodes', svg ? svg.querySelectorAll('*').length : 0),
         kv('written', s.attributesWritten.slice(0, 3).join(' ') + (s.attributesWritten.length > 3 ? ' …' : '')),
       ),
+      h('div', { class: 'kv frame' }, ...frameRows()),
+      layoutToggleLabel,
     ),
   );
+}
+/** What the page spent round the flush: see the profiling aids above. */
+function frameRows() {
+  const p = probe.state;
+  const row = (name, a, unit = 'ms') => {
+    const st = stat(a);
+    return st
+      ? kv(
+          name,
+          unit === '%'
+            ? `${st.median.toFixed(0)} % · p95 ${st.p95.toFixed(0)} %`
+            : `${msf(st.median)} · p95 ${msf(st.p95)} · max ${msf(st.max)} ms`,
+        )
+      : null;
+  };
+  const gap = stat(p.interval);
+  return [
+    kv(
+      'flush (60)',
+      (() => {
+        const st = stat(history);
+        return st ? `${msf(st.median)} · p95 ${msf(st.p95)} · max ${msf(st.max)} ms` : 'n/a';
+      })(),
+    ),
+    row('render est.', p.render),
+    p.forceLayout ? row('layout (forced)', p.layout) : null,
+    gap ? kv('between flushes', `${msf(gap.median)} ms · ${(1000 / gap.median).toFixed(0)} per s`) : null,
+    row('busy', p.busy, '%'),
+    kv('timer', `${micro(p.timer)}${typeof crossOriginIsolated === 'boolean' && crossOriginIsolated ? ' · isolated' : ''}`),
+  ].filter(Boolean);
 }
 const kv = (k, v) => h('div', {}, h('span', {}, k), h('b', {}, String(v)));
 
@@ -238,6 +412,7 @@ function mount(demo) {
     current.dispose?.();
   }
   history.length = 0;
+  probe.reset();
   $('controls').replaceChildren();
   themeHooks = [];
   host.querySelectorAll('svg').forEach((n) => n.remove());
