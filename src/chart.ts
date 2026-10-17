@@ -221,6 +221,9 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
   flush(): FlushStats {
     const platform = this.platform;
     if (!platform) fail('chart is not attached');
+    // A flush asked for by hand (in an animation frame of the app's own, say) makes the one that was waiting for the next frame pointless.
+    this.unschedule?.();
+    this.unschedule = null;
     const t0 = performance.now();
     this.#flushCount++;
     const c = this.counts;

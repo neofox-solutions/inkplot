@@ -466,3 +466,141 @@ test('group interaction', () => {
     assert.deepEqual(b.plane.axes[0]!.range, range.range);
   }
 });
+
+test('chart group directions, new lines and empty items', () => {
+  const xs = (items: ChartGroupItem[]) => items.map((i) => Math.round(i.rect.x));
+  const ys = (items: ChartGroupItem[]) => items.map((i) => Math.round(i.rect.y));
+
+  // `newLine` ends a line early; `justify` centres the short one: 3 + 2 + 3.
+  {
+    const items = [item(), item(), item(), item(), item(), item({ newLine: true }), item(), item()];
+    lay({ columns: 3, gap: 0, justify: 'center' }, items);
+    assert.deepEqual(xs(items), [0, 140, 280, 70, 210, 0, 140, 280]);
+    assert.deepEqual(ys(items), [0, 0, 0, 107, 107, 213, 213, 213]);
+    // At the start of a line it changes nothing.
+    const first = [item({ newLine: true }), item(), item(), item({ newLine: true })];
+    lay({ columns: 3, gap: 0 }, first);
+    assert.deepEqual(ys(first), [0, 0, 0, 160]);
+    // A line that an item too wide for the rest of it cut short is justified too.
+    const wide = [item({ span: 2 }), item({ span: 2 })];
+    lay({ columns: 3, gap: 0, justify: 'end' }, wide);
+    assert.deepEqual(
+      [xs(wide), ys(wide)],
+      [
+        [140, 140],
+        [0, 160],
+      ],
+    );
+  }
+
+  // `reverse` runs each line the other way; `reverseLines` stacks them from the other end; both leave the cells where they are counted.
+  {
+    const four = () => [item(), item(), item(), item()];
+    let items = four();
+    lay({ columns: 3, gap: 0, reverse: true }, items);
+    assert.deepEqual(
+      [xs(items), ys(items)],
+      [
+        [280, 140, 0, 280],
+        [0, 0, 0, 160],
+      ],
+    );
+    items = four();
+    lay({ columns: 3, gap: 0, reverseLines: true }, items);
+    assert.deepEqual(
+      [xs(items), ys(items)],
+      [
+        [0, 140, 280, 0],
+        [160, 160, 160, 0],
+      ],
+    );
+    items = four();
+    lay({ columns: 3, gap: 0, reverse: true, reverseLines: true, justify: 'end' }, items);
+    assert.deepEqual(
+      [xs(items), ys(items)],
+      [
+        [280, 140, 0, 0],
+        [160, 160, 160, 0],
+      ],
+    );
+    // Down columns: `reverse` is the way up each column, `reverseLines` the way along.
+    items = four();
+    lay({ rows: 2, flow: 'column', gap: 0, reverse: true }, items);
+    assert.deepEqual(
+      [xs(items), ys(items)],
+      [
+        [0, 0, 210, 210],
+        [160, 0, 160, 0],
+      ],
+    );
+    items = four();
+    lay({ rows: 2, flow: 'column', gap: 0, reverseLines: true }, items);
+    assert.deepEqual(
+      [xs(items), ys(items)],
+      [
+        [210, 210, 0, 0],
+        [0, 160, 0, 160],
+      ],
+    );
+    // Edges follow the cells: the first item of a reversed row is at the right of the group.
+    items = four();
+    lay({ columns: 2, gap: 0 }, items);
+    assert.deepEqual(
+      items.map((i) => i.edges),
+      [
+        { top: true, left: true, right: false, bottom: false },
+        { top: true, left: false, right: true, bottom: false },
+        { top: false, left: true, right: false, bottom: true },
+        { top: false, left: false, right: true, bottom: true },
+      ],
+    );
+    items = four();
+    lay({ columns: 2, gap: 0, reverse: true, reverseLines: true }, items);
+    assert.deepEqual(
+      items.map((i) => i.edges),
+      [
+        { top: false, left: false, right: true, bottom: true },
+        { top: false, left: true, right: false, bottom: true },
+        { top: true, left: false, right: true, bottom: false },
+        { top: true, left: true, right: false, bottom: false },
+      ],
+    );
+  }
+
+  // A right-to-left chart starts its rows at the right, and `reverse` turns them back.
+  {
+    const run = (attrs: ChartGroupAttributes) => {
+      const items = [item(), item(), item()];
+      const chart = new Chart({ theme: lightTheme, width: W, height: H, padding: 0, direction: 'rtl' }, new ChartGroup(attrs, ...items));
+      chart.attach(new StringPlatform({ width: W, height: H })).flush();
+      return xs(items);
+    };
+    assert.deepEqual(run({ columns: 3, gap: 0 }), [280, 140, 0]);
+    assert.deepEqual(run({ columns: 3, gap: 0, reverse: true }), [0, 140, 280]);
+  }
+
+  // An empty item keeps its cells and draws nothing, and does not make the chart above it a chart that is not at the edge.
+  {
+    const items = [item(), item(), new ChartGroupItem({}), item()];
+    const { chart } = lay({ columns: 2, gap: 0 }, items);
+    assert.deepEqual(boxes([items[2]!]), [[0, 160, 210, 160]]);
+    assert.equal(items[2]!.isEmpty, true);
+    assert.equal(items[0]!.edges.bottom, true, 'only an empty item beneath it: it is at the bottom');
+    assert.equal(items[1]!.edges.bottom, false, 'a chart beneath it: it is not');
+    const gap = [item(), new ChartGroupItem({}), item(), item()];
+    lay({ columns: 2, gap: 0 }, gap);
+    assert.equal(gap[0]!.edges.right, true, 'only an empty item beside it');
+    // Nothing of it is drawn: the chart has as many planes as the others.
+    assert.equal(chart.planes.length, 3);
+  }
+
+  // And all of it as JSON.
+  {
+    const items = [item({ newLine: true }), new ChartGroupItem({})];
+    const { chart } = lay({ columns: 3, reverse: true, reverseLines: true, justify: 'center' }, items);
+    const json = JSON.parse(JSON.stringify(toJSON(chart, registry)));
+    const copy = fromJSON(json, registry);
+    assert.deepEqual(JSON.parse(JSON.stringify(toJSON(copy, registry))), json);
+    assert.match(JSON.stringify(json), /"reverseLines":true/);
+  }
+});

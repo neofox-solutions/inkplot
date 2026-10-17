@@ -39,8 +39,10 @@ A grid of charts in one picture, in place of a plane: equal cells, filled along 
 | `columns` | `number` | How many columns. |
 | `rows` | `number` | How many rows; the counterpart of `columns`. |
 | `flow` | `'row' \| 'column'` | The direction the items fill the grid in: along a row and then down (`'row'`, the default) or down a column and then along. |
+| `reverse` | `boolean` | Run each line the other way: right to left along a row, bottom to top down a column. Default false. |
+| `reverseLines` | `boolean` | Stack the lines the other way: the first line at the bottom of the group (or, with `flow: 'column'`, at the right). Default false. |
 | `gap` | `number \| { row?: number; column?: number }` | Space between cells in pixels: one number, or one for each direction. Default 8. |
-| `justify` | `Justify` | Where the items of the last line go when it is not full. Default 'start'. |
+| `justify` | `Justify` | Where the items of a line go when it is not full: the last line, one that an item with `newLine` ended early, or one the next item was too big for. Default 'start'. |
 | `align` | `boolean` | Give charts in a column the same room left and right of their plots, and charts in a row the same above and below, so the plots line up whatever their labels need. Default true. |
 | `linkCursor` | `boolean` | Show the cursor in every chart that shares an axis with the one the pointer is over, at the same value of it: a crosshair and a tooltip in each chart of a column, all reading one time. Default false. |
 
@@ -53,6 +55,7 @@ One chart of a group, in the cells it spans; its titles and keys go round its ow
 | Attribute | Type | |
 |---|---|---|
 | `span` | `number \| readonly [columns: number, rows: number]` | How many cells it takes along the flow and across it: one number is columns (rows being 1), or `[columns, rows]`. Default 1. |
+| `newLine` | `boolean` | Start a new line with this item, even if the one before has room: the way to make lines of 3, 2 and 3 charts, the middle one centred with `justify`. Default false. |
 
 ## SharedRange
 

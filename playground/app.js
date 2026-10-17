@@ -1074,7 +1074,7 @@ demos.push({
     'A made-up 24-node cluster, live: headline numbers, latency and restarts, and a sparkline for every node, in one ChartGroup, moved along its history by Slice',
   setup(ctx) {
     const D = clusterData;
-    const S = { end: 360, rate: 10, playing: false };
+    const S = { end: 360, rate: 10, playing: false, held: false };
     const TICK = 2; // seconds of the made-up clock to a sample
     const clock = (i) => {
       const s = 9 * 3600 + Math.round(i) * TICK;
@@ -1095,17 +1095,20 @@ demos.push({
       slices.push(slice);
       return slice;
     };
-    const hidden = () => new L.Axis({ orientation: 'bottom', visible: false }, new L.LinearScale());
+    // Every chart reads the same stretch of time, so they share one range: a pointer over one is at the same moment in all of them.
+    const hidden = () => new L.SharedAxis({ orientation: 'bottom', sharedRef: 'time', visible: false });
+    const WINDOW = 240;
+    const crosshair = () => new L.Cursor({ mode: 'shared', keys: false }, new L.Crosshair({ lines: 'first', dots: true }));
     const fixed = (min, max) => new L.Axis({ orientation: 'left', visible: false, min, max }, new L.LinearScale());
     const tight = { gridlines: false, insets: { left: 2, right: 2, top: 4, bottom: 4 } };
     const smallText = { chartTitle: { size: 11, weight: 600, align: 'start' } };
 
     // ── The headline numbers: the value is the item's title and the name its subtitle, and the line behind them is the last few minutes.
     const kpis = [
-      { name: 'Requests / s', data: D.rps, last: 150, min: 0, max: 8000, format: (v) => Math.round(v).toLocaleString(), kind: 'area' },
-      { name: 'p99 latency', data: D.p99, last: 150, min: 0, max: 400, format: (v) => Math.round(v) + ' ms', kind: 'line', limit: 250 },
-      { name: 'Error rate', data: D.errors, last: 150, min: 0, max: 4, format: (v) => v.toFixed(2) + ' %', kind: 'area', limit: 1 },
-      { name: 'Nodes up', data: D.up, last: 150, min: 0, max: D.NODES + 1, format: (v) => `${v} / ${D.NODES}`, kind: 'step' },
+      { name: 'Requests / s', data: D.rps, last: WINDOW, min: 0, max: 8000, format: (v) => Math.round(v).toLocaleString(), kind: 'area' },
+      { name: 'p99 latency', data: D.p99, last: WINDOW, min: 0, max: 400, format: (v) => Math.round(v) + ' ms', kind: 'line', limit: 250 },
+      { name: 'Error rate', data: D.errors, last: WINDOW, min: 0, max: 4, format: (v) => v.toFixed(2) + ' %', kind: 'area', limit: 1 },
+      { name: 'Nodes up', data: D.up, last: WINDOW, min: 0, max: D.NODES + 1, format: (v) => `${v} / ${D.NODES}`, kind: 'step' },
     ].map((k) => {
       const title = new L.ChartTitle({ text: '', role: 'title' });
       const sub = new L.ChartTitle({ text: k.name, role: 'subtitle' });
@@ -1129,6 +1132,7 @@ demos.push({
         plane,
         title,
         sub,
+        crosshair(),
       );
       return { ...k, title, line, area, item };
     });
@@ -1146,7 +1150,7 @@ demos.push({
             description: 'p99 latency of four services, the last ten minutes, against the 250 ms limit',
           },
         },
-        new L.Axis({ orientation: 'bottom', format: clock, tickStep: 60 }, new L.LinearScale()),
+        new L.SharedAxis({ orientation: 'bottom', sharedRef: 'time', format: clock, tickStep: 60 }),
         new L.Axis(
           { orientation: 'left', min: 0, max: 400, ticks: [0, 100, 200, 300, 400], format: (v) => v + ' ms' },
           new L.LinearScale(),
@@ -1155,7 +1159,7 @@ demos.push({
           (name, i) =>
             new L.DomainSeries(
               { name },
-              feed(D.services[name], 300),
+              feed(D.services[name], WINDOW),
               new L.LinePath({ stroke: svcColors[i], strokeWidth: 1.4 }, new L.LinearCurve()),
             ),
         ),
@@ -1169,6 +1173,11 @@ demos.push({
       ),
       new L.ChartTitle({ text: 'Latency by service (p99)', role: 'title' }),
       new L.Legend({ side: 'top' }),
+      new L.Cursor(
+        { mode: 'shared' },
+        new L.Crosshair({ lines: 'first', dots: true }),
+        new L.ChartTooltip({ swatch: true, format: (hit) => `${hit.series.attrs.name}   ${Math.round(hit.second)} ms` }),
+      ),
     );
 
     // ── Restarts: a bar for every sample that had any.
@@ -1177,11 +1186,12 @@ demos.push({
       { span: [4, 2], style: { chartTitle: { size: 12, weight: 600, align: 'start' } } },
       new L.CartesianPlane(
         { gridlines: true, meta: { title: 'Pod restarts', description: 'Pod restarts in each interval, the last four minutes' } },
-        new L.Axis({ orientation: 'bottom', format: clock, tickStep: 60 }, new L.LinearScale()),
+        new L.SharedAxis({ orientation: 'bottom', sharedRef: 'time', format: clock, tickStep: 60 }),
         new L.Axis({ orientation: 'left', min: 0, max: 6, tickStep: 2 }, new L.LinearScale()),
-        new L.DomainSeries({ name: 'Restarts' }, feed(D.restarts, 120), restartBars),
+        new L.DomainSeries({ name: 'Restarts' }, feed(D.restarts, WINDOW), restartBars),
       ),
       new L.ChartTitle({ text: 'Pod restarts', role: 'title' }),
+      crosshair(),
     );
 
     // ── A sparkline for every node. They share a scale and nothing is drawn but the line and its area, so a node that is
@@ -1200,9 +1210,10 @@ demos.push({
           },
           hidden(),
           fixed(0, 100),
-          new L.DomainSeries({ name: name + ' CPU' }, feed(cpu, 150), area, line),
+          new L.DomainSeries({ name: name + ' CPU' }, feed(cpu, WINDOW), area, line),
         ),
         title,
+        crosshair(),
       );
       return { name, cpu, title, line, area, item, state: '' };
     });
@@ -1210,7 +1221,8 @@ demos.push({
     const head = new L.ChartTitle({ text: 'prod-eu-1', role: 'title' });
     const headSub = new L.ChartTitle({ text: '', role: 'subtitle' });
     const group = new L.ChartGroup(
-      { columns: 12, gap: { row: 12, column: 6 } },
+      { columns: 12, gap: { row: 12, column: 6 }, linkCursor: true },
+      new L.SharedRange({ id: 'time' }, new L.LinearScale()),
       ...kpis.map((k) => k.item),
       latency,
       restarts,
@@ -1276,7 +1288,8 @@ demos.push({
       playButton = null,
       slider = null;
     const frame = (now) => {
-      owed += Math.min(0.25, (now - last) / 1000) * S.rate;
+      // Under the pointer the clock stands still, so there is something to read; it goes on when the pointer leaves.
+      owed += S.held ? 0 : Math.min(0.25, (now - last) / 1000) * S.rate;
       last = now;
       const steps = Math.floor(owed);
       if (steps > 0) {
@@ -1284,6 +1297,8 @@ demos.push({
         S.end += steps;
         if (S.end >= D.T) S.end = 360; // and round again
         show();
+        // Flushed here, in the frame that changed it: the chart would otherwise be drawn on the next frame, and the page would lay out twice.
+        chart.flush();
       }
       raf = requestAnimationFrame(frame);
     };
@@ -1306,7 +1321,7 @@ demos.push({
     slider = (() => {
       const f = ui.slider({
         label: 'time',
-        min: 300,
+        min: WINDOW,
         max: D.T,
         value: S.end,
         format: clock,
@@ -1320,9 +1335,11 @@ demos.push({
         out = f.querySelector('output');
       return {
         el: f,
+        // The page lays out again for any text it changes, so the readout is written only when it says something new.
         set: (v) => {
           input.value = v;
-          out.textContent = clock(v);
+          const text = clock(v);
+          if (out.textContent !== text) out.textContent = text;
         },
       };
     })();
@@ -1358,6 +1375,11 @@ demos.push({
         "Everything here is invented. Three things go wrong: a runaway process on node-07 (CPU pinned, latency and errors up, pods restarting), node-19 dropping out (a flat line, and its work lands on the rest), and a leak on node-13 that climbs for ten minutes. One ChartGroup of twelve columns holds a chart in every cell; the sparklines share a 0–100 scale. The clock is a `Slice` on every series, moved by one row a tick (`setAttribute('end', n)`): the series refill their window and nothing else is rebuilt. The line and area of a node that is hot or down are restyled, and the title says so.",
       ),
     );
+    const hold = (v) => () => (S.held = v);
+    const onEnter = hold(true),
+      onLeave = hold(false);
+    ctx.host.addEventListener('pointerenter', onEnter);
+    ctx.host.addEventListener('pointerleave', onLeave);
     ctx.host.style.height = '840px';
     show();
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1369,6 +1391,8 @@ demos.push({
       dispose: () => {
         clearTimeout(starter);
         cancelAnimationFrame(raf);
+        ctx.host.removeEventListener('pointerenter', onEnter);
+        ctx.host.removeEventListener('pointerleave', onLeave);
         ctx.host.style.height = '';
       },
     };

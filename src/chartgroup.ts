@@ -35,9 +35,13 @@ export interface ChartGroupAttributes extends BaseAttributes {
   rows?: number;
   /** The direction the items fill the grid in: along a row and then down (`'row'`, the default) or down a column and then along. */
   flow?: 'row' | 'column';
+  /** Run each line the other way: right to left along a row, bottom to top down a column. A right-to-left chart runs its rows that way already, and this turns them back. Default false. */
+  reverse?: boolean;
+  /** Stack the lines the other way: the first line at the bottom of the group (or, with `flow: 'column'`, at the right). Default false. */
+  reverseLines?: boolean;
   /** Space between cells in pixels: one number, or one for each direction. Default 8. */
   gap?: number | { row?: number; column?: number };
-  /** Where the items of the last line go when it is not full. Default 'start'. */
+  /** Where the items of a line go when it is not full: the last line, one that an item with `newLine` ended early, or one the next item was too big for. Default 'start'. */
   justify?: Justify;
   /** Give charts in a column the same room left and right of their plots, and charts in a row the same above and below, so the plots line up whatever their labels need. Default true. */
   align?: boolean;
@@ -52,6 +56,8 @@ export interface ChartGroupAttributes extends BaseAttributes {
 export interface ChartGroupItemAttributes extends BaseAttributes {
   /** How many cells it takes along the flow and across it: one number is columns (rows being 1), or `[columns, rows]`. Default 1. */
   span?: number | readonly [columns: number, rows: number];
+  /** Start a new line with this item, even if the one before has room: the way to make lines of 3, 2 and 3 charts, the middle one centred with `justify`. Default false. */
+  newLine?: boolean;
 }
 
 export interface Edges {
@@ -129,7 +135,13 @@ export class SharedAxis extends Axis {
 
 /** One chart in a group: its own plane and furniture, in its cells of the grid. Not shown, it takes no cell and no space. */
 export class ChartGroupItem extends Container<ChartGroup, ChartChildren, ChartGroupItemAttributes> {
-  static override attrTypes = { ...ChartElement.attrTypes, span: AUTO } satisfies AttrTypesFor<ChartGroupItemAttributes>;
+  static override attrTypes = { ...ChartElement.attrTypes, span: AUTO, newLine: BOOLEAN } satisfies AttrTypesFor<ChartGroupItemAttributes>;
+
+  /** An item with nothing in it. It still takes its cells, so it keeps room free, and it draws nothing. */
+  get isEmpty(): boolean {
+    for (const _ of this) return false;
+    return true;
+  }
 
   /** The cells it takes, as columns and rows. */
   get span(): readonly [columns: number, rows: number] {
@@ -191,6 +203,8 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
     flow: STRING,
     gap: AUTO,
     justify: STRING,
+    reverse: BOOLEAN,
+    reverseLines: BOOLEAN,
     align: BOOLEAN,
     linkCursor: BOOLEAN,
   } satisfies AttrTypesFor<ChartGroupAttributes>;
@@ -287,6 +301,10 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
         return;
       }
       if (s.along > perLine) fail(`ChartGroup: an item spans ${s.along} cells along the flow, and a line has ${perLine}`);
+      if (item.attrs.newLine && at > 0) {
+        line++;
+        at = 0;
+      }
       for (;;) {
         if (at + s.along > perLine) {
           line++;
@@ -320,44 +338,59 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
       lengthAcross = rowFlow ? area.height : area.width;
     const cellAlong = Math.max(1, (lengthAlong - gapAlong * (perLine - 1)) / perLine),
       cellAcross = Math.max(1, (lengthAcross - gapAcross * (lines - 1)) / lines);
-    // The last line, when the items in it do not take all its cells, is shifted by `justify`.
-    const lastLine = lines - 1;
-    const inLast = placed.filter((p) => p.line + p.across - 1 === lastLine && p.line === lastLine);
-    const used = inLast.reduce((n, p) => n + p.along, 0);
+    // A line whose items do not take all its cells (the last, or one cut short by `newLine` or by an item too big to follow) is shifted by
+    // `justify`. Only a line that is wholly its own is: one with cells taken from above, or an item reaching down, is left where it is.
+    const justify = a.justify ?? 'start';
     const offsets = new Map<Placed, number>();
-    if (inLast.length > 0 && used < perLine && inLast.length === placed.filter((p) => p.line === lastLine).length) {
-      const free = (perLine - used) * (cellAlong + gapAlong),
-        n = inLast.length;
-      const justify = a.justify ?? 'start';
-      const lead =
-        justify === 'center'
-          ? free / 2
-          : justify === 'end'
-            ? free
+    if (justify !== 'start')
+      for (let l = 0; l < lines; l++) {
+        const row = placed.filter((p) => p.line === l);
+        const used = row.reduce((n, p) => n + p.along, 0);
+        let cells = 0;
+        for (let at = 0; at < perLine; at++) if (taken.has(l * (perLine + 1) + at)) cells++;
+        if (row.length === 0 || used >= perLine || cells !== used || row.some((p) => p.across > 1)) continue;
+        const free = (perLine - used) * (cellAlong + gapAlong),
+          n = row.length;
+        const lead =
+          justify === 'center'
+            ? free / 2
+            : justify === 'end'
+              ? free
+              : justify === 'space-around'
+                ? free / n / 2
+                : justify === 'space-evenly'
+                  ? free / (n + 1)
+                  : 0;
+        const between =
+          justify === 'space-between'
+            ? n > 1
+              ? free / (n - 1)
+              : 0
             : justify === 'space-around'
-              ? free / n / 2
+              ? free / n
               : justify === 'space-evenly'
                 ? free / (n + 1)
                 : 0;
-      const between =
-        justify === 'space-between'
-          ? n > 1
-            ? free / (n - 1)
-            : 0
-          : justify === 'space-around'
-            ? free / n
-            : justify === 'space-evenly'
-              ? free / (n + 1)
-              : 0;
-      inLast.forEach((p, i) => offsets.set(p, lead + between * i));
-    }
-    const free = (line: number, at: number) => line >= 0 && at >= 0 && !taken.has(line * (perLine + 1) + at);
+        row.forEach((p, i) => offsets.set(p, lead + between * i));
+      }
+    // Cells that an empty item holds do not count when deciding which edges of the group a chart is at: nothing is drawn there.
+    const solid = new Set<number>();
+    for (const p of placed)
+      if (!p.item.isEmpty)
+        for (let l = 0; l < p.across; l++) for (let k = 0; k < p.along; k++) solid.add((p.line + l) * (perLine + 1) + p.at + k);
+    // Outside the grid is free too (and cannot collide: the last key of each line is never used).
+    const free = (line: number, at: number) => !solid.has(line * (perLine + 1) + at);
+    // Which way each axis runs. A right-to-left chart's rows start at its right.
+    const backAlong = (a.reverse === true) !== (rowFlow && this.requireChart().rtl),
+      backAcross = a.reverseLines === true;
     const rects = new Map<ChartGroupItem, Rect>();
     for (const p of placed) {
-      const start = p.at * (cellAlong + gapAlong) + (offsets.get(p) ?? 0),
-        top = p.line * (cellAcross + gapAcross),
-        sizeAlong = p.along * cellAlong + (p.along - 1) * gapAlong,
+      const sizeAlong = p.along * cellAlong + (p.along - 1) * gapAlong,
         sizeAcross = p.across * cellAcross + (p.across - 1) * gapAcross;
+      let start = p.at * (cellAlong + gapAlong) + (offsets.get(p) ?? 0),
+        top = p.line * (cellAcross + gapAcross);
+      if (backAlong) start = lengthAlong - start - sizeAlong;
+      if (backAcross) top = lengthAcross - top - sizeAcross;
       rects.set(
         p.item,
         rowFlow
@@ -369,6 +402,8 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
         across = Array.from({ length: p.across }, (_, l) => p.line + l);
       const before = { across: along.every((at) => free(p.line - 1, at)), along: across.every((l) => free(l, p.at - 1)) },
         after = { across: along.every((at) => free(p.line + p.across, at)), along: across.every((l) => free(l, p.at + p.along)) };
+      if (backAlong) [before.along, after.along] = [after.along, before.along];
+      if (backAcross) [before.across, after.across] = [after.across, before.across];
       p.item.setEdges(
         rowFlow
           ? { top: before.across, bottom: after.across, left: before.along, right: after.along }
@@ -376,16 +411,22 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
       );
     }
     this.fitShared(placed, rects);
-    this.alignPlots(placed, rects, rowFlow);
+    this.alignPlots(placed, rects, rowFlow, rowFlow ? backAlong : backAcross, rowFlow ? backAcross : backAlong);
     for (const p of placed) this.arrangeChild(p.item, rects.get(p.item) ?? area);
   }
 
   /**
    * Charts whose cells share an edge leave the same room on that side of their plots, the largest any of them needs, so the
    * plots line up. The sides are keyed by the line of cells they lie on: all charts that start in a column share their left, all that end in it
-   * their right, and so on for rows.
+   * their right, and so on for rows (counted from the far end when the grid runs backwards).
    */
-  private alignPlots(placed: readonly Placed[], rects: ReadonlyMap<ChartGroupItem, Rect>, rowFlow: boolean): void {
+  private alignPlots(
+    placed: readonly Placed[],
+    rects: ReadonlyMap<ChartGroupItem, Rect>,
+    rowFlow: boolean,
+    flippedAcross: boolean,
+    flippedDown: boolean,
+  ): void {
     const need = {
       left: new Map<number, number>(),
       right: new Map<number, number>(),
@@ -403,7 +444,17 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
         plane.alignInsets = null;
         const own = this.attrs.align === false ? null : plane.measureInsets(p.item.bodyArea(rects.get(p.item) ?? p.item.rect));
         if (!own) continue;
-        const entry = { plane, keys: { left: c0, right: c1, top: r0, bottom: r1 }, own };
+        // Boundaries are counted from the start of the grid, so when an axis runs backwards an item's left is the end of its cells.
+        const entry = {
+          plane,
+          keys: {
+            left: flippedAcross ? c1 : c0,
+            right: flippedAcross ? c0 : c1,
+            top: flippedDown ? r1 : r0,
+            bottom: flippedDown ? r0 : r1,
+          },
+          own,
+        };
         keyed.push(entry);
         for (const k of ['left', 'right', 'top', 'bottom'] as const)
           need[k].set(entry.keys[k], Math.max(need[k].get(entry.keys[k]) ?? 0, own[k]));

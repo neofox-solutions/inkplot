@@ -49,9 +49,19 @@ export const chart = (
 | `flow` | `'row'` | `'row'` fills a row and then goes down; `'column'` fills a column and then goes along. |
 | `gap` | `8` | Pixels between cells: a number, or `{ row, column }`. |
 | `align` | `true` | Plots line up: charts in a column leave the same room left and right of their plots (the most any of them needs for its axis labels), charts in a row the same above and below. `false` lets each plot take what its own axes need. A side fixed with the plane's `insets` is left alone. |
-| `justify` | `'start'` | Where the items of a last line that is not full go: `'start'`, `'center'`, `'end'`, `'space-between'`, `'space-around'`, `'space-evenly'`. Eight items in three columns leave two in the last row. |
+| `reverse` | `false` | Run each line the other way: right to left along a row, bottom to top up a column. A right-to-left chart's rows already start at its right, and `reverse` turns them back. |
+| `reverseLines` | `false` | Stack the lines from the other end: the first row at the bottom, or, with `flow: 'column'`, the first column at the right. |
+| `justify` | `'start'` | Where the items of a line that is not full go: `'start'`, `'center'`, `'end'`, `'space-between'`, `'space-around'`, `'space-evenly'`. That is the last line, a line that an item with `newLine` ended early, and one that the next item was too wide to join. A line with an item reaching down into the next, or with cells taken from the line above, stays where it is. |
+
+| `ChartGroupItem` attribute | Default | Meaning |
+|---|---|---|
+| `span` | `1` | Cells taken: a number of columns, or `[columns, rows]`. |
+| `newLine` | `false` | Start a new line with this item even though the last one has room. For lines of 3, 2 and 3 charts with the middle one centred: `newLine` on the sixth, `justify="center"`. |
+| `visible` | `true` | `false` takes no cell and no room. |
 
 Items go in the order they are written, each after the last; the grid does not go back to fill holes. All cells are the same size. An item takes more with `span`: a number of columns, or `[columns, rows]` (`span={[2, 1]}` for a chart twice as wide). A span wider than the line is an error.
+
+An item with nothing in it is an empty cell: it holds its place and draws nothing, so it can reserve room. It does not count when a chart decides whether it is at the edge of the group for `edgeOnly`.
 
 An item that is not `visible` takes no cell and no room, and the others close up; a hidden chart is not drawn, nor asked for by a legend of the whole chart. A grid of one cell (`columns={1} rows={1}`) puts every item in it, one on another: show one at a time with `visible`.
 
@@ -155,8 +165,10 @@ A grid of charts in one picture, in place of a plane: equal cells, filled along 
 | `columns` | `number` | How many columns. |
 | `rows` | `number` | How many rows; the counterpart of `columns`. |
 | `flow` | `'row' \| 'column'` | The direction the items fill the grid in: along a row and then down (`'row'`, the default) or down a column and then along. |
+| `reverse` | `boolean` | Run each line the other way: right to left along a row, bottom to top down a column. Default false. |
+| `reverseLines` | `boolean` | Stack the lines the other way: the first line at the bottom of the group (or, with `flow: 'column'`, at the right). Default false. |
 | `gap` | `number \| { row?: number; column?: number }` | Space between cells in pixels: one number, or one for each direction. Default 8. |
-| `justify` | `Justify` | Where the items of the last line go when it is not full. Default 'start'. |
+| `justify` | `Justify` | Where the items of a line go when it is not full: the last line, one that an item with `newLine` ended early, or one the next item was too big for. Default 'start'. |
 | `align` | `boolean` | Give charts in a column the same room left and right of their plots, and charts in a row the same above and below, so the plots line up whatever their labels need. Default true. |
 | `linkCursor` | `boolean` | Show the cursor in every chart that shares an axis with the one the pointer is over, at the same value of it: a crosshair and a tooltip in each chart of a column, all reading one time. Default false. |
 
@@ -169,6 +181,7 @@ One chart of a group, in the cells it spans; its titles and keys go round its ow
 | Attribute | Type | |
 |---|---|---|
 | `span` | `number \| readonly [columns: number, rows: number]` | How many cells it takes along the flow and across it: one number is columns (rows being 1), or `[columns, rows]`. Default 1. |
+| `newLine` | `boolean` | Start a new line with this item, even if the one before has room: the way to make lines of 3, 2 and 3 charts, the middle one centred with `justify`. Default false. |
 
 ### SharedRange
 

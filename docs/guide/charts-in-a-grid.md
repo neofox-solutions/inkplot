@@ -41,9 +41,54 @@ export default () => (
 | `flow` | `'row'` | `'row'` fills a row and then goes down; `'column'` fills a column and then goes along. |
 | `gap` | `8` | Pixels between cells: a number, or `{ row, column }`. |
 | `align` | `true` | Plots line up: charts in a column leave the same room left and right of their plots (the most any of them needs for its axis labels), charts in a row the same above and below. `false` lets each plot take what its own axes need. A side fixed with the plane's `insets` is left alone. |
-| `justify` | `'start'` | Where the items of a last line that is not full go: `'start'`, `'center'`, `'end'`, `'space-between'`, `'space-around'`, `'space-evenly'`. Eight items in three columns leave two in the last row. |
+| `reverse` | `false` | Run each line the other way: right to left along a row, bottom to top up a column. A right-to-left chart's rows already start at its right, and `reverse` turns them back. |
+| `reverseLines` | `false` | Stack the lines from the other end: the first row at the bottom, or, with `flow: 'column'`, the first column at the right. |
+| `justify` | `'start'` | Where the items of a line that is not full go: `'start'`, `'center'`, `'end'`, `'space-between'`, `'space-around'`, `'space-evenly'`. That is the last line, a line that an item with `newLine` ended early, and one that the next item was too wide to join. Eight items in three columns leave two in the last row. A line with an item reaching down into the next, or with cells taken from the line above, stays where it is. |
+
+| `ChartGroupItem` attribute | Default | Meaning |
+|---|---|---|
+| `span` | `1` | Cells taken: a number of columns, or `[columns, rows]`. |
+| `newLine` | `false` | Start a new line with this item even though the last one has room. At the start of a line it changes nothing. |
+| `visible` | `true` | `false` takes no cell and no room. |
 
 Items go in the order they are written, each after the last; the grid does not go back to fill holes. All cells are the same size. An item takes more with `span`: a number of columns, or `[columns, rows]` (`span={[2, 1]}` for a chart twice as wide). A span wider than the line is an error.
+
+An item with nothing in it is an empty cell: it holds its place and draws nothing, so it can reserve room (a chart that is narrower than its neighbours, a gap in a row). It does not count when a chart decides whether it is at the edge of the group for `edgeOnly`.
+
+Lines of three, two and three, the middle one centred: `newLine` on the sixth chart ends the second line early, and `justify="center"` centres it.
+
+```tsx live title="3 + 2 + 3, the middle row centred" height=300
+import { Axis, CartesianPlane, Chart, ChartGroup, ChartGroupItem, ChartTitle, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme } from 'inkplot';
+
+const cell = (name: string, newLine = false) => (
+  <ChartGroupItem newLine={newLine}>
+    <ChartTitle text={name} role="subtitle" />
+    <CartesianPlane>
+      <Axis orientation="bottom" visible={false}><LinearScale /></Axis>
+      <Axis orientation="left" visible={false}><LinearScale /></Axis>
+      <DomainSeries>
+        <FlatDataSource data={[2, 5, 3, 6, 4]} regularDomain-start={0} regularDomain-step={1} />
+        <LinePath><LinearCurve /></LinePath>
+      </DomainSeries>
+    </CartesianPlane>
+  </ChartGroupItem>
+);
+
+export default () => (
+  <Chart theme={lightTheme}>
+    <ChartGroup columns={3} justify="center">
+      {cell('A')}
+      {cell('B')}
+      {cell('C')}
+      {cell('D')}
+      {cell('E')}
+      {cell('F', true)}
+      {cell('G')}
+      {cell('H')}
+    </ChartGroup>
+  </Chart>
+);
+```
 
 An item that is not `visible` takes no cell and no room, and the others close up; a hidden chart is not drawn, nor asked for by a legend of the whole chart. A grid of one cell (`columns={1} rows={1}`) puts every item in it, one on another: show one at a time with `visible`.
 

@@ -76,6 +76,9 @@ export class DOMPlatform implements Platform {
     this.root = fromElement(this.#svg);
     this.#svg.style.display = 'block';
     this.#svg.style.userSelect = 'none';
+    // The svg is given an explicit size on every flush, so nothing inside it can change what the page around it looks like. Saying so lets the
+    // browser lay out and repaint only the svg when the chart changes, where it might otherwise treat the page as dirty (Firefox may; Chromium already does not).
+    this.#svg.style.contain = 'strict';
     container.appendChild(this.#svg);
 
     switch (options.schedule ?? 'frame') {
@@ -112,9 +115,15 @@ export class DOMPlatform implements Platform {
     }
   }
 
-  /** `|| 600` / `|| 300`: a container that has not been laid out yet reports 0, which would give an unusable chart. */
+  /** The size the resize observer last saw. Reading `clientWidth` makes the browser lay the page out first, so a chart that is being followed does not read it on every flush. */
+  #seen: Size | null = null;
+  #observers = 0;
+  #measure(): Size {
+    // `|| 600` / `|| 300`: a container that has not been laid out yet reports 0, which would give an unusable chart.
+    return { width: this.#container.clientWidth || 600, height: this.#container.clientHeight || 300 };
+  }
   size(): Size {
-    return this.#fixed ?? { width: this.#container.clientWidth || 600, height: this.#container.clientHeight || 300 };
+    return this.#fixed ?? this.#seen ?? this.#measure();
   }
   createNode(tag: SvgTag): PlatformNode {
     return fromElement(this.#svg.ownerDocument.createElementNS(SVG_NS, tag));
@@ -177,9 +186,18 @@ export class DOMPlatform implements Platform {
 
   onResize(callback: (size: Size) => void): Unsubscribe {
     if (this.#fixed) return () => {};
-    const observer = new ResizeObserver(() => callback(this.size()));
-    observer.observe(this.#container as unknown as Element);
-    return this.#track(() => observer.disconnect());
+    // Observers run after layout, so reading the size here costs nothing; it is kept for every flush until the next change. The
+    // border box is what `clientWidth` follows (the content box would miss a change of padding).
+    const observer = new ResizeObserver(() => {
+      this.#seen = this.#measure();
+      callback(this.#seen);
+    });
+    observer.observe(this.#container as unknown as Element, { box: 'border-box' });
+    this.#observers++;
+    return this.#track(() => {
+      observer.disconnect();
+      if (--this.#observers === 0) this.#seen = null;
+    });
   }
 
   onPointer(callback: (pointer: RawPointer) => boolean | void): Unsubscribe {
