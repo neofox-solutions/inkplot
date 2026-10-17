@@ -978,9 +978,9 @@ export default () => (
       </Stack>
     </CartesianPlane>
     <Legend side="bottom" />
-    <LinePattern id="lines" spacing={7} strokeWidth={2} />
-    <HatchPattern id="hatch" spacing={8} />
-    <DotPattern id="dots" strokeWidth={3.5} gapX={4} />
+    <LinePattern id="lines" spacing={7} strokeWidth={2} tint={0.2} />
+    <HatchPattern id="hatch" spacing={8} tint={0.2} />
+    <DotPattern id="dots" strokeWidth={3.5} gapX={4} tint={0.2} />
   </Chart>
 );
 ```

@@ -96,6 +96,15 @@ export class Refs {
     this.set(name, value);
     return name;
   }
+  /** Drop a name, and the value's claim to it: for a long-lived table whose automatic names would otherwise pile up as data is replaced. */
+  forget(name: string): void {
+    if (!this.#byName.has(name)) return;
+    const value = this.#byName.get(name);
+    this.#byName.delete(name);
+    if (this.#byValue.get(value) !== name) return;
+    this.#byValue.delete(value);
+    for (const [other, v] of this.#byName) if (v === value) return void this.#byValue.set(value, other);
+  }
   get names(): readonly string[] {
     return [...this.#byName.keys()];
   }

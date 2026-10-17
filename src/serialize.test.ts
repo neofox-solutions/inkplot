@@ -82,6 +82,12 @@ test('serialize', () => {
     assert.equal(refs.adopt(o, 'other'), 'rows', 'a value is only named once');
     assert.equal(refs.adopt([], 'rows'), 'rows2', 'names stay unique');
     assert.equal(new Refs().adopt(f), 'ref');
+    refs.forget('rows');
+    assert.equal(refs.has('rows'), false);
+    assert.equal(refs.nameOf(o), undefined, 'a forgotten value is nameless again');
+    assert.equal(refs.adopt(o, 'rows'), 'rows', 'and its name can be taken again');
+    refs.forget('alias');
+    assert.equal(refs.nameOf(f), 'f', 'forgetting one of two names leaves the other');
   }
 
   // ── Values: plain data, numbers JSON has no word for, typed arrays with gaps, elements by id.

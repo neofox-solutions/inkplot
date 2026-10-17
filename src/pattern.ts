@@ -29,6 +29,8 @@ export interface PatternAttributes extends BaseAttributes {
   stroke?: string;
   /** The tile's background. Default none. */
   fill?: string;
+  /** Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. A little, 0.15 to 0.3, makes the shape read as a shape and keeps gridlines from showing through. */
+  tint?: number;
   /** The thickness of a line, or the width of a dot. */
   strokeWidth?: number;
 }
@@ -48,6 +50,8 @@ export interface LinePatternOptions {
   strokeWidth?: number;
   /** The background of the tile. */
   fill?: string;
+  /** The opacity of `fill`. Default 1. */
+  fillOpacity?: number;
 }
 
 /** The numbers of a dash array, made even in length as SVG reads it; none for a solid line. */
@@ -93,6 +97,7 @@ export function linePattern(s: Surface, pattern: PlatformNode, key: string, o: L
   s.set(bg, 'width', 1);
   s.set(bg, 'height', 1);
   s.set(bg, 'fill', o.fill ?? 'none');
+  s.set(bg, 'fill-opacity', o.fillOpacity ?? 1);
   const cycles = cycle ? Math.max(1, Math.round(length / cycle)) : 0;
   const tileDash = cycle ? dash.map((d) => r(d / cycle / cycles)).join(' ') : 'none';
   for (let i = 0; i < 2; i++) {
@@ -127,6 +132,8 @@ export interface DotPatternOptions {
   /** The width of a dot. Default 3. */
   strokeWidth?: number;
   fill?: string;
+  /** The opacity of `fill`. Default 1. */
+  fillOpacity?: number;
 }
 
 /**
@@ -147,6 +154,7 @@ export function dotPattern(s: Surface, pattern: PlatformNode, key: string, o: Do
   s.set(bg, 'width', r(pitchX));
   s.set(bg, 'height', r(2 * pitchY));
   s.set(bg, 'fill', o.fill ?? 'none');
+  s.set(bg, 'fill-opacity', o.fillOpacity ?? 1);
   // Two rows to a tile. The shifted row is drawn a pitch to either side as well, since a dot that runs off one edge comes in at the other.
   const spots: [number, number][] = [[pitchX / 2, pitchY / 2]];
   const row2 = pitchX / 2 + shift;
@@ -176,8 +184,14 @@ export abstract class Pattern<A extends PatternAttributes = PatternAttributes> e
     ...ChartElement.attrTypes,
     stroke: STRING,
     fill: STRING,
+    tint: NUMBER,
     strokeWidth: NUMBER,
   } satisfies AttrTypesFor<PatternAttributes>;
+  /** The tile's background for lines or dots in `color`: its own `fill`, or the colour tinted, or none. */
+  protected background(color: string): { fill?: string; fillOpacity?: number } {
+    const a = this.attrs;
+    return a.fill !== undefined ? { fill: a.fill } : a.tint ? { fill: color, fillOpacity: a.tint } : {};
+  }
   /** The colours in use, by the key of their node, with the last flush that asked for each. */
   readonly #variants = new Map<string, { color: string; flush: number }>();
 
@@ -242,7 +256,7 @@ export class LinePattern extends Pattern<LinePatternAttributes> {
       dash: a.dash,
       stroke: color,
       strokeWidth: a.strokeWidth,
-      fill: a.fill,
+      ...this.background(color),
     });
   }
 }
@@ -263,7 +277,7 @@ export class HatchPattern extends Pattern<HatchPatternAttributes> {
       dash: a.dash,
       stroke: color,
       strokeWidth: a.strokeWidth,
-      fill: a.fill,
+      ...this.background(color),
     });
   }
 }
@@ -293,7 +307,7 @@ export class DotPattern extends Pattern<DotPatternAttributes> {
       offset: a.offset,
       stroke: color,
       strokeWidth: a.strokeWidth,
-      fill: a.fill,
+      ...this.background(color),
     });
   }
 }

@@ -23,7 +23,7 @@
  *   parent's children in the order the list says, and writes the attributes that differ. So an abandoned render (Strict
  *   Mode, an interrupted transition) changes nothing, and unchanged attributes cost a comparison.
  * - Attributes come from props (`meta-title`, `style-axis-color` nest as in attrs.ts). Plain objects and arrays are compared by content, so
- *   `meta={{ title }}` written in a render does not invalidate the chart each time. Functions are compared by identity: memoize them.
+ *   `meta={{ title }}` written in a render does not invalidate the chart each time. Functions, typed arrays and anything else with an identity (an element, a class instance) are compared by identity: memoize them.
  *
  * Server rendering (the root's `hydrate` prop): with no effects on the server, the wrappers' elements are linked into one tree
  * by a trailing component that renders after them, which draws the chart to an SVG string at the size given. The client keeps

@@ -111,3 +111,13 @@ test('the tiles are exact', () => {
 test('patterns are in the registry, and JSON round trips', () => {
   for (const name of ['LinePattern', 'HatchPattern', 'DotPattern']) assert.ok((registry as Record<string, unknown>)[name], name);
 });
+
+test('a tint is a background in the colour in use', () => {
+  const series = lightTheme.palette[0]!;
+  const tinted = svgOf(plane('url(#h)'), new HatchPattern({ id: 'h', tint: 0.25 }));
+  assert.ok(tinted.includes(`fill="${series}"`) && tinted.includes('fill-opacity="0.25"'), 'a wash of the series colour');
+  // A fill of its own wins over a tint, and no tint is no background.
+  const own = svgOf(plane('url(#h)'), new HatchPattern({ id: 'h', tint: 0.25, fill: '#eeeeee' }));
+  assert.ok(own.includes('fill="#eeeeee"') && !own.includes('fill-opacity="0.25"'));
+  assert.ok(!svgOf(plane('url(#h)'), new HatchPattern({ id: 'h' })).includes('fill-opacity="0.25"'));
+});

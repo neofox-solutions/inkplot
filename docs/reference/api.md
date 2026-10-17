@@ -168,6 +168,7 @@ A fill of parallel lines, named in a style as `url(#id)`; takes the colour of th
 | `dash` | `string` | An SVG dash array in pixels, such as '6 3'. Default none (solid). |
 | `stroke` | `string` | The colour of the lines or dots. |
 | `fill` | `string` | The tile's background. Default none. |
+| `tint` | `number` | Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. |
 | `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
 
 ## HatchPattern
@@ -184,6 +185,7 @@ A fill of two crossing sets of lines (a crosshatch), named in a style as `url(#i
 | `dash` | `string` | An SVG dash array in pixels, such as '6 3'. Default none (solid). |
 | `stroke` | `string` | The colour of the lines or dots. |
 | `fill` | `string` | The tile's background. Default none. |
+| `tint` | `number` | Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. |
 | `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
 
 ## DotPattern
@@ -200,6 +202,7 @@ A fill of rows of round or square dots (a checkerboard is square dots), named in
 | `offset` | `number` |  |
 | `stroke` | `string` | The colour of the lines or dots. |
 | `fill` | `string` | The tile's background. Default none. |
+| `tint` | `number` | Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. |
 | `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
 
 ## Cursor

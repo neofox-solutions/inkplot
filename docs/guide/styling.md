@@ -187,7 +187,9 @@ export default () => (
 | `HatchPattern` | two sets of lines that cross | the same, and `crossAngle` (default -45, so the two cross at right angles) |
 | `DotPattern` | rows of dots | `cap` (`'round'` or `'square'`), `gapX` and `gapY` (the room between dots, edge to edge), `offset` (how far every other row is shifted along; the default staggers them) |
 
-All of them take `stroke`, `fill` (the background of the tile, default none) and `strokeWidth` (the thickness of a line, or the width of a dot). A **checkerboard** is square dots whose size, both gaps and offset are the same number: `checkerboard(size)` gives those attributes.
+All of them take `stroke`, `fill` (the background of the tile, default none), `tint` and `strokeWidth` (the thickness of a line, or the width of a dot). A **checkerboard** is square dots whose size, both gaps and offset are the same number: `checkerboard(size)` gives those attributes.
+
+**A background.** `fill` gives the tile a background of any colour: the page's, say, so that gridlines do not show through the gaps. `tint` (0 to 1, used when there is no `fill`) gives it the pattern's own colour at that opacity, so each series has a pale wash of its colour under its lines or dots (try 0.2), which makes a patterned shape read as a shape.
 
 **The colour.** Without a `stroke`, a pattern is drawn in the colour of the series that uses it: each series gets its own copy in its own palette colour, so one `HatchPattern` serves them all, the legend swatches match the bars, and a change of theme changes the pattern. Give the pattern a `stroke` and it is that colour wherever it is used. Under the hood the style resolver sees a paint of the form `url(#id)`, finds the pattern of that `id` that is nearest in the chart, and asks it for the paint to use; a `url(#id)` that names no pattern here is left as it is, so SVG you wrote yourself still works.
 

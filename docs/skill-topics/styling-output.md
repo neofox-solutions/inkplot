@@ -65,7 +65,7 @@ export const chart = (
 ## In React
 
 
-Import the components from `inkplot/react`: one per built-in class, same names. For your own class, `reactWrapper(MyClass)`. The root renders a `<div>`; give it a height. Functions in props should be memoized.
+Import the components from `inkplot/react`: one per built-in class, same names. For your own class, `reactWrapper(MyClass)`. The root renders a `<div>`; give it a height. Props that are plain objects and arrays (`style={{ ... }}`, `meta`, `categories`) are compared by content, so writing them inline in a render costs nothing; functions and typed arrays are compared by identity, so memoize them (`useCallback`, `useMemo`), or each render replaces them and redraws.
 
 ```tsx check title="React" jsx=react
 import { lightTheme } from 'inkplot';
@@ -116,6 +116,7 @@ A fill of parallel lines, named in a style as `url(#id)`; takes the colour of th
 | `dash` | `string` | An SVG dash array in pixels, such as '6 3'. Default none (solid). |
 | `stroke` | `string` | The colour of the lines or dots. |
 | `fill` | `string` | The tile's background. Default none. |
+| `tint` | `number` | Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. |
 | `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
 
 ### HatchPattern
@@ -132,6 +133,7 @@ A fill of two crossing sets of lines (a crosshatch), named in a style as `url(#i
 | `dash` | `string` | An SVG dash array in pixels, such as '6 3'. Default none (solid). |
 | `stroke` | `string` | The colour of the lines or dots. |
 | `fill` | `string` | The tile's background. Default none. |
+| `tint` | `number` | Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. |
 | `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
 
 ### DotPattern
@@ -148,5 +150,6 @@ A fill of rows of round or square dots (a checkerboard is square dots), named in
 | `offset` | `number` |  |
 | `stroke` | `string` | The colour of the lines or dots. |
 | `fill` | `string` | The tile's background. Default none. |
+| `tint` | `number` | Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. |
 | `strokeWidth` | `number` | The thickness of a line, or the width of a dot. |
 <!-- api:end -->

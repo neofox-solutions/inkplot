@@ -71,7 +71,7 @@ Find the symptom, read the cause, apply the fix. Errors are thrown by the elemen
 - **Zoom stops.** `limit` (default true) keeps the view inside the data. Set `limit={false}`.
 - **Keyboard does not work.** `keys` is `false` somewhere, or the plot has no focus: it is a tab stop only when a `Cursor` or `PanZoom` with keys is present. Click it, or press Tab.
 - **Legend clicks do nothing.** `toggle` is `false`, or the series has no `name`, so it is not listed.
-- **Callbacks stop firing in React.** Functions are compared by identity: memoize `onClick` and similar with `useCallback`, and do not recreate them on every render if they need stable behaviour.
+- **Callbacks stop firing in React.** Functions (and typed arrays) are compared by identity, plain objects and arrays by content: memoize `onClick` and similar with `useCallback`, and do not recreate them on every render if they need stable behaviour.
 
 ## Updates do not show
 

@@ -39,7 +39,8 @@ cpSync(root + 'LICENSE', pkg + 'LICENSE');
 const skill = stampSkill(readFileSync(src + 'skill/SKILL.md', 'utf8'), version);
 mkdirSync(pkg + 'skill', { recursive: true });
 writeFileSync(pkg + 'skill/SKILL.md', skill);
-writeFileSync(pkg + 'README.md', skill);
+// npm shows the README: a short description of the package, while the skill (an agent's instructions) is its own file.
+cpSync(src + 'README.md', pkg + 'README.md');
 const tgz = execFileSync('npm', ['pack', '--silent'], { cwd: pkg }).toString().trim();
 console.log(pkg + tgz);
 console.error(`inkplot: ${inkplot}\nversion ${version}`);

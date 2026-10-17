@@ -434,14 +434,20 @@ function mount(demo) {
     add: (...els) => $('controls').append(...els),
     host,
   };
+  /** The names that stay: the page's own and the ones a demo gave. The rest were made up while writing JSON, and go when the data they named is replaced. */
+  const kept = new Set(['lightTheme', 'darkTheme', 'accessibleTheme', 'accessibleDarkTheme']);
   const refs = new L.Refs(
     { lightTheme: L.lightTheme, darkTheme: L.darkTheme, accessibleTheme: L.accessibleTheme, accessibleDarkTheme: L.accessibleDarkTheme },
     { auto: true },
   );
   /** A demo names the data it keeps editing, so that JSON refers to it and editing the JSON cannot swap it for a copy. */
-  ctx.name = (name, value) => refs.adopt(value, name);
+  ctx.name = (name, value) => {
+    const given = refs.adopt(value, name);
+    kept.add(given);
+    return given;
+  };
   const built = demo.setup(ctx);
-  current = { demo, platform, chart: built.chart, dispose: built.dispose, root: built.chart, refs };
+  current = { demo, platform, chart: built.chart, dispose: built.dispose, root: built.chart, refs, kept };
   jsonPanel.reset();
   built.chart.attach(platform);
   renderPanel();
@@ -489,7 +495,11 @@ const jsonPanel = {
   /** The live chart as indented JSON, or the reason it cannot be. */
   text() {
     try {
-      return { text: JSON.stringify(L.toJSON(current.chart, pageRegistry(), this.options()), null, 2) };
+      const text = JSON.stringify(L.toJSON(current.chart, pageRegistry(), this.options()), null, 2);
+      // Data a demo replaces (new samples for a transform) would be named afresh each time: drop the names this text no longer uses.
+      const used = new Set([...text.matchAll(/"\$ref": "([^"]*)"/g)].map((m) => m[1]));
+      for (const n of current.refs.names) if (!current.kept.has(n) && !used.has(n)) current.refs.forget(n);
+      return { text };
     } catch (e) {
       return { error: e.message };
     }
@@ -5277,7 +5287,7 @@ demos.push({
       cap: 'round',
       mode: 'group',
       outline: true,
-      background: true,
+      background: 'tint',
     };
     const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
     const names = ['Lines', 'Crosshatch', 'Dots', 'Checkerboard'];
@@ -5322,7 +5332,10 @@ demos.push({
       bars.forEach((bar, i) =>
         bar.setAttributes({ stroke: S.outline ? palette[i % palette.length] : undefined, strokeWidth: S.outline ? 2 : undefined }),
       );
-      for (const p of Object.values(patterns)) p.setAttribute('fill', S.background ? pageBackground() : undefined);
+      for (const p of Object.values(patterns)) {
+        p.setAttribute('fill', S.background === 'page' ? pageBackground() : undefined);
+        p.setAttribute('tint', S.background === 'tint' ? 0.2 : undefined);
+      }
     };
     ctx.onTheme(looks);
     const set = () => {
@@ -5360,8 +5373,13 @@ demos.push({
         },
       }),
       ui.toggle({ label: 'outline in the series colour', value: S.outline, onChange: (v) => ((S.outline = v), set()) }),
-      ui.toggle({
-        label: 'background: the page colour, so gridlines do not show through',
+      ui.seg({
+        label: 'background of the tile',
+        options: [
+          ['none', 'none'],
+          ['page', 'page colour'],
+          ['tint', 'series tint'],
+        ],
         value: S.background,
         onChange: (v) => ((S.background = v), set()),
       }),
@@ -6298,7 +6316,17 @@ demos.push({
   title: 'Point annotations',
   blurb: 'A note beside each point you pick: negative bars called out, labels on a pie',
   setup(ctx) {
-    const S = { view: 'bars', shape: 'callout', placement: 'outside', contain: true, aria: 'hidden', limit: 0, hole: 0.5, seed: 1 };
+    const S = {
+      view: 'bars',
+      shape: 'callout',
+      placement: 'outside',
+      contain: true,
+      aria: 'hidden',
+      limit: 0,
+      hole: 0.5,
+      start: 0,
+      seed: 1,
+    };
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const profit = () => {
       const r = rng(S.seed);
@@ -6306,12 +6334,14 @@ demos.push({
     };
     let values = profit();
     const share = new Intl.NumberFormat('en', { style: 'percent' });
-    const slices = [
-      { name: 'Mobile', value: 60 },
-      { name: 'Desktop', value: 28 },
-      { name: 'Tablet', value: 8 },
-      { name: 'Other', value: 4 },
-    ];
+    const SHARES = ['Mobile', 'Desktop', 'Tablet', 'Other'];
+    // Shares that fall away the way real ones do, a little different for each seed.
+    const shares = () => {
+      const r = rng(S.seed);
+      return SHARES.map((name, i) => ({ name, value: Math.round((60 / (1 + i * 1.6)) * (0.6 + r() * 0.8)) + 1 }));
+    };
+    let slices = shares();
+    const PADDING = { bars: 16, pie: 60 };
     let source, notes;
     const barsPlane = () => {
       source = new L.FlatDataSource({ data: values, regularDomain: { start: 0, step: 1 } });
@@ -6336,6 +6366,7 @@ demos.push({
       const made = L.pieChart(slices, {
         theme: chartTheme(),
         innerRadius: S.hole,
+        startAngle: S.start,
         label: (slice, fraction) => `${slice.name} ${share.format(fraction)}`,
       });
       const plane = [...made][0];
@@ -6343,15 +6374,18 @@ demos.push({
       return plane;
     };
     let shown = barsPlane();
-    const chart = new L.Chart({ theme: chartTheme(), padding: 60, onFlush: ctx.onFlush }, shown);
+    const chart = new L.Chart({ theme: chartTheme(), padding: PADDING.bars, onFlush: ctx.onFlush }, shown);
     const read = ui.readout();
     const report = () => {
       read.textContent =
-        S.view === 'bars' ? `notes drawn for ${values.filter((v) => v < S.limit).length} of 12 bars; omitted: ${notes.omitted}` : '';
+        S.view === 'bars'
+          ? `notes drawn for ${values.filter((v) => v < S.limit).length} of 12 bars; omitted: ${notes.omitted}`
+          : slices.map((s) => `${s.name} ${s.value}`).join('   ');
     };
     const show = () => {
       chart.remove(shown);
       shown = S.view === 'bars' ? barsPlane() : piePlane();
+      chart.setAttribute('padding', PADDING[S.view]);
       chart.append(shown);
       report();
     };
@@ -6436,12 +6470,25 @@ demos.push({
           if (S.view === 'pie') show();
         },
       }),
+      ui.slider({
+        label: 'first slice starts at (turns)',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        value: S.start / (2 * Math.PI),
+        onChange: (v) => {
+          S.start = v * 2 * Math.PI;
+          if (S.view === 'pie') show();
+        },
+      }),
       ui.buttons([
         'New values',
         () => {
           S.seed++;
           values = profit();
+          slices = shares();
           if (S.view === 'bars') source.setAttributes({ data: values, regularDomain: { start: 0, step: 1 } });
+          else show();
           report();
         },
       ]),
