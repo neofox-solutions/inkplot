@@ -533,7 +533,7 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
   private controlled(): Moving[] {
     const a = this.attrs,
       only = a.direction ?? 'both';
-    const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : [...this.requireParent().axes];
+    const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : this.requireParent().axes;
     const out: Moving[] = [];
     for (const axis of axes) {
       const ruler = axis.ruler;

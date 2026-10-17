@@ -114,7 +114,7 @@ export class BoxZoom extends InteractiveElement<Plane, [], BoxZoomAttributes> {
   /** The axes this may zoom. */
   #axes(): Axis[] {
     const a = this.attrs;
-    const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : [...this.requireParent().axes];
+    const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : this.requireParent().axes;
     return axes.filter((axis) => typeof axis.ruler.fractionAt === 'function');
   }
 

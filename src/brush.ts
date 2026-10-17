@@ -113,7 +113,7 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
   #axes(): Axis[] {
     const a = this.attrs,
       mode = a.mode ?? 'xy';
-    const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : [...this.requireParent().axes];
+    const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : this.requireParent().axes;
     return axes.filter((axis) => axis.ruler.fractionAt && (mode === 'xy' || (mode === 'x') === axis.ruler.horizontal));
   }
 
