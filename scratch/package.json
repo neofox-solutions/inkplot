@@ -1,11 +1,11 @@
 {
   "name": "inkplot-scratch",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Turn a module that exports inkplot charts into SVG, PNG, JSON facts or a single-file interactive HTML page.",
   "type": "module",
   "bin": { "inkplot-scratch": "./bin.mjs" },
   "files": ["bin.mjs", "src", "fonts", "skill", "README.md"],
-  "dependencies": { "inkplot": "1.0.0-beta.1", "typescript": "^7.0.2", "rolldown": "^1.2.14" },
+  "dependencies": { "inkplot": "1.0.0-beta.2", "typescript": "^7.0.2", "rolldown": "^1.2.14" },
   "optionalDependencies": { "@resvg/resvg-wasm": "^2.6.2" },
   "engines": { "node": ">=22" },
   "license": "MIT",
