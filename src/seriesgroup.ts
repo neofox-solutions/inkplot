@@ -21,6 +21,7 @@
 import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
 import type { Axis } from './axis.ts';
 import { type DataNode, DataSource, DataTransform, type FillResult, type FillPlan, type PlanContext, type PointView } from './data.ts';
+import { canPartition, type Partition, partitionOf, planPartitioned } from './partition.ts';
 import { type AnyElement, type BaseAttributes, ChartElement, childrenOfType, type ElementRef, fail, resolveRef } from './element.ts';
 import { type ChartEvent, EVENT_PAINT } from './events.ts';
 import type { Extent, Size } from './geometry.ts';
@@ -165,6 +166,60 @@ class GroupSlice extends DataSource {
   }
 }
 
+/**
+ * One key's rows when the group can split without copying them (see partition.ts): the data of the series is this, and what it
+ * delivers is what the template's own stages deliver for the key, in one pass for all the keys. Nothing of the template is copied.
+ */
+class GroupPart extends DataSource {
+  #partition: Partition | null = null;
+  #slot = 0;
+  #names: readonly string[] = [];
+  #top: () => DataNode;
+
+  constructor(top: () => DataNode) {
+    super({});
+    this.#top = top;
+  }
+  /** Take the key at `slot` of a new partition. */
+  load(partition: Partition, slot: number, names: readonly string[]): void {
+    this.#partition = partition;
+    this.#slot = slot;
+    this.#names = names;
+    this.invalidate();
+  }
+  /** Something above the source changed (a Decimator's resolution): the points are asked for again. */
+  touch(): void {
+    this.invalidate();
+  }
+  get pointCount(): number {
+    return this.#partition?.counts[this.#slot] ?? 0;
+  }
+  override get channelNames(): readonly string[] {
+    return this.#names;
+  }
+  protected override get ordered(): boolean {
+    return true;
+  }
+  protected scanDomain(): Extent | null {
+    return this.#partition?.domains[this.#slot] ?? null;
+  }
+  override valueExtent(): Extent | null {
+    return this.#partition?.values[this.#slot] ?? null;
+  }
+  override channelExtent(name: string): Extent | null {
+    return this.#partition?.channelExtents(name)[this.#slot] ?? null;
+  }
+  protected fill(): FillResult {
+    return fail('a group part is read through plan');
+  }
+  override plan(context: PlanContext): FillPlan {
+    const partition = this.#partition ?? fail('a group part has no rows');
+    const plan = planPartitioned(this.#top(), context, partition);
+    const slot = this.#slot;
+    return { capacity: plan.capacity(slot), fill: (out) => plan.fill(slot, out) };
+  }
+}
+
 export class SeriesGroup
   extends ChartElement<Plane, [data: DataNode, ...renderers: AnySeriesRenderer[]], SeriesGroupAttributes>
   implements SeriesHolder
@@ -184,6 +239,8 @@ export class SeriesGroup
   #series = new Map<number, Series>();
   #list: readonly Series[] = [];
   #slices = new Map<number, GroupSlice>();
+  #parts = new Map<number, GroupPart>();
+  #partition: Partition | null = null;
   #source: DataNode | null = null;
   #version = -1;
   #omitted = 0;
@@ -263,7 +320,9 @@ export class SeriesGroup
   /** Read the source and give each key its rows when the data has changed; bring the series in line with the group when it has. */
   private sync(): void {
     const data = this.data;
-    if (data !== this.#source || data.version !== this.#version) this.split(data);
+    if (data !== this.#source || data.version !== this.#version) {
+      if (!this.partition(data)) this.split(data);
+    }
     if (this.#dirty) {
       this.#dirty = false;
       const keep = new Set(Object.keys(this.attrs.bind ?? {}));
@@ -272,12 +331,73 @@ export class SeriesGroup
         const renderers = childrenOfType(series, SeriesRenderer);
         const template = childrenOfType(this, SeriesRenderer);
         renderers.forEach((r, i) => template[i] && refresh(template[i], r, keep));
-        refresh(data, series.data, new Set());
+        if (!(series.data instanceof GroupPart)) refresh(data, series.data, new Set());
       }
     }
   }
 
+  /**
+   * Give each key its series without copying the rows or the template's stages, when they allow it (see partition.ts). Returns
+   * false when they do not, and the rows are copied out by key (`split`) and the stages copied for each series.
+   */
+  private partition(data: DataNode): boolean {
+    if (!canPartition(data)) return false;
+    const a = this.attrs;
+    const leaf = leafOf(data);
+    const old = this.#partition;
+    if (data === this.#source && old && old.source === leaf && old.version === leaf.version) {
+      // Only a stage above the source changed: the same rows, asked for again.
+      this.#version = data.version;
+      for (const part of this.#parts.values()) part.touch();
+      return true;
+    }
+    const partition = partitionOf(leaf, a.channel, a.order ?? 'first', a.maxGroups ?? DEFAULT_MAX);
+    if (!partition) return false;
+    // A group that used to copy its rows starts again with series of the new kind.
+    if (this.#slices.size > 0) this.discard();
+    this.#source = data;
+    this.#version = data.version;
+    this.#partition = partition;
+    this.#omitted = partition.omitted;
+    const rest = leaf.channelNames.filter((n) => n !== a.channel);
+    const keep = new Set(partition.keys);
+    for (const [key, series] of this.#series)
+      if (!keep.has(key)) {
+        this.release(series);
+        this.#series.delete(key);
+        this.#parts.delete(key);
+      }
+    const made = new Map<number, Series>();
+    partition.keys.forEach((key, slot) => {
+      let series = this.#series.get(key),
+        part = this.#parts.get(key);
+      if (!series || !part) {
+        part = new GroupPart(() => this.data);
+        series = this.makeSeries(key, part);
+        this.#parts.set(key, part);
+        this.adopt(series);
+      }
+      part.load(partition, slot, rest);
+      made.set(key, series);
+    });
+    this.#series = made;
+    this.#list = partition.keys.flatMap((k) => made.get(k) ?? []);
+    return true;
+  }
+  /** Let go of every series made so far, so the next split makes them afresh. */
+  private discard(): void {
+    for (const series of this.#series.values()) this.release(series);
+    this.#series = new Map();
+    this.#slices.clear();
+    this.#parts.clear();
+    this.#partition = null;
+    this.#list = [];
+  }
+
   private split(data: DataNode): void {
+    // A group that used to partition starts again with series of the new kind.
+    if (this.#parts.size > 0) this.discard();
+    this.#partition = null;
     this.#source = data;
     this.#version = data.version;
     const a = this.attrs;
@@ -357,13 +477,13 @@ export class SeriesGroup
     return attrs;
   }
 
-  private makeSeries(key: number, slice: GroupSlice): Series {
+  private makeSeries(key: number, slice: GroupSlice | GroupPart): Series {
     const attrs = this.seriesAttributes(key);
     for (const k of Object.keys(attrs)) if (attrs[k] === undefined) delete attrs[k];
     const suffix = String(key);
     const renderers: AnySeriesRenderer[] = [];
     for (const c of this) if (c instanceof SeriesRenderer) renderers.push(copyOf(c, suffix));
-    const chain = copyOf(this.data, suffix, slice);
+    const chain = slice instanceof GroupPart ? slice : copyOf(this.data, suffix, slice);
     return this.attrs.x === undefined
       ? new DomainSeries(attrs, chain, ...renderers)
       : new XYSeries(attrs as { x: string }, chain, ...renderers);

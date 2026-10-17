@@ -159,6 +159,7 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
       domainOffset: a.domainOffset ?? 0,
       valueOffset: a.valueOffset ?? (r ? 0 : 1),
       regularDomain: r ?? null,
+      channelOffsets: a.channels,
     };
   }
 

@@ -58,6 +58,8 @@ export const FEATURE_USES: Record<string, string[]> = {
   furniture: ['callout'],
   pointannotations: ['callout', 'hit'],
   entrance: ['plane', 'renderer'],
+  decimation: ['partition'],
+  seriesgroup: ['partition'],
   pie: ['bars', 'sources', 'pointannotations', 'radial', 'scales', 'stack', 'chart'],
   cursor: ['hit', 'input'],
   legend: ['input'],

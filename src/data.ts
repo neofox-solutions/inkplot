@@ -27,6 +27,7 @@
 import { type AttrTypesFor, BOOLEAN } from './attrs.ts';
 import { type AnyElement, type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
+import type { Partition, PartitionedPlan } from './partition.ts';
 import type { Series } from './series.ts';
 
 /** Points in pixel space as a series hands them to planes and renderers: `count` rows of `stride` numbers in `data`. */
@@ -80,6 +81,8 @@ export interface PointView {
   readonly valueOffset: number;
   /** When set, the domain is `start + step * i` and is never read from `data`. */
   readonly regularDomain: { start: number; step: number } | null;
+  /** Where each named channel is stored in a row, when the view offers them: what lets a group split the rows by a channel without copying them. */
+  readonly channelOffsets?: Readonly<Record<string, number>>;
 }
 
 /**
@@ -320,7 +323,14 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   /** The managed buffer as a view. */
   protected managedView(): PointView {
     const m = this.managed();
-    return { data: m.data, count: m.count, stride: m.stride, domainOffset: 0, valueOffset: 1, regularDomain: null };
+    const channelOffsets: Record<string, number> = {};
+    this.channelNames.forEach((name, i) => (channelOffsets[name] = 2 + i));
+    return { data: m.data, count: m.count, stride: m.stride, domainOffset: 0, valueOffset: 1, regularDomain: null, channelOffsets };
+  }
+  /** The storage row of row `i` of `view()`: what an edit to that point has to aim at. */
+  storageRow(i: number): number {
+    const rows = this.inPlace ? null : this.managed().rows;
+    return rows ? rows[i]! : i;
   }
 
   /** The points ascending in the domain, to read in place; valid until the next change. Null: use `plan`. */
@@ -453,6 +463,10 @@ export abstract class DataTransform<
   abstract valueExtent(): Extent | null;
   abstract channelExtent(name: string): Extent | null;
   abstract plan(context: PlanContext): FillPlan;
+  /** True when this stage can serve the rows of one key of a partition (see partition.ts), which is how a group avoids copying them out by key. */
+  partitionable?(): boolean;
+  /** Like `plan`, for the rows of each key of a partition of its source: the points of a key are asked for by its slot. */
+  planPartitioned?(context: PlanContext, partition: Partition): PartitionedPlan;
 }
 
 /** A source or a transform. `DataNode<'x'>` is one the type checker knows offers a channel called x. */

@@ -10,7 +10,17 @@
  * kernel *saw* so the value axis fits the visible data rather than the whole of it.
  */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
-import { type DataNode, DataSource, DataTransform, type FillPlan, NO_POINTS, type PlanContext, type PointView } from './data.ts';
+import {
+  type DataNode,
+  DataSource,
+  DataTransform,
+  type FillPlan,
+  type FillResult,
+  NO_POINTS,
+  type PlanContext,
+  type PointView,
+} from './data.ts';
+import { type Partition, type PartitionedPlan, planPartitioned, TABLE_BASE } from './partition.ts';
 import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 
@@ -41,6 +51,45 @@ export abstract class DecimationKernel<A extends BaseAttributes = BaseAttributes
    * Points outside the range land in the edge columns. A gap (NaN value) is kept as one NaN point if the kernel handles gaps.
    */
   abstract reduce(view: PointView, domainRange: Extent, columns: number, out: Float64Array, capacity: number): ReduceResult;
+  /**
+   * `reduce` for every key of a partition at once, in one pass over `view`: the rows of the keys that `want` marks, each written
+   * into that slot's `outs`. Absent in a kernel that needs the rows of a key side by side (it is then given them one key at a time).
+   */
+  reduceKeyed?(
+    view: PointView,
+    keys: KeyedRows,
+    domainRange: Extent,
+    columns: number,
+    outs: readonly Float64Array[],
+    capacity: number,
+  ): KeyedResult;
+}
+
+/** The key of each row of a view, and which of the keys are to be reduced. */
+export interface KeyedRows {
+  readonly keyOffset: number;
+  /** The slot of a key, or -1 for none. */
+  readonly slotOf: (key: number) => number;
+  /** 1 for each slot that is reduced. */
+  readonly want: Uint8Array;
+  /** The rows `[from, to)` of the view that each slot reduces: its own rows in the window, and one either side. */
+  readonly from: Int32Array;
+  readonly to: Int32Array;
+  /**
+   * The slot of each whole-number key within reach of a table (`tableBase` is added to the key to index it; -1 is none), and
+   * whether that holds for every key of the data, so a row's slot is a table read with nothing to check.
+   */
+  readonly table: Int32Array;
+  readonly tableBase: number;
+  readonly tableOnly: boolean;
+}
+/** What `reduceKeyed` reports for each slot: `ReduceResult` and the ends of the domain it saw. */
+export interface KeyedResult {
+  readonly count: Int32Array;
+  readonly yMin: Float64Array;
+  readonly yMax: Float64Array;
+  readonly xMin: Float64Array;
+  readonly xMax: Float64Array;
 }
 
 /** Writes point `i` of a view into `out` slot `m`, if there is room. */
@@ -109,7 +158,18 @@ function emitRun(
 const runExtent = { min: Infinity, max: -Infinity };
 
 /** Slow path for a column that contains NaN: split it into runs between the gaps and reduce each. */
-function reduceAroundGaps(v: PointView, i0: number, i1: number, out: Float64Array, m: number, cap: number, keepEnds: boolean): number {
+function reduceAroundGaps(
+  v: PointView,
+  i0: number,
+  i1: number,
+  out: Float64Array,
+  m: number,
+  cap: number,
+  keepEnds: boolean,
+  keyOffset = -1,
+  slotOf?: (key: number) => number,
+  slot = 0,
+): number {
   const d = v.data,
     s = v.stride,
     yo = v.valueOffset;
@@ -121,6 +181,8 @@ function reduceAroundGaps(v: PointView, i0: number, i1: number, out: Float64Arra
     im = 0,
     iM = 0;
   for (let i = i0; i <= i1; i++) {
+    // Rows of other keys are not part of this one's runs; the step past the end is, since it closes the last run.
+    if (slotOf && i < i1 && slotOf(d[i * s + keyOffset]!) !== slot) continue;
     const y = i < i1 ? d[i * s + yo]! : NaN;
     if (y !== y) {
       if (run) {
@@ -149,6 +211,35 @@ function reduceAroundGaps(v: PointView, i0: number, i1: number, out: Float64Arra
   return m;
 }
 
+/** One past the last row of pixel column `c`, searched from `i0`: arithmetic for a regular domain, binary search otherwise. */
+function columnEnd(v: PointView, c: number, W: number, x0: number, k: number, i0: number): number {
+  const n = v.count,
+    reg = v.regularDomain;
+  if (c === W - 1) return n;
+  if (reg) {
+    const ux = reg.start,
+      dx = reg.step;
+    let i1 = Math.ceil((x0 + (c + 1) / k - ux) / dx);
+    if (i1 > n) i1 = n;
+    if (i1 < i0) i1 = i0;
+    // Agree exactly with the multiply-and-truncate the column test uses.
+    while (i1 > i0 && (((ux + dx * (i1 - 1) - x0) * k) | 0) > c) i1--;
+    while (i1 < n && (((ux + dx * i1 - x0) * k) | 0) <= c) i1++;
+    return i1;
+  }
+  const d = v.data,
+    s = v.stride,
+    xo = v.domainOffset;
+  let lo = i0,
+    hi = n;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if ((((d[mid * s + xo]! - x0) * k) | 0) <= c) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
 /**
  * Per pixel column, find the range of points it covers (arithmetic for a regular domain, binary search otherwise),
  * then scan only the values in that range. Four values at a time are checked against the running extremes,
@@ -157,12 +248,8 @@ function reduceAroundGaps(v: PointView, i0: number, i1: number, out: Float64Arra
 function reduceByColumn(v: PointView, domainRange: Extent, W: number, out: Float64Array, cap: number, keepEnds: boolean): ReduceResult {
   const d = v.data,
     s = v.stride,
-    xo = v.domainOffset,
     yo = v.valueOffset,
     n = v.count;
-  const reg = v.regularDomain;
-  const ux = reg ? reg.start : 0,
-    dx = reg ? reg.step : 1;
   const x0 = domainRange.min,
     k = W / (domainRange.max - domainRange.min);
   runExtent.min = Infinity;
@@ -170,25 +257,7 @@ function reduceByColumn(v: PointView, domainRange: Extent, W: number, out: Float
   let m = 0,
     i0 = 0;
   for (let c = 0; c < W && i0 < n; c++) {
-    let i1: number;
-    if (c === W - 1) i1 = n;
-    else if (reg) {
-      i1 = Math.ceil((x0 + (c + 1) / k - ux) / dx);
-      if (i1 > n) i1 = n;
-      if (i1 < i0) i1 = i0;
-      // Agree exactly with the multiply-and-truncate the column test uses.
-      while (i1 > i0 && (((ux + dx * (i1 - 1) - x0) * k) | 0) > c) i1--;
-      while (i1 < n && (((ux + dx * i1 - x0) * k) | 0) <= c) i1++;
-    } else {
-      let lo = i0,
-        hi = n;
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if ((((d[mid * s + xo]! - x0) * k) | 0) <= c) lo = mid + 1;
-        else hi = mid;
-      }
-      i1 = lo;
-    }
+    const i1 = columnEnd(v, c, W, x0, k, i0);
     if (i1 <= i0) continue;
     const y0 = d[i0 * s + yo]!;
     let mn = y0,
@@ -241,6 +310,128 @@ function reduceByColumn(v: PointView, domainRange: Extent, W: number, out: Float
 }
 
 /**
+ * `reduceByColumn` for the rows of several keys that are interleaved in one view: one pass, with the running extremes of each key
+ * in arrays by slot. A column's rows are the same for every key, so they are found once; each key's own rows in them are then
+ * reduced as if alone. A key whose column holds a gap (NaN) is reduced again on its own rows, around the gaps.
+ */
+function reduceByColumnKeyed(
+  v: PointView,
+  keys: KeyedRows,
+  domainRange: Extent,
+  W: number,
+  outs: readonly Float64Array[],
+  cap: number,
+  keepEnds: boolean,
+): KeyedResult {
+  const d = v.data,
+    s = v.stride,
+    yo = v.valueOffset,
+    n = v.count,
+    ko = keys.keyOffset,
+    slotOf = keys.slotOf,
+    slots = keys.want.length;
+  const reg = v.regularDomain;
+  const xAt = (i: number) => (reg ? reg.start + reg.step * i : d[i * s + v.domainOffset]!);
+  const x0 = domainRange.min,
+    k = W / (domainRange.max - domainRange.min);
+  // One more slot than there are keys, for the rows that no key reduces: its bounds let nothing in, so a row needs one test, not three.
+  const NONE = slots;
+  const from = new Int32Array(slots + 1),
+    to = new Int32Array(slots + 1);
+  for (let sl = 0; sl < slots; sl++) {
+    from[sl] = keys.want[sl] ? keys.from[sl]! : 0x7fffffff;
+    to[sl] = keys.want[sl] ? keys.to[sl]! : 0;
+  }
+  from[NONE] = 0x7fffffff;
+  // Where the keys are whole numbers within reach of a table, they are looked up there and not through a call.
+  let table: Int32Array | null = null;
+  if (keys.tableOnly) {
+    table = new Int32Array(keys.table.length);
+    for (let t = 0; t < table.length; t++) table[t] = keys.table[t]! < 0 ? NONE : keys.table[t]!;
+  }
+  const base = keys.tableBase;
+  const mn = new Float64Array(slots + 1),
+    mx = new Float64Array(slots + 1),
+    f = new Int32Array(slots + 1).fill(-1),
+    l = new Int32Array(slots + 1).fill(-1),
+    im = new Int32Array(slots + 1),
+    iM = new Int32Array(slots + 1),
+    nan = new Uint8Array(slots + 1),
+    firstRow = new Int32Array(slots + 1).fill(-1),
+    lastRow = new Int32Array(slots + 1),
+    touched = new Int32Array(slots + 1);
+  const count = new Int32Array(slots),
+    yMin = new Float64Array(slots).fill(Infinity),
+    yMax = new Float64Array(slots).fill(-Infinity),
+    xMin = new Float64Array(slots).fill(Infinity),
+    xMax = new Float64Array(slots).fill(-Infinity);
+  let i0 = 0;
+  for (let c = 0; c < W && i0 < n; c++) {
+    const i1 = columnEnd(v, c, W, x0, k, i0);
+    if (i1 <= i0) continue;
+    let tn = 0;
+    for (let i = i0, p = i0 * s + ko, q = i0 * s + yo; i < i1; i++, p += s, q += s) {
+      let sl: number;
+      if (table) sl = table[(d[p]! + base) | 0]!;
+      else {
+        sl = slotOf(d[p]!);
+        if (sl < 0) sl = NONE;
+      }
+      if (i < from[sl]! || i >= to[sl]!) continue;
+      const y = d[q]!;
+      if (f[sl]! < 0) {
+        f[sl] = i;
+        mn[sl] = mx[sl] = y;
+        im[sl] = iM[sl] = i;
+        nan[sl] = y !== y ? 1 : 0;
+        touched[tn++] = sl;
+      } else if (y < mn[sl]!) {
+        mn[sl] = y;
+        im[sl] = i;
+      } else if (y > mx[sl]!) {
+        mx[sl] = y;
+        iM[sl] = i;
+      } else if (y !== y) nan[sl] = 1;
+    }
+    // The last row each key has in the column: looked for from the end, which is a few rows for every key but a sparse one.
+    for (let i = i1 - 1, left = tn; i >= i0 && left > 0; i--) {
+      const kk = d[i * s + ko]!;
+      let sl = table ? table[(kk + base) | 0]! : slotOf(kk);
+      if (sl < 0) sl = NONE;
+      if (sl !== NONE && f[sl]! >= 0 && l[sl]! < 0 && i >= from[sl]! && i < to[sl]!) {
+        l[sl] = i;
+        left--;
+      }
+    }
+    for (let t = 0; t < tn; t++) {
+      const sl = touched[t]!;
+      if (firstRow[sl]! < 0) firstRow[sl] = f[sl]!;
+      lastRow[sl] = l[sl]!;
+      if (nan[sl]) {
+        runExtent.min = Infinity;
+        runExtent.max = -Infinity;
+        count[sl] = reduceAroundGaps(v, i0, i1, outs[sl]!, count[sl]!, cap, keepEnds, ko, slotOf, sl);
+        if (runExtent.min < yMin[sl]!) yMin[sl] = runExtent.min;
+        if (runExtent.max > yMax[sl]!) yMax[sl] = runExtent.max;
+      } else {
+        if (mn[sl]! < yMin[sl]!) yMin[sl] = mn[sl]!;
+        if (mx[sl]! > yMax[sl]!) yMax[sl] = mx[sl]!;
+        count[sl] = emitRun(v, outs[sl]!, count[sl]!, cap, keepEnds, f[sl]!, l[sl]!, im[sl]!, iM[sl]!);
+      }
+      f[sl] = -1;
+      l[sl] = -1;
+    }
+    i0 = i1;
+  }
+  for (let sl = 0; sl < slots; sl++)
+    if (firstRow[sl]! >= 0) {
+      xMin[sl] = xAt(firstRow[sl]!);
+      xMax[sl] = xAt(lastRow[sl]!);
+    }
+  return { count, yMin, yMax, xMin, xMax };
+}
+
+/**
  * The lowest and highest value in each pixel column, in the order they occur. Every extreme survives, so the
  * drawn line covers what the full data would to within a pixel. Keeps gaps. At most 2 points per column.
  */
@@ -251,6 +442,16 @@ export class MinMaxKernel extends DecimationKernel {
   reduce(view: PointView, range: Extent, columns: number, out: Float64Array, capacity: number): ReduceResult {
     return reduceByColumn(view, range, columns, out, capacity, false);
   }
+  override reduceKeyed(
+    view: PointView,
+    keys: KeyedRows,
+    range: Extent,
+    columns: number,
+    outs: readonly Float64Array[],
+    capacity: number,
+  ): KeyedResult {
+    return reduceByColumnKeyed(view, keys, range, columns, outs, capacity, false);
+  }
 }
 /** Min/max plus the first and last value in each column, which keeps joins between columns exact. At most 4 per column. */
 export class M4Kernel extends DecimationKernel {
@@ -259,6 +460,16 @@ export class M4Kernel extends DecimationKernel {
   }
   reduce(view: PointView, range: Extent, columns: number, out: Float64Array, capacity: number): ReduceResult {
     return reduceByColumn(view, range, columns, out, capacity, true);
+  }
+  override reduceKeyed(
+    view: PointView,
+    keys: KeyedRows,
+    range: Extent,
+    columns: number,
+    outs: readonly Float64Array[],
+    capacity: number,
+  ): KeyedResult {
+    return reduceByColumnKeyed(view, keys, range, columns, outs, capacity, true);
   }
 }
 
@@ -359,26 +570,13 @@ export class StrideKernel extends DecimationKernel {
  * Needs a sorted domain and storage that can be sliced without copying (a typed array); otherwise returns the view.
  */
 function windowView(v: PointView, range: Extent): PointView {
+  const [first, end] = windowBounds(v, range);
+  return subView(v, first, end);
+}
+/** The rows `[first, end)` of a view, read in place (not possible for storage that cannot be sliced: the whole view then). */
+function subView(v: PointView, first: number, end: number): PointView {
   const n = v.count,
     r = v.regularDomain;
-  if (n < 3) return v;
-  const x = r ? (i: number) => r.start + r.step * i : (i: number) => v.data[i * v.stride + v.domainOffset]!;
-  if (x(0) >= range.min && x(n - 1) <= range.max) return v;
-  let lo = 0,
-    hi = n;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (x(mid) < range.min) lo = mid + 1;
-    else hi = mid;
-  }
-  const first = lo > 0 ? lo - 1 : 0;
-  hi = n;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (x(mid) <= range.max) lo = mid + 1;
-    else hi = mid;
-  }
-  const end = lo < n ? lo + 1 : n;
   if (first === 0 && end === n) return v;
   // oxlint-disable-next-line typescript/consistent-type-assertions -- typed arrays have `subarray`, plain arrays do not: it is probed on the next line
   const data = v.data as ArrayLike<number> & { subarray?: (start: number) => ArrayLike<number> };
@@ -389,6 +587,34 @@ function windowView(v: PointView, range: Extent): PointView {
     count: end - first,
     regularDomain: r ? { start: r.start + r.step * first, step: r.step } : null,
   };
+}
+/** The rows `[first, end)` of a sorted view that can touch `range`: those in it and one either side. */
+function windowBounds(v: PointView, range: Extent): [number, number] {
+  const [lo, past] = windowSplit(v, range);
+  return [lo > 0 ? lo - 1 : 0, past < v.count ? past + 1 : v.count];
+}
+/** The first row of a sorted view that is at or after the start of `range`, and the first that is after its end. */
+function windowSplit(v: PointView, range: Extent): [number, number] {
+  const n = v.count,
+    r = v.regularDomain;
+  if (n < 3) return [0, n];
+  const x = r ? (i: number) => r.start + r.step * i : (i: number) => v.data[i * v.stride + v.domainOffset]!;
+  if (x(0) >= range.min && x(n - 1) <= range.max) return [0, n];
+  let lo = 0,
+    hi = n;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (x(mid) < range.min) lo = mid + 1;
+    else hi = mid;
+  }
+  const first = lo;
+  hi = n;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (x(mid) <= range.max) lo = mid + 1;
+    else hi = mid;
+  }
+  return [first, lo];
 }
 
 /**
@@ -470,6 +696,161 @@ export class Decimator extends DataTransform<DecimatorAttributes, [kernel: Decim
         };
       },
     };
+  }
+
+  override partitionable(): boolean {
+    const source = this.source;
+    return source instanceof DataSource && source.view()?.channelOffsets !== undefined;
+  }
+
+  /** What the last pass over a partition made, for every key, so the keys that follow the first in a flush cost a copy and no more. */
+  #keyed: {
+    partition: Partition;
+    version: number;
+    columns: number;
+    capacity: number;
+    min: number;
+    max: number;
+    results: Map<number, FillResult>;
+    outs: Float64Array[];
+  } | null = null;
+
+  /** `plan` for one key of a partition: a key with few rows is passed on as it is; the others are reduced together, in one pass. */
+  override planPartitioned(context: PlanContext, partition: Partition): PartitionedPlan {
+    const inner = planPartitioned(this.source, context, partition);
+    const a = this.attrs;
+    if (a.enabled === false) return inner;
+    if (context.sequence)
+      fail('a Decimator needs a domain that is a position on an axis: an XY series has only an order, so draw it undecimated');
+    if (context.channels.length > 0) fail('a Decimator cannot carry channels: bind on undecimated data, or turn the Decimator off');
+    const columns = Math.max(3, Math.floor(context.width * (a.resolution ?? 1)));
+    const capacity = this.kernel.capacity(columns);
+    const small = (slot: number) => partition.counts[slot]! <= capacity;
+    return {
+      capacity: (slot) => (small(slot) ? inner.capacity(slot) : capacity),
+      fill: (slot, out) => {
+        if (small(slot)) return inner.fill(slot, out);
+        const pass = this.#reduceKeys(partition, context.domainRange, columns, capacity);
+        const made = pass.results.get(slot) ?? fail('a Decimator was asked for a key it did not reduce');
+        out.set((pass.outs[slot] ?? fail('a Decimator has no room for a key')).subarray(0, 2 * made.count));
+        return made;
+      },
+    };
+  }
+  #reduceKeys(partition: Partition, range: Extent, columns: number, capacity: number) {
+    const known = this.#keyed;
+    if (
+      known &&
+      known.partition === partition &&
+      known.version === this.#version &&
+      known.columns === columns &&
+      known.min === range.min &&
+      known.max === range.max
+    )
+      return known;
+    const kernel = this.kernel;
+    const slots = partition.keys.length;
+    const want = new Uint8Array(slots);
+    for (let slot = 0; slot < slots; slot++) want[slot] = partition.counts[slot]! > capacity ? 1 : 0;
+    // The buffers are kept between passes while their size holds, so a drag allocates nothing for them.
+    const outs = known && known.partition === partition && known.capacity === capacity ? known.outs : [];
+    if (outs.length === 0) for (let slot = 0; slot < slots; slot++) outs.push(new Float64Array(want[slot] ? 2 * capacity : 0));
+    const t0 = performance.now();
+    const results = new Map<number, FillResult>();
+    const view = partition.view;
+    const [lo, past] = windowSplit(view, range);
+    // One pass over the rows of all the keys for the first view of some data; once it is asked for again (a pan, a zoom) each key's
+    // rows are made to lie side by side, which a kernel reads several times faster.
+    const again = known !== null && known.partition === partition;
+    if (kernel.reduceKeyed && !again && !partition.gathered) {
+      // Each key reduces its own rows in the window and the one on either side, as if it were alone; those lie beyond the window of
+      // the view as a whole by as far as the key's rows are apart, so they are found by looking out from its ends.
+      const from = new Int32Array(slots).fill(lo),
+        to = new Int32Array(slots).fill(past);
+      const d = view.data,
+        s = view.stride,
+        ko = partition.keyOffset;
+      let before = 0,
+        after = 0;
+      for (let slot = 0; slot < slots; slot++)
+        if (want[slot]) {
+          if (partition.firstRows[slot]! < lo) before++;
+          if (partition.lastRows[slot]! >= past) after++;
+        }
+      for (let i = lo - 1; i >= 0 && before > 0; i--) {
+        const slot = partition.slotOf(d[i * s + ko]!);
+        if (slot >= 0 && want[slot] && from[slot] === lo) {
+          from[slot] = i;
+          before--;
+        }
+      }
+      const seen = new Uint8Array(slots);
+      for (let i = past; i < view.count && after > 0; i++) {
+        const slot = partition.slotOf(d[i * s + ko]!);
+        if (slot >= 0 && want[slot] && !seen[slot]) {
+          seen[slot] = 1;
+          to[slot] = i + 1;
+          after--;
+        }
+      }
+      let base = view.count,
+        stop = 0;
+      for (let slot = 0; slot < slots; slot++)
+        if (want[slot]) {
+          if (from[slot]! < base) base = from[slot]!;
+          if (to[slot]! > stop) stop = to[slot]!;
+        }
+      const windowed = subView(view, base, stop);
+      // A view that could not be sliced is read from its start, and the bounds stay as they are.
+      const shift = windowed === view ? 0 : base;
+      for (let slot = 0; slot < slots; slot++) {
+        from[slot] = from[slot]! - shift;
+        to[slot] = to[slot]! - shift;
+      }
+      const r = kernel.reduceKeyed(
+        windowed,
+        {
+          keyOffset: partition.keyOffset,
+          slotOf: partition.slotOf,
+          want,
+          from,
+          to,
+          table: partition.table,
+          tableBase: TABLE_BASE,
+          tableOnly: partition.tableOnly,
+        },
+        range,
+        columns,
+        outs,
+        capacity,
+      );
+      for (let slot = 0; slot < slots; slot++)
+        if (want[slot])
+          results.set(slot, {
+            count: r.count[slot]!,
+            extents: [
+              r.xMin[slot]! <= r.xMax[slot]! ? { min: r.xMin[slot]!, max: r.xMax[slot]! } : NO_POINTS,
+              { min: r.yMin[slot]!, max: r.yMax[slot]! },
+            ],
+          });
+    } else {
+      // A key at a time, on its own rows: the same as a `Decimator` over a source of just those.
+      const views = partition.alone();
+      for (let slot = 0; slot < slots; slot++) {
+        if (!want[slot]) continue;
+        const windowed = windowView(views[slot]!, range);
+        const r = kernel.reduce(windowed, range, columns, outs[slot]!, capacity);
+        const n = windowed.count;
+        const x = (i: number) => windowed.data[i * windowed.stride + windowed.domainOffset]!;
+        results.set(slot, {
+          count: r.count,
+          extents: [n > 0 ? { min: x(0), max: x(n - 1) } : NO_POINTS, { min: r.yMin, max: r.yMax }],
+        });
+      }
+    }
+    const counters = this.countersOrNull;
+    if (counters) counters.stages.decimate += performance.now() - t0;
+    return (this.#keyed = { partition, version: this.#version, columns, capacity, min: range.min, max: range.max, results, outs });
   }
 
   /** The source's own storage if it offers it, else the source filled into a scratch buffer. */
