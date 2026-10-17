@@ -119,6 +119,7 @@ export const FEATURE_USES: Record<string, string[]> = {
     'time-temporal',
   ],
   'web-components': ['dom-platform', 'adapt', 'style-names'],
+  worker: ['workerhost'],
 };
 
 /** The graph with every edge that a longer path already implies dropped: what is left is the shape. */

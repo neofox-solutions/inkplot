@@ -44,6 +44,7 @@ export type FromWorker =
   | { kind: 'meta'; id: number; epoch: number; meta: WorkerMeta }
   /** `buffer` holds `count` points of `stride` numbers, and comes back with the next `fill` as `recycle`. */
   | { kind: 'result'; id: number; key: string; epoch: number; count: number; stride: number; extents: Extent[]; buffer: ArrayBuffer }
+  /** `id` 0 is the worker as a whole (it failed to start, or crashed): every boundary on it takes the error as its own. */
   | { kind: 'error'; id: number; message: string };
 
 /**

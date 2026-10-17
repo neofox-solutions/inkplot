@@ -225,6 +225,17 @@ export function make() {
   defineElements({ Chart: L.Chart, CartesianPlane: L.CartesianPlane, Axis: L.Axis, LinearScale: L.LinearScale, DomainSeries: L.DomainSeries, FlatDataSource: L.FlatDataSource, LinePath: L.LinePath, LinearCurve: L.LinearCurve }, { prefix: 'ch' });
 }`,
   },
+  {
+    name: 'A worker bundle: serveWorker with FlatDataSource, Decimator, MinMaxKernel (no chart)',
+    source: `import { FlatDataSource, Decimator, MinMaxKernel } from 'inkplot';
+import { serveWorker } from 'inkplot/worker';
+serveWorker({ FlatDataSource, Decimator, MinMaxKernel });`,
+  },
+  {
+    name: 'WorkerBoundary and WebWorker on top of the minimal chart',
+    imports: ['WorkerBoundary', 'WebWorker', 'Decimator', 'MinMaxKernel'],
+    data: `new WorkerBoundary({ worker: new WebWorker('w.js'), registry: { FlatDataSource, Decimator, MinMaxKernel } }, new Decimator({}, new MinMaxKernel(), ${FLAT}))`,
+  },
   { name: 'Everything the barrel exports (`import * as L`)', whole: true },
 ];
 
@@ -243,6 +254,7 @@ async function bundle(s) {
       'inkplot/jsx-runtime': src('jsx-runtime.ts'),
       'inkplot/react': src('react.ts'),
       'inkplot/web-components': src('web-components.ts'),
+      'inkplot/worker': src('worker.ts'),
     },
   });
   const code = Buffer.from(r.code);

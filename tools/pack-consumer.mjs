@@ -41,6 +41,7 @@ writeFileSync(
         './jsx-dev-runtime': ex('jsx-dev-runtime'),
         './react': ex('react'),
         './web-components': ex('web-components'),
+        './worker': ex('worker'),
       },
       types: './dist/index.d.ts',
       peerDependencies: dev.peerDependencies,

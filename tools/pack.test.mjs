@@ -35,7 +35,7 @@ test('pack', () => {
       for (const t of targets(entry))
         assert.ok(have.has(t.replace(/^\.\//, '')), `inkplot: export "${path}" points at ${t}, which is not in the tarball`);
     for (const f of ['LICENSE', 'README.md']) assert.ok(have.has(f), `inkplot: ${f} is missing`);
-    assert.deepEqual(Object.keys(lib.exports), ['.', './jsx-runtime', './jsx-dev-runtime', './react', './web-components']);
+    assert.deepEqual(Object.keys(lib.exports), ['.', './jsx-runtime', './jsx-dev-runtime', './react', './web-components', './worker']);
     assert.equal(lib.license, 'MIT');
     assert.equal(lib.engines, undefined, "inkplot: the repository's Node requirement is for its tooling, not the library");
     assert.match(lib.repository.url, /neofox-solutions\/inkplot\.git$/);

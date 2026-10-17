@@ -195,7 +195,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       const wire = this.#wire;
       this.#stop = a.worker.subscribe((data) => {
         const m = wire.unwrap(data) as FromWorker | null;
-        if (m && typeof m === 'object' && m.id === this.#id) this.#receive(m);
+        if (m && typeof m === 'object' && (m.id === this.#id || (m.kind === 'error' && m.id === 0))) this.#receive(m);
       });
     }
     const tree = toJSON(this.source, a.registry, { refs: this.#refs });

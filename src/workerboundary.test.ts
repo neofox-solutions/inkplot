@@ -23,6 +23,7 @@ import {
   type ToWorker,
   type WorkerLike,
 } from './index.ts';
+import { serveWorker } from './worker.ts';
 
 const registry = { FlatDataSource, Decimator, MinMaxKernel };
 const W = 400,
@@ -218,4 +219,35 @@ test('worker boundary: the entrance waits for the first points, and plays then',
   await worker.idle();
   chart.flush();
   assert.match(platform.toString(), /data-ink-enter="sweep"/);
+});
+
+test('serveWorker: answers on a port, whichever way the port listens', () => {
+  const tree = { type: 'FlatDataSource', attrs: { data: { $ref: 'data' }, stride: 2, isSorted: true } };
+  const attach = { kind: 'attach', id: 7, epoch: 1, tree, refs: { data: wave(100) } };
+  const fill = { kind: 'fill', id: 7, key: 'k', width: 300, height: 100, domainRange: { min: 0, max: 99 }, channels: [], sequence: false };
+  for (const style of ['events', 'emitter']) {
+    const sent: { kind: string; count?: number; pointCount?: number }[] = [];
+    const hook: { listener: ((data: unknown) => void) | null } = { listener: null };
+    const post = (m: unknown) => void sent.push(m as (typeof sent)[number]);
+    const port =
+      style === 'events'
+        ? {
+            postMessage: post,
+            addEventListener: (_: 'message', l: (e: { data: unknown }) => void) => (hook.listener = (d) => l({ data: d })),
+          }
+        : { postMessage: post, on: (_: 'message', l: (d: unknown) => void) => (hook.listener = l) };
+    const stop = serveWorker({ FlatDataSource }, { port });
+    const listener = hook.listener ?? assert.fail(style);
+    listener(attach);
+    listener(fill);
+    listener({ somebody: 'else' });
+    assert.deepEqual(
+      sent.map((m) => m.kind),
+      ['meta', 'result'],
+      style,
+    );
+    assert.equal((sent[1] as { count: number }).count, 100);
+    stop();
+  }
+  assert.throws(() => serveWorker({}, { port: { postMessage() {} } }), /no worker scope/);
 });
