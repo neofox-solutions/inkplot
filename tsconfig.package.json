@@ -1,6 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": false, "declaration": true, "rootDir": "src", "allowImportingTsExtensions": false, "rewriteRelativeImportExtensions": true, "paths": {} },
-  "include": ["src/*.ts"],
-  "exclude": ["src/*.test.ts", "src/fake-platform.ts"]
-}

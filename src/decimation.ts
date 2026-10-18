@@ -78,6 +78,7 @@ export abstract class DecimationKernel<A extends BaseAttributes = BaseAttributes
     columns: number,
     outs: readonly Float64Array[],
     capacity: number,
+    rows?: readonly Uint32Array[],
   ): KeyedResult;
 }
 
@@ -350,6 +351,7 @@ function reduceByColumnKeyed(
   outs: readonly Float64Array[],
   cap: number,
   keepEnds: boolean,
+  rows?: readonly Uint32Array[],
 ): KeyedResult {
   const d = v.data,
     s = v.stride,
@@ -438,13 +440,13 @@ function reduceByColumnKeyed(
       if (nan[sl]) {
         runExtent.min = Infinity;
         runExtent.max = -Infinity;
-        count[sl] = reduceAroundGaps(v, i0, i1, outs[sl]!, count[sl]!, cap, keepEnds, ko, slotOf, sl);
+        count[sl] = reduceAroundGaps(v, i0, i1, outs[sl]!, count[sl]!, cap, keepEnds, ko, slotOf, sl, rows?.[sl]);
         if (runExtent.min < yMin[sl]!) yMin[sl] = runExtent.min;
         if (runExtent.max > yMax[sl]!) yMax[sl] = runExtent.max;
       } else {
         if (mn[sl]! < yMin[sl]!) yMin[sl] = mn[sl]!;
         if (mx[sl]! > yMax[sl]!) yMax[sl] = mx[sl]!;
-        count[sl] = emitRun(v, outs[sl]!, count[sl]!, cap, keepEnds, f[sl]!, l[sl]!, im[sl]!, iM[sl]!);
+        count[sl] = emitRun(v, outs[sl]!, count[sl]!, cap, keepEnds, f[sl]!, l[sl]!, im[sl]!, iM[sl]!, rows?.[sl]);
       }
       f[sl] = -1;
       l[sl] = -1;
@@ -480,8 +482,9 @@ export class MinMaxKernel extends DecimationKernel {
     columns: number,
     outs: readonly Float64Array[],
     capacity: number,
+    rows?: readonly Uint32Array[],
   ): KeyedResult {
-    return reduceByColumnKeyed(view, keys, range, columns, outs, capacity, false);
+    return reduceByColumnKeyed(view, keys, range, columns, outs, capacity, false, rows);
   }
 }
 /** Min/max plus the first and last value in each column, which keeps joins between columns exact. At most 4 per column. */
@@ -502,8 +505,9 @@ export class M4Kernel extends DecimationKernel {
     columns: number,
     outs: readonly Float64Array[],
     capacity: number,
+    rows?: readonly Uint32Array[],
   ): KeyedResult {
-    return reduceByColumnKeyed(view, keys, range, columns, outs, capacity, true);
+    return reduceByColumnKeyed(view, keys, range, columns, outs, capacity, true, rows);
   }
 }
 
@@ -605,14 +609,6 @@ export class StrideKernel extends DecimationKernel {
   }
 }
 
-/**
- * Narrows a view to the points that can touch `range`, plus one either side so lines enter and leave correctly.
- * Needs a sorted domain and storage that can be sliced without copying (a typed array); otherwise returns the view.
- */
-function windowView(v: PointView, range: Extent): PointView {
-  const [first, end] = windowBounds(v, range);
-  return subView(v, first, end);
-}
 /** The rows `[first, end)` of a view, read in place (not possible for storage that cannot be sliced: the whole view then). */
 function subView(v: PointView, first: number, end: number): PointView {
   const n = v.count,
@@ -802,6 +798,7 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
     max: number;
     results: Map<number, FillResult>;
     outs: Float64Array[];
+    rows: Uint32Array[];
   } | null = null;
 
   /** A `Decimator` leaves the extents and channels of a key as its source has them. */
@@ -877,6 +874,16 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
     // The buffers are kept between passes while their size holds, so a drag allocates nothing for them.
     const outs = known && known.partition === partition && known.capacity === capacity ? known.outs : [];
     if (outs.length === 0) for (let slot = 0; slot < slots; slot++) outs.push(new Float64Array(want[slot] ? 2 * capacity : 0));
+    // The row of the view that each point kept is, where the kernel says; kept between passes like `outs`.
+    const track = kernel.tracksRows;
+    const rows = known && known.partition === partition && known.capacity === capacity ? known.rows : [];
+    if (track && rows.length === 0) for (let slot = 0; slot < slots; slot++) rows.push(new Uint32Array(want[slot] ? capacity : 0));
+    // What a point kept is in the storage of the source: its row in the view (`at` rows into it), found out from the key's rows.
+    const storageOf = (slot: number, count: number, at: (kept: number) => number) => {
+      if (!track) return undefined;
+      const kept = rows[slot]!.slice(0, count);
+      return (m: number) => partition.storageRow(at(kept[m]!));
+    };
     const t0 = performance.now();
     const results = new Map<number, FillResult>();
     const view = partition.view;
@@ -945,34 +952,39 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
         columns,
         outs,
         capacity,
+        track ? rows : undefined,
       );
       for (let slot = 0; slot < slots; slot++)
-        if (want[slot])
-          results.set(slot, {
-            count: r.count[slot]!,
-            extents: [
-              r.xMin[slot]! <= r.xMax[slot]! ? { min: r.xMin[slot]!, max: r.xMax[slot]! } : NO_POINTS,
-              { min: r.yMin[slot]!, max: r.yMax[slot]! },
-            ],
-          });
+        if (want[slot]) {
+          const extents = [
+            r.xMin[slot]! <= r.xMax[slot]! ? { min: r.xMin[slot]!, max: r.xMax[slot]! } : NO_POINTS,
+            { min: r.yMin[slot]!, max: r.yMax[slot]! },
+          ];
+          const rowOf = storageOf(slot, r.count[slot]!, (i) => shift + i);
+          results.set(slot, rowOf ? { count: r.count[slot]!, extents, rowOf } : { count: r.count[slot]!, extents });
+        }
     } else {
       // A key at a time, on its own rows: the same as a `Decimator` over a source of just those.
       const views = partition.alone();
       for (let slot = 0; slot < slots; slot++) {
         if (!want[slot]) continue;
-        const windowed = windowView(views[slot]!, range);
-        const r = kernel.reduce(windowed, range, columns, outs[slot]!, capacity);
+        const alone = views[slot]!,
+          [first, end] = windowBounds(alone, range),
+          windowed = subView(alone, first, end);
+        const shift = windowed === alone ? 0 : first;
+        const r = kernel.reduce(windowed, range, columns, outs[slot]!, capacity, track ? rows[slot] : undefined);
         const n = windowed.count;
         const x = (i: number) => windowed.data[i * windowed.stride + windowed.domainOffset]!;
-        results.set(slot, {
-          count: r.count,
-          extents: [n > 0 ? { min: x(0), max: x(n - 1) } : NO_POINTS, { min: r.yMin, max: r.yMax }],
-        });
+        const extents = [n > 0 ? { min: x(0), max: x(n - 1) } : NO_POINTS, { min: r.yMin, max: r.yMax }];
+        // A row of the key's own view is the key's row at that place among the rows of the whole.
+        const ofKey = partition.rows()[slot]!;
+        const rowOf = storageOf(slot, r.count, (i) => ofKey[shift + i]!);
+        results.set(slot, rowOf ? { count: r.count, extents, rowOf } : { count: r.count, extents });
       }
     }
     const counters = this.countersOrNull;
     if (counters) counters.stages.decimate += performance.now() - t0;
-    return (this.#keyed = { partition, version: this.#version, columns, capacity, min: range.min, max: range.max, results, outs });
+    return (this.#keyed = { partition, version: this.#version, columns, capacity, min: range.min, max: range.max, results, outs, rows });
   }
 
   /**

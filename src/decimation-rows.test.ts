@@ -124,3 +124,32 @@ test('decimator rows: in a partition each key carries its channels and rows', ()
     }
   });
 });
+
+for (const [name, kernel] of kernels.slice(0, 2)) {
+  test(`decimator rows: ${name} over a partition says the source row, in the pass over all keys and after it`, () => {
+    const n = 6000;
+    const data = new Float64Array(n * 3);
+    for (let i = 0; i < n; i++) data.set([i, Math.sin(i / 30) * 4 + (i % 3), i % 3], 3 * i);
+    const dec = new Decimator({}, kernel(), new FlatDataSource({ data, stride: 3, channels: { k: 2 }, isSorted: true }));
+    const part = partitionOf(dec.source as FlatDataSource, 'k', 'first', 10)!;
+    for (const range of [
+      { min: 0, max: n },
+      { min: 2000, max: 3500 },
+      { min: 0, max: n },
+    ]) {
+      // The first pass runs the keys together; later ones run each key alone. Both say which rows.
+      const plan = planPartitioned(dec, context(60, range, ['domain', 'value']), part);
+      part.keys.forEach((key, slot) => {
+        const out = new Float64Array(plan.capacity(slot) * 2);
+        const g = plan.fill(slot, out);
+        assert.ok(g.count > 10 && g.rowOf, `key ${key}: ${g.count} points`);
+        for (let m = 0; m < g.count; m++) {
+          const row: number = g.rowOf(m);
+          assert.equal(row % 3, key, 'a row of this key');
+          assert.equal(out[2 * m], row);
+          assert.equal(out[2 * m + 1], data[3 * row + 1]);
+        }
+      });
+    }
+  });
+}
