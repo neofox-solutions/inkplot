@@ -126,13 +126,13 @@ export function createHost(registry: ElementRegistry, options: HostOptions = {})
             width: message.width,
             height: message.height,
             domainRange: message.domainRange,
-            channels: message.channels,
+            columns: message.columns,
             sequence: message.sequence,
           };
           if (message.byKey) {
             const part = entry.partition ?? fail('a fill by key needs the boundary to have been given a partition'),
               plan = planPartitioned(entry.root, context, part),
-              stride = 2 + message.channels.length;
+              stride = message.columns.length;
             const slots = part.keys.map((_, i) => i),
               capacities = slots.map((i) => plan.capacity(i));
             const need = capacities.reduce((a, c) => a + c, 0) * stride;
@@ -166,7 +166,7 @@ export function createHost(registry: ElementRegistry, options: HostOptions = {})
             return;
           }
           const plan = entry.root.plan(context),
-            stride = 2 + message.channels.length,
+            stride = message.columns.length,
             need = plan.capacity * stride;
           const recycled = message.recycle && message.recycle.byteLength >= need * 8 ? message.recycle : null;
           const buffer = recycled ?? new ArrayBuffer(need * 8);

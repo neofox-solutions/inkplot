@@ -8,6 +8,8 @@ import {
   type FillResult,
   NO_POINTS,
   type PlanContext,
+  isDomainName,
+  isValueName,
   type PointView,
   endsOf,
   rowRange,
@@ -68,47 +70,30 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
 
   protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
     const { source, domain, value, channels } = this.attrs;
-    const xFn = typeof domain === 'function' ? domain : null;
-    const yFn = typeof value === 'function' ? value : null;
-    const noValue = value === undefined;
-    const names = context.channels,
-      k = names.length,
-      stride = 2 + k;
-    const cFns = names.map((name) => {
-      const f = (channels as Readonly<Record<string, Field<Row>>> | undefined)?.[name] ?? fail(`the data has no channel "${name}"`);
-      return typeof f === 'function' ? f : (row: Row) => num((row as Record<string | number, unknown>)[f]);
+    const field = (f: Field<Row>) => (typeof f === 'function' ? f : (row: Row) => num((row as Record<string | number, unknown>)[f]));
+    const names = context.columns,
+      k = names.length;
+    const fns = names.map((name) => {
+      const f = (channels as Readonly<Record<string, Field<Row>>> | undefined)?.[name];
+      if (f !== undefined) return field(f);
+      if (isDomainName(name)) return domain === undefined ? (_: Row, i: number) => i : field(domain);
+      if (isValueName(name)) return value === undefined ? () => NaN : field(value);
+      return fail(`the data has no channel "${name}"`);
     });
-    const cMin = new Float64Array(k).fill(Infinity),
-      cMax = new Float64Array(k).fill(-Infinity);
+    const mins = new Float64Array(k).fill(Infinity),
+      maxs = new Float64Array(k).fill(-Infinity);
     const [lo, hi] = rowRange(source.length, from, to);
-    let xMin = Infinity,
-      xMax = -Infinity,
-      yMin = Infinity,
-      yMax = -Infinity;
     for (let i = lo; i < hi; i++) {
       const row = source[i]!;
-      const x = xFn ? xFn(row, i) : domain === undefined ? i : num((row as Record<string | number, unknown>)[domain as string]);
-      const y = yFn ? yFn(row, i) : noValue ? NaN : num((row as Record<string | number, unknown>)[value as string]);
-      const o = stride * (i - lo);
-      out[o] = x;
-      out[o + 1] = y;
-      if (x < xMin) xMin = x;
-      if (x > xMax) xMax = x;
-      if (y < yMin) yMin = y;
-      if (y > yMax) yMax = y;
+      const o = k * (i - lo);
       for (let c = 0; c < k; c++) {
-        const v = cFns[c]!(row, i);
-        out[o + 2 + c] = v;
-        if (v < cMin[c]!) cMin[c] = v;
-        if (v > cMax[c]!) cMax[c] = v;
+        const v = fns[c]!(row, i);
+        out[o + c] = v;
+        if (v < mins[c]!) mins[c] = v;
+        if (v > maxs[c]!) maxs[c] = v;
       }
     }
-    const extents: Extent[] = [
-      { min: xMin, max: xMax },
-      { min: yMin, max: yMax },
-    ];
-    for (let c = 0; c < k; c++) extents.push({ min: cMin[c]!, max: cMax[c]! });
-    return { count: hi - lo, extents };
+    return { count: hi - lo, extents: Array.from(mins, (min, c) => ({ min, max: maxs[c]! })) };
   }
 }
 
@@ -193,40 +178,32 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
     const stride = this.stride,
       [lo, hi] = rowRange(this.pointCount, from, to);
     const valueOffset = this.attrs.valueOffset ?? (r ? 0 : 1);
-    const names = context.channels,
-      k = names.length,
-      os = 2 + k;
-    const offsets = names.map((name) => channels?.[name] ?? fail(`the data has no channel "${name}"`));
-    const cMin = new Float64Array(k).fill(Infinity),
-      cMax = new Float64Array(k).fill(-Infinity);
-    let xMin = Infinity,
-      xMax = -Infinity,
-      yMin = Infinity,
-      yMax = -Infinity;
+    const names = context.columns,
+      k = names.length;
+    // A regular domain is computed, not stored, so it is told apart from the offsets with -1.
+    const offsets = names.map((name) => {
+      const o = channels?.[name];
+      if (o !== undefined) return o;
+      if (isDomainName(name)) return r ? -1 : domainOffset;
+      if (isValueName(name)) return valueOffset;
+      return fail(`the data has no channel "${name}"`);
+    });
+    const start = r?.start ?? 0,
+      step = r?.step ?? 0;
+    const mins = new Float64Array(k).fill(Infinity),
+      maxs = new Float64Array(k).fill(-Infinity);
     for (let i = lo, j = lo * stride; i < hi; i++, j += stride) {
-      const x = r ? r.start + r.step * i : data[j + domainOffset]!;
-      const y = data[j + valueOffset]!;
-      const o = os * (i - lo);
-      out[o] = x;
-      out[o + 1] = y;
-      if (x < xMin) xMin = x;
-      if (x > xMax) xMax = x;
-      if (y < yMin) yMin = y;
-      if (y > yMax) yMax = y;
+      const o = k * (i - lo);
       for (let c = 0; c < k; c++) {
-        const v = data[j + offsets[c]!]!;
-        out[o + 2 + c] = v;
-        if (v < cMin[c]!) cMin[c] = v;
-        if (v > cMax[c]!) cMax[c] = v;
+        const off = offsets[c]!;
+        const v = off < 0 ? start + step * i : data[j + off]!;
+        out[o + c] = v;
+        if (v < mins[c]!) mins[c] = v;
+        if (v > maxs[c]!) maxs[c] = v;
       }
     }
-    if (hi === lo) return { count: 0, extents: [NO_POINTS, NO_POINTS, ...names.map(() => NO_POINTS)] };
-    const extents: Extent[] = [
-      { min: xMin, max: xMax },
-      { min: yMin, max: yMax },
-    ];
-    for (let c = 0; c < k; c++) extents.push({ min: cMin[c]!, max: cMax[c]! });
-    return { count: hi - lo, extents };
+    if (hi === lo) return { count: 0, extents: names.map(() => NO_POINTS) };
+    return { count: hi - lo, extents: Array.from(mins, (min, c) => ({ min, max: maxs[c]! })) };
   }
 }
 
@@ -279,24 +256,28 @@ export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttribute
   }
 
   protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
-    if (context.channels.length) fail(`the data has no channel "${context.channels[0]}"`);
+    const names = context.columns,
+      k = names.length;
+    const wants = names.map((n) => (isDomainName(n) ? 0 : isValueName(n) ? 1 : fail(`the data has no channel "${n}"`)));
     // With a fixed count the span is the whole domain whatever is in view; otherwise only the part in view is sampled.
     const { fn, domain, count } = this.attrs;
     const { lo, hi, n } = count === undefined ? this.span(context) : { lo: domain.min, hi: domain.max, n: count };
     const [first, last] = rowRange(n, from, to);
-    if (last === first) return { count: 0, extents: [NO_POINTS, NO_POINTS] };
+    if (last === first) return { count: 0, extents: names.map(() => NO_POINTS) };
     const at = (i: number) => (n === 1 ? lo : i === n - 1 ? hi : lo + ((hi - lo) * i) / (n - 1));
     let yMin = Infinity,
       yMax = -Infinity;
     for (let i = first; i < last; i++) {
       const x = at(i),
-        y = fn(x);
-      out[2 * (i - first)] = x;
-      out[2 * (i - first) + 1] = y;
+        y = fn(x),
+        o = k * (i - first);
+      for (let c = 0; c < k; c++) out[o + c] = wants[c] === 0 ? x : y;
       if (y < yMin) yMin = y;
       if (y > yMax) yMax = y;
     }
-    return { count: last - first, extents: [{ min: at(first), max: at(last - 1) }, yMin <= yMax ? { min: yMin, max: yMax } : NO_POINTS] };
+    const xs = { min: at(first), max: at(last - 1) },
+      ys = yMin <= yMax ? { min: yMin, max: yMax } : NO_POINTS;
+    return { count: last - first, extents: wants.map((w) => (w === 0 ? xs : ys)) };
   }
 
   /** Room for the samples this plot asks for, which depends on its width; the points are made up, so there is no `rowOf`. */
@@ -344,42 +325,28 @@ export class CompositeDataSource<Channel extends string = string> extends DataSo
   }
 
   protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
-    const { count, channels } = this.attrs;
+    const { count, channels, domain, value } = this.attrs;
     const [lo, hi] = rowRange(count, from, to);
-    const xAt = reader(this.attrs.domain),
-      yAt = this.attrs.value === undefined ? () => NaN : reader(this.attrs.value);
-    const names = context.channels,
-      k = names.length,
-      stride = 2 + k;
-    const cAt = names.map((name) =>
-      reader((channels as Readonly<Record<string, Column>> | undefined)?.[name] ?? fail(`the data has no channel "${name}"`)),
-    );
-    const cMin = new Float64Array(k).fill(Infinity),
-      cMax = new Float64Array(k).fill(-Infinity);
-    let xMin = Infinity,
-      xMax = -Infinity,
-      yMin = Infinity,
-      yMax = -Infinity;
+    const names = context.columns,
+      k = names.length;
+    const at = names.map((name) => {
+      const col = (channels as Readonly<Record<string, Column>> | undefined)?.[name];
+      if (col !== undefined) return reader(col);
+      if (isDomainName(name)) return reader(domain);
+      if (isValueName(name)) return value === undefined ? () => NaN : reader(value);
+      return fail(`the data has no channel "${name}"`);
+    });
+    const mins = new Float64Array(k).fill(Infinity),
+      maxs = new Float64Array(k).fill(-Infinity);
     for (let i = lo; i < hi; i++) {
-      const x = num(xAt(i)),
-        y = num(yAt(i));
-      const o = stride * (i - lo);
-      out[o] = x;
-      out[o + 1] = y;
-      if (x < xMin) xMin = x;
-      if (x > xMax) xMax = x;
-      if (y < yMin) yMin = y;
-      if (y > yMax) yMax = y;
+      const o = k * (i - lo);
       for (let c = 0; c < k; c++) {
-        const v = num(cAt[c]!(i));
-        out[o + 2 + c] = v;
-        if (v < cMin[c]!) cMin[c] = v;
-        if (v > cMax[c]!) cMax[c] = v;
+        const v = num(at[c]!(i));
+        out[o + c] = v;
+        if (v < mins[c]!) mins[c] = v;
+        if (v > maxs[c]!) maxs[c] = v;
       }
     }
-    const ext = (min: number, max: number): Extent => (min <= max ? { min, max } : NO_POINTS);
-    const extents: Extent[] = [ext(xMin, xMax), ext(yMin, yMax)];
-    for (let c = 0; c < k; c++) extents.push(ext(cMin[c]!, cMax[c]!));
-    return { count: hi - lo, extents };
+    return { count: hi - lo, extents: Array.from(mins, (min, c) => (min <= maxs[c]! ? { min, max: maxs[c]! } : NO_POINTS)) };
   }
 }

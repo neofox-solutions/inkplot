@@ -35,7 +35,12 @@ const wave = (n: number) => {
   return data;
 };
 const stages = (data: Float64Array) => new Decimator({}, new MinMaxKernel(), new FlatDataSource({ data, stride: 2, isSorted: true }));
-const context = (min = 0, max = 1e5, width = W): PlanContext => ({ width, height: H, domainRange: { min, max }, channels: [] });
+const context = (min = 0, max = 1e5, width = W): PlanContext => ({
+  width,
+  height: H,
+  domainRange: { min, max },
+  columns: ['domain', 'value'],
+});
 
 /** A worker that records what was posted to it (the messages inside any envelope are as the boundary made them). */
 function spy(inner: WorkerLike) {
@@ -217,7 +222,16 @@ test('worker boundary: the entrance waits for the first points, and plays then',
 test('serveWorker: answers on a port, whichever way the port listens', () => {
   const tree = { type: 'FlatDataSource', attrs: { data: { $ref: 'data' }, stride: 2, isSorted: true } };
   const attach = { kind: 'attach', id: 7, epoch: 1, tree, refs: { data: wave(100) } };
-  const fill = { kind: 'fill', id: 7, key: 'k', width: 300, height: 100, domainRange: { min: 0, max: 99 }, channels: [], sequence: false };
+  const fill = {
+    kind: 'fill',
+    id: 7,
+    key: 'k',
+    width: 300,
+    height: 100,
+    domainRange: { min: 0, max: 99 },
+    columns: ['domain', 'value'],
+    sequence: false,
+  };
   for (const style of ['events', 'emitter']) {
     const sent: { kind: string; count?: number; pointCount?: number }[] = [];
     const hook: { listener: ((data: unknown) => void) | null } = { listener: null };

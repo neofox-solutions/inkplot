@@ -69,8 +69,8 @@ export class LinkedData extends DataTransform<LinkedDataAttributes, []> {
     return this.target.channelExtent(this.#theirs(name));
   }
   override plan(context: PlanContext): FillPlan {
-    const names = context.channels.map((n) => this.#theirs(n));
-    return this.target.plan(this.attrs.channels ? { ...context, channels: names } : context);
+    const names = context.columns.map((n) => this.#theirs(n));
+    return this.target.plan(this.attrs.channels ? { ...context, columns: names } : context);
   }
   /** The source's own storage, read in place, with the channels under the names they have here. */
   override view(): PointView | null {

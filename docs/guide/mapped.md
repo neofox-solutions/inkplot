@@ -137,7 +137,7 @@ It is one SVG path whatever the number of points, painted with a `linearGradient
 - **Banded colours.** A `ColorAxis` with `interpolation="step"` gives hard bands: each colour holds halfway to its neighbours.
 - **Gaps** in the data leave the line broken, and the colours either side carry on from where they were.
 
-To colour a line by its own value, give the source a channel with the same numbers (`channels={{ temp: 'temp' }}` beside `value="temp"`).
+To colour a line by its own value, bind the channel `value` (`bind={{ stroke: { axis: 'heat', channel: 'value' } }}`); `domain` binds the same way. They are columns of the data like any other.
 
 ## Keys
 

@@ -10,6 +10,8 @@ import {
   DataSource,
   DataTransform,
   type DataNode,
+  isDomainName,
+  isValueName,
   type FillPlan,
   type FillResult,
   NO_POINTS,
@@ -84,7 +86,12 @@ export function partitionOf(source: DataSource, channel: string, order: Order, m
     const names = source.channelNames;
     if (!names.includes(channel)) return null;
     const stride = 2 + names.length;
-    const plan = source.plan({ width: 1, height: 1, domainRange: { min: -Infinity, max: Infinity }, channels: names });
+    const plan = source.plan({
+      width: 1,
+      height: 1,
+      domainRange: { min: -Infinity, max: Infinity },
+      columns: ['domain', 'value', ...names],
+    });
     const buffer = new Float64Array(plan.capacity * stride);
     const filled = plan.fill(buffer);
     const channelOffsets: Record<string, number> = {};
@@ -274,11 +281,19 @@ export function rawPlan(p: Partition, context: PlanContext, window?: readonly [f
   const v = p.view,
     d = v.data,
     s = v.stride;
-  const names = context.channels;
-  const offsets = names.map((name) => v.channelOffsets?.[name] ?? fail(`the data has no channel "${name}"`));
-  const k = offsets.length,
-    os = 2 + k;
+  const names = context.columns;
   const reg = v.regularDomain;
+  // A regular domain is computed, not stored: -1 stands for it.
+  const offsets = names.map((name) => {
+    const at = v.channelOffsets?.[name];
+    if (at !== undefined) return at;
+    if (isDomainName(name)) return reg ? -1 : v.domainOffset;
+    if (isValueName(name)) return v.valueOffset;
+    return fail(`the data has no channel "${name}"`);
+  });
+  const os = offsets.length,
+    start = reg?.start ?? 0,
+    step = reg?.step ?? 0;
   // The rows of a key that lie within the window of rows, if there is one: a key's rows ascend, so they are found by searching.
   const bounds = (slot: number): [number, number] => {
     const rows = p.rows()[slot]!;
@@ -306,23 +321,17 @@ export function rawPlan(p: Partition, context: PlanContext, window?: readonly [f
       const [from, to] = bounds(slot);
       const rows = window ? all.subarray(from, to) : all;
       const n = rows.length;
-      if (n === 0) return { count: 0, extents: [NO_POINTS, NO_POINTS, ...names.map(() => NO_POINTS)] };
+      if (n === 0) return { count: 0, extents: names.map(() => NO_POINTS) };
       const lo = new Float64Array(os).fill(Infinity),
         hi = new Float64Array(os).fill(-Infinity);
       for (let m = 0; m < n; m++) {
         const r = rows[m]!,
           j = r * s;
-        const x = reg ? reg.start + reg.step * r : d[j + v.domainOffset]!;
-        out[os * m] = x;
-        const y = (out[os * m + 1] = d[j + v.valueOffset]!);
-        if (x < lo[0]!) lo[0] = x;
-        if (x > hi[0]!) hi[0] = x;
-        if (y < lo[1]!) lo[1] = y;
-        if (y > hi[1]!) hi[1] = y;
-        for (let c = 0; c < k; c++) {
-          const value = (out[os * m + 2 + c] = d[j + offsets[c]!]!);
-          if (value < lo[2 + c]!) lo[2 + c] = value;
-          if (value > hi[2 + c]!) hi[2 + c] = value;
+        for (let c = 0; c < os; c++) {
+          const at = offsets[c]!;
+          const value = (out[os * m + c] = at < 0 ? start + step * r : d[j + at]!);
+          if (value < lo[c]!) lo[c] = value;
+          if (value > hi[c]!) hi[c] = value;
         }
       }
       const extents: Extent[] = [];

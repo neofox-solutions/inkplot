@@ -32,6 +32,8 @@ export interface SliceAttributes extends BaseAttributes {
   keyed?: boolean;
 }
 
+const BASE = ['domain', 'value'];
+
 export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
   static override attrTypes = {
     ...ChartElement.attrTypes,
@@ -60,20 +62,20 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
     return this.#version;
   }
   get pointCount(): number {
-    return this.#rows([]).count;
+    return this.#rows(BASE).count;
   }
   domain(): Extent | null {
-    const e = this.#rows([]).extents[0]!;
+    const e = this.#rows(BASE).extents[0]!;
     return e.min <= e.max ? e : null;
   }
   valueExtent(): Extent | null {
-    const e = this.#rows([]).extents[1]!;
+    const e = this.#rows(BASE).extents[1]!;
     return e.min <= e.max ? e : null;
   }
   channelExtent(name: string): Extent | null {
     const i = this.channelNames.indexOf(name);
     if (i < 0) return null;
-    const e = this.#rows([name]).extents[2]!;
+    const e = this.#rows([name]).extents[0]!;
     return e.min <= e.max ? e : null;
   }
 
@@ -84,7 +86,7 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
    */
   plan(context: PlanContext): FillPlan {
     const inner = this.source.plan(context);
-    const stride = 2 + context.channels.length;
+    const stride = context.columns.length;
     if (inner.rows !== undefined) {
       const [first, end] = this.#bounds(inner.rows),
         kept = end - first;
@@ -100,7 +102,7 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
     return {
       capacity: inner.capacity,
       fill: (out) => {
-        const r = this.#fillRows(inner, stride, context.channels);
+        const r = this.#fillRows(inner, stride, context.columns);
         out.set(this.#scratch.subarray(stride * r.first, stride * (r.first + r.count)));
         const { rowOf } = r;
         return { count: r.count, extents: r.extents, rowOf: rowOf && ((i) => rowOf(r.first + i)) };
@@ -133,14 +135,14 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
   }
 
   /** The kept rows of the whole source, with the extents of those rows: cached against the version and the channels asked for. */
-  #rows(channels: readonly string[]): { count: number; extents: readonly Extent[] } {
+  #rows(columns: readonly string[]): { count: number; extents: readonly Extent[] } {
     const source = this.source;
-    const context: PlanContext = { width: 1, height: 1, domainRange: source.domain() ?? NO_POINTS, channels };
-    return this.#fillRows(source.plan(context), 2 + channels.length, channels);
+    const context: PlanContext = { width: 1, height: 1, domainRange: source.domain() ?? NO_POINTS, columns };
+    return this.#fillRows(source.plan(context), columns.length, columns);
   }
 
-  #fillRows(inner: FillPlan, stride: number, channels: readonly string[]) {
-    const key = `${this.source.version}.${this.#version}|${stride}|${channels.join()}`;
+  #fillRows(inner: FillPlan, stride: number, columns: readonly string[]) {
+    const key = `${this.source.version}.${this.#version}|${stride}|${columns.join()}`;
     if (this.#cache?.key === key) return this.#cache;
     if (inner.rows !== undefined) {
       const [from, to] = this.#bounds(inner.rows);

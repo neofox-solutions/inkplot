@@ -51,7 +51,7 @@ export type ToWorker =
       width: number;
       height: number;
       domainRange: Extent;
-      channels: string[];
+      columns: string[];
       sequence: boolean;
       /** Fill every key of the partition (the spec of the last attach or update), one block each. */
       byKey?: boolean;

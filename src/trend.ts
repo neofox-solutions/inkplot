@@ -109,7 +109,12 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
     if (this.#cache && this.#cache.version === this.#version) return this.#cache;
     const name = this.attrs.x,
       src = this.source;
-    const plan = src.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: name ? [name] : [] });
+    const plan = src.plan({
+      width: 0,
+      height: 0,
+      domainRange: { min: -Infinity, max: Infinity },
+      columns: name ? ['domain', 'value', name] : ['domain', 'value'],
+    });
     const stride = name ? 3 : 2,
       buf = new Float64Array(plan.capacity * stride),
       { count } = plan.fill(buf);
@@ -203,7 +208,9 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
     return this.#span();
   }
   valueExtent(): Extent | null {
-    const ys = this.evaluate(this.#samples({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: [] }));
+    const ys = this.evaluate(
+      this.#samples({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, columns: ['domain', 'value'] }),
+    );
     let min = Infinity,
       max = -Infinity;
     for (const y of ys)
@@ -219,10 +226,17 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
   }
 
   plan(context: PlanContext): FillPlan {
-    for (const c of context.channels) if (c !== 'domain') fail(`${this.constructor.name} has no channel "${c}" (it has domain)`);
+    // The curve is `domain` and `value`, and `domain` again for anything else it is asked for by that name.
+    const kinds = context.columns.map((c) =>
+      c === 'domain' || c === 'x'
+        ? 0
+        : c === 'value' || c === 'y'
+          ? 1
+          : fail(`${this.constructor.name} has no channel "${c}" (it has domain)`),
+    );
     const xs = this.#samples(context),
       n = xs.length,
-      stride = 2 + context.channels.length;
+      stride = kinds.length;
     return {
       capacity: n,
       fill: (out) => {
@@ -230,14 +244,13 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
         let min = Infinity,
           max = -Infinity;
         for (let i = 0; i < n; i++) {
-          out[stride * i] = xs[i]!;
-          out[stride * i + 1] = ys[i]!;
-          for (let j = 0; j < context.channels.length; j++) out[stride * i + 2 + j] = xs[i]!;
+          for (let j = 0; j < stride; j++) out[stride * i + j] = kinds[j] === 0 ? xs[i]! : ys[i]!;
           if (ys[i]! < min) min = ys[i]!;
           if (ys[i]! > max) max = ys[i]!;
         }
         const x: Extent = n ? { min: xs[0]!, max: xs[n - 1]! } : NONE;
-        return { count: n, extents: [x, min <= max ? { min, max } : NONE, ...context.channels.map(() => x)] };
+        const y: Extent = min <= max ? { min, max } : NONE;
+        return { count: n, extents: kinds.map((k) => (k === 0 ? x : y)) };
       },
     };
   }

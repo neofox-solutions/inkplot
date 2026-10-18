@@ -28,7 +28,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, AUTO, STRING } from './attrs.ts';
 import { quantile } from './quantile.ts';
-import { type DataNode, DataSource, DataTransform, type FillPlan, type PlanContext } from './data.ts';
+import { type DataNode, DataSource, DataTransform, type FillPlan, isDomainName, isValueName, type PlanContext } from './data.ts';
 import { KeyedTransform } from './partition.ts';
 import { type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
@@ -88,7 +88,7 @@ export class BoxStats extends KeyedTransform<BoxStatsAttributes, [source: DataNo
   #compute(): Computed {
     if (this.#cache && this.#cache.version === this.#version) return this.#cache.value;
     const src = this.source,
-      plan = src.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: [] });
+      plan = src.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, columns: ['domain', 'value'] });
     const buf = new Float64Array(plan.capacity * 2),
       { count } = plan.fill(buf);
     const a = this.attrs,
@@ -185,30 +185,27 @@ export class BoxStats extends KeyedTransform<BoxStatsAttributes, [source: DataNo
   plan(context: PlanContext): FillPlan {
     const c = this.#compute(),
       outliers = this.attrs.output === 'outliers';
-    const names = context.channels;
-    if (outliers && names.length > 0) fail('BoxStats: the outliers have no channels, only the sample (the value)');
-    const want = names.map((n) =>
-      (SUMMARY as readonly string[]).includes(n)
+    const want = context.columns.map((n) => {
+      if (isDomainName(n) || isValueName(n)) return isDomainName(n) ? 'domain' : 'value';
+      if (outliers) fail('BoxStats: the outliers have no channels, only the sample (the value)');
+      return (SUMMARY as readonly string[]).includes(n)
         ? (n as SummaryChannel)
-        : fail(`BoxStats has no channel "${n}" (it has ${SUMMARY.join(', ')})`),
-    );
+        : fail(`BoxStats has no channel "${n}" (it has ${SUMMARY.join(', ')})`);
+    });
     const count = outliers ? c.outlierDomain.length : c.groups.length,
-      stride = 2 + want.length;
+      stride = want.length;
     return {
       capacity: count,
       fill: (out) => {
         const domain = outliers ? c.outlierDomain : c.groups,
           value = outliers ? c.outlierValue : c.columns[this.attrs.value ?? 'median'];
-        const extents: Extent[] = [
-          domain.length > 0 ? { min: domain[0]!, max: domain[domain.length - 1]! } : { min: Infinity, max: -Infinity },
-        ];
-        for (let i = 0; i < count; i++) {
-          out[stride * i] = domain[i]!;
-          out[stride * i + 1] = value[i]!;
-          for (let k = 0; k < want.length; k++) out[stride * i + 2 + k] = c.columns[want[k]!][i]!;
-        }
-        extents.push(this.#extent(value) ?? { min: Infinity, max: -Infinity });
-        for (const w of want) extents.push(this.#extent(c.columns[w]) ?? { min: Infinity, max: -Infinity });
+        const arrays = want.map((w) => (w === 'domain' ? domain : w === 'value' ? value : c.columns[w]));
+        for (let i = 0; i < count; i++) for (let k = 0; k < stride; k++) out[stride * i + k] = arrays[k]![i]!;
+        const extents = want.map((w, k) =>
+          w === 'domain' && domain.length > 0
+            ? { min: domain[0]!, max: domain[domain.length - 1]! }
+            : (this.#extent(arrays[k]!) ?? { min: Infinity, max: -Infinity }),
+        );
         return { count, extents };
       },
     };

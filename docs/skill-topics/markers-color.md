@@ -59,7 +59,7 @@ export const chart = (
 
 ## A line or an area coloured along its length
 
-`GradientLinePath` (bind `stroke`) and `GradientAreaPath` (bind `fill`, and `stroke` for an outline) colour a line or an area by a channel, smoothly from point to point: one path painted with a gradient laid along the first axis, with a colour stop at each point. A plain `LinePath` or `AreaPath` takes no `bind`. They need a rectangular plane (a polar one throws), a series that runs along its first axis (a `DomainSeries`; a looping `XYSeries` takes the colour of its last pass), and a channel of the data for the colour (to colour by the line's own value, give the source a second channel with the same numbers). `maxStops` (default 500) caps the colour stops: more points are averaged into stops. A `ColorAxis` with `interpolation="step"` gives hard bands.
+`GradientLinePath` (bind `stroke`) and `GradientAreaPath` (bind `fill`, and `stroke` for an outline) colour a line or an area by a channel, smoothly from point to point: one path painted with a gradient laid along the first axis, with a colour stop at each point. A plain `LinePath` or `AreaPath` takes no `bind`. They need a rectangular plane (a polar one throws), a series that runs along its first axis (a `DomainSeries`; a looping `XYSeries` takes the colour of its last pass), and a channel of the data for the colour (`channel: 'value'` colours by the line's own value, `'domain'` by its position). `maxStops` (default 500) caps the colour stops: more points are averaged into stops. A `ColorAxis` with `interpolation="step"` gives hard bands.
 
 ```tsx check title="Altitude profile coloured by speed"
 /** @jsxImportSource inkplot */

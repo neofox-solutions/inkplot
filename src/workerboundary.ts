@@ -210,7 +210,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
   plan(context: PlanContext): FillPlan {
     this.#ask(context, false);
     const have = this.#result,
-      stride = 2 + context.channels.length;
+      stride = context.columns.length;
     // What arrived for other channels is not laid out like this plot's points, and cannot stand in for them.
     if (!have || have.stride !== stride) return { capacity: 0, fill: () => ({ count: 0, extents: [] }) };
     return {
@@ -236,7 +236,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       throw e;
     }
     this.#sync();
-    const key = `${this.#epoch}|${byKey ? 'k' : 'p'}|${context.width}|${context.domainRange.min},${context.domainRange.max}|${context.channels.join(',')}|${context.sequence ? 1 : 0}`;
+    const key = `${this.#epoch}|${byKey ? 'k' : 'p'}|${context.width}|${context.domainRange.min},${context.domainRange.max}|${context.columns.join(',')}|${context.sequence ? 1 : 0}`;
     if (key !== this.#wanted) {
       this.#wanted = key;
       const request: Request = { key, context, byKey };
@@ -274,7 +274,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
   }
   override planPartitioned(context: PlanContext, partition: Partition): PartitionedPlan {
     this.#ask(context, true);
-    const stride = 2 + context.channels.length;
+    const stride = context.columns.length;
     const blockOf = (slot: number): number => {
       const b = this.#blocks;
       return b && b.stride === stride ? (b.index.get(partition.keys[slot] ?? NaN) ?? -1) : -1;
@@ -393,7 +393,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
         width: c.width,
         height: c.height,
         domainRange: c.domainRange,
-        channels: [...c.channels],
+        columns: [...c.columns],
         sequence: c.sequence ?? false,
         byKey: request.byKey,
         recycle,

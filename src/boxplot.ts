@@ -142,9 +142,8 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
     if (!lay) return null;
     const names = this.names,
       n = lay.n,
-      rs = d.stride,
-      base = rs - d.channels.length;
-    const col = (name: string) => base + d.channels.indexOf(name);
+      rs = d.stride;
+    const col = (name: string) => d.columnOf(name);
     const cols = [col(names.low), col(names.q1), names.median ? col(names.median) : d.secondColumn, col(names.q3), col(names.high)];
     // The five values of each row on the value axis, as fractions.
     const v = new Float64Array(n * 5);

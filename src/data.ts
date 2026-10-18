@@ -43,10 +43,11 @@ export interface PlanContext {
   readonly height: number;
   readonly domainRange: Extent;
   /**
-   * Extra columns to deliver after the domain and the value, in this order: a point is then `2 + channels.length`
-   * numbers wide. A series asks for the channels its renderers bind.
+   * The columns to deliver, by name and in this order, each name once: a point is `columns.length` numbers wide. A series asks
+   * for what it draws (`domain` and `value`, for a series along a domain) and what its renderers bind. The names `domain`
+   * and `x` mean the source's domain and `value` and `y` its value, unless it has a channel of that name.
    */
-  readonly channels: readonly string[];
+  readonly columns: readonly string[];
   /**
    * True when the domain is only the order of the points, as in an XY plot where a path wanders across the plane, and
    * not a position on an axis. Nothing may window or thin such points by pixel column, so a `Decimator` refuses them.
@@ -162,8 +163,25 @@ export interface DataSourceAttributes extends BaseAttributes {
   wrap?: number;
 }
 
+/** The names a source answers with its domain, and with its value, when none of its channels has the name: the default assignments. */
+export const isDomainName = (name: string): boolean => name === 'domain' || name === 'x';
+export const isValueName = (name: string): boolean => name === 'value' || name === 'y';
+/**
+ * For a stage that works on a domain and a value (a decimator): fail unless the first two requested columns are those, with
+ * a message that says what it was attached to instead. Further columns are for the caller to refuse or carry.
+ */
+export function expectDomainValue(context: PlanContext, who: string): void {
+  const [first, second] = context.columns;
+  if (first === 'domain' && second === 'value') return;
+  fail(
+    `Expected 'domain' and 'value' as the first requested channels but got ${[first, second].map((n) => (n === undefined ? 'nothing' : `'${n}'`)).join(' and ')}; ${who} must be attached to a DomainSeries or compatible`,
+  );
+}
+/** `names` once each, in order of first appearance. */
+export const distinct = (names: readonly string[]): string[] => names.filter((n, i) => names.indexOf(n) === i);
+
 /** What a source's loader is given: nothing about the plot, since loading from storage does not depend on it. */
-const LOAD_CONTEXT: PlanContext = { width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: [] };
+const LOAD_CONTEXT: PlanContext = { width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, columns: ['domain', 'value'] };
 
 /** A source's own sorted copy of its points, valid for one `version`. `extents` has one entry per column. */
 interface ManagedPoints {
@@ -276,8 +294,7 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   }
 
   /**
-   * Write every point into `out`, in storage order, as the domain, the value and then each of `context.channels`,
-   * and report the extent of every column, NaN skipped. This is the hot loop, so each source writes its own
+   * Write every point into `out`, in storage order, as each of `context.columns` in turn, and report the extent of every column, NaN skipped. This is the hot loop, so each source writes its own
    * against its own storage. With `from` and `to`, only those rows (see `rowRange`), written from the start of `out`, and
    * the extents are theirs.
    */
@@ -307,7 +324,7 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
       stride = 2 + names.length,
       n = this.pointCount;
     if (this.#loadBuffer.length < stride * (n + 1)) this.#loadBuffer = new Float64Array(stride * (n + 1));
-    const loaded = this.fill(this.#loadBuffer, { ...LOAD_CONTEXT, channels: names });
+    const loaded = this.fill(this.#loadBuffer, { ...LOAD_CONTEXT, columns: ['domain', 'value', ...names] });
     let buf = this.#loadBuffer,
       count = loaded.count,
       extents = loaded.extents;
@@ -425,8 +442,8 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
         if (y > max) max = y;
       }
     } else {
-      const plan = this.plan(LOAD_CONTEXT),
-        extent = plan.fill(new Float64Array(2 * plan.capacity)).extents[1];
+      const plan = this.plan({ ...LOAD_CONTEXT, columns: ['value'] }),
+        extent = plan.fill(new Float64Array(plan.capacity)).extents[0];
       if (extent) {
         min = extent.min;
         max = extent.max;
@@ -443,8 +460,8 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
     if (!c || c.version !== this.version) c = this.channelCache = { version: this.version, byName: new Map() };
     const known = c.byName.get(name);
     if (known !== undefined) return known;
-    const plan = this.plan({ ...LOAD_CONTEXT, channels: [name] }),
-      column = plan.fill(new Float64Array(3 * plan.capacity)).extents[2];
+    const plan = this.plan({ ...LOAD_CONTEXT, columns: [name] }),
+      column = plan.fill(new Float64Array(plan.capacity)).extents[0];
     const extent = column && column.min <= column.max ? column : null;
     c.byName.set(name, extent);
     return extent;
@@ -467,11 +484,16 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
       };
     }
     const m = this.managed(),
-      want = context.channels,
+      want = context.columns,
       have = this.channelNames;
     const rows = m.rows,
       rowOf = rows ? (i: number) => rows[i]! : identity;
-    if (want.length === have.length && want.every((w, i) => w === have[i])) {
+    // Where each requested column is in the managed buffer: a channel by name, else the default assignments.
+    const columns = want.map((name) => {
+      const i = have.indexOf(name);
+      return i >= 0 ? 2 + i : isDomainName(name) ? 0 : isValueName(name) ? 1 : fail(`the data has no channel "${name}"`);
+    });
+    if (columns.length === m.stride && columns.every((c, i) => c === i)) {
       return {
         capacity: m.count,
         rows: m.count,
@@ -487,27 +509,21 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
         },
       };
     }
-    // A different selection of channels: repack each row.
-    const columns = want.map((name) => {
-      const i = have.indexOf(name);
-      return i < 0 ? fail(`the data has no channel "${name}"`) : 2 + i;
-    });
-    const out2 = 2 + want.length;
+    // A different selection of columns: repack each row.
+    const width = columns.length;
     return {
       capacity: m.count,
       rows: m.count,
       fill: (out, from, to) => {
         const [lo, hi] = rowRange(m.count, from, to);
         for (let i = lo; i < hi; i++) {
-          const o = out2 * (i - lo);
-          out[o] = m.data[m.stride * i]!;
-          out[o + 1] = m.data[m.stride * i + 1]!;
-          for (let c = 0; c < columns.length; c++) out[o + 2 + c] = m.data[m.stride * i + columns[c]!]!;
+          const o = width * (i - lo);
+          for (let c = 0; c < width; c++) out[o + c] = m.data[m.stride * i + columns[c]!]!;
         }
         const extents =
           lo === 0 && hi === m.count
-            ? [m.extents[0]!, m.extents[1]!, ...columns.map((c) => m.extents[c]!)]
-            : columnExtents(out.subarray(0, out2 * (hi - lo)), hi - lo, out2);
+            ? columns.map((c) => m.extents[c]!)
+            : columnExtents(out.subarray(0, width * (hi - lo)), hi - lo, width);
         return { count: hi - lo, extents, rowOf: lo === 0 ? rowOf : (i) => rowOf(lo + i) };
       },
     };

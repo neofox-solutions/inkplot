@@ -15,7 +15,7 @@ import {
 import { test } from 'vite-plus/test';
 
 test('data', () => {
-  const ctx: PlanContext = { width: 600, height: 300, domainRange: { min: 0, max: 100 }, channels: [] };
+  const ctx: PlanContext = { width: 600, height: 300, domainRange: { min: 0, max: 100 }, columns: ['domain', 'value'] };
   const points = (src: FlatDataSource | ObjectDataSource | CompositeDataSource | SyntheticDataSource): number[] => {
     const plan = src.plan(ctx),
       out = new Float64Array(plan.capacity * 2),
@@ -142,7 +142,7 @@ test('data', () => {
 
   // ── Channels: extra columns after the domain and the value, carried through sorting, selection and extents.
   {
-    const wide = (names: string[]): PlanContext => ({ ...ctx, channels: names });
+    const wide = (names: string[]): PlanContext => ({ ...ctx, columns: ['domain', 'value', ...names] });
     const rowsOf = (out: Float64Array, count: number, stride: number) =>
       Array.from({ length: count }, (_, i) => Array.from(out.subarray(stride * i, stride * (i + 1))));
 
@@ -219,13 +219,13 @@ test('data', () => {
       channels: {},
     });
     const dec = new Decimator({}, new MinMaxKernel(), big);
-    assert.throws(() => dec.plan({ ...ctx, channels: ['w'] }), /cannot carry channels/);
+    assert.throws(() => dec.plan({ ...ctx, columns: ['domain', 'value', 'w'] }), /cannot carry channels/);
     dec.plan(ctx); // no channels asked for: fine
     new Decimator(
       { enabled: false },
       new MinMaxKernel(),
       new FlatDataSource({ data: new Float64Array([1, 2, 3, 4, 5, 6]), stride: 3, isSorted: true, channels: { w: 2 } }),
-    ).plan({ ...ctx, channels: ['w'] }); // switched off: passes straight through
+    ).plan({ ...ctx, columns: ['domain', 'value', 'w'] }); // switched off: passes straight through
     console.log('ok data channels');
   }
 
@@ -241,7 +241,7 @@ test('data', () => {
     assert.deepEqual(wrapped.domain(), { min: 0, max: 3 }, 'the domain reaches the copy');
     assert.deepEqual(wrapped.valueExtent(), { min: 3, max: 8 });
     assert.deepEqual(wrapped.channelExtent('w'), { min: 7, max: 9 });
-    const withChannel = wrapped.plan({ ...ctx, channels: ['w'] }),
+    const withChannel = wrapped.plan({ ...ctx, columns: ['domain', 'value', 'w'] }),
       out = new Float64Array(withChannel.capacity * 3);
     withChannel.fill(out);
     assert.deepEqual(Array.from(out.subarray(9, 12)), [3, 3, 7], 'channels are copied with it');
@@ -273,12 +273,12 @@ test('data', () => {
     assert.deepEqual(cols.domain(), { min: 1, max: 3 });
     assert.deepEqual(cols.valueExtent(), { min: 10, max: 30 });
     assert.deepEqual(cols.channelExtent('w'), { min: 7, max: 9 });
-    const withW = cols.plan({ ...ctx, channels: ['w'] }),
+    const withW = cols.plan({ ...ctx, columns: ['domain', 'value', 'w'] }),
       o = new Float64Array(withW.capacity * 3),
       rw = withW.fill(o);
     assert.deepEqual(Array.from(o.subarray(0, 9)), [1, 10, 8, 2, 20, 9, 3, 30, 7], 'the channel travels with its row');
     assert.deepEqual([0, 1, 2].map(rw.rowOf!), [1, 2, 0], 'rowOf names the storage row');
-    assert.throws(() => cols.plan({ ...ctx, channels: ['nope'] }).fill(new Float64Array(9)), /no channel "nope"/);
+    assert.throws(() => cols.plan({ ...ctx, columns: ['domain', 'value', 'nope'] }).fill(new Float64Array(9)), /no channel "nope"/);
 
     // A made-up domain with arbitrary values: in order by construction, so it is read where it is.
     const made = new CompositeDataSource({ count: 4, domain: (i) => 100 + 5 * i, value: new Float32Array([2, 4, NaN, 8]), isSorted: true });
@@ -320,7 +320,7 @@ test('data', () => {
     assert.deepEqual(r2.extents[1], { min: 100, max: 400 });
     assert.equal(fine.plan({ ...ctx, domainRange: { min: 200, max: 300 } }).fill(new Float64Array(2000)).count, 0, 'out of range: nothing');
     assert.deepEqual(fine.valueExtent(), { min: 0, max: 10000 }, 'the whole function, not the view');
-    assert.throws(() => fine.plan({ ...ctx, channels: ['w'] }).fill(new Float64Array(3000)), /no channel/);
+    assert.throws(() => fine.plan({ ...ctx, columns: ['domain', 'value', 'w'] }).fill(new Float64Array(3000)), /no channel/);
     assert.deepEqual(
       points(new SyntheticDataSource({ fn: (x) => (x === 1 ? NaN : x), domain: { min: 0, max: 2 }, count: 3 })),
       [0, 0, 1, NaN, 2, 2],

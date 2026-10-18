@@ -42,10 +42,10 @@ export function readTable(node: DataNode, options: TableOptions = {}): Table {
     width: options.samples ?? 0,
     height: 0,
     domainRange: options.domain ?? { min: -Infinity, max: Infinity },
-    channels,
+    columns: ['domain', 'value', ...channels],
   };
   const plan: FillPlan = node.plan(context),
-    stride = 2 + channels.length;
+    stride = context.columns.length;
   const buffer = new Float64Array(plan.capacity * stride),
     { count } = plan.fill(buffer);
   const columns = [options.names?.domain ?? 'domain', options.names?.value ?? 'value', ...channels];

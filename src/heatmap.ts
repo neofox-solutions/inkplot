@@ -166,10 +166,9 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
     if (this.#geometry && this.#geometry.projection === series.projection) return this.#geometry;
     const n = d.points.count,
       rs = d.stride,
-      base = rs - d.channels.length,
       a = this.attrs;
     const { w: wc, h: hc } = this.sizeChannels;
-    const colOf = (name: string) => base + d.channels.indexOf(name);
+    const colOf = (name: string) => d.columnOf(name);
     const wCol = wc ? colOf(wc) : -1,
       hCol = hc ? colOf(hc) : -1;
     const xs = new Float64Array(n * 2),
@@ -229,7 +228,7 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
       g && d
         ? bindings.map((b) => ({
             b,
-            f: fractionsOf(b, d.raw, d.stride - d.channels.length + d.channels.indexOf(b.channel), d.stride, g.n),
+            f: fractionsOf(b, d.raw, d.columnOf(b.channel), d.stride, g.n),
           }))
         : [];
     const paths = new Map<number, string>();

@@ -14,6 +14,7 @@ import {
   type DataNode,
   DataSource,
   DataTransform,
+  expectDomainValue,
   type FillPlan,
   type FillResult,
   NO_POINTS,
@@ -667,8 +668,9 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
     // Kernels thin by pixel column of the domain, which a path that only has an order does not have.
     if (context.sequence)
       fail('a Decimator needs a domain that is a position on an axis: an XY series has only an order, so draw it undecimated');
+    expectDomainValue(context, 'a Decimator');
     // Kernels reduce (domain, value) pairs; a channel column would not follow the points they keep.
-    if (context.channels.length > 0) fail('a Decimator cannot carry channels: bind on undecimated data, or turn the Decimator off');
+    if (context.columns.length > 2) fail('a Decimator cannot carry channels: bind on undecimated data, or turn the Decimator off');
     // At least 3 so the kernels' first/last handling has columns to work with.
     const columns = Math.max(3, Math.floor(context.width * (a.resolution ?? 1)));
     const capacity = kernel.capacity(columns);
@@ -725,7 +727,8 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
     if (a.enabled === false) return inner;
     if (context.sequence)
       fail('a Decimator needs a domain that is a position on an axis: an XY series has only an order, so draw it undecimated');
-    if (context.channels.length > 0) fail('a Decimator cannot carry channels: bind on undecimated data, or turn the Decimator off');
+    expectDomainValue(context, 'a Decimator');
+    if (context.columns.length > 2) fail('a Decimator cannot carry channels: bind on undecimated data, or turn the Decimator off');
     const columns = Math.max(3, Math.floor(context.width * (a.resolution ?? 1)));
     const capacity = this.kernel.capacity(columns);
     if (!(this.source instanceof DataSource)) return this.#viaSource(inner, columns, capacity, context.domainRange);

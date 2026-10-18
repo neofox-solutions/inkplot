@@ -79,9 +79,7 @@ export function layoutBars(series: Series, options: BarOptions): BarLayout | nul
     first = series.firstAxis,
     second = series.secondAxis;
   const baseline = options.baseline ?? 0;
-  // The channels come last in a row, in the order of `channels`.
-  const fromAt = options.from === undefined ? -1 : d.channels.indexOf(options.from),
-    fromColumn = fromAt < 0 ? -1 : rs - d.channels.length + fromAt;
+  const fromColumn = options.from === undefined ? -1 : d.columnOf(options.from);
   const norm = new Float64Array(n * 3);
   for (let i = 0; i < n; i++) {
     const v = raw[i * rs + d.secondColumn]!,
@@ -292,7 +290,7 @@ export abstract class BarRenderer<A extends BarRendererAttributes<object> = BarR
     const styled = d
       ? this.bindings.map((b) => ({
           b,
-          f: fractionsOf(b, d.raw, d.stride - d.channels.length + d.channels.indexOf(b.channel), d.stride, count),
+          f: fractionsOf(b, d.raw, d.columnOf(b.channel), d.stride, count),
         }))
       : [];
     const paths = new Map<number, string>();

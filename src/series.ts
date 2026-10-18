@@ -24,7 +24,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- stride-addressed rows of the managed buffers: every index is bounded by the row count */
 import { type AttrTypesFor, STRING } from './attrs.ts';
 import { Axis } from './axis.ts';
-import { type DataNode, DataSource, DataTransform, type PlanContext, type PointBuffer } from './data.ts';
+import { type DataNode, DataSource, DataTransform, distinct, type PlanContext, type PointBuffer } from './data.ts';
 import { type AnyElement, type BaseAttributes, ChartElement, type ElementRef, fail, resolveRef } from './element.ts';
 import { writeAria } from './aria.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_PAINT } from './events.ts';
@@ -103,6 +103,7 @@ function nodeId(node: object): number {
 const NO_DRAWN_POINTS: Readonly<PointBuffer> = { data: new Float64Array(0), stride: 2, count: 0 };
 /** The contribution of a column the fill did not report (never happens for a valid source); NaN is ignored by axes. */
 const NO_EXTENT: Extent = { min: NaN, max: NaN };
+const DOMAIN_VALUE = ['domain', 'value'] as const;
 
 /**
  * What `Series.drawn` hands out: the plane, the points in plot pixels (`points`), and the data values they were made
@@ -117,6 +118,8 @@ export interface Drawn {
   readonly firstColumn: number;
   readonly secondColumn: number;
   readonly channels: readonly string[];
+  /** The column of `raw` that holds a named column of the data (a bound channel, or `domain` or `value`), or -1. */
+  readonly columnOf: (name: string) => number;
   readonly rowOf: ((index: number) => number) | null;
   readonly alongDomain: boolean;
   /** In a stack: where each row starts and is plotted, and the series' place beside the others. Null otherwise. */
@@ -187,7 +190,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   }
   /**
    * Every channel its renderers bind or ask for (`channelNames`): what a renderer can ask for by name. In `points` they follow the two coordinates
-   * in this order, so a channel's column is `2 + channels.indexOf(name)`.
+   * in this order, so a channel's column is `2 + channels.indexOf(name)`. (A channel may be the name of a coordinate too: `domain`, `value`.)
    */
   get channels(): readonly string[] {
     const names = new Set<string>();
@@ -302,6 +305,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
       firstColumn: this.firstColumn,
       secondColumn: this.secondColumn,
       channels: this.channels,
+      columnOf: (name) => this.columns.indexOf(name),
       rowOf: rows.rowOf,
       alongDomain: this.alongDomain,
       base: layer?.base ?? null,
@@ -321,10 +325,23 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   abstract get firstAxis(): Axis;
   /** The axis the second coordinate rides on. */
   abstract get secondAxis(): Axis;
-  /** Which column of the data (domain 0, value 1, channels from 2) is the first coordinate. */
-  protected abstract get firstColumn(): number;
-  /** Which column of the data is the second coordinate. */
-  protected abstract get secondColumn(): number;
+  /** The names of the two coordinates, as the data is asked for them: `domain` and `value` for a series along a domain, x and y otherwise. */
+  protected abstract get coordinates(): readonly [first: string, second: string];
+  /**
+   * The columns of the raw rows, by name and in order: the two coordinates, then each bound channel not already among them. This is
+   * what the data is asked for (see `PlanContext`), and a name's column is its index here.
+   */
+  get columns(): readonly string[] {
+    return distinct([...this.coordinates, ...this.channels]);
+  }
+  /** Which column of the raw rows is the first coordinate. */
+  protected get firstColumn(): number {
+    return this.columns.indexOf(this.coordinates[0]);
+  }
+  /** Which column of the raw rows is the second coordinate. */
+  protected get secondColumn(): number {
+    return this.columns.indexOf(this.coordinates[1]);
+  }
   /** Pick the axes, from attributes or else the plane's. */
   abstract resolveAxes(plane: Plane): void;
   /** Report what is known of the domain before any data is read, so that fills can depend on it. */
@@ -345,8 +362,8 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   protected fill(ctx: PlanContext): readonly Extent[] {
     const data = this.data,
       counters = this.counters;
-    const stride = 2 + ctx.channels.length;
-    const key = `${nodeId(data)}.${data.version}|${ctx.domainRange.min}|${ctx.domainRange.max}|${ctx.width}|${ctx.channels.join()}`;
+    const stride = ctx.columns.length;
+    const key = `${nodeId(data)}.${data.version}|${ctx.domainRange.min}|${ctx.domainRange.max}|${ctx.width}|${ctx.columns.join()}`;
     if (key === this.#key) {
       counters.cached++;
     } else {
@@ -434,9 +451,8 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   /** The rows as a renderer's `spread` sees them. */
   private spreadView(): SpreadView {
     const { raw, count, stride } = this.rows(),
-      channels = this.channels,
+      columns = this.columns,
       layer = this.#layer;
-    const first = channels.length === 0 ? stride : stride - channels.length;
     return {
       raw,
       count,
@@ -445,8 +461,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
       secondColumn: this.secondColumn,
       top: layer?.top ?? null,
       channelColumn: (name) => {
-        const k = channels.indexOf(name);
-        return k < 0 ? -1 : first + k;
+        return columns.indexOf(name);
       },
     };
   }
@@ -477,21 +492,21 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
       layer = this.#layer;
     const c0 = this.firstColumn,
       c1 = this.secondColumn,
-      bound = this.channels.length,
+      boundColumns = this.channels.map((name) => this.columns.indexOf(name)),
+      bound = boundColumns.length,
       stride = 2 + bound;
     if (!this.#points || this.#points.data.length < n * stride) this.#points = { data: new Float64Array(n * stride), stride, count: 0 };
     const p = this.#points;
     p.stride = stride;
     p.count = n;
-    if (c0 === 0 && c1 === 1 && rs === stride) {
+    if (c0 === 0 && c1 === 1 && rs === stride && boundColumns.every((c, k) => c === 2 + k)) {
       p.data.set(raw.subarray(0, n * stride));
     } else {
-      // The coordinates are not the first two columns: gather them, then the bound channels, which come last.
-      const channels = rs - bound;
+      // The raw rows are not laid out as the points are: gather the coordinates, then the bound channels, each from where it is.
       for (let i = 0; i < n; i++) {
         p.data[i * stride] = raw[i * rs + c0]!;
         p.data[i * stride + 1] = raw[i * rs + c1]!;
-        for (let k = 0; k < bound; k++) p.data[i * stride + 2 + k] = raw[i * rs + channels + k]!;
+        for (let k = 0; k < bound; k++) p.data[i * stride + 2 + k] = raw[i * rs + boundColumns[k]!]!;
       }
     }
     if (this.#zero)
@@ -586,11 +601,8 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   get secondAxis(): Axis {
     return this.valueAxis;
   }
-  protected get firstColumn(): number {
-    return 0;
-  }
-  protected get secondColumn(): number {
-    return 1;
+  protected get coordinates(): readonly [string, string] {
+    return DOMAIN_VALUE;
   }
   protected override get alongDomain(): boolean {
     return true;
@@ -618,7 +630,7 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   }
 
   load(estimate: Size): void {
-    const ext = this.fill({ ...estimate, domainRange: this.domainAxis.range, channels: this.channels })[1] ?? NO_EXTENT;
+    const ext = this.fill({ ...estimate, domainRange: this.domainAxis.range, columns: this.columns })[this.secondColumn] ?? NO_EXTENT;
     this.valueAxis.contribute(ext.min, ext.max);
     this.reachBeyondBars(ext);
     this.contributeChannels();
@@ -635,7 +647,7 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
 
   /** Engine protocol for a `Stack`: read the data (the first half of `load`) and give the rows, leaving the extents to the stack. */
   prepare(estimate: Size): Rows {
-    this.fill({ ...estimate, domainRange: this.domainAxis.range, channels: this.channels });
+    this.fill({ ...estimate, domainRange: this.domainAxis.range, columns: this.columns });
     return this.ownRows();
   }
   /** Engine protocol for a `Stack`: the rest of `load`, with the value extent the stack worked out for its stacked values. */
@@ -707,29 +719,9 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   get secondAxis(): Axis {
     return this.yAxis;
   }
-  /**
-   * What is asked of the source for x and y, ahead of the channels the renderers bind: the names that are channels, and the
-   * column of the data each coordinate is read from (the source's own domain and value columns for 'domain' and 'value').
-   */
-  #wanted(): { names: string[]; x: number; y: number } {
-    const names: string[] = [];
-    const column = (name: string) => {
-      if (name === 'domain') return 0;
-      if (name === 'value') return 1;
-      let i = names.indexOf(name);
-      if (i < 0) i = names.push(name) - 1;
-      return 2 + i;
-    };
-    const x = column(this.attrs.x ?? 'x'),
-      y = column(this.attrs.y ?? 'y');
-    return { names, x, y };
-  }
-  // The data is [order, value, ...x and y where they are channels, ...bound channels].
-  protected get firstColumn(): number {
-    return this.#wanted().x;
-  }
-  protected get secondColumn(): number {
-    return this.#wanted().y;
+  // The data is asked for x and y by name, then the bound channels: any of them may be the source's `domain` or `value`.
+  protected get coordinates(): readonly [string, string] {
+    return [this.attrs.x ?? 'x', this.attrs.y ?? 'y'];
   }
 
   resolveAxes(plane: Plane): void {
@@ -745,15 +737,9 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   resolveDomain(): void {}
 
   load(estimate: Size): void {
-    const { names, x: xc, y: yc } = this.#wanted();
-    const ext = this.fill({
-      ...estimate,
-      domainRange: { min: -Infinity, max: Infinity },
-      sequence: true,
-      channels: [...names, ...this.channels],
-    });
-    const x = ext[xc] ?? NO_EXTENT,
-      y = ext[yc] ?? NO_EXTENT;
+    const ext = this.fill({ ...estimate, domainRange: { min: -Infinity, max: Infinity }, sequence: true, columns: this.columns });
+    const x = ext[this.firstColumn] ?? NO_EXTENT,
+      y = ext[this.secondColumn] ?? NO_EXTENT;
     this.xAxis.contribute(x.min, x.max);
     this.yAxis.contribute(y.min, y.max);
     this.contributeChannels();

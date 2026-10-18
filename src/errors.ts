@@ -121,11 +121,9 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
       first = series.firstAxis,
       second = series.secondAxis;
     const n = d.points.count,
-      rs = d.stride,
-      bound = d.channels.length,
-      base = rs - bound;
-    const colError = base + d.channels.indexOf(a.error),
-      colNeg = base + d.channels.indexOf(this.negative);
+      rs = d.stride;
+    const colError = d.columnOf(a.error),
+      colNeg = d.columnOf(this.negative);
     const pts = new Float64Array(n * 8),
       held = new Uint8Array(n);
     for (let i = 0; i < n; i++) {

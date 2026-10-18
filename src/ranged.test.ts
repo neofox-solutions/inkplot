@@ -19,7 +19,12 @@ import {
 } from './index.ts';
 import { rowRange, type DataNode } from './data.ts';
 
-const ctx = (channels: string[] = [], width = 64): PlanContext => ({ width, height: 10, domainRange: { min: -1e9, max: 1e9 }, channels });
+const ctx = (channels: string[] = [], width = 64): PlanContext => ({
+  width,
+  height: 10,
+  domainRange: { min: -1e9, max: 1e9 },
+  columns: ['domain', 'value', ...channels],
+});
 const full = (plan: FillPlan, stride: number) => {
   const out = new Float64Array(plan.capacity * stride);
   const r = plan.fill(out);

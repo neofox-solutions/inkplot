@@ -4,7 +4,7 @@ Two of the contracts you are most likely to meet when your data or axes are unus
 
 ## The data contract
 
-A point is a row of numbers: `[domain, value, ...channels]`. Every stage that delivers points delivers them **ascending in the domain**, because everything downstream (windowing to the visible range, decimating, building paths) wants that. How a source achieves it is its own business:
+A point is a row of numbers, one for each column a series asks for by name (`context.columns`): usually `[domain, value, ...channels]`. Every stage that delivers points delivers them **ascending in the domain**, because everything downstream (windowing to the visible range, decimating, building paths) wants that. How a source achieves it is its own business:
 
 - Already ascending (`isSorted`, a regular domain, generated data): the data is read where it is stored, with no copy.
 - Otherwise: copied once per change into a buffer the source owns, with NaN domains dropped and rows sorted.
@@ -14,7 +14,7 @@ A point is a row of numbers: `[domain, value, ...channels]`. Every stage that de
 | You implement | Does |
 |---|---|
 | `pointCount` | How many points are stored. |
-| `fill(out, context)` | Writes every point into `out` (storage order, as domain, value, then each of `context.channels`) and returns the `count` and an **extent for every column**, NaN skipped. This is the hot loop; write it against your own storage. It also takes `from` and `to`: write only rows `from` up to `to` (use `rowRange(n, from, to)`), from the start of `out`, with the extents of those rows. A `Slice` over your source then reads only its window, so a long source costs what its window costs. |
+| `fill(out, context)` | Writes every point into `out` (storage order, one number for each of `context.columns`, in that order: the names `domain` and `x` are the domain and `value` and `y` the value, unless you have a channel of that name) and returns the `count` and an **extent for every column**, NaN skipped. This is the hot loop; write it against your own storage. It also takes `from` and `to`: write only rows `from` up to `to` (use `rowRange(n, from, to)`), from the start of `out`, with the extents of those rows. A `Slice` over your source then reads only its window, so a long source costs what its window costs. |
 | `scanDomain()` | The extent of the domain of an *ordered* source: only its two ends matter. |
 | `orderedView()` *(optional)* | Offers the storage for zero-copy reading, when it is ordered and flat. |
 | `channelNames` *(optional)* | The channels this source can deliver, in storage order. Default none. |

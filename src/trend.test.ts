@@ -166,7 +166,12 @@ test('trend', () => {
     near(t.valueExtent()!.min, 3 + 2 * -9.5, 'value extent covers the extension');
     assert.throws(() => new LinearTrend({ extend: -1 }, src(line)).domain(), /extend/);
     // Without `count` the width says: one a pixel across what is in view.
-    const wide = new LinearTrend({}, src(line)).plan({ width: 300, height: 100, domainRange: { min: 5, max: 10 }, channels: [] });
+    const wide = new LinearTrend({}, src(line)).plan({
+      width: 300,
+      height: 100,
+      domainRange: { min: 5, max: 10 },
+      columns: ['domain', 'value'],
+    });
     assert.equal(wide.capacity, 300);
     const buf = new Float64Array(600),
       res = wide.fill(buf);

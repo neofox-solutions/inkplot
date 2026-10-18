@@ -36,7 +36,7 @@
  */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, AUTO, NUMBER, STRING } from './attrs.ts';
-import { type DataNode, DataSource, DataTransform, type FillPlan, type PlanContext } from './data.ts';
+import { type DataNode, DataSource, DataTransform, type FillPlan, isDomainName, isValueName, type PlanContext } from './data.ts';
 import { KeyedTransform } from './partition.ts';
 import { type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
@@ -141,7 +141,12 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
     const weightName = a.weight;
     // Read what is needed from the source: its own two columns, and a channel for each other name.
     const names = [...new Set([...dims, ...(weightName ? [weightName] : [])].filter((n) => n !== 'domain' && n !== 'value'))];
-    const plan = this.source.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, channels: names });
+    const plan = this.source.plan({
+      width: 0,
+      height: 0,
+      domainRange: { min: -Infinity, max: Infinity },
+      columns: ['domain', 'value', ...names],
+    });
     const stride = 2 + names.length,
       buf = new Float64Array(plan.capacity * stride),
       { count: n } = plan.fill(buf);
@@ -318,21 +323,19 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
 
   plan(context: PlanContext): FillPlan {
     const c = this.#compute(),
-      want = context.channels.map((n) => this.#channel(c, n)),
-      stride = 2 + want.length;
-    const domain = c.centres[0]!,
+      domain = c.centres[0]!,
       value = this.#value(c),
       count = c.count;
+    const want = context.columns.map((n) => (isDomainName(n) ? domain : isValueName(n) ? value : this.#channel(c, n))),
+      stride = want.length;
     return {
       capacity: count,
       fill: (out) => {
         for (let i = 0; i < count; i++) {
-          out[stride * i] = domain[i]!;
-          out[stride * i + 1] = value[i]!;
-          for (let j = 0; j < want.length; j++) out[stride * i + 2 + j] = want[j]![i]!;
+          for (let j = 0; j < stride; j++) out[stride * i + j] = want[j]![i]!;
         }
         const none: Extent = { min: Infinity, max: -Infinity };
-        return { count, extents: [this.#extent(domain) ?? none, this.#extent(value) ?? none, ...want.map((w) => this.#extent(w) ?? none)] };
+        return { count, extents: want.map((w) => this.#extent(w) ?? none) };
       },
     };
   }

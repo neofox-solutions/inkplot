@@ -167,7 +167,7 @@ test('worker boundary on a real Web Worker', async () => {
 
     // A worker that cannot start is an error for the boundary that asked of it.
     const message = await page.evaluate(async () => {
-      const ctx = { width: 600, height: 300, domainRange: { min: 0, max: 1 }, channels: [] };
+      const ctx = { width: 600, height: 300, domainRange: { min: 0, max: 1 }, columns: ['domain', 'value'] };
       window.lost.plan(ctx);
       await new Promise((r) => setTimeout(r, 300));
       try {
