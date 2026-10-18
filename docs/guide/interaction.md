@@ -26,6 +26,8 @@ Which drawn point is a pointer "near"? That is the **series'** choice, because o
 
 `hit` can also be an options object, `{ mode, radius, baseline }` (`radius` is the farthest a pointer may be, in pixels, and still hit: default 10), or `false` for a series that should never be hit (a reference line, a selection overlay).
 
+Hits are measured against the points that are drawn (those a [`Decimator`](data.md#decimation) left), one by one, so for an interactive chart decimation is strongly recommended once a series passes about 100,000 points: see [Performance](performance.md#data).
+
 In every mode the hit is one of the points, never a place between two: the one nearest to where the pointer is. Steps and curves are measured *as drawn*: their renderers trace the path they draw, so a point's reach follows the line on screen.
 
 A hit (`Hit`) has: `series`, `plane`, `index` (in the drawn points), `row` (the point's row in the source's own storage, absent if the point was made up, as by a decimator), `first` and `second` (its two coordinates in data terms), `channels` (its bound channels' values by name), `px` and `py` (where it is drawn, in plot pixels), and in a stack `lift`.

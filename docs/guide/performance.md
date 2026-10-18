@@ -44,6 +44,8 @@ To keep it small:
 
 A chart is **retained**: a change invalidates the parts it touches, and the next flush redoes only those, in stages (generate, decimate, normalize, place, path). Unchanged attributes are not written to the SVG, and results cached against an unchanged source are reused. Many edits in a frame cost one flush.
 
+A flush is cheap when nothing the geometry depends on has changed. A pointer moving over a chart, a legend hover or a changed colour makes a flush too, but each series compares its new points with the ones it has and, finding them the same, keeps them: the path text, traces, bars, stacks' layouts and markers' paths made from them are reused, not made again. What costs is a change to the data, the view (a pan or a zoom) or the size of the plot, which move points, so those make the path text again, and that text (formatting the numbers) is most of what a redraw costs.
+
 So the rules for speed follow from what is cached:
 
 ### Data
@@ -51,6 +53,7 @@ So the rules for speed follow from what is cached:
 - **Give a `FlatDataSource` typed arrays** (`Float64Array`) or plain number arrays and set `isSorted` if they already ascend. It reads them in place: no copy, no sort.
 - **Edit in place, then say so.** If you change a number in an array a source holds, call `source.invalidate()`. Replacing the whole attribute (`source.setAttribute('data', next)`) also works and is the safer default; in-place edits avoid allocating for a stream of updates.
 - **Decimate big data.** A `Decimator` between the series and its source reduces it to a few points per pixel column, keeping every peak and valley, and reads only the visible range, so zooming refills from the full data. The cost then grows with the plot's width, not the size of the data. See [Data](data.md#decimation) for the kernels (`MinMaxKernel`, `M4Kernel`, `LttbKernel`, `StrideKernel`).
+- **Decimate any chart that is interactive once it passes about 100,000 points.** A pointer is tested against the points that are *drawn*, one by one, so with no decimator the cost of every pointer move grows with the data (a few milliseconds at 100,000 points). A decimator makes that cost depend on the plot's width, which is why inkplot has no spatial index for hit testing: decimating gets the same result and speeds up the drawing as well.
 - **Move the work off the page.** A `WorkerBoundary` runs the source and its transforms in a worker, so a pan never waits on a large reduction. It pays above a few hundred thousand points. See [Data](data.md#working-in-a-worker).
 - **Avoid per-point objects for big data.** `ObjectDataSource` is for the thousands, `FlatDataSource` for the hundreds of thousands and more.
 

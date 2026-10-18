@@ -258,7 +258,7 @@ export class GradientLinePath extends SeriesRenderer<GradientLinePathAttributes,
     const binding = this.bindings[0];
     const paint = binding ? this.#stroke.paint(s, binding, series, points, this.attrs.maxStops ?? DEFAULT_STOPS) : null;
     const t0 = performance.now();
-    const d = this.curve.line(series);
+    const d = this.curve.lineText(series);
     counters.stages.path += performance.now() - t0;
     counters.pathBytes += d.length;
 
@@ -349,7 +349,7 @@ export class GradientAreaPath extends SeriesRenderer<GradientAreaPathAttributes,
     const fillPaint = fill ? this.#fill.paint(s, fill, series, points, maxStops) : null,
       strokePaint = stroke ? this.#stroke.paint(s, stroke, series, points, maxStops) : null;
     const t0 = performance.now();
-    const d = this.curve.area(series, a.baseline ?? 0);
+    const d = this.curve.areaText(series, a.baseline ?? 0);
     counters.stages.path += performance.now() - t0;
     counters.pathBytes += d.length;
 

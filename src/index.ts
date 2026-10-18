@@ -162,16 +162,9 @@ export {
   type CatmullRomCurveAttributes,
   MonotoneCurve,
   NaturalCurve,
-  type Piece,
-  type Push,
   QuadraticCurve,
   StrokeCurve,
-  arcTo,
-  cubicTo,
-  hermiteTo,
-  lineTo,
-  quadTo,
-  smoothTo,
+  type Pen,
 } from './curves.ts';
 export { StepCurve, type StepCurveAttributes, type StepMode, type Stepped, stepLines } from './steps.ts';
 export { BoxPath, type BoxPathAttributes } from './boxplot.ts';

@@ -28,8 +28,7 @@ import {
   hitTest,
   interpolate,
   nearestSegment,
-  lineTo,
-  type Piece,
+  type Pen,
   type Plane,
 } from './index.ts';
 import { test } from 'vite-plus/test';
@@ -402,11 +401,11 @@ test('curves', () => {
   {
     /** Straight lines that stop at the same height as the last point first: an L-shaped route, as a custom curve. */
     class ElbowCurve extends StrokeCurve {
-      protected pieces(p: ArrayLike<number>): Piece[] {
-        const out: Piece[] = [];
-        for (let k = 0; k < (p.length >> 1) - 1; k++)
-          out.push(lineTo(p[2 * k + 2]!, p[2 * k + 1]!, k, k), lineTo(p[2 * k + 2]!, p[2 * k + 3]!, k, k + 1));
-        return out;
+      protected pieces(p: ArrayLike<number>, pen: Pen): void {
+        for (let k = 0; k < (p.length >> 1) - 1; k++) {
+          pen.lineTo(p[2 * k + 2]!, p[2 * k + 1]!, k, k);
+          pen.lineTo(p[2 * k + 2]!, p[2 * k + 3]!, k, k + 1);
+        }
       }
     }
     const line = new LinePath(new LinearCurve());

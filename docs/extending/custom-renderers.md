@@ -95,7 +95,7 @@ Notes:
 
 - **A gap** in the data arrives as a `NaN` placed point. Lift the pen at it; `series.attrs.missing === 'connect'` asks you to cross it instead. `polyline(points, connect)` and `areaOutline(top, base, connect)` are the library's straight-line helpers to start from.
 - **Hit testing.** A curve whose path is not straight lines through the points should also implement `trace(series, baseline)`, returning the path it draws as vertices, with the series point each belongs to (`Trace`). Pointer hits and tooltip readings are then measured against what is on screen. The right-angle curve above would do this to be exact; without it, hits follow the straight lines through the points.
-- **Many curves share the work**: `curves.ts` has `StrokeCurve`, where you say only what pieces a run of points is made of, and gets the lines, areas, gaps and traces.
+- **Many curves share the work**: `curves.ts` has `StrokeCurve`, where you say only what pieces a run of points is made of, by calling `pen.lineTo`, `pen.cubicTo`, `pen.hermiteTo`, `pen.quadTo`, `pen.smoothTo` and `pen.arcTo` from `pieces(p, pen)`, and gets the lines, areas, gaps and traces. Nothing is allocated for a piece, so a curve costs the same few allocations however long it is.
 - Area under a curve needs `area`, which must produce a shape that closes back along the baseline: `series.baseline(value)` gives the baseline points placed like the data.
 
 ## A series renderer
@@ -161,6 +161,8 @@ export default () => (
   </Chart>
 );
 ```
+
+**Keep what is costly.** `draw` runs on every paint, including those a pointer moving causes, and a long series makes its path text again each time if you let it. `series.projection` is a number that changes only when the series' points do (new data, a pan or zoom, a resize), so work made from `series.points` can be kept against it: remember the text you wrote and the `projection` it was written for, and write it again only when that number is different. The library's own path, bar and marker renderers do exactly this.
 
 What a renderer can tell the series, by overriding a getter (all optional):
 

@@ -122,6 +122,20 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
   // Which grouped nodes (by look key) and how many per-point nodes exist now, so the ones no longer used can be removed.
   #keys = new Set<number>();
   #separate = 0;
+  // What the last draw made its paths from, and the paths (merged markers only).
+  #memo: {
+    projection: number;
+    w: number;
+    h: number;
+    ends: Float64Array | null;
+    bind: unknown;
+    steps: number;
+    size: number;
+    count: number;
+    paths: Map<number, string>;
+    bytes: number;
+    styled: { b: ResolvedBinding; f: Float64Array }[];
+  } | null = null;
 
   /** The bound properties with their dimensions resolved. A property is stylistic unless the marker puts it in the path. */
   override get bindings(): readonly ResolvedBinding[] {
@@ -158,51 +172,73 @@ export abstract class Marker<A extends MarkerAttributes<object>> extends SeriesR
     const look = this.styleFor([this.kind, 'marker', 'shape'], local, this.accent(series.accentColor));
     const base: MarkerStyle = { ...look, size: this.styleFor([this.kind, 'marker'], { size: a.size }).size };
 
-    // Each binding becomes a column of positions along its dimension, 0..1.
-    const channels = series.channels;
-    const bindings = this.bindings;
-    const fractions = bindings.map((b) => fractionsOf(b, data, 2 + channels.indexOf(b.channel), stride, count));
-    const styled = bindings.flatMap((b, i) => (b.stylistic ? [{ b, f: fractions[i]! }] : []));
-    const geometric = bindings.flatMap((b, i) => (b.stylistic ? [] : [{ b, f: fractions[i]! }]))[0];
-    const steps = this.stepsPerBinding;
-
-    let bytes = 0;
-    const paths = new Map<number, string>(); // look key → the path data of every marker with that look
-    let separate = 0;
-    const v: MarkerStyle = { ...base };
-    // The style handed to `style()` starts from the constants each time, then has the bound values written over it.
-    const reset = () => Object.assign(v, base);
     // Beside bars (a lollipop: a stem and a marker), a marker stands on the end of its bar, which is not at the point when bars share a band.
     let ends: Float64Array | null = null;
     for (let r = series.firstChild; r; r = r.nextSibling) {
       const set = r !== this && r instanceof SeriesRenderer ? (r.anchors?.() ?? null) : null;
       if (set && set.count === count) ends = set.data;
     }
-    for (let i = 0; i < count; i++) {
-      let x = data[i * stride]!,
-        y = data[i * stride + 1]!;
-      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-      if (ends && Number.isFinite(ends[i * 4]!) && Number.isFinite(ends[i * 4 + 1]!)) {
-        x = ends[i * 4]!;
-        y = ends[i * 4 + 1]!;
-      }
-      const r = geometric ? (geometric.b.axis.valueAt(geometric.f[i]!) as number) : base.size;
-      if (!(r >= 0)) continue;
-      const reach = geometric || !styled.length ? r : CULL_MARGIN + r;
-      if (x < -reach || x > w + reach || y < -reach || y > h + reach) continue;
-      const d = this.shape(x, y, r);
-      bytes += d.length;
+    const bindings = this.bindings;
+    const steps = this.stepsPerBinding;
+    // Phases 1 and 2 depend on the points, the plot's size, the bindings and where bars put the ends; while those are as they were (a
+    // repaint for a pointer moving) the paths made last time are the ones to write.
+    const memo = this.#memo;
+    let bytes = 0;
+    let paths: Map<number, string>; // look key → the path data of every marker with that look
+    let styled: { b: ResolvedBinding; f: Float64Array }[];
+    let separate = 0;
+    const v: MarkerStyle = { ...base };
+    // The style handed to `style()` starts from the constants each time, then has the bound values written over it.
+    const reset = () => Object.assign(v, base);
+    if (
+      merge &&
+      memo &&
+      memo.projection === series.projection &&
+      memo.w === w &&
+      memo.h === h &&
+      memo.ends === ends &&
+      memo.bind === a.bind &&
+      memo.steps === steps &&
+      memo.size === base.size &&
+      memo.count === count
+    ) {
+      ({ paths, bytes, styled } = memo);
+    } else {
+      // Each binding becomes a column of positions along its dimension, 0..1.
+      const channels = series.channels;
+      const fractions = bindings.map((b) => fractionsOf(b, data, 2 + channels.indexOf(b.channel), stride, count));
+      styled = bindings.flatMap((b, i) => (b.stylistic ? [{ b, f: fractions[i]! }] : []));
+      const geometric = bindings.flatMap((b, i) => (b.stylistic ? [] : [{ b, f: fractions[i]! }]))[0];
+      paths = new Map<number, string>();
+      for (let i = 0; i < count; i++) {
+        let x = data[i * stride]!,
+          y = data[i * stride + 1]!;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if (ends && Number.isFinite(ends[i * 4]!) && Number.isFinite(ends[i * 4 + 1]!)) {
+          x = ends[i * 4]!;
+          y = ends[i * 4 + 1]!;
+        }
+        const r = geometric ? (geometric.b.axis.valueAt(geometric.f[i]!) as number) : base.size;
+        if (!(r >= 0)) continue;
+        const reach = geometric || !styled.length ? r : CULL_MARGIN + r;
+        if (x < -reach || x > w + reach || y < -reach || y > h + reach) continue;
+        const d = this.shape(x, y, r);
+        bytes += d.length;
 
-      if (merge) {
-        const key = lookKey(styled, i, steps);
-        paths.set(key, (paths.get(key) ?? '') + d);
-      } else {
-        reset();
-        for (const { b, f } of styled) writeProperty(v, b.property, b.axis.valueAt(f[i]!) as string | number);
-        const node = s.node(`p${separate++}`, 'path');
-        s.set(node, 'd', d);
-        this.style(s, node, v);
+        if (merge) {
+          const key = lookKey(styled, i, steps);
+          paths.set(key, (paths.get(key) ?? '') + d);
+        } else {
+          reset();
+          for (const { b, f } of styled) writeProperty(v, b.property, b.axis.valueAt(f[i]!) as string | number);
+          const node = s.node(`p${separate++}`, 'path');
+          s.set(node, 'd', d);
+          this.style(s, node, v);
+        }
       }
+      this.#memo = merge
+        ? { projection: series.projection, w, h, ends, bind: a.bind, steps, size: base.size, count, paths, bytes, styled }
+        : null;
     }
     counters.stages.path += performance.now() - t0;
     counters.pathBytes += bytes;

@@ -139,6 +139,14 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   static override attrTypes = { ...ChartElement.attrTypes, name: STRING } satisfies AttrTypesFor<SeriesAttributes>;
   // The projected points handed to renderers; grown as needed and reused so a redraw allocates nothing.
   #points: PointBuffer | null = null;
+  // The buffer the next projection is made in, and the thing `place` is handed; what the last projection depended on besides its points.
+  #spare: Float64Array = new Float64Array(0);
+  readonly #scratch: PointBuffer = { data: new Float64Array(0), stride: 2, count: 0 };
+  #signature = '';
+  #usedLayer: StackLayer | null = null;
+  #usedAligned: Rows | null = null;
+  // Counts the refills of the raw buffer: the rows the points are made from are the same while this is.
+  #fills = 0;
   // The unprojected fill, with the key it was made for: data version, window, width and requested columns.
   #raw: Float64Array = new Float64Array(0);
   #rawCount = 0;
@@ -179,6 +187,10 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   join(layer: StackLayer | null, rows: Rows | null): void {
     this.#layer = layer;
     this.#aligned = rows;
+  }
+  /** Counts the times the series' rows were read afresh: what a stack's layout depends on, besides which series are in it. */
+  get fillSerial(): number {
+    return this.#fills;
   }
   /** What a stack has made of this series, if it is in one. */
   get layer(): StackLayer | null {
@@ -264,7 +276,10 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
       }
     return null;
   }
-  /** How many times the series has been projected: a renderer that works something out from the points can tell whether they have changed. */
+  /**
+   * A number that changes when the series' points do, or what they were made from (its rows, its stack, its plane, its axes' ranges): a pass that leaves them
+   * as they were leaves this alone. A renderer that works something out from the points can keep it against this number.
+   */
   get projection(): number {
     return this.#projections;
   }
@@ -389,6 +404,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
       this.#extents = result.extents;
       this.#key = key;
       this.#stride = stride;
+      this.#fills++;
       counters.filled++;
       counters.pointsIn += data.pointCount;
       counters.stages.generate += performance.now() - t0 - (counters.stages.decimate - d0);
@@ -507,40 +523,72 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
       boundColumns = this.channels.map((name) => this.columns.indexOf(name)),
       bound = boundColumns.length,
       stride = 2 + bound;
-    if (!this.#points || this.#points.data.length < n * stride) this.#points = { data: new Float64Array(n * stride), stride, count: 0 };
-    const p = this.#points;
-    p.stride = stride;
-    p.count = n;
+    // The points are made in the spare buffer and compared with the ones the renderers have. Most passes (a pointer moving, a
+    // legend hovered) change nothing the points depend on, and then the series keeps its points and its `projection`, so
+    // everything made from them (path text, traces, hit geometry) is kept too.
+    if (this.#spare.length < n * stride) this.#spare = new Float64Array(Math.max(n * stride, Math.ceil(this.#spare.length * 1.5)));
+    const out = this.#spare;
     if (c0 === 0 && c1 === 1 && rs === stride && boundColumns.every((c, k) => c === 2 + k)) {
-      p.data.set(raw.subarray(0, n * stride));
+      out.set(raw.subarray(0, n * stride));
     } else {
       // The raw rows are not laid out as the points are: gather the coordinates, then the bound channels, each from where it is.
       for (let i = 0; i < n; i++) {
-        p.data[i * stride] = raw[i * rs + c0]!;
-        p.data[i * stride + 1] = raw[i * rs + c1]!;
-        for (let k = 0; k < bound; k++) p.data[i * stride + 2 + k] = raw[i * rs + boundColumns[k]!]!;
+        out[i * stride] = raw[i * rs + c0]!;
+        out[i * stride + 1] = raw[i * rs + c1]!;
+        for (let k = 0; k < bound; k++) out[i * stride + 2 + k] = raw[i * rs + boundColumns[k]!]!;
       }
     }
     if (this.#zero)
       for (let i = 0; i < n; i++) {
-        const v = p.data[i * stride + 1]!;
-        if (!Number.isFinite(v) && Number.isFinite(p.data[i * stride]!)) p.data[i * stride + 1] = 0;
+        const v = out[i * stride + 1]!;
+        if (!Number.isFinite(v) && Number.isFinite(out[i * stride]!)) out[i * stride + 1] = 0;
       }
     // In a stack a point is drawn where the stack puts it: the row's own value has already served its purpose.
     if (layer)
       for (let i = 0; i < n; i++) {
-        const v = p.data[i * stride + 1]!;
-        p.data[i * stride + 1] = Number.isFinite(v) ? layer.top[i]! : NaN;
+        const v = out[i * stride + 1]!;
+        out[i * stride + 1] = Number.isFinite(v) ? layer.top[i]! : NaN;
       }
     let t = performance.now();
-    first.normalize(p.data, n, stride, 0);
-    second.normalize(p.data, n, stride, 1);
+    first.normalize(out, n, stride, 0);
+    second.normalize(out, n, stride, 1);
     counters.stages.normalize += performance.now() - t;
     t = performance.now();
-    plane.place(p, first, second);
+    const scratch = this.#scratch;
+    scratch.data = out;
+    scratch.stride = stride;
+    scratch.count = n;
+    plane.place(scratch, first, second);
     counters.stages.place += performance.now() - t;
     counters.projected++;
     counters.pointsDrawn += n;
+    // What else the result depends on, apart from the points: the rows, the stack's layer, the plane, and the axes (a series
+    // whose points do not move can still have its bars start somewhere else).
+    const signature = `${this.#fills}|${first.range.min},${first.range.max},${second.range.min},${second.range.max}`;
+    const kept = this.#points;
+    if (
+      kept &&
+      this.#plane === plane &&
+      this.#usedLayer === layer &&
+      this.#usedAligned === this.#aligned &&
+      this.#signature === signature &&
+      kept.stride === stride &&
+      kept.count === n &&
+      sameNumbers(kept.data, out, n * stride)
+    )
+      return;
+    this.#signature = signature;
+    this.#usedLayer = layer;
+    this.#usedAligned = this.#aligned;
+    if (kept) {
+      this.#spare = kept.data;
+      kept.data = out;
+      kept.stride = stride;
+      kept.count = n;
+    } else {
+      this.#points = { data: out, stride, count: n };
+      this.#spare = new Float64Array(0);
+    }
     this.#plane = plane;
     this.#projections++;
   }
@@ -811,4 +859,14 @@ export function paintSample(
   surface.set(group, 'transform', `translate(${Math.round(x * 100) / 100} ${Math.round(y * 100) / 100})`);
   series.sample(surface, group, key, width, height);
   return group;
+}
+
+/** Whether the first `length` numbers of two buffers are the same, a gap (NaN) being the same as a gap. */
+function sameNumbers(a: Float64Array, b: Float64Array, length: number): boolean {
+  for (let i = 0; i < length; i++) {
+    const x = a[i]!,
+      y = b[i]!;
+    if (x !== y && (x === x || y === y)) return false;
+  }
+  return true;
 }

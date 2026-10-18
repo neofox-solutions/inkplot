@@ -115,6 +115,29 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
   protected ends(series: Series): { n: number; pts: Float64Array } | null {
     const d = series.drawn;
     if (!d) return null;
+    // Kept while the series is as projected and nothing that sets the bars has changed: a repaint for a pointer moving costs nothing.
+    let siblingBars: BarRenderer | null = null;
+    for (let r = series.firstChild; r && !siblingBars; r = r.nextSibling) if (r instanceof BarRenderer) siblingBars = r;
+    const wide = siblingBars?.attrs;
+    const key = `${series.projection}|${this.attrs.error}|${this.negative}|${this.attrs.mode}|${this.attrs.along}|${wide?.width}|${wide?.baseline}|${wide?.from}`;
+    if (this.#endsFor === series && this.#endsKey === key) return this.#ends;
+    this.#endsFor = series;
+    this.#endsKey = key;
+    return (this.#ends = this.computeEnds(series, d));
+  }
+  #ends: { n: number; pts: Float64Array } | null = null;
+  #written: { e: object | null; cap: number; d: string } | null = null;
+  /** The path text for `ends` (and a cap size), made again only when those are. */
+  protected pathText(e: object | null, cap: number, make: () => string): string {
+    const w = this.#written;
+    if (w && w.e === e && w.cap === cap) return w.d;
+    const d = make();
+    this.#written = { e, cap, d };
+    return d;
+  }
+  #endsFor: Series | null = null;
+  #endsKey = '';
+  private computeEnds(series: Series, d: NonNullable<Series['drawn']>): { n: number; pts: Float64Array } | null {
     const a = this.attrs,
       relative = a.mode === 'relative',
       domain = a.along === 'domain',
@@ -229,33 +252,36 @@ export class ErrorBars extends ErrorRenderer<ErrorBarsAttributes> {
       look = this.look(),
       cap = (this.attrs.capWidth ?? 8) / 2;
     const e = this.ends(series);
-    let d = '';
-    if (e) {
-      const p = e.pts;
-      for (let i = 0; i < e.n; i++) {
-        const k = i * 8,
-          lx = p[k]!,
-          ly = p[k + 1]!,
-          hx = p[k + 2]!,
-          hy = p[k + 3]!;
-        if (!(Number.isFinite(lx) && Number.isFinite(ly) && Number.isFinite(hx) && Number.isFinite(hy))) continue;
-        d += `M${f2(lx)} ${f2(ly)}L${f2(hx)} ${f2(hy)}`;
-        if (cap > 0) {
-          for (const [x, y, ax, ay] of [
-            [lx, ly, p[k + 4]!, p[k + 5]!],
-            [hx, hy, p[k + 6]!, p[k + 7]!],
-          ] as const) {
-            const tx = ax - x,
-              ty = ay - y,
-              len = Math.hypot(tx, ty);
-            if (!(len > 0)) continue;
-            const ux = (tx / len) * cap,
-              uy = (ty / len) * cap;
-            d += `M${f2(x - ux)} ${f2(y - uy)}L${f2(x + ux)} ${f2(y + uy)}`;
+    const d = this.pathText(e, cap, () => {
+      let d = '';
+      if (e) {
+        const p = e.pts;
+        for (let i = 0; i < e.n; i++) {
+          const k = i * 8,
+            lx = p[k]!,
+            ly = p[k + 1]!,
+            hx = p[k + 2]!,
+            hy = p[k + 3]!;
+          if (!(Number.isFinite(lx) && Number.isFinite(ly) && Number.isFinite(hx) && Number.isFinite(hy))) continue;
+          d += `M${f2(lx)} ${f2(ly)}L${f2(hx)} ${f2(hy)}`;
+          if (cap > 0) {
+            for (const [x, y, ax, ay] of [
+              [lx, ly, p[k + 4]!, p[k + 5]!],
+              [hx, hy, p[k + 6]!, p[k + 7]!],
+            ] as const) {
+              const tx = ax - x,
+                ty = ay - y,
+                len = Math.hypot(tx, ty);
+              if (!(len > 0)) continue;
+              const ux = (tx / len) * cap,
+                uy = (ty / len) * cap;
+              d += `M${f2(x - ux)} ${f2(y - uy)}L${f2(x + ux)} ${f2(y + uy)}`;
+            }
           }
         }
       }
-    }
+      return d;
+    });
     const n = s.node('bars', 'path');
     s.set(n, 'd', d);
     s.set(n, 'fill', 'none');
@@ -302,28 +328,31 @@ export class ErrorBand extends ErrorRenderer<ErrorBandAttributes> {
       series = this.requireParent(),
       look = this.look();
     const e = this.ends(series);
-    let d = '';
-    if (e) {
-      const p = e.pts,
-        ok = (i: number) => {
-          const k = i * 8;
-          return Number.isFinite(p[k]!) && Number.isFinite(p[k + 1]!) && Number.isFinite(p[k + 2]!) && Number.isFinite(p[k + 3]!);
-        };
-      for (let i = 0; i < e.n;) {
-        if (!ok(i)) {
-          i++;
-          continue;
+    const d = this.pathText(e, 0, () => {
+      let d = '';
+      if (e) {
+        const p = e.pts,
+          ok = (i: number) => {
+            const k = i * 8;
+            return Number.isFinite(p[k]!) && Number.isFinite(p[k + 1]!) && Number.isFinite(p[k + 2]!) && Number.isFinite(p[k + 3]!);
+          };
+        for (let i = 0; i < e.n;) {
+          if (!ok(i)) {
+            i++;
+            continue;
+          }
+          let j = i;
+          while (j < e.n && ok(j)) j++;
+          // The run i..j-1: forward along the upper ends, back along the lower.
+          d += `M${f2(p[i * 8 + 2]!)} ${f2(p[i * 8 + 3]!)}`;
+          for (let r = i + 1; r < j; r++) d += `L${f2(p[r * 8 + 2]!)} ${f2(p[r * 8 + 3]!)}`;
+          for (let r = j - 1; r >= i; r--) d += `L${f2(p[r * 8]!)} ${f2(p[r * 8 + 1]!)}`;
+          d += 'Z';
+          i = j;
         }
-        let j = i;
-        while (j < e.n && ok(j)) j++;
-        // The run i..j-1: forward along the upper ends, back along the lower.
-        d += `M${f2(p[i * 8 + 2]!)} ${f2(p[i * 8 + 3]!)}`;
-        for (let r = i + 1; r < j; r++) d += `L${f2(p[r * 8 + 2]!)} ${f2(p[r * 8 + 3]!)}`;
-        for (let r = j - 1; r >= i; r--) d += `L${f2(p[r * 8]!)} ${f2(p[r * 8 + 1]!)}`;
-        d += 'Z';
-        i = j;
       }
-    }
+      return d;
+    });
     const n = s.node('band', 'path');
     s.set(n, 'd', d);
     s.set(n, 'fill', look.fill);

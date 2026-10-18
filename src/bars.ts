@@ -48,6 +48,8 @@ const MAX_ARC = 16;
 /** The same, along the value, when the value is the angle: a segment may span a whole turn. */
 const MAX_VALUE_ARC = 48;
 
+type Styled = readonly { b: ResolvedBinding; f: Float64Array }[];
+
 export interface BarOptions {
   /** Fraction of the room each bar fills. Default: a band's own `bandwidth`, else 0.8. */
   width?: number;
@@ -70,7 +72,31 @@ export interface BarLayout {
   readonly shift: number;
 }
 
+/**
+ * What was worked out for a series since its last projection, by the options it was asked with (a renderer's, an error bar's, a
+ * box plot's can differ). Nothing here depends on anything but the projection and the options, so a repaint (a pointer
+ * moving, a legend hovered) and every reader of the same bars (the path, the hits, the labels, the error bars) share one result.
+ */
+interface BarCacheEntry {
+  layout: BarLayout | null;
+  shapes?: PolygonSet | null;
+  stems?: PolygonSet | null;
+}
+const barCaches = new WeakMap<Series, { projection: number; byOptions: Map<string, BarCacheEntry> }>();
+function entryFor(series: Series, options: BarOptions): BarCacheEntry {
+  let c = barCaches.get(series);
+  if (!c || c.projection !== series.projection) barCaches.set(series, (c = { projection: series.projection, byOptions: new Map() }));
+  const key = `${options.width}|${options.baseline}|${options.from}`;
+  let e = c.byOptions.get(key);
+  if (!e) c.byOptions.set(key, (e = { layout: computeLayout(series, options) }));
+  return e;
+}
+
 export function layoutBars(series: Series, options: BarOptions): BarLayout | null {
+  return series.drawn ? entryFor(series, options).layout : null;
+}
+
+function computeLayout(series: Series, options: BarOptions): BarLayout | null {
   const d = series.drawn;
   if (!d) return null;
   const n = d.points.count,
@@ -140,8 +166,12 @@ const STEM_SAMPLE: readonly (readonly [at: number, up: number])[] = [
  * (a point that is a gap leaves a shape of NaN). Null before the first projection.
  */
 export function barShapes(series: Series, options: BarOptions = {}): PolygonSet | null {
-  const lay = layoutBars(series, options),
-    plane = series.drawn?.plane;
+  if (!series.drawn) return null;
+  const entry = entryFor(series, options);
+  return entry.shapes !== undefined ? entry.shapes : (entry.shapes = computeShapes(series, entry.layout));
+}
+function computeShapes(series: Series, lay: BarLayout | null): PolygonSet | null {
+  const plane = series.drawn?.plane;
   if (!lay || !plane) return null;
   const { n, norm, slot, shift } = lay;
   // On a curved plane the edges that run along the angle become arcs: the ones along the domain normally, the ones along
@@ -190,8 +220,12 @@ export function barShapes(series: Series, options: BarOptions = {}): PolygonSet 
  * spoke) on a polar one. Gaps leave NaN.
  */
 export function stemLines(series: Series, options: BarOptions = {}): PolygonSet | null {
-  const lay = layoutBars(series, options),
-    plane = series.drawn?.plane;
+  if (!series.drawn) return null;
+  const entry = entryFor(series, options);
+  return entry.stems !== undefined ? entry.stems : (entry.stems = computeStems(series, entry.layout));
+}
+function computeStems(series: Series, lay: BarLayout | null): PolygonSet | null {
+  const plane = series.drawn?.plane;
   if (!lay || !plane) return null;
   const { n, norm, shift } = lay;
   const out = new Float64Array(n * 4);
@@ -282,31 +316,56 @@ export abstract class BarRenderer<A extends BarRendererAttributes<object> = BarR
    * with none, a single node called `name`. `write` sets a node's attributes from `v`, which starts as `base` and has the bound
    * values written over it. Returns the length of the path data, for the counters.
    */
+  // The path text of the last draw by look, and what it was made from: while none of that changes (a repaint for a pointer moving) it is reused.
+  #memo: {
+    source: object;
+    projection: number;
+    bind: unknown;
+    steps: number;
+    paths: Map<number, string>;
+    bytes: number;
+    styled: Styled;
+  } | null = null;
   protected paint(
     count: number,
     path: (i: number) => string,
     base: Record<string, string | number>,
     write: (node: PlatformNode, v: Record<string, string | number>) => void,
     name: string,
+    source: object | null = null,
   ): number {
     const s = this.surface,
       series = this.requireParent(),
       d = series.drawn,
       steps = this.stepsPerBinding;
-    const styled = d
-      ? this.bindings.map((b) => ({
-          b,
-          f: fractionsOf(b, d.raw, d.columnOf(b.channel), d.stride, count),
-        }))
-      : [];
-    const paths = new Map<number, string>();
-    let bytes = 0;
-    for (let i = 0; i < count; i++) {
-      const p = path(i);
-      if (!p) continue;
-      bytes += p.length;
-      const key = steps ? lookKey(styled, i, steps) : 0;
-      paths.set(key, (paths.get(key) ?? '') + p);
+    const memo = this.#memo;
+    let paths: Map<number, string>, bytes: number, styled: Styled;
+    if (
+      source &&
+      memo &&
+      memo.source === source &&
+      memo.projection === series.projection &&
+      memo.bind === this.attrs.bind &&
+      memo.steps === steps
+    ) {
+      ({ paths, bytes, styled } = memo);
+    } else {
+      styled = d
+        ? this.bindings.map((b) => ({
+            b,
+            f: fractionsOf(b, d.raw, d.columnOf(b.channel), d.stride, count),
+          }))
+        : [];
+      paths = new Map<number, string>();
+      bytes = 0;
+      for (let i = 0; i < count; i++) {
+        const p = path(i);
+        if (!p) continue;
+        bytes += p.length;
+        const key = steps ? lookKey(styled, i, steps) : 0;
+        paths.set(key, (paths.get(key) ?? '') + p);
+      }
+      this.#memo = source ? { source, projection: series.projection, bind: this.attrs.bind, steps, paths, bytes, styled } : null;
     }
     const names = new Set<string>();
     const v: Record<string, string | number> = {};
@@ -360,6 +419,12 @@ export interface BarPathAttributes extends BarRendererAttributes {}
  * baseline and down for one below it, out along the radius for a polar bar, and out to the rim for a ring segment.
  */
 export function barAnchors(shapes: PolygonSet): AnchorSet {
+  let found = anchorCache.get(shapes);
+  if (!found) anchorCache.set(shapes, (found = computeAnchors(shapes)));
+  return found;
+}
+const anchorCache = new WeakMap<PolygonSet, AnchorSet>();
+function computeAnchors(shapes: PolygonSet): AnchorSet {
   const { data, perShape, count } = shapes,
     half = perShape / 2;
   const out = new Float64Array(count * 4);
@@ -444,6 +509,7 @@ export class BarPath extends BarRenderer<BarPathAttributes> {
         s.set(n, 'opacity', Number(v.opacity));
       },
       'bars',
+      shapes,
     );
     counters.stages.path += performance.now() - t0;
     counters.pathBytes += bytes;
@@ -520,6 +586,7 @@ export class StemPath extends BarRenderer<StemPathAttributes> {
         s.set(n, 'stroke-dasharray', look.dash);
       },
       'stems',
+      stems,
     );
     counters.stages.path += performance.now() - t0;
     counters.pathBytes += bytes;

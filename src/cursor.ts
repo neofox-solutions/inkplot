@@ -111,7 +111,7 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
   /** The point the keyboard is on. */
   #at: { series: Series; index: number } | null = null;
   #version = 0;
-  #cache: { version: number; flush: number; state: CursorState | null } | null = null;
+  #cache: { version: number; world: string; state: CursorState | null } | null = null;
   #signature = '';
   #lastKeys = '';
 
@@ -127,11 +127,11 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
    * the data may have been edited, or the view panned, under a pointer that has not moved.
    */
   get state(): CursorState | null {
-    const flush = this.chart?.flushCount ?? 0,
+    const world = this.#world(),
       cache = this.#cache;
-    if (cache && cache.version === this.#version && cache.flush === flush) return cache.state;
+    if (cache && cache.version === this.#version && cache.world === world) return cache.state;
     const state = this.#compute();
-    this.#cache = { version: this.#version, flush, state };
+    this.#cache = { version: this.#version, world, state };
     return state;
   }
 
@@ -368,6 +368,22 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
       if (i >= 0) hits[i] = own;
     }
     return hits;
+  }
+
+  /**
+   * What the cursor's answer depends on besides where the pointer or the keyboard is: how each plane is laid out and which points its series
+   * are drawn from (a series' `projection` changes with its data, its view and its plane, and with nothing else), and the cursor's own attributes.
+   * The answer is worked out again only when this changes, so a pointer moving over a chart that has not changed is looked up once.
+   */
+  #world(): string {
+    let w = '';
+    for (const [k, v] of Object.entries(this.attrs)) if (typeof v !== 'object' && typeof v !== 'function') w += `${k}=${String(v)};`;
+    for (const plane of this.requireParent().planes) {
+      const r = plane.rect;
+      w += `|${r.x},${r.y},${r.width},${r.height}`;
+      for (const series of plane.series) w += `,${series.projection}:${JSON.stringify(series.attrs.hit)}:${series.hitHint}`;
+    }
+    return w;
   }
 
   /** Redraw when something that shows changed. `force`: the keyboard moved, which always does. */

@@ -35,7 +35,7 @@ import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent, Size } from './geometry.ts';
 import type { Plane } from './plane.ts';
 import type { SeriesGroup } from './seriesgroup.ts';
-import { DomainSeries, type Rows, type Series, type SeriesHolder } from './series.ts';
+import { DomainSeries, type Rows, type Series, type SeriesHolder, type StackLayer } from './series.ts';
 
 export type StackMode = 'stack' | 'normalize' | 'center' | 'group';
 export type StackAlign = 'strict' | 'gaps' | 'interpolate';
@@ -106,11 +106,13 @@ export interface Layout {
  * Lay the values of the (already lined-up) tables out by `mode`.
  * @internal
  */
-export function layOut(tables: readonly Rows[], mode: StackMode): Layout {
+export function layOut(tables: readonly Rows[], mode: StackMode, reuse?: Layout | null): Layout {
   const members = tables.length,
     n = tables[0]?.count ?? 0;
-  const base = tables.map(() => new Float64Array(n)),
-    top = tables.map(() => new Float64Array(n));
+  // The buffers of the last layout are written over when they are the right size, so a stack that is edited many times allocates once.
+  const fits = reuse && reuse.base.length === members && reuse.base.every((b) => b.length === n);
+  const base = fits ? reuse.base : tables.map(() => new Float64Array(n)),
+    top = fits ? reuse.top : tables.map(() => new Float64Array(n));
   let min = Infinity,
     max = -Infinity;
   const note = (v: number) => {
@@ -187,6 +189,11 @@ export class Stack extends ChartElement<Plane, (DomainSeries | SeriesGroup)[], S
     return out;
   }
 
+  // What the last load worked out, and what it was worked out from. While neither the members nor their rows nor the stack's
+  // own attributes have changed (a pointer moving, a legend hovered) the layout is kept as it is, with the layers handed to the
+  // series: they are the same objects, so the series can tell nothing moved and keep everything made from their points.
+  #made: { members: readonly DomainSeries[]; key: string; layout: Layout; layers: StackLayer[]; aligned: Rows[] | null } | null = null;
+
   /** Engine protocol, called by the plane in place of each member's own `load`: read them all, lay them out, report the extents. */
   load(estimate: Size): void {
     const members = this.members.filter((m) => m.shown); // a member that is not shown leaves the stack: the rest close up
@@ -197,30 +204,33 @@ export class Stack extends ChartElement<Plane, (DomainSeries | SeriesGroup)[], S
         fail('the series of a stack have to share their domain axis and their value axis');
     const own = members.map((m) => m.prepare(estimate));
     for (const c of this.#holders()) if (!(c instanceof DomainSeries)) c.contribute();
-    const how = this.attrs.align ?? 'strict';
-    let tables: readonly Rows[] = own,
-      made: Rows[] | null = null;
-    if (!own.every((t) => sameDomain(own[0]!, t))) {
-      if (how === 'strict')
-        fail(
-          "the series of a stack have to share their domain values: give the stack `align: 'gaps'` (bars) or `align: 'interpolate'` (lines, areas) to merge them",
-        );
-      tables = made = alignRows(own, how);
+    const how = this.attrs.align ?? 'strict',
+      mode = this.attrs.mode ?? 'stack';
+    const key = `${mode}|${how}|${members.map((m) => m.fillSerial).join()}`;
+    let made = this.#made;
+    if (!made || made.key !== key || made.members.length !== members.length || made.members.some((m, i) => m !== members[i])) {
+      let tables: readonly Rows[] = own,
+        aligned: Rows[] | null = null;
+      if (!own.every((t) => sameDomain(own[0]!, t))) {
+        if (how === 'strict')
+          fail(
+            "the series of a stack have to share their domain values: give the stack `align: 'gaps'` (bars) or `align: 'interpolate'` (lines, areas) to merge them",
+          );
+        tables = aligned = alignRows(own, how);
+      }
+      const layout = layOut(tables, mode, made?.layout);
+      const layers = members.map((_, index): StackLayer => ({
+        base: layout.base[index]!,
+        top: layout.top[index]!,
+        additive: mode !== 'normalize',
+        extent: layout.extent,
+        slot: mode === 'group' ? { index, count: members.length } : { index: 0, count: 1 },
+      }));
+      made = this.#made = { members, key, layout, layers, aligned };
     }
-    const mode = this.attrs.mode ?? 'stack',
-      layout = layOut(tables, mode);
     members.forEach((m, index) => {
-      m.join(
-        {
-          base: layout.base[index]!,
-          top: layout.top[index]!,
-          additive: mode !== 'normalize',
-          extent: layout.extent,
-          slot: mode === 'group' ? { index, count: members.length } : { index: 0, count: 1 },
-        },
-        made ? made[index]! : null,
-      );
-      m.settle(layout.extent);
+      m.join(made.layers[index]!, made.aligned ? made.aligned[index]! : null);
+      m.settle(made.layout.extent);
     });
   }
 }

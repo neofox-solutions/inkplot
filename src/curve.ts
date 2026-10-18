@@ -25,6 +25,51 @@ export interface CurveAttributes extends BaseAttributes {}
 
 /** Joins the points of a series. The child of a line or an area renderer. */
 export abstract class Curve<A extends CurveAttributes = CurveAttributes> extends ChartElement<AnySeriesRenderer, [], A> {
+  #seen: Record<string, unknown> = {};
+  #stamp = 0;
+  /** Changes whenever one of this curve's attributes does: what a curve that keeps what it worked out compares to know it is stale. */
+  protected get stamp(): number {
+    const now: Record<string, unknown> = this.attrs,
+      seen = this.#seen;
+    let same = true;
+    for (const k in now) if (seen[k] !== now[k]) same = false;
+    for (const k in seen) if (!(k in now)) same = false;
+    if (!same) {
+      this.#seen = { ...now };
+      this.#stamp++;
+    }
+    return this.#stamp;
+  }
+  #lineFor: Series | null = null;
+  #lineKey = '';
+  #lineText = '';
+  #areaFor: Series | null = null;
+  #areaKey = '';
+  #areaText = '';
+  /**
+   * `line(series)`, worked out again only when the series has been projected again or this curve changed: a repaint with the
+   * points where they were (a pointer moving over the chart) costs nothing. What a renderer draws.
+   * @internal
+   */
+  lineText(series: Series): string {
+    const key = `${series.projection}|${series.attrs.missing}|${this.stamp}`;
+    if (this.#lineFor !== series || this.#lineKey !== key) {
+      this.#lineText = this.line(series);
+      this.#lineFor = series;
+      this.#lineKey = key;
+    }
+    return this.#lineText;
+  }
+  /** `area(series, baseline)` kept the same way. @internal */
+  areaText(series: Series, baseline: number): string {
+    const key = `${series.projection}|${series.attrs.missing}|${baseline}|${this.stamp}`;
+    if (this.#areaFor !== series || this.#areaKey !== key) {
+      this.#areaText = this.area(series, baseline);
+      this.#areaFor = series;
+      this.#areaKey = key;
+    }
+    return this.#areaText;
+  }
   /** The path of the series' line: each run of it (a stretch between gaps, or the whole of it when the series' `missing` is 'connect') starts with an M. */
   abstract line(series: Series): string;
   /** The path of the shapes between the series' line and its baseline, `baseline` being a value (in a stack, the layer below is used instead). */
