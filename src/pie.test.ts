@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { DotPattern, HatchPattern, Legend, StringPlatform, lightTheme, pieChart } from './index.ts';
+import { ChartSummary, DotPattern, HatchPattern, Legend, StringPlatform, lightTheme, pieChart } from './index.ts';
 import { test } from 'vite-plus/test';
 
 function draw(chart: ReturnType<typeof pieChart>): string {
@@ -52,4 +52,17 @@ test('pie slices take patterns', () => {
   );
   assert.equal([...svg.matchAll(/<pattern /g)].length, 4, 'a plain one and one in the slice colour, for each pattern');
   assert.equal([...svg.matchAll(/<path [^>]*fill="url\(#[^"]+\)"/g)].length, 2, 'two slices are patterned, the third is flat');
+});
+
+test('pie: the summary does not describe the axes that are not drawn', () => {
+  const summary = new ChartSummary({});
+  const chart = pieChart(
+    [
+      { name: 'A', value: 1 },
+      { name: 'B', value: 2 },
+    ],
+    { theme: lightTheme, width: 400, height: 300, extras: [summary] },
+  );
+  draw(chart);
+  assert.equal(summary.facts.axes.length, 0);
 });

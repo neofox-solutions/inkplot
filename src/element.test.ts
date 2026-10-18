@@ -219,7 +219,7 @@ test('element: a tree cannot be made into a loop, and removing what is not a chi
   assert.throws(() => b.append(b as never), /inside itself/, 'a loose element too');
   // `b` is in no tree; removing one of a's own children from it must not unmount the child from `a`.
   const child = x;
-  assert.throws(() => b.remove(child as never), /not a child/);
+  assert.throws(() => b.remove(child), /not a child/);
   chart.attach(new StringPlatform({ width: 200, height: 100 })).flush();
   assert.equal(child.parent, a, 'still where it was');
   assert.doesNotThrow(() => chart.flush());

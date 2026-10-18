@@ -319,8 +319,9 @@ export abstract class ChartElement<
   /** Put `child` in front of `before` (null: at the end). Constant time: the siblings are linked both ways. */
   private link(child: AnyElement, before: AnyElement | null): void {
     // An element inside itself would make every walk up or down the tree (invalidate, mount, a lookup by id) endless.
-    for (let up: AnyElement | null = this; up; up = up.#parent)
-      if (up === child) fail('an element cannot be added inside itself or beneath its own child');
+    const inside = 'an element cannot be added inside itself or beneath its own child';
+    if (child === this) fail(inside);
+    for (let up = this.#parent; up; up = up.#parent) if (up === child) fail(inside);
     if (child.#parent) fail('element already has a parent');
     if (before && before.#parent !== this) fail('element is not a child of this element');
     const prev = before ? before.#prev : this.#last;

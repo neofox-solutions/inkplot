@@ -150,3 +150,24 @@ test('heatmap', () => {
     assert.throws(() => chart.attach(new StringPlatform({ width: 100, height: 100 })), /fewer than 2 steps/);
   }
 });
+
+test('heatmap: one cell size attribute alone makes a square, whichever it is', () => {
+  const rows = [
+    { x: 1, y: 1 },
+    { x: 3, y: 3 },
+  ];
+  const extent = (attrs: object) => {
+    const lin = () => new LinearScale();
+    const map = new HeatMap(attrs);
+    const series = new XYSeries({ x: 'domain', y: 'value' }, new ObjectDataSource({ source: rows, domain: 'x', value: 'y' }), map);
+    new Chart(
+      { theme: lightTheme, width: 300, height: 300 },
+      new CartesianPlane({}, new Axis({}, lin()), new Axis({ orientation: 'left' }, lin()), series),
+    )
+      .attach(new StringPlatform({ width: 300, height: 300 }))
+      .flush();
+    return map.limit(series);
+  };
+  assert.deepEqual(extent({ cellWidth: 2 }), extent({ cellHeight: 2 }));
+  assert.deepEqual(extent({ cellHeight: 2 })?.first, { min: 0, max: 4 });
+});

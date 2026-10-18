@@ -59,7 +59,7 @@ export class ChartSummary extends ChartElement<Container, [], ChartSummaryAttrib
         series.push({ name: s.attrs.name ?? s.attrs.meta?.title ?? `${n}`, points: s.points.count, shown: s.shown });
       }
       for (const axis of plane.axes) {
-        if (seen.has(axis)) continue;
+        if (seen.has(axis) || axis.attrs.visible === false) continue;
         seen.add(axis);
         const ticks = axis.getTicks(axis.ruler.length);
         if (ticks.length < 2) continue;

@@ -285,8 +285,8 @@ export abstract class Dimension<
     // most, so the labels line up; on ticks that are not (powers on a log axis) each keeps its own, so 1000 is not "1000.000".
     const own = values.map(decimalsOf),
       most = Math.max(0, ...own),
-      first = values.length > 1 ? values[1]! - values[0]! : 0;
-    const even = values.every((v, i) => i < 2 || Math.abs(v - values[i - 1]! - first) <= 1e-9 * Math.abs(first));
+      first = (values[1] ?? 0) - (values[0] ?? 0);
+    const even = values.every((v, i, all) => i < 2 || Math.abs(v - (all[i - 1] ?? v) - first) <= 1e-9 * Math.abs(first));
     const set = !a.format ? this.scale.labels?.(values, this.range) : undefined;
     return values.map((value, i) => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function

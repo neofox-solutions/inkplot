@@ -40,11 +40,11 @@ export interface HeatMapBindable {
   opacity: number;
 }
 export interface HeatMapAttributes extends SeriesRendererAttributes<HeatMapBindable> {
-  /** The size of a cell along the first axis, in data units. Default: the `widthChannel`. */
+  /** The size of a cell along the first axis, in data units. Default: the `widthChannel`, or `cellHeight` when only that is given (square cells). */
   cellWidth?: number;
   /** The size along the second axis. Default: the `heightChannel`, or `cellWidth` when only that is given (square cells). */
   cellHeight?: number;
-  /** The channel with each cell's width. Default 'width'. Not read when `cellWidth` is set. */
+  /** The channel with each cell's width. Default 'width'. Not read when a cell size attribute is set. */
   widthChannel?: string;
   /** The channel with each cell's height. Default 'height'. Not read when a cell size attribute is set. */
   heightChannel?: string;
@@ -75,8 +75,9 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
   /** Which channels give the cell size; null for a dimension that has a constant. */
   private get sizeChannels(): { w: string | null; h: string | null } {
     const a = this.attrs;
-    const w = a.cellWidth === undefined ? (a.widthChannel ?? 'width') : null;
-    const h = a.cellHeight !== undefined ? null : a.cellWidth !== undefined ? null : (a.heightChannel ?? 'height');
+    const fixed = a.cellWidth !== undefined || a.cellHeight !== undefined;
+    const w = fixed ? null : (a.widthChannel ?? 'width');
+    const h = fixed ? null : (a.heightChannel ?? 'height');
     return { w, h };
   }
   override get channelNames(): readonly string[] {
@@ -103,7 +104,7 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
       const row = i * view.stride,
         x = view.raw[row + view.firstColumn]!,
         y = view.raw[row + view.secondColumn]!;
-      const w = wCol >= 0 ? view.raw[row + wCol]! : (a.cellWidth ?? NaN),
+      const w = wCol >= 0 ? view.raw[row + wCol]! : (a.cellWidth ?? a.cellHeight ?? NaN),
         h = hCol >= 0 ? view.raw[row + hCol]! : (a.cellHeight ?? a.cellWidth ?? NaN);
       if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h)) continue;
       if (x - w / 2 < x0) x0 = x - w / 2;
@@ -123,8 +124,8 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
       const e = series.data.channelExtent(name);
       return e ? Math.max(Math.abs(e.min), Math.abs(e.max)) : NaN;
     };
-    const w = most(wc, a.cellWidth),
-      h = a.cellHeight === undefined && !hc ? w : most(hc, a.cellHeight);
+    const w = most(wc, a.cellWidth ?? a.cellHeight),
+      h = most(hc, a.cellHeight ?? a.cellWidth);
     if (!first || !second || !Number.isFinite(w) || !Number.isFinite(h)) return null;
     return { first: { min: first.min - w / 2, max: first.max + w / 2 }, second: { min: second.min - h / 2, max: second.max + h / 2 } };
   }
@@ -176,7 +177,7 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
     for (let i = 0; i < n; i++) {
       const x = d.raw[i * rs + d.firstColumn]!,
         y = d.raw[i * rs + d.secondColumn]!;
-      const w = wCol >= 0 ? d.raw[i * rs + wCol]! : (a.cellWidth ?? NaN);
+      const w = wCol >= 0 ? d.raw[i * rs + wCol]! : (a.cellWidth ?? a.cellHeight ?? NaN);
       const h = hCol >= 0 ? d.raw[i * rs + hCol]! : (a.cellHeight ?? a.cellWidth ?? NaN);
       xs[2 * i] = x - w / 2;
       xs[2 * i + 1] = x + w / 2;
