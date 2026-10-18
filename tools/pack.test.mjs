@@ -49,6 +49,13 @@ test('pack', () => {
     assert.match(lib.repository.url, /neofox-solutions\/inkplot\.git$/);
     assert.equal(lib.peerDependencies.react, '>=18');
     assert.ok(![...have].some((f) => /\.test\.|fake-platform/.test(f)), 'inkplot: test files are in the tarball');
+    // The JavaScript is the source with its types blanked out, so a line of a stack trace is the line in src/.
+    for (const f of ['index', 'data', 'series', 'decimation']) {
+      const built = execFileSync('tar', ['-xzOf', inkplotTgz, `package/dist/${f}.js`]).toString(),
+        source = readFileSync(join(root, `src/${f}.ts`), 'utf8');
+      assert.equal(built.split('\n').length, source.split('\n').length, `dist/${f}.js has the lines of src/${f}.ts`);
+      assert.ok(!/from '\.\/[\w-]+\.ts'/.test(built), `dist/${f}.js imports .js files`);
+    }
 
     const tool = manifest(scratchTgz),
       toolFiles = files(scratchTgz);

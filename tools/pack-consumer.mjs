@@ -1,20 +1,29 @@
 // Builds what a user installs, as a tarball: the library's own modules with the types taken out (and `.ts` import paths
 // turned into `.js`), beside their declarations. Not bundled and not minified: a library is bundled by the app that
-// uses it, and a stack trace or a class name in an error should read as the source does. Also in it: the `inkplot` command (cli/), and
+// uses it, and a stack trace or a class name in an error should read as the source does, line for line. Also in it: the `inkplot` command (cli/), and
 // the skills it installs for AI tools (skill/). node tools/pack-consumer.mjs [outdir]
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { bundle } from './bundle.ts';
 import { stampSkill } from './stamp-skill.mjs';
+import { stripToJs } from './strip-types.mjs';
 const root = new URL('../', import.meta.url).pathname;
 const out = process.argv[2] ? process.argv[2].replace(/\/?$/, '/') : root + 'out/consumer/';
 const pkg = out + 'inkplot/';
 rmSync(out, { recursive: true, force: true });
 mkdirSync(pkg, { recursive: true });
-execFileSync(process.execPath, [root + 'node_modules/typescript/bin/tsc', '-p', root + 'tsconfig.package.json', '--outDir', pkg + 'dist'], {
-  cwd: root,
-  stdio: 'inherit',
-});
+// The declarations come from the compiler. The JavaScript does not: it is each module with its types blanked out (Node's own
+// type stripping, `erasableSyntaxOnly` being what makes that possible), so every line is where it is in the source and a stack
+// trace from an installed library names the line to open in the repository.
+execFileSync(
+  process.execPath,
+  [root + 'node_modules/typescript/bin/tsc', '-p', root + 'tsconfig.types.json', '--emitDeclarationOnly', '--outDir', pkg + 'dist'],
+  { cwd: root, stdio: 'inherit' },
+);
+const shipped = (f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && f !== 'fake-platform.ts';
+for (const f of readdirSync(root + 'src').filter(shipped)) {
+  writeFileSync(pkg + 'dist/' + f.replace(/\.ts$/, '.js'), stripToJs(readFileSync(root + 'src/' + f, 'utf8')));
+}
 // `engines` is not copied: the Node version in the root package.json is what the repository's own tooling needs, not what the built library needs.
 const dev = JSON.parse(readFileSync(root + 'package.json', 'utf8'));
 const bin = await bundle({ entry: root + 'cli/bin.ts', format: 'esm', platform: 'node' });

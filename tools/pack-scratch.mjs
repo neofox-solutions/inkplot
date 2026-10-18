@@ -17,12 +17,13 @@ const inkplot = execFileSync(process.execPath, [root + 'tools/pack-consumer.mjs'
 const pkg = out + 'inkplot-scratch/',
   src = root + 'scratch/';
 mkdirSync(pkg + 'src', { recursive: true });
-const manifest = JSON.parse(readFileSync(src + 'package.json', 'utf8')),
-  version = manifest.version;
-const dev = JSON.parse(readFileSync(root + 'package.json', 'utf8'));
-// The two packages release together: the scratch tool depends on exactly the library it was tested with.
-if (version !== dev.version || manifest.dependencies.inkplot !== dev.version)
-  throw new Error(`versions differ: inkplot ${dev.version}, inkplot-scratch ${version} (needs inkplot ${manifest.dependencies.inkplot})`);
+const dev = JSON.parse(readFileSync(root + 'package.json', 'utf8')),
+  version = dev.version;
+// One version for both packages, the root package.json's: they release together, and the scratch tool depends on exactly the
+// library it was tested with. Its own manifest is the rest of what npm shows.
+const { name, ...rest } = JSON.parse(readFileSync(src + 'package.json', 'utf8'));
+delete rest['//']; // the note to whoever edits the manifest
+const manifest = { name, version, ...rest, dependencies: { ...rest.dependencies, inkplot: version } };
 const cli = await bundle({
   entry: src + 'src/cli.ts',
   format: 'esm',
@@ -33,7 +34,7 @@ writeFileSync(pkg + 'bin.mjs', cli.code);
 // The sources the page and the figures are built from at run time, against the workspace's own copy of inkplot.
 for (const f of ['figures.ts', 'app.ts', 'interact.ts', 'template.html']) cpSync(src + 'src/' + f, pkg + 'src/' + f);
 cpSync(src + 'fonts', pkg + 'fonts', { recursive: true });
-cpSync(src + 'package.json', pkg + 'package.json');
+writeFileSync(pkg + 'package.json', JSON.stringify(manifest, null, 2));
 cpSync(root + 'LICENSE', pkg + 'LICENSE');
 // The skill an agent reads first; the library's own skill (rules, template, topics) comes with `inkplot`, in node_modules/inkplot/skill.
 const skill = stampSkill(readFileSync(src + 'skill/SKILL.md', 'utf8'), version);
