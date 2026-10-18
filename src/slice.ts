@@ -5,10 +5,13 @@
  * attributes (`setAttribute('end', n)`): the version rises, so the series refills, and everything beneath is untouched.
  * It sits before a `Decimator` when both are wanted. The extents it reports are those of the rows kept, so axes fit
  * the window and not the whole of the data.
+ *
+ * Directly on a source (or on another `Slice`) it reads only its window, so moving it over a long source costs what the
+ * window costs. Over a transform it has to ask for every row the transform makes and keep some.
  */
 /* oxlint-disable typescript/no-non-null-assertion -- stride-addressed rows of a flat buffer: every index is bounded by the row count */
 import { type AttrTypesFor, BOOLEAN, NUMBER } from './attrs.ts';
-import { type DataNode, DataSource, DataTransform, type FillPlan, NO_POINTS, type PlanContext } from './data.ts';
+import { type DataNode, DataSource, DataTransform, type FillPlan, NO_POINTS, type PlanContext, rowRange } from './data.ts';
 import { KeyedTransform, type Partition, type PartitionedPlan, rawPlan } from './partition.ts';
 import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
@@ -40,7 +43,7 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
 
   #version = 0;
   #scratch = new Float64Array(0);
-  #cache: { key: string; first: number; count: number; extents: readonly Extent[] } | null = null;
+  #cache: { key: string; first: number; count: number; extents: readonly Extent[]; rowOf?: (index: number) => number } | null = null;
 
   get source(): DataNode {
     return this.child(0, DataSource, DataTransform);
@@ -74,15 +77,33 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
     return e.min <= e.max ? e : null;
   }
 
+  /**
+   * When what is beneath can write just some of its rows (a source can), so does this: it asks for the window and nothing else,
+   * and says how big the window is, so what reads it makes room for that and no more. Beneath a transform (the rows of a
+   * decimator are the decimated ones) it has to fill every row and keep some.
+   */
   plan(context: PlanContext): FillPlan {
     const inner = this.source.plan(context);
     const stride = 2 + context.channels.length;
+    if (inner.rows !== undefined) {
+      const [first, end] = this.#bounds(inner.rows),
+        kept = end - first;
+      return {
+        capacity: kept,
+        rows: kept,
+        fill: (out, from, to) => {
+          const [lo, hi] = rowRange(kept, from, to);
+          return inner.fill(out, first + lo, first + hi);
+        },
+      };
+    }
     return {
       capacity: inner.capacity,
       fill: (out) => {
         const r = this.#fillRows(inner, stride, context.channels);
         out.set(this.#scratch.subarray(stride * r.first, stride * (r.first + r.count)));
-        return { count: r.count, extents: r.extents };
+        const { rowOf } = r;
+        return { count: r.count, extents: r.extents, rowOf: rowOf && ((i) => rowOf(r.first + i)) };
       },
     };
   }
@@ -121,8 +142,15 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
   #fillRows(inner: FillPlan, stride: number, channels: readonly string[]) {
     const key = `${this.source.version}.${this.#version}|${stride}|${channels.join()}`;
     if (this.#cache?.key === key) return this.#cache;
+    if (inner.rows !== undefined) {
+      const [from, to] = this.#bounds(inner.rows);
+      if (this.#scratch.length < (to - from) * stride) this.#scratch = new Float64Array((to - from) * stride);
+      const r = inner.fill(this.#scratch, from, to);
+      return (this.#cache = { key, first: 0, count: r.count, extents: r.extents });
+    }
     if (this.#scratch.length < inner.capacity * stride) this.#scratch = new Float64Array(inner.capacity * stride);
-    const n = inner.fill(this.#scratch).count;
+    const filled = inner.fill(this.#scratch);
+    const n = filled.count;
     const [first, end] = this.#bounds(n);
     const count = end - first;
     const extents: Extent[] = [];
@@ -136,6 +164,6 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
       }
       extents.push(min <= max ? { min, max } : NO_POINTS);
     }
-    return (this.#cache = { key, first, count, extents });
+    return (this.#cache = { key, first, count, extents, rowOf: filled.rowOf });
   }
 }

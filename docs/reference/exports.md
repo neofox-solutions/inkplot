@@ -31,6 +31,7 @@ The element classes (with every attribute) are in the [attribute reference](api.
 | `moveView(axis, range)`, `parseEasing(css)` | Ease an axis to a view range (or back to the data's, with `null`) as the chart's `transition` says; and a CSS timing function as `(t) => progress`. See [Transitions](../guide/transitions.md#moving-the-view). |
 | `DataSource`, `DataTransform` | Bases for [a source and a transform of your own](../extending/custom-data-and-scales.md). |
 | `PointBuffer`, `PlanContext`, `FillPlan`, `FillResult` | Types of the data contract. |
+| `rowRange(n, from?, to?)` | The rows `from` to `to` of `n`, as `[start, end]`, clamped: what a source's ranged `fill` loops over. |
 
 ## Serialization
 

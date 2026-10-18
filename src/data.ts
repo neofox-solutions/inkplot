@@ -66,10 +66,25 @@ export interface FillResult {
   readonly extents: readonly Extent[];
   readonly rowOf?: (index: number) => number;
 }
-/** A promise of points: how much room `fill` may need, and the function that writes them. */
+/**
+ * A promise of points: how much room `fill` may need, and the function that writes them.
+ *
+ * A plan that can write just some of its rows says how many it has in `rows`, and then `fill(out, from, to)` writes rows
+ * `from` up to `to` of the full answer (clamped to what there is) into the start of `out`, with the extents and `rowOf`
+ * of those rows alone. This is what lets a `Slice` read a window of a long source without reading the rest. A plan with no
+ * `rows` has no such mode and ignores any range, so a caller that wants a range checks `rows` first. A transform need not
+ * offer it: the rows of a decimator are the decimated ones, and `Slice` falls back to filling them all.
+ */
 export interface FillPlan {
   readonly capacity: number;
-  fill(out: Float64Array): FillResult;
+  readonly rows?: number;
+  fill(out: Float64Array, from?: number, to?: number): FillResult;
+}
+
+/** The rows `from` to `to` (default: all) of `n`, as a start and an end: `Array.prototype.slice` without the negative indices. */
+export function rowRange(n: number, from?: number, to?: number): [lo: number, hi: number] {
+  const lo = Math.min(n, Math.max(0, Math.trunc(from ?? 0) || 0));
+  return [lo, Math.max(lo, Math.min(n, Math.trunc(to ?? n)))];
 }
 
 /** A read-only look at a source's own storage, so a decimator can scan it without copying. */
@@ -189,6 +204,22 @@ export function endsOf(n: number, at: (i: number) => number): Extent | null {
 }
 
 /** The extent of every column of `count` rows of `stride` numbers, NaN skipped. The domain column is ascending, so only its ends matter. */
+/** The extent of every column of `count` rows, NaN skipped, with no assumption about their order. */
+export function scanExtents(buf: ArrayLike<number>, count: number, stride: number): Extent[] {
+  const out: Extent[] = [];
+  for (let c = 0; c < stride; c++) {
+    let min = Infinity,
+      max = -Infinity;
+    for (let i = 0, j = c; i < count; i++, j += stride) {
+      const v = buf[j]!;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    out.push(min <= max ? { min, max } : NO_POINTS);
+  }
+  return out;
+}
+
 function columnExtents(buf: Float64Array, count: number, stride: number): Extent[] {
   const out: Extent[] = [count > 0 ? { min: buf[0]!, max: buf[stride * (count - 1)]! } : NO_POINTS];
   for (let c = 1; c < stride; c++) {
@@ -247,9 +278,10 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   /**
    * Write every point into `out`, in storage order, as the domain, the value and then each of `context.channels`,
    * and report the extent of every column, NaN skipped. This is the hot loop, so each source writes its own
-   * against its own storage.
+   * against its own storage. With `from` and `to`, only those rows (see `rowRange`), written from the start of `out`, and
+   * the extents are theirs.
    */
-  protected abstract fill(out: Float64Array, context: PlanContext): FillResult;
+  protected abstract fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult;
   /**
    * The extent of the domain of an `ordered` source, or null if there are no points. Only the two ends matter,
    * so this never scans. Cached per version by `domain()`.
@@ -423,7 +455,17 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
    * only when the series wants a different selection of channels than the source stores.
    */
   plan(context: PlanContext): FillPlan {
-    if (this.inPlace) return { capacity: this.pointCount, fill: (out) => ({ ...this.fill(out, context), rowOf: identity }) };
+    if (this.inPlace) {
+      const n = this.pointCount;
+      return {
+        capacity: n,
+        rows: n,
+        fill: (out, from, to) => {
+          const [lo, hi] = rowRange(n, from, to);
+          return { ...this.fill(out, context, lo, hi), rowOf: lo === 0 ? identity : (i) => lo + i };
+        },
+      };
+    }
     const m = this.managed(),
       want = context.channels,
       have = this.channelNames;
@@ -432,9 +474,16 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
     if (want.length === have.length && want.every((w, i) => w === have[i])) {
       return {
         capacity: m.count,
-        fill: (out) => {
-          out.set(m.data.subarray(0, m.stride * m.count));
-          return { count: m.count, extents: m.extents, rowOf };
+        rows: m.count,
+        fill: (out, from, to) => {
+          const [lo, hi] = rowRange(m.count, from, to);
+          out.set(m.data.subarray(m.stride * lo, m.stride * hi));
+          const whole = lo === 0 && hi === m.count;
+          return {
+            count: hi - lo,
+            extents: whole ? m.extents : columnExtents(m.data.subarray(m.stride * lo, m.stride * hi), hi - lo, m.stride),
+            rowOf: lo === 0 ? rowOf : (i) => rowOf(lo + i),
+          };
         },
       };
     }
@@ -446,13 +495,20 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
     const out2 = 2 + want.length;
     return {
       capacity: m.count,
-      fill: (out) => {
-        for (let i = 0; i < m.count; i++) {
-          out[out2 * i] = m.data[m.stride * i]!;
-          out[out2 * i + 1] = m.data[m.stride * i + 1]!;
-          for (let c = 0; c < columns.length; c++) out[out2 * i + 2 + c] = m.data[m.stride * i + columns[c]!]!;
+      rows: m.count,
+      fill: (out, from, to) => {
+        const [lo, hi] = rowRange(m.count, from, to);
+        for (let i = lo; i < hi; i++) {
+          const o = out2 * (i - lo);
+          out[o] = m.data[m.stride * i]!;
+          out[o + 1] = m.data[m.stride * i + 1]!;
+          for (let c = 0; c < columns.length; c++) out[o + 2 + c] = m.data[m.stride * i + columns[c]!]!;
         }
-        return { count: m.count, extents: [m.extents[0]!, m.extents[1]!, ...columns.map((c) => m.extents[c]!)], rowOf };
+        const extents =
+          lo === 0 && hi === m.count
+            ? [m.extents[0]!, m.extents[1]!, ...columns.map((c) => m.extents[c]!)]
+            : columnExtents(out.subarray(0, out2 * (hi - lo)), hi - lo, out2);
+        return { count: hi - lo, extents, rowOf: lo === 0 ? rowOf : (i) => rowOf(lo + i) };
       },
     };
   }

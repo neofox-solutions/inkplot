@@ -14,7 +14,7 @@ A point is a row of numbers: `[domain, value, ...channels]`. Every stage that de
 | You implement | Does |
 |---|---|
 | `pointCount` | How many points are stored. |
-| `fill(out, context)` | Writes every point into `out` (storage order, as domain, value, then each of `context.channels`) and returns the `count` and an **extent for every column**, NaN skipped. This is the hot loop; write it against your own storage. |
+| `fill(out, context)` | Writes every point into `out` (storage order, as domain, value, then each of `context.channels`) and returns the `count` and an **extent for every column**, NaN skipped. This is the hot loop; write it against your own storage. It also takes `from` and `to`: write only rows `from` up to `to` (use `rowRange(n, from, to)`), from the start of `out`, with the extents of those rows. A `Slice` over your source then reads only its window, so a long source costs what its window costs. |
 | `scanDomain()` | The extent of the domain of an *ordered* source: only its two ends matter. |
 | `orderedView()` *(optional)* | Offers the storage for zero-copy reading, when it is ordered and flat. |
 | `channelNames` *(optional)* | The channels this source can deliver, in storage order. Default none. |
@@ -74,7 +74,7 @@ Because it is a `DataSource`, it works with everything: put a `Decimator` round 
 
 ### A transform
 
-A stage that takes another stage as input (a decimator, a filter, a resampler) extends **`DataTransform`**. It has no storage, so it implements the stage interface directly: `version`, `pointCount`, `domain()`, `valueExtent()`, `channelExtent(name)` and `plan(context)`, which returns `{ capacity, fill(out) }`, and it takes its source as the first child. Read `decimation.ts` for the full example; a transform is placed between the series and its source, as `Decimator` is.
+A stage that takes another stage as input (a decimator, a filter, a resampler) extends **`DataTransform`**. It has no storage, so it implements the stage interface directly: `version`, `pointCount`, `domain()`, `valueExtent()`, `channelExtent(name)` and `plan(context)`, which returns `{ capacity, fill(out) }`, and it takes its source as the first child. A plan may also say how many `rows` it has, and then `fill(out, from, to)` writes just those rows, with their extents and `rowOf`; a transform needs not, and a `Slice` above one fills every row and keeps its window. Slice as close to the source as you can, since a window of a decimated stage is a window of the decimated rows. Read `decimation.ts` for the full example; a transform is placed between the series and its source, as `Decimator` is.
 
 ## Scales
 

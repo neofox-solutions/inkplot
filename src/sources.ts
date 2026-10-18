@@ -10,6 +10,7 @@ import {
   type PlanContext,
   type PointView,
   endsOf,
+  rowRange,
   num,
 } from './data.ts';
 import { fail } from './element.ts';
@@ -65,7 +66,7 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
     return this.managedView();
   }
 
-  protected fill(out: Float64Array, context: PlanContext): FillResult {
+  protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
     const { source, domain, value, channels } = this.attrs;
     const xFn = typeof domain === 'function' ? domain : null;
     const yFn = typeof value === 'function' ? value : null;
@@ -79,24 +80,25 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
     });
     const cMin = new Float64Array(k).fill(Infinity),
       cMax = new Float64Array(k).fill(-Infinity);
-    const n = source.length;
+    const [lo, hi] = rowRange(source.length, from, to);
     let xMin = Infinity,
       xMax = -Infinity,
       yMin = Infinity,
       yMax = -Infinity;
-    for (let i = 0; i < n; i++) {
+    for (let i = lo; i < hi; i++) {
       const row = source[i]!;
       const x = xFn ? xFn(row, i) : domain === undefined ? i : num((row as Record<string | number, unknown>)[domain as string]);
       const y = yFn ? yFn(row, i) : noValue ? NaN : num((row as Record<string | number, unknown>)[value as string]);
-      out[stride * i] = x;
-      out[stride * i + 1] = y;
+      const o = stride * (i - lo);
+      out[o] = x;
+      out[o + 1] = y;
       if (x < xMin) xMin = x;
       if (x > xMax) xMax = x;
       if (y < yMin) yMin = y;
       if (y > yMax) yMax = y;
       for (let c = 0; c < k; c++) {
         const v = cFns[c]!(row, i);
-        out[stride * i + 2 + c] = v;
+        out[o + 2 + c] = v;
         if (v < cMin[c]!) cMin[c] = v;
         if (v > cMax[c]!) cMax[c] = v;
       }
@@ -106,7 +108,7 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
       { min: yMin, max: yMax },
     ];
     for (let c = 0; c < k; c++) extents.push({ min: cMin[c]!, max: cMax[c]! });
-    return { count: n, extents };
+    return { count: hi - lo, extents };
   }
 }
 
@@ -185,11 +187,11 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
     return endsOf(n, (i) => data[i * stride + domainOffset]!);
   }
 
-  protected fill(out: Float64Array, context: PlanContext): FillResult {
+  protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
     const { data, regularDomain: r, domainOffset = 0 } = this.attrs;
     const channels = this.channelOffsets;
     const stride = this.stride,
-      n = this.pointCount;
+      [lo, hi] = rowRange(this.pointCount, from, to);
     const valueOffset = this.attrs.valueOffset ?? (r ? 0 : 1);
     const names = context.channels,
       k = names.length,
@@ -201,29 +203,30 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
       xMax = -Infinity,
       yMin = Infinity,
       yMax = -Infinity;
-    for (let i = 0, j = 0; i < n; i++, j += stride) {
+    for (let i = lo, j = lo * stride; i < hi; i++, j += stride) {
       const x = r ? r.start + r.step * i : data[j + domainOffset]!;
       const y = data[j + valueOffset]!;
-      out[os * i] = x;
-      out[os * i + 1] = y;
+      const o = os * (i - lo);
+      out[o] = x;
+      out[o + 1] = y;
       if (x < xMin) xMin = x;
       if (x > xMax) xMax = x;
       if (y < yMin) yMin = y;
       if (y > yMax) yMax = y;
       for (let c = 0; c < k; c++) {
         const v = data[j + offsets[c]!]!;
-        out[os * i + 2 + c] = v;
+        out[o + 2 + c] = v;
         if (v < cMin[c]!) cMin[c] = v;
         if (v > cMax[c]!) cMax[c] = v;
       }
     }
-    if (n === 0) return { count: 0, extents: [NO_POINTS, NO_POINTS, ...names.map(() => NO_POINTS)] };
+    if (hi === lo) return { count: 0, extents: [NO_POINTS, NO_POINTS, ...names.map(() => NO_POINTS)] };
     const extents: Extent[] = [
       { min: xMin, max: xMax },
       { min: yMin, max: yMax },
     ];
     for (let c = 0; c < k; c++) extents.push({ min: cMin[c]!, max: cMax[c]! });
-    return { count: n, extents };
+    return { count: hi - lo, extents };
   }
 }
 
@@ -275,29 +278,32 @@ export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttribute
     return { lo, hi, n: this.attrs.count ?? (context.width > 0 ? Math.max(2, Math.ceil(context.width)) : DEFAULT_SAMPLES) };
   }
 
-  protected fill(out: Float64Array, context: PlanContext): FillResult {
+  protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
     if (context.channels.length) fail(`the data has no channel "${context.channels[0]}"`);
     // With a fixed count the span is the whole domain whatever is in view; otherwise only the part in view is sampled.
     const { fn, domain, count } = this.attrs;
     const { lo, hi, n } = count === undefined ? this.span(context) : { lo: domain.min, hi: domain.max, n: count };
-    if (n === 0) return { count: 0, extents: [NO_POINTS, NO_POINTS] };
+    const [first, last] = rowRange(n, from, to);
+    if (last === first) return { count: 0, extents: [NO_POINTS, NO_POINTS] };
+    const at = (i: number) => (n === 1 ? lo : i === n - 1 ? hi : lo + ((hi - lo) * i) / (n - 1));
     let yMin = Infinity,
       yMax = -Infinity;
-    for (let i = 0; i < n; i++) {
-      const x = n === 1 ? lo : i === n - 1 ? hi : lo + ((hi - lo) * i) / (n - 1),
+    for (let i = first; i < last; i++) {
+      const x = at(i),
         y = fn(x);
-      out[2 * i] = x;
-      out[2 * i + 1] = y;
+      out[2 * (i - first)] = x;
+      out[2 * (i - first) + 1] = y;
       if (y < yMin) yMin = y;
       if (y > yMax) yMax = y;
     }
-    return { count: n, extents: [{ min: lo, max: hi }, yMin <= yMax ? { min: yMin, max: yMax } : NO_POINTS] };
+    return { count: last - first, extents: [{ min: at(first), max: at(last - 1) }, yMin <= yMax ? { min: yMin, max: yMax } : NO_POINTS] };
   }
 
   /** Room for the samples this plot asks for, which depends on its width; the points are made up, so there is no `rowOf`. */
   override plan(context: PlanContext): FillPlan {
     if (this.attrs.wrap !== undefined) return super.plan(context);
-    return { capacity: this.attrs.count ?? this.span(context).n, fill: (out) => this.fill(out, context) };
+    const n = this.attrs.count ?? this.span(context).n;
+    return { capacity: n, rows: n, fill: (out, from, to) => this.fill(out, context, from, to) };
   }
 }
 
@@ -337,8 +343,9 @@ export class CompositeDataSource<Channel extends string = string> extends DataSo
     return endsOf(this.attrs.count, at);
   }
 
-  protected fill(out: Float64Array, context: PlanContext): FillResult {
-    const { count: n, channels } = this.attrs;
+  protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
+    const { count, channels } = this.attrs;
+    const [lo, hi] = rowRange(count, from, to);
     const xAt = reader(this.attrs.domain),
       yAt = this.attrs.value === undefined ? () => NaN : reader(this.attrs.value);
     const names = context.channels,
@@ -353,18 +360,19 @@ export class CompositeDataSource<Channel extends string = string> extends DataSo
       xMax = -Infinity,
       yMin = Infinity,
       yMax = -Infinity;
-    for (let i = 0; i < n; i++) {
+    for (let i = lo; i < hi; i++) {
       const x = num(xAt(i)),
         y = num(yAt(i));
-      out[stride * i] = x;
-      out[stride * i + 1] = y;
+      const o = stride * (i - lo);
+      out[o] = x;
+      out[o + 1] = y;
       if (x < xMin) xMin = x;
       if (x > xMax) xMax = x;
       if (y < yMin) yMin = y;
       if (y > yMax) yMax = y;
       for (let c = 0; c < k; c++) {
         const v = num(cAt[c]!(i));
-        out[stride * i + 2 + c] = v;
+        out[o + 2 + c] = v;
         if (v < cMin[c]!) cMin[c] = v;
         if (v > cMax[c]!) cMax[c] = v;
       }
@@ -372,6 +380,6 @@ export class CompositeDataSource<Channel extends string = string> extends DataSo
     const ext = (min: number, max: number): Extent => (min <= max ? { min, max } : NO_POINTS);
     const extents: Extent[] = [ext(xMin, xMax), ext(yMin, yMax)];
     for (let c = 0; c < k; c++) extents.push(ext(cMin[c]!, cMax[c]!));
-    return { count: n, extents };
+    return { count: hi - lo, extents };
   }
 }

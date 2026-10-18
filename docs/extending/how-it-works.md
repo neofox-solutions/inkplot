@@ -59,7 +59,7 @@ A theme is a plain object of selectors; an element asks for its look with a chai
 
 ## Data
 
-Everything downstream wants the domain ascending, so sources always **deliver** ascending points (in place when already sorted, from a sorted copy when not). Stages form a pipeline (`plan(context)` → `{ capacity, fill }`) in which the caller owns the buffer, so a series reuses one allocation across redraws. `version` keys all caches. See [Custom data and scales](custom-data-and-scales.md).
+Everything downstream wants the domain ascending, so sources always **deliver** ascending points (in place when already sorted, from a sorted copy when not). Stages form a pipeline (`plan(context)` → `{ capacity, fill }`) in which the caller owns the buffer, so a series reuses one allocation across redraws. A plan over a source can also write just a range of its rows, which is how a `Slice` reads a window of a long source without reading the rest. `version` keys all caches. See [Custom data and scales](custom-data-and-scales.md).
 
 ## Testing
 

@@ -110,6 +110,7 @@ export {
   type PlanContext,
   type PointBuffer,
   type PointView,
+  rowRange,
 } from './data.ts';
 export {
   type Column,

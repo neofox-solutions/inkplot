@@ -21,7 +21,16 @@
  */
 /* oxlint-disable typescript/consistent-type-assertions -- a message from the worker is checked for its shape (an object with a `kind` and this boundary's `id`) and then read as what that says it is */
 import { type AttrTypesFor, BOOLEAN } from './attrs.ts';
-import { type DataNode, DataSource, DataTransform, type FillPlan, type FillResult, type PlanContext } from './data.ts';
+import {
+  type DataNode,
+  DataSource,
+  DataTransform,
+  type FillPlan,
+  type FillResult,
+  type PlanContext,
+  rowRange,
+  scanExtents,
+} from './data.ts';
 import { type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
 import { leafOf, type Partition, type PartitionedPlan } from './partition.ts';
@@ -206,10 +215,15 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
     if (!have || have.stride !== stride) return { capacity: 0, fill: () => ({ count: 0, extents: [] }) };
     return {
       capacity: have.count,
-      fill: (out): FillResult => {
+      rows: have.count,
+      fill: (out, from, to): FillResult => {
         const r = this.#result ?? have;
-        out.set(new Float64Array(r.buffer, 0, r.count * r.stride).subarray(0, out.length));
-        return { count: Math.min(r.count, Math.floor(out.length / r.stride)), extents: r.extents };
+        const [lo, hi] = rowRange(r.count, from, to);
+        const part = new Float64Array(r.buffer, 8 * r.stride * lo, r.stride * (hi - lo)).subarray(0, out.length);
+        out.set(part);
+        const count = Math.min(hi - lo, Math.floor(out.length / r.stride));
+        // Rows of the answer that has arrived are not rows of the source, so there is no `rowOf` to offer; extents are the answer's, whole or of the part.
+        return { count, extents: lo === 0 && hi === r.count ? r.extents : scanExtents(part, count, r.stride) };
       },
     };
   }
