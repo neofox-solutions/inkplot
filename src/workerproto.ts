@@ -39,6 +39,8 @@ export type ToWorker =
       epoch: number;
       tree: ElementJSON;
       refs: Record<string, unknown>;
+      /** Names the tree no longer mentions: the worker lets go of what they named. */
+      drop?: string[];
       partition?: PartitionSpec | null;
       /** Rows that are shared with the page were changed in place: the worker's caches of them are out of date. */
       touch?: boolean;

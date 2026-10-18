@@ -102,6 +102,7 @@ export function createHost(registry: ElementRegistry, options: HostOptions = {})
           let entry = entries.get(id);
           const refs = new Map(entry?.refs);
           for (const [k, v] of Object.entries(message.refs)) refs.set(k, v);
+          if (message.kind === 'update') for (const k of message.drop ?? []) refs.delete(k);
           const live = new Refs(Object.fromEntries(refs), { auto: true });
           if (message.kind === 'attach' || !entry) {
             const root = fromJSON(message.tree, registry, { refs: live });

@@ -18,6 +18,8 @@ export type { Envelope } from './workerproto.ts';
 /** What a worker listens on and answers through: the worker's own scope (the default), a `MessagePort`, or a Node `parentPort`. */
 export interface WorkerPort {
   postMessage(message: unknown, transfer?: ArrayBuffer[]): void;
+  /** A browser `MessagePort` delivers nothing to `addEventListener` until it is started. */
+  start?(): void;
   addEventListener?(type: 'message', listener: (event: { data: unknown }) => void): void;
   removeEventListener?(type: 'message', listener: (event: { data: unknown }) => void): void;
   on?(type: 'message', listener: (data: unknown) => void): unknown;
@@ -38,6 +40,7 @@ export function serveWorker(registry: ElementRegistry, options: ServeOptions = {
   if (port.addEventListener) {
     const listener = (e: { data: unknown }) => on(e.data);
     port.addEventListener('message', listener);
+    port.start?.();
     return () => port.removeEventListener?.('message', listener);
   }
   if (port.on) {

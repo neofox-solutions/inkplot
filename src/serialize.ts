@@ -306,13 +306,21 @@ function decode(v: unknown, path: string, refs: Refs | undefined): unknown {
       fail(`${at(path)}a $typed value is { "$typed": one of ${TYPED.join(', ')}, "data": [numbers] }`);
     // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
     const Ctor = (globalThis as unknown as Record<string, new (a: number[]) => unknown>)[type]!;
-    return new Ctor(
-      (o.data as unknown[]).map((n) => (n === null ? NaN : n === 'Infinity' ? Infinity : n === '-Infinity' ? -Infinity : (n as number))),
-    );
+    const data = (o.data as unknown[]).map((n, i) => {
+      if (n === null) return NaN;
+      if (n === 'Infinity') return Infinity;
+      if (n === '-Infinity') return -Infinity;
+      if (typeof n !== 'number')
+        fail(`${at(path)}a $typed value holds numbers, null (NaN), "Infinity" or "-Infinity": item ${i} is ${JSON.stringify(n)}`);
+      return n;
+    });
+    return new Ctor(data);
   }
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(o)) {
     if (key.startsWith('$')) fail(`${at(path)}unknown marker "${key}"`);
+    // Assigning `__proto__` would replace the object's prototype instead of adding a key.
+    if (key === '__proto__') fail(`${at(path)}"__proto__" is not an attribute name`);
     out[key] = decode(o[key], path ? `${path}.${key}` : key, refs);
   }
   return out;

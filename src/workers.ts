@@ -50,32 +50,47 @@ export class NullWorker implements WorkerLike {
 }
 
 /**
- * Copy a message as `structuredClone` would for what the protocol holds; a buffer in `transfer` moves and is not copied.
+ * Copy a message as `structuredClone` would for what the protocol holds. A buffer in `transfer` moves: the copy has its
+ * bytes, and the original is detached (empty, length 0), as it is when a real worker is sent it. Where the runtime cannot
+ * detach one (before `structuredClone`), the original is left whole.
  *
  * @internal
  */
 export function cloneMessage(value: unknown, transfer: readonly ArrayBuffer[] = []): unknown {
+  const moved = new Map<ArrayBuffer, ArrayBuffer>();
+  for (const b of transfer) if (b instanceof ArrayBuffer && !moved.has(b)) moved.set(b, b.slice(0));
+  const copy = clone(value, moved);
+  // Only now, so that every view of a buffer has been read at its full length.
+  // oxlint-disable-next-line baseline-js/use-baseline -- structuredClone is in Node 17 and every current browser; without it the original is left whole, which only a test could notice
+  if (typeof structuredClone === 'function') for (const b of moved.keys()) structuredClone(b, { transfer: [b] });
+  return copy;
+}
+
+function clone(value: unknown, moved: ReadonlyMap<ArrayBuffer, ArrayBuffer>): unknown {
   if (value === null || typeof value !== 'object') {
     if (typeof value === 'function' || typeof value === 'symbol') fail(`DataCloneError: a ${typeof value} cannot be sent to a worker`);
     return value;
   }
-  if (value instanceof ArrayBuffer) return transfer.includes(value) ? value : value.slice(0);
+  if (value instanceof ArrayBuffer) return moved.get(value) ?? value.slice(0);
   if (ArrayBuffer.isView(value)) {
     const shared = typeof SharedArrayBuffer !== 'undefined' && value.buffer instanceof SharedArrayBuffer;
     // oxlint-disable-next-line typescript/consistent-type-assertions -- a typed array's constructor builds one of its own kind from a buffer or from another array
     const Ctor = value.constructor as new (a: ArrayBufferLike | ArrayLike<number>, o?: number, l?: number) => ArrayBufferView;
-    if (shared || transfer.includes(value.buffer as ArrayBuffer))
-      return new Ctor(value.buffer, value.byteOffset, (value as unknown as ArrayLike<number>).length);
+    const length = (value as unknown as ArrayLike<number>).length;
+    if (shared) return new Ctor(value.buffer, value.byteOffset, length);
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- not shared, so an ArrayBuffer
+    const to = moved.get(value.buffer as ArrayBuffer);
+    if (to) return new Ctor(to, value.byteOffset, length);
     return new Ctor(value as unknown as ArrayLike<number>);
   }
-  if (Array.isArray(value)) return value.map((x) => cloneMessage(x, transfer));
+  if (Array.isArray(value)) return value.map((x) => clone(x, moved));
   const proto = Object.getPrototypeOf(value);
   if (proto !== Object.prototype && proto !== null)
     fail(
       `DataCloneError: ${value.constructor?.name ?? 'an object'} cannot be sent to a worker: only plain objects, arrays and typed arrays can`,
     );
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(value)) out[k] = cloneMessage(v, transfer);
+  for (const [k, v] of Object.entries(value)) out[k] = clone(v, moved);
   return out;
 }
 

@@ -19,7 +19,6 @@
  * An error in the worker is thrown, with its message, from the next `plan`. The points come back in a buffer the boundary
  * hands back with the next request, so a steady state allocates nothing.
  */
-/* oxlint-disable typescript/consistent-type-assertions -- a message from the worker is checked for its shape (an object with a `kind` and this boundary's `id`) and then read as what that says it is */
 import { type AttrTypesFor, BOOLEAN } from './attrs.ts';
 import {
   type DataNode,
@@ -52,7 +51,7 @@ export interface WorkerBoundaryAttributes extends BaseAttributes {
   worker: WorkerLike;
   /** The classes the description is made of, by the names the worker's registry knows them under. */
   registry: ElementRegistry;
-  /** Move the arrays to the worker instead of copying them: fast and without a second copy, but the page no longer has the rows (a hit has no row, the data cannot be edited here). A `SharedArrayBuffer` is never copied or moved. */
+  /** Move the arrays to the worker instead of copying them: fast and without a second copy, but the page no longer has the rows (a hit has no row, the data cannot be edited here). A `SharedArrayBuffer` is never copied or moved. A chart that is unmounted and mounted again in one go (React Strict Mode, an element moved in the page) keeps its data; one removed for good has lost it, and mounting it again says so. */
   transfer?: boolean;
   /**
    * Allow arrays that are backed by a `SharedArrayBuffer`, which the worker then reads where they are, with no copy: change them in
@@ -121,6 +120,11 @@ function remotePartition(source: DataSource, spec: PartitionSpec, meta: Partitio
 
 let nextId = 1;
 
+/** A worker's report that it failed as a whole (`id` 0), which the adapters send as it is, outside any envelope. */
+const isHostError = (d: unknown): d is FromWorker =>
+  d !== null && typeof d === 'object' && Reflect.get(d, 'kind') === 'error' && Reflect.get(d, 'id') === 0;
+const isFromWorker = (m: unknown): m is FromWorker => m !== null && typeof m === 'object' && typeof Reflect.get(m, 'kind') === 'string';
+
 export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [source: DataNode]> {
   static override attrTypes = { ...DataTransform.attrTypes, transfer: BOOLEAN } satisfies Partial<AttrTypesFor<WorkerBoundaryAttributes>>;
 
@@ -145,6 +149,10 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
   #inflight: Request | null = null;
   #waiting: Request | null = null;
   #error: Error | null = null;
+  // An error has been thrown: nothing is pending until something changes and asks again.
+  #failed = false;
+  // Unmounted, and the worker not yet told, so that a mount straight after (Strict Mode, a move in the document) finds its data still there.
+  #leaving = false;
   // While a message is being posted: an answer that comes back at once (a NullWorker) is part of the call that asked.
   #posting = 0;
   #replying = false;
@@ -173,13 +181,16 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
   }
   /** True while a request is out or waiting, or the worker has not yet answered the description: the chart is drawing what it had. */
   get pending(): boolean {
-    return this.#error === null && (this.#inflight !== null || this.#waiting !== null || this.#meta === null || this.#dirty);
+    return (
+      this.#error === null && !this.#failed && (this.#inflight !== null || this.#waiting !== null || this.#meta === null || this.#dirty)
+    );
   }
 
   override invalidate(): void {
     if (!this.#replying && this.#posting === 0) {
       this.#version++;
       this.#dirty = true;
+      this.#failed = false;
     }
     super.invalidate();
   }
@@ -233,6 +244,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
     if (this.#error) {
       const e = this.#error;
       this.#error = null;
+      this.#failed = true;
       throw e;
     }
     this.#sync();
@@ -301,14 +313,24 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
     super.unmount(removeNodes);
   }
   #detach(): void {
-    if (this.#attached) this.#post({ kind: 'detach', id: this.#id });
+    if (this.#attached && !this.#leaving) {
+      // The worker is told a moment later, and not at all if the chart is mounted again by then: with `transfer` the page's
+      // arrays are gone once sent, so a detach and attach in one go (Strict Mode, moving the element) must not lose the worker's copy.
+      this.#leaving = true;
+      queueMicrotask(() => {
+        if (!this.#leaving) return;
+        this.#leaving = false;
+        this.#post({ kind: 'detach', id: this.#id });
+        this.#attached = false;
+        this.#sent.clear();
+      });
+    }
     this.#stop?.();
     this.#stop = null;
     this.#release?.();
     this.#release = null;
     this.#unwatch?.();
     this.#unwatch = null;
-    this.#attached = false;
     this.#dirty = true;
     this.#meta = null;
     this.#result = null;
@@ -316,24 +338,30 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
     this.#remote = null;
     this.#inflight = this.#waiting = null;
     this.#wanted = '';
-    this.#sent.clear();
+    this.#failed = false;
   }
 
   /** Send the description if it has changed (or was never sent). */
   #sync(): void {
     if (!this.#dirty) return;
+    this.#leaving = false;
     this.#dirty = false;
+    try {
+      this.#describe();
+    } catch (e) {
+      // Nothing was sent and nothing is waited for: the error is the answer, and it comes again until what caused it is fixed.
+      this.#release?.();
+      this.#release = null;
+      this.#dirty = true;
+      this.#failed = true;
+      throw e;
+    }
+  }
+
+  #describe(): void {
     const a = this.attrs;
     if (!this.#wire) this.#wire = envelopeOf(a.envelope);
-    if (!this.#release && !this.#result && !this.#blocks) this.#release = this.chart?.holdEntrance() ?? null;
     if (!this.#unwatch) this.#unwatch = this.chart?.watchData(() => this.pending) ?? null;
-    if (!this.#stop) {
-      const wire = this.#wire;
-      this.#stop = a.worker.subscribe((data) => {
-        const m = wire.unwrap(data) as FromWorker | null;
-        if (m && typeof m === 'object' && (m.id === this.#id || (m.kind === 'error' && m.id === 0))) this.#receive(m);
-      });
-    }
     let tree;
     try {
       tree = toJSON(this.source, a.registry, { refs: this.#refs });
@@ -346,32 +374,79 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
         );
       throw e;
     }
+    // Names the tree no longer mentions (an array that was replaced) are let go here and in the worker, or every array the chart has ever shown stays alive.
+    const used = new Set<string>();
+    const collect = (v: unknown): void => {
+      if (Array.isArray(v)) for (const x of v) collect(x);
+      else if (v !== null && typeof v === 'object') {
+        const name = Reflect.get(v, '$ref');
+        if (typeof name === 'string') used.add(name);
+        else for (const x of Object.values(v)) collect(x);
+      }
+    };
+    collect(tree);
     const refs: Record<string, unknown> = {},
-      transfer: ArrayBuffer[] = [];
+      transfer: ArrayBuffer[] = [],
+      sent: [string, unknown][] = [],
+      moving: ArrayBuffer[] = [],
+      drop: string[] = [];
     for (const name of this.#refs.names) {
+      if (!used.has(name)) {
+        drop.push(name);
+        continue;
+      }
       const value = this.#refs.get(name);
       if (this.#sent.get(name) === value) continue;
-      this.#sent.set(name, value);
-      refs[name] = value;
+      if (ArrayBuffer.isView(value) && value.buffer.byteLength === 0 && this.#moved.has(value.buffer))
+        fail(
+          `WorkerBoundary: "${name}" was moved to a worker (\`transfer\`) and is not here any more: ` +
+            'give each boundary its own array, or leave `transfer` off to copy it',
+        );
       if (!a.shared && ArrayBuffer.isView(value) && typeof SharedArrayBuffer !== 'undefined' && value.buffer instanceof SharedArrayBuffer)
         fail(
           `WorkerBoundary: "${name}" is backed by a SharedArrayBuffer: set \`shared\` to share it with the worker (the page has to be cross-origin isolated)`,
         );
+      sent.push([name, value]);
+      refs[name] = value;
       if (a.transfer && ArrayBuffer.isView(value) && value.buffer instanceof ArrayBuffer && !this.#moved.has(value.buffer)) {
-        this.#moved.add(value.buffer);
+        moving.push(value.buffer);
         transfer.push(value.buffer);
       }
+    }
+    // Everything that can fail has: from here the description is sent and remembered.
+    if (!this.#release && !this.#result && !this.#blocks) this.#release = this.chart?.holdEntrance() ?? null;
+    if (!this.#stop) {
+      const wire = this.#wire;
+      this.#stop = a.worker.subscribe((data) => {
+        let m: unknown = null;
+        try {
+          m = wire.unwrap(data);
+        } catch {
+          // Traffic that is not ours may not be in our envelope.
+        }
+        // A worker that failed as a whole says so without the envelope, which is the worker's, not the host's.
+        if (m === null && isHostError(data)) m = data;
+        if (isFromWorker(m) && (m.id === this.#id || (m.kind === 'error' && m.id === 0))) this.#receive(m);
+      });
+    }
+    for (const [name, value] of sent) this.#sent.set(name, value);
+    for (const buffer of moving) this.#moved.add(buffer);
+    for (const name of drop) {
+      this.#refs.forget(name);
+      this.#sent.delete(name);
     }
     const touch = this.#touch;
     this.#touch = false;
     this.#epoch++;
+    const update = this.#attached;
     this.#post(
       {
-        kind: this.#attached ? 'update' : 'attach',
+        kind: update ? 'update' : 'attach',
         id: this.#id,
         epoch: this.#epoch,
         tree,
         refs,
+        ...(update && drop.length ? { drop } : {}),
         partition: this.#spec,
         touch: touch || undefined,
       },
@@ -450,7 +525,9 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
         this.#release?.();
         this.#release = null;
         this.#error ??= new Error(`WorkerBoundary: ${m.message}`);
-        this.#inflight = null;
+        // What was asked for failed, and what waited behind it is asked again by the next plan, not held for ever.
+        this.#inflight = this.#waiting = null;
+        this.#wanted = '';
         break;
     }
     // An answer that came back inside the call that asked is part of that call; a later one is a change.

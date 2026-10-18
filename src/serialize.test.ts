@@ -225,6 +225,18 @@ test('serialize', () => {
     );
     assert.throws(
       at((j) => {
+        j.children![0]!.children![0]!.attrs = { a: { $typed: 'Float64Array', data: [1, 'two', 3] } };
+      }),
+      /item 1 is "two"/,
+    );
+    assert.throws(
+      at((j) => {
+        j.children![0]!.children![0]!.attrs = JSON.parse('{"a":{"__proto__":{"x":1}}}');
+      }),
+      /"__proto__" is not an attribute name/,
+    );
+    assert.throws(
+      at((j) => {
         (j as unknown as { children: unknown }).children = 'x';
       }),
       /"children" has to be an array/,

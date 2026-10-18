@@ -332,3 +332,115 @@ test('worker boundary: a shared array is not copied, and an edit in place reache
     /SharedArrayBuffer: set `shared`/,
   );
 });
+
+test('worker boundary: replaced arrays are let go on both sides, and names are reused', () => {
+  const worker = new LoopbackWorker(createHost(registry), { manual: true });
+  const s = spy(worker);
+  const flat = new FlatDataSource({ data: wave(5_000), stride: 2, isSorted: true });
+  const boundary = new WorkerBoundary({ worker: s.worker, registry }, new Decimator({}, new MinMaxKernel(), flat));
+  const names = new Set<string>();
+  for (let i = 0; i < 20; i++) {
+    if (i) flat.setAttributes({ data: wave(5_000 + i) });
+    boundary.plan(context());
+    worker.drain();
+  }
+  for (const p of s.posted) for (const k of Object.keys((p.message as { refs?: object }).refs ?? {})) names.add(k);
+  assert.ok(names.size <= 3, `the same few names serve every array: ${[...names].join(', ')}`);
+  const updates = s.posted.map((p) => p.message).filter((m): m is Extract<ToWorker, { kind: 'update' }> => m.kind === 'update');
+  assert.ok(updates.length > 10 && updates.every((u) => (u.drop?.length ?? 0) === 1), 'each update lets go of the array it replaced');
+  assert.equal(boundary.pointCount, 5_019, 'and the newest array is the one the worker has');
+});
+
+test('worker boundary: a detach and attach in one go keeps the worker, even when the arrays were transferred', async () => {
+  const worker = new LoopbackWorker(createHost(registry));
+  const s = spy(worker);
+  const data = wave(20_000);
+  const boundary = new WorkerBoundary({ worker: s.worker, registry, transfer: true }, stages(data));
+  const { chart, series } = chartOf(boundary);
+  await chart.idle();
+  assert.equal(data.buffer.byteLength, 0, 'the array moved to the worker');
+  assert.ok(series.points.count > 100);
+  // Strict Mode, or the element moved in the document: unmount and mount again straight away.
+  chart.detach();
+  chart.attach(new StringPlatform({ width: W, height: H })).flush();
+  await chart.idle();
+  chart.flush();
+  assert.ok(series.points.count > 100, 'still drawn');
+  assert.ok(!s.kinds().includes('detach'), 'the worker was not told to forget');
+  // Gone for good: the worker is told, and a later attach says why it cannot be done.
+  chart.detach();
+  await worker.idle();
+  assert.deepEqual(s.kinds().slice(-1), ['detach']);
+  assert.throws(() => chart.attach(new StringPlatform({ width: W, height: H })).flush(), /moved to a worker/);
+});
+
+test('worker boundary: a failed fill or attach is thrown once, then asked again when something changes, and nothing stays pending', async () => {
+  const flaky = { fail: true };
+  const inner = createHost(registry);
+  const worker = new LoopbackWorker(
+    (data, reply) => {
+      const m = data as ToWorker;
+      if (flaky.fail && m.kind === 'fill') return reply({ kind: 'error', id: m.id, message: 'boom' });
+      inner(data, reply);
+    },
+    { manual: true },
+  );
+  const boundary = new WorkerBoundary({ worker, registry }, stages(wave(2_000)));
+  boundary.plan(context());
+  boundary.plan(context(0, 6)); // queued behind the first
+  worker.drain();
+  assert.throws(() => boundary.plan(context(0, 5)), /boom/);
+  assert.equal(boundary.pending, false, 'a failure is not "still working", and what was queued behind it is not held');
+  flaky.fail = false;
+  boundary.plan(context(0, 5)); // asked again, and sent again
+  worker.drain();
+  assert.ok(boundary.plan(context(0, 5)).capacity > 0, 'and now it is answered');
+  // An attach the worker cannot build.
+  const bad = new LoopbackWorker(createHost({ FlatDataSource }), { manual: true });
+  const b2 = new WorkerBoundary({ worker: bad, registry }, stages(wave(100)));
+  b2.plan(context());
+  bad.drain();
+  assert.throws(() => b2.plan(context()), /unknown type/);
+  assert.equal(b2.pending, false);
+  const chart = chartOf(
+    new WorkerBoundary({ worker: new LoopbackWorker(createHost({ FlatDataSource })), registry }, stages(wave(100))),
+  ).chart;
+  await assert.rejects(chart.idle(), /unknown type/);
+  await chart.idle().catch(() => {}); // the second wait does not hang
+});
+
+test('worker boundary: an exception while describing sends nothing, keeps nothing, and releases the entrance', () => {
+  const worker = new LoopbackWorker(createHost(registry), { manual: true });
+  const s = spy(worker);
+  const shared = new Float64Array(new SharedArrayBuffer(16 * 1000));
+  const boundary = new WorkerBoundary({ worker: s.worker, registry }, new FlatDataSource({ data: shared, stride: 2 }));
+  assert.throws(() => boundary.plan(context()), /SharedArrayBuffer/);
+  assert.throws(() => boundary.plan(context()), /SharedArrayBuffer/, 'said again, not turned into a missing ref');
+  assert.equal(s.posted.length, 0, 'nothing was sent');
+  assert.equal(boundary.pending, false);
+});
+
+test('worker boundary: a crash of the whole worker reaches a boundary that uses an envelope', () => {
+  let tell: (m: unknown) => void = () => {};
+  const worker: WorkerLike = {
+    post: () => {},
+    subscribe: (l) => ((tell = l), () => {}),
+    terminate: () => {},
+  };
+  const boundary = new WorkerBoundary({ worker, registry, envelope: 'ink' }, stages(wave(100)));
+  boundary.plan(context());
+  tell({ kind: 'error', id: 0, message: 'the worker failed: gone' });
+  assert.throws(() => boundary.plan(context()), /the worker failed: gone/);
+});
+
+test('serveWorker: a port that has to be started is started', () => {
+  const calls: string[] = [];
+  const port = {
+    postMessage: () => {},
+    addEventListener: () => void calls.push('listen'),
+    removeEventListener: () => {},
+    start: () => void calls.push('start'),
+  };
+  serveWorker(registry, { port });
+  assert.deepEqual(calls, ['listen', 'start']);
+});
