@@ -158,18 +158,26 @@ test('web-components', async () => {
   const listener = el(plane, '#pl');
   assert.equal((listener.element!.attrs as { onClick?: unknown }).onClick, undefined, 'no callback until someone listens');
   const got: unknown[] = [];
-  listener.addEventListener('click', (e) => got.push((e as unknown as CustomEvent).detail));
-  chart.addEventListener('click', () => got.push('bubbled'));
+  listener.addEventListener('ch-click', (e) => got.push((e as unknown as CustomEvent).detail));
+  chart.addEventListener('ch-click', () => got.push('bubbled'));
   (listener.element!.attrs as { onClick(i: unknown): void }).onClick({ x: 1 });
-  assert.deepEqual(got, [{ x: 1 }, 'bubbled'], "a click event with the callback's argument, which bubbles");
-  listener.setAttribute('onclick', 'ignored()');
+  assert.deepEqual(got, [{ x: 1 }, 'bubbled'], "a ch-click event with the callback's argument, which bubbles");
+  listener.setAttribute('onch-click', 'ignored()');
   await flush();
   assert.equal(
     typeof (listener.element!.attrs as { onClick: unknown }).onClick,
     'function',
     "on… attributes are the DOM's: they switch the event on, and are not chart attributes",
   );
-  assert.ok(!('onclick' in listener.element!.attrs));
+  assert.ok(!('onch-click' in listener.element!.attrs));
+
+  // The names are the tag's prefix and the callback's: a real `click` is not the chart's, and not called twice.
+  {
+    let clicks = 0;
+    listener.addEventListener('click', () => clicks++);
+    (listener.element!.attrs as { onClick(i: unknown): void }).onClick({ x: 2 });
+    assert.equal(clicks, 0, 'a chart callback is not a click');
+  }
 
   // Leaving the document detaches the chart; coming back draws it again.
   chart.remove();
@@ -192,6 +200,58 @@ test('web-components', async () => {
   x2.removeAttribute('meta');
   x2.removeAttribute('meta-title');
   await flush();
+  // A bad attribute is reported and leaves the tag out; correcting it brings the tag in.
+  {
+    const reported: unknown[] = [];
+    Object.assign(globalThis, { reportError: (e: unknown) => reported.push(e) });
+    const holder = el(chart, '#plane').element!;
+    plane.insertAdjacentHTML('beforeend', `<ch-axis id="bad" tickcount="many"><ch-linear-scale></ch-linear-scale></ch-axis>`);
+    const bad = el(plane, '#bad');
+    assert.equal(reported.length, 1);
+    assert.match(String(reported[0]), /'many' is not a number/);
+    assert.ok(!names(holder).includes('bad'), 'not in the tree');
+    bad.setAttribute('tickcount', '4');
+    await flush();
+    assert.ok(names(holder).includes('bad'), 'in the tree once it can be read');
+    // A class toggled on the tag is the page's: the chart is not read again.
+    const before = bad.element!.attrs;
+    bad.setAttribute('class', 'x');
+    await flush();
+    assert.equal(bad.element!.attrs, before);
+    Object.assign(globalThis, { reportError: undefined });
+  }
+
+  // The tags may be defined in any order, with the markup already in the page.
+  {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      `<x-chart id="late" style="display:block"><x-cartesian-plane id="lp"><x-axis orientation="bottom"><x-linear-scale></x-linear-scale></x-axis><x-axis orientation="left"><x-linear-scale></x-linear-scale></x-axis></x-cartesian-plane></x-chart>`,
+    );
+    const problems: unknown[] = [];
+    dom.window.addEventListener('error', (e) => problems.push(e.error));
+    Object.assign(globalThis, { reportError: (e: unknown) => problems.push(e) });
+    // Defining the chart draws it, with the platform's defaults.
+    Object.assign(globalThis, {
+      requestAnimationFrame: (f: () => void) => setTimeout(f, 0),
+      cancelAnimationFrame: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
+      ResizeObserver: class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    });
+    document.getElementById('late')!.getBoundingClientRect = () => ({ width: 300, height: 200 }) as DOMRect;
+    // Children first, the chart last: the worst order.
+    defineElements({ LinearScale: L.LinearScale }, { prefix: 'x' });
+    defineElements({ Axis: L.Axis }, { prefix: 'x' });
+    defineElements({ CartesianPlane: L.CartesianPlane }, { prefix: 'x' });
+    defineElements({ Chart: L.Chart }, { prefix: 'x' });
+    const late = document.getElementById('late') as Wrapper;
+    assert.deepEqual(problems, []);
+    const tree = (e: L.AnyElement): unknown => [e.constructor.name, ...[...e].map(tree)];
+    assert.deepEqual(tree(late.element!), ['Chart', ['CartesianPlane', ['Axis', ['LinearScale']], ['Axis', ['LinearScale']]]]);
+    late.remove(); // before its first flush
+  }
   console.log('web components ok');
 
   // Nested names with capitals (cursor keys, Intl formats) are found from the lowercase HTML gives.

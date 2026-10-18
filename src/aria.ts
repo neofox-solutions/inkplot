@@ -26,18 +26,27 @@ export function writeAria(surface: Surface, node: PlatformNode, meta: Meta | und
   const label = extra?.['aria-label'] ?? extra?.['label'] ?? meta?.title ?? defaults.label;
   const description = meta?.description ?? defaults.description;
   const role = meta?.role ?? defaults.role;
-  if (role !== undefined && (label !== undefined || description !== undefined || meta?.role !== undefined)) surface.set(node, 'role', role);
-  if (label !== undefined) surface.set(node, 'aria-label', String(label));
-  if (description !== undefined) surface.set(node, 'aria-description', description);
+  const now = new Map<string, string>();
+  if (role !== undefined && (label !== undefined || description !== undefined || meta?.role !== undefined)) now.set('role', role);
+  if (label !== undefined) now.set('aria-label', String(label));
+  if (description !== undefined) now.set('aria-description', description);
   if (extra) {
     for (const key in extra) {
       if (key === 'label') continue;
       const name = key.startsWith('aria-') ? key : `aria-${key}`;
       if (name === 'aria-label') continue;
-      surface.set(node, name, String(extra[key]));
+      now.set(name, String(extra[key]));
     }
   }
+  // What was written before and is not now (a title cleared, a key dropped from `aria`) comes off, so a label never outlives its meaning.
+  const before = written.get(node);
+  if (before) for (const name of before) if (!now.has(name)) surface.unset(node, name);
+  for (const [name, value] of now) surface.set(node, name, value);
+  if (now.size) written.set(node, new Set(now.keys()));
+  else written.delete(node);
 }
+/** The attribute names `writeAria` last wrote to each node. */
+const written = new WeakMap<PlatformNode, Set<string>>();
 
 /** Keep a decorative node (gridlines, tick labels, a swatch) out of the accessibility tree. */
 export function hideFromAssistive(surface: Surface, node: PlatformNode): void {

@@ -46,6 +46,8 @@ export interface DOMPlatformOptions {
   preciseText?: boolean;
   /** When to flush after an invalidation. Default 'frame'. 'manual' leaves it to `chart.flush()`. */
   schedule?: 'frame' | 'microtask' | 'manual' | ((callback: () => void) => Unsubscribe);
+  /** The locale dates are written in when the chart and the scale name none. Default: the browser's own language. */
+  locale?: string;
 }
 
 /**
@@ -60,6 +62,8 @@ export class DOMPlatform implements Platform {
   readonly root: PlatformNode;
   schedule?: (callback: () => void) => Unsubscribe;
   measureText?: TextMeasurer;
+  /** Undefined unless given: dates are then written in the browser's own language. */
+  readonly locale?: string;
   readonly #container: DOMContainer;
   readonly #svg: SVGSVGElement;
   readonly #fixed: Size | null;
@@ -72,6 +76,7 @@ export class DOMPlatform implements Platform {
   constructor(container: DOMContainer, options: DOMPlatformOptions = {}) {
     this.#container = container;
     this.#fixed = options.size ?? null;
+    if (options.locale !== undefined) this.locale = options.locale;
     this.#svg = container.ownerDocument.createElementNS(SVG_NS, 'svg') as SVGSVGElement;
     this.root = fromElement(this.#svg);
     this.#svg.style.display = 'block';
@@ -130,6 +135,9 @@ export class DOMPlatform implements Platform {
   }
   setAttribute(node: PlatformNode, name: string, value: string | number): void {
     element(node).setAttribute(name, String(value));
+  }
+  removeAttribute(node: PlatformNode, name: string): void {
+    element(node).removeAttribute(name);
   }
   setText(node: PlatformNode, text: string): void {
     element(node).textContent = text;

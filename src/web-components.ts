@@ -25,9 +25,12 @@
  * - Values HTML cannot carry are set as JavaScript: `element.props = { format: fn, data: new Float64Array(…) }` on the wrapper,
  *   and they win over attributes. `wrapper.element` is the chart element itself, for calling its methods.
  * - Callbacks (`onClick`, `onHover`, `onDrag`, `onFlush`: attributes that are functions) are events: once the page listens, with
- *   `addEventListener('click', …)` or `onclick=""`, the wrapper dispatches a bubbling `CustomEvent` named like the DOM's (`click`,
- *   `hover`, `drag`, `flush`) with the callback's argument as `detail`. (Until then no callback is set, so the chart stays serializable.)
- *   `on…` attributes are the DOM's own and are not read as chart attributes.
+ *   `addEventListener('ch-click', …)` or `onch-click=""` (the tag prefix, a hyphen and the name), the wrapper dispatches a bubbling
+ *   `CustomEvent` of that name (`ch-click`, `ch-hover`, `ch-drag`, `ch-flush`) with the callback's argument as `detail`. The names are
+ *   not the DOM's own, so a listener for a real `click` or `drag` is not called twice. (Until the page listens no callback is set, so
+ *   the chart stays serializable.) `on…` attributes are the DOM's own and are not read as chart attributes.
+ * - The tags may be defined in any order, before or after the markup is in the page: a tag whose parent is not defined yet waits
+ *   for it, and the parent takes it in when it is defined. (A tag with the prefix that is never defined holds back what is inside it.)
  * - `style`, `class` and the other attributes every HTML element has are the page's, not the chart's: set the chart's `style` blocks with `style-…` names.
  */
 import { type AttrTypes, type Coerce, AUTO, BOOLEAN, NUMBER, STRING } from './attrs.ts';
@@ -136,6 +139,15 @@ function convert(text: string, kind: Coerce, name: string): unknown {
   }
 }
 
+/** Say an error without stopping what is running: the page's `reportError` (its `error` event and console), else thrown from a microtask. */
+function report(e: unknown): void {
+  if (typeof reportError === 'function') reportError(e);
+  else
+    queueMicrotask(() => {
+      throw e;
+    });
+}
+
 const kebab = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 
 /** The base class of every wrapper, made when `defineElements` first runs because `HTMLElement` may not exist before. */
@@ -143,20 +155,36 @@ let Base: (abstract new () => InkplotElement & { sync(): void }) | null = null;
 
 function makeBase() {
   const observer = new MutationObserver((records) => {
-    for (const target of new Set(records.map((r) => r.target))) (target as unknown as { sync(): void }).sync();
+    // The page's own attributes (`class`, `style`, `onclick`…) are not the chart's: changing them costs the chart nothing.
+    const changed = new Set(
+      records.filter((r) => !PAGE_ATTRIBUTES.has(r.attributeName ?? '') && !r.attributeName?.startsWith('on')).map((r) => r.target),
+    );
+    // One bad attribute is reported, not allowed to stop the others from being read.
+    for (const target of changed) {
+      try {
+        (target as unknown as { refresh(): void }).refresh();
+      } catch (e) {
+        report(e);
+      }
+    }
   });
   return class Wrapper extends HTMLElement {
     // Set by defineElements on each defined subclass.
     static cls: ElementConstructor;
     static types: AttrTypes;
     static styleNames: Map<string, string>;
+    static prefix: string;
+    static registry: CustomElementRegistry;
 
     #element: AnyElement | null = null;
     #applied: Plain = {};
     #props: Plain = {};
     #handlers = new Map<string, (detail: unknown) => void>();
     #listening = new Set<string>();
-    #parent: InkplotElement | null = null;
+    #parent: Wrapper | null = null;
+    #joined = false;
+    #lastKey = '';
+    #propsVersion = 0;
     #platform: DOMPlatform | null = null;
     platformOptions?: DOMPlatformOptions;
 
@@ -179,6 +207,7 @@ function makeBase() {
     }
     set props(value: Plain) {
       this.#props = { ...value };
+      this.#propsVersion++;
       this.sync();
     }
 
@@ -190,13 +219,22 @@ function makeBase() {
         names: Map<string, string>;
         styleNames: Map<string, string>;
         cls: ElementConstructor;
+        prefix: string;
       };
       const flat: Plain = {};
+      let key = `${this.#propsVersion}|${this.#listening.size}`;
       for (const a of Array.from(this.attributes)) {
         const lower = a.name;
-        if (PAGE_ATTRIBUTES.has(lower) || lower.startsWith('on')) continue;
+        if (lower.startsWith('on')) {
+          if (this.#element) key += `|${lower}`; // an inline listener changes which callbacks are set
+          continue;
+        }
+        if (PAGE_ATTRIBUTES.has(lower)) continue;
         flat[lower] = a.value;
+        key += `|${lower}=${a.value}`;
       }
+      // Nothing the chart reads has changed (a class was toggled, say): no need to parse it all again.
+      if (this.#element && key === this.#lastKey) return this.#element;
       const attrs = attributesOf(flat, {
         name: (part, parents) => {
           const spec = specAt(ctor.types, parents);
@@ -211,7 +249,8 @@ function makeBase() {
       // A callback that dispatches its event, once the page listens for it (`addEventListener`, or an inline `onclick=""`).
       for (const name of Object.keys(ctor.types)) {
         if (!/^on[A-Z]/.test(name)) continue;
-        const type = name.slice(2).toLowerCase();
+        // Named with the tag's prefix, so it is not mistaken for (or run twice as) a DOM event of the same name.
+        const type = `${ctor.prefix}-${name.slice(2).toLowerCase()}`;
         if (!this.#listening.has(type) && !this.hasAttribute('on' + type)) continue;
         let handler = this.#handlers.get(name);
         if (!handler)
@@ -229,22 +268,62 @@ function makeBase() {
       if (!this.#element) {
         this.#element = new ctor.cls(attrs);
         this.#applied = attrs;
+        this.#lastKey = key;
         return this.#element;
       }
       const patch = difference(this.#applied, attrs);
       if (patch) this.#element.setAttributes(patch);
       this.#applied = attrs;
+      this.#lastKey = key;
       return this.#element;
     }
 
+    /** Read the attributes again, and take the element into the tree if it could not be made before (a bad attribute that is now fixed). */
+    refresh(): void {
+      this.sync();
+      this.#join();
+      this.#adopt();
+    }
+
     connectedCallback(): void {
-      const element = this.sync();
-      if (!element) return; // only when disconnected, and this is the callback for connecting
-      let ancestor = this.parentElement;
-      while (ancestor && !(ancestor instanceof Wrapper)) ancestor = ancestor.parentElement;
+      observer.observe(this, { attributes: true });
+      try {
+        this.sync();
+      } catch (e) {
+        // The tag stays out of the tree until its attributes can be read; fixing one brings it in (see `refresh`).
+        report(e);
+        return;
+      }
+      this.#join();
+      this.#adopt();
+    }
+
+    /** The nearest ancestor wrapper, or `pending` when there is a tag of ours above that is not defined or upgraded yet. */
+    #ancestor(): Wrapper | null | 'pending' {
+      const ctor = this.constructor as typeof Wrapper;
+      for (let a = this.parentElement; a; a = a.parentElement) {
+        if (a instanceof Wrapper) return a;
+        if (a.localName.startsWith(ctor.prefix + '-')) {
+          // Defined but not upgraded yet: upgrade it now, so that it is there before what is inside it.
+          if (ctor.registry.get(a.localName)) {
+            ctor.registry.upgrade(a);
+            if (a instanceof Wrapper) return a;
+          }
+          return 'pending';
+        }
+      }
+      return null;
+    }
+
+    /** Put the element where the markup puts it: in its parent element, in document order; or, for a chart, on the page. */
+    #join(): void {
+      const element = this.#element;
+      if (!element || this.#joined || !this.isConnected) return;
+      const ancestor = this.#ancestor();
+      if (ancestor === 'pending') return; // its parent takes it in when that is defined
       this.#parent = ancestor;
-      if (this.#parent) {
-        const host = this.#parent.element;
+      if (ancestor) {
+        const host = ancestor.element;
         if (!host) return;
         // Before the first later sibling tag that is already in the same parent element, else last.
         let before: AnyElement | null = null;
@@ -256,7 +335,6 @@ function makeBase() {
           }
         }
         host.insertBefore(element, before);
-        observer.observe(this, { attributes: true });
       } else if (typeof (element as unknown as Partial<Chart>).attach === 'function') {
         const root = this.shadowRoot ?? this.attachShadow({ mode: 'open' });
         root.replaceChildren();
@@ -266,8 +344,14 @@ function makeBase() {
         root.append(style, container);
         this.#platform = new DOMPlatform(container, this.platformOptions);
         (element as Chart).attach(this.#platform);
-        observer.observe(this, { attributes: true });
       }
+      this.#joined = true;
+    }
+
+    /** What was in the page before this was defined has been waiting for it, and goes in now, in document order. */
+    #adopt(): void {
+      if (!this.#element) return;
+      for (const inner of Array.from(this.querySelectorAll('*'))) if (inner instanceof Wrapper) inner.#join();
     }
 
     disconnectedCallback(): void {
@@ -281,6 +365,7 @@ function makeBase() {
       const host = this.#parent?.element;
       if (host && element.parent === host) host.remove(element);
       this.#parent = null;
+      this.#joined = false;
     }
   };
 }
@@ -306,7 +391,7 @@ export function defineElements(classes: Readonly<Record<string, ElementConstruct
     };
     check(types, key);
     const wrapper = class extends (base as unknown as new () => HTMLElement) {} as unknown as typeof HTMLElement & Record<string, unknown>;
-    Object.assign(wrapper, { cls, types, styleNames });
+    Object.assign(wrapper, { cls, types, styleNames, prefix: options.prefix, registry });
     const have = registry.get(tag);
     if (have) {
       if ((have as unknown as { cls?: unknown }).cls === cls) continue;

@@ -128,7 +128,7 @@ Ticks fall on the calendar: a day is 23 or 25 hours when the clocks change, and 
 |---|---|
 | `timeZone` | An IANA name (`'Europe/London'`), `'UTC'` (the default, so a chart renders the same wherever it is rendered) or `'local'` (the runtime's). |
 | `weekStart` | First day of the week, 0 for Sunday to 6. Default 1, Monday. |
-| `locale` | The language labels are written in: a BCP 47 tag. Default: the runtime's. |
+| `locale` | The language labels are written in: a BCP 47 tag. Default: the chart's `locale`, else the platform's: the browser's language in the DOM, `en-US` for a `StringPlatform` (so exports and server rendering are the same everywhere). |
 | `formats` | Replaces the format of a rank (`year`, `month`, `day`, `hour`, `minute`, `second`, `millisecond`, and `full`, the reading of one instant, as in a tooltip). For the two built in, each is `Intl.DateTimeFormatOptions`. |
 
 ```tsx live title="A time axis in another time zone, language and format" height=260

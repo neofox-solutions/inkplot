@@ -4,7 +4,7 @@
  * and daylight saving is followed. Where a wall-clock time does not exist (the hour the clocks skip) or occurs twice, the
  * instant nearest to it is used.
  *
- * `formats` are `Intl.DateTimeFormatOptions`, and `locale` a BCP 47 tag (default: the runtime's).
+ * `formats` are `Intl.DateTimeFormatOptions`, and `locale` a BCP 47 tag (default: the chart's, else the platform's: `en-US` for a string platform, the browser's for the DOM).
  */
 import { type AttrTypesFor, STRING } from './attrs.ts';
 import { TimeScale, TIME_FORMATS_TYPES, type TimeRank, type TimeScaleAttributes, type TimeUnit } from './time.ts';
@@ -202,7 +202,7 @@ export class IntlTimeScale extends TimeScale<Intl.DateTimeFormatOptions, IntlTim
 
   #formats = new Map<string, Intl.DateTimeFormat>();
   protected format(t: number, _rank: TimeRank, spec: Intl.DateTimeFormatOptions): string {
-    const locale = this.attrs.locale ?? this.chart?.attrs.locale;
+    const locale = this.attrs.locale ?? this.chart?.dateLocale;
     const key = `${locale}|${this.#zone}|${JSON.stringify(spec)}`;
     let f = this.#formats.get(key);
     if (!f) {

@@ -96,7 +96,7 @@ test('webcomponents', async () => {
   // Events: a listener on the tag receives the chart's callbacks as DOM events.
   await page.evaluate(() => {
     window.clicks = [];
-    document.querySelector('#listener').addEventListener('click', (e) => window.clicks.push(e.detail.type ?? 'click'));
+    document.querySelector('#listener').addEventListener('ch-click', (e) => window.clicks.push(e.detail.type ?? 'click'));
   });
   const box = await page.evaluate(() => {
     const r = document.querySelector('#chart').getBoundingClientRect();

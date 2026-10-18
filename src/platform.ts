@@ -86,6 +86,8 @@ export interface Platform {
   size(): Size;
   createNode(tag: SvgTag): PlatformNode;
   setAttribute(node: PlatformNode, name: string, value: string | number): void;
+  /** Takes the attribute off the node, as `Element.removeAttribute` does; nothing if it has none. */
+  removeAttribute(node: PlatformNode, name: string): void;
   setText(node: PlatformNode, text: string): void;
   /** Exactly `Node.insertBefore`: `before` is a child of `parent`, or null to append. Moves the node if it is already placed. */
   insertBefore(parent: PlatformNode, node: PlatformNode, before: PlatformNode | null): void;
@@ -106,6 +108,11 @@ export interface Platform {
   /** Move focus to a node that has a `tabindex`. */
   focus?(node: PlatformNode): void;
   measureText?: TextMeasurer;
+  /**
+   * The BCP 47 tag dates are written in when neither the chart nor the scale has a `locale`. Absent: the runtime's own (a browser's language).
+   * A platform that renders somewhere other than where it is shown names one, so the picture is the same wherever it is made.
+   */
+  readonly locale?: string;
   /** The mouse cursor over the chart, as a CSS cursor name; an empty string for the default. */
   setCursor?(cursor: string): void;
   /**
@@ -149,18 +156,26 @@ const XML_INVALID = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
 const escapeText = (s: string) => s.replace(XML_INVALID, '\uFFFD').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const escapeAttr = (s: string) => escapeText(s).replace(/"/g, '&quot;');
 
+export interface StringPlatformOptions {
+  /** The locale dates are written in when the chart and the scale name none. Default `'en-US'`. */
+  locale?: string;
+}
+
 /**
  * Keeps the SVG as a plain in-memory tree and prints it with `toString()`. This is the platform for node, serverless and
  * tests: no DOM, no timers, no observers, so a chart is flushed explicitly and the output is deterministic.
  */
 export class StringPlatform implements Platform {
   readonly name = 'string';
+  /** Dates are written in this locale unless the chart or the scale says another: `en-US` by default, so a server and a browser, or two servers, draw the same labels. */
+  readonly locale: string;
   readonly root: PlatformNode;
   readonly #size: Size;
   readonly #root: StringNode;
 
-  constructor(size: Size = { width: 640, height: 400 }) {
+  constructor(size: Size = { width: 640, height: 400 }, options: StringPlatformOptions = {}) {
     this.#size = size;
+    this.locale = options.locale ?? 'en-US';
     this.#root = { tag: 'svg', attrs: new Map(), children: [], text: null, parent: null };
     this.#root.attrs.set('xmlns', 'http://www.w3.org/2000/svg');
     this.root = handleOf(this.#root);
@@ -175,6 +190,9 @@ export class StringPlatform implements Platform {
     // As in a browser, a name that is not a name is an error; written out it would add attributes of its own to the picture.
     if (!/^[A-Za-z_:][-\w:.]*$/.test(name)) throw new Error(`StringPlatform: "${name}" is not an attribute name`);
     nodeOf(node).attrs.set(name, value);
+  }
+  removeAttribute(node: PlatformNode, name: string): void {
+    nodeOf(node).attrs.delete(name);
   }
   setText(node: PlatformNode, text: string): void {
     nodeOf(node).text = text;

@@ -137,9 +137,17 @@ export class Surface {
     this.nodes.set(key, entry);
     return node;
   }
-  /** Set an attribute if (and only if) it differs from what was last written. The platform cannot unset one, so use a neutral value ('none', 0) instead of removing. */
+  /** Set an attribute if (and only if) it differs from what was last written. To take one off, use `unset`. */
   set(node: PlatformNode, name: string, value: string | number): void {
     this.write(node, name, value, () => this.platform.setAttribute(node, name, value));
+  }
+  /** Take an attribute off a node that this surface wrote it to (and only then): for what comes and goes, like an ARIA label. */
+  unset(node: PlatformNode, name: string): void {
+    const cached = this.cache.get(node);
+    if (!cached?.has(name)) return;
+    cached.delete(name);
+    this.platform.removeAttribute(node, name);
+    this.counters.writes++;
   }
   /** Set a text node's content, skipping unchanged writes like `set`. */
   text(node: PlatformNode, content: string): void {

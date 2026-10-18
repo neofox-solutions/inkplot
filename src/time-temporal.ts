@@ -98,6 +98,6 @@ export class TemporalTimeScale extends TimeScale<Intl.DateTimeFormatOptions, Tem
     return unit === 'month' ? z.month - 1 : z[unit];
   }
   protected format(t: number, _rank: TimeRank, spec: Intl.DateTimeFormatOptions): string {
-    return this.#at(t).toLocaleString(this.attrs.locale ?? this.chart?.attrs.locale, spec);
+    return this.#at(t).toLocaleString(this.attrs.locale ?? this.chart?.dateLocale, spec);
   }
 }

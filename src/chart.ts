@@ -89,8 +89,8 @@ export interface ChartAttributes extends BaseAttributes {
   measureText?: TextMeasurer;
   /**
    * A BCP 47 tag (`'de'`, `'fr-CA'`) for how numbers and dates are written: digit grouping, the decimal mark, month names.
-   * Axes and time scales that have no `locale` of their own use it. Default: numbers as plain digits with a point, and the
-   * runtime's own locale for dates. The words the library says (a summary, a tooltip's labels) are not translated by this; those
+   * Axes and time scales that have no `locale` of their own use it. Default: numbers as plain digits with a point, and for dates the
+   * platform's locale (`en-US` for a `StringPlatform` and so for exports, the browser's language in a `DOMPlatform`). The words the library says (a summary, a tooltip's labels) are not translated by this; those
    * come from the components that say them, which take your words.
    */
   locale?: string;
@@ -161,6 +161,10 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
   /** The input host, once something in the chart has asked for it (see `inputOf`): null on a chart nothing listens to. */
   input: InputHost | null = null;
 
+  /** The locale dates are written in: the chart's `locale`, else the platform's (`en-US` for the string platform, the browser's language for the DOM). */
+  get dateLocale(): string | undefined {
+    return this.attrs.locale ?? this.#platform?.locale;
+  }
   get platform(): Platform | null {
     return this.#platform;
   }
@@ -380,6 +384,8 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
 export interface SvgOptions {
   width?: number;
   height?: number;
+  /** The locale dates are written in when the chart and its scales name none. Default `'en-US'`. */
+  locale?: string;
   /**
    * Starts every `id` in the SVG (clip paths, gradients) and every `url(#…)` that points at one. Default: `ink` and eight hex digits of a
    * hash of the picture itself, so two different charts never share an id (a page that holds several SVGs has one namespace for ids) while the
@@ -411,7 +417,10 @@ function scopeIds(svg: string, prefix: string | undefined): string {
 /** One-shot export: attach a StringPlatform, flush, detach. */
 export function toSvgString(chart: Chart, options?: SvgOptions): string {
   const a = chart.attrs;
-  const platform = new StringPlatform({ width: options?.width ?? a.width ?? 640, height: options?.height ?? a.height ?? 400 });
+  const platform = new StringPlatform(
+    { width: options?.width ?? a.width ?? 640, height: options?.height ?? a.height ?? 400 },
+    options?.locale === undefined ? {} : { locale: options.locale },
+  );
   // The chart's own width and height attributes beat the platform's size (see `layout`), so a size given here only matters for what they leave out.
   chart.attach(platform);
   let svg: string;

@@ -7434,7 +7434,11 @@ async function roundTrip() {
   chart.flush();
   // Stages that run elsewhere (a worker) answer later: both charts are drawn once they have.
   await Promise.all([chart.idle(), live.chart.idle()]);
-  const norm = (n: Element) => n.outerHTML.replace(/clip\d+/g, 'clip').replace(/grad\d+/g, 'grad');
+  const norm = (n: Element) =>
+    n.outerHTML
+      .replace(/clip\d+/g, 'clip')
+      .replace(/grad\d+/g, 'grad')
+      .replace(/((?:id="|url\(#)\w+)-\d+/g, '$1');
   const result = {
     live: norm($('host').querySelector('svg')!),
     copy: norm(box.querySelector('svg')!),

@@ -295,3 +295,19 @@ test('a11y', () => {
     assert.equal(t.platform.focusHandler, null);
   }
 });
+
+test('a11y: what meta said and no longer says comes off the picture', () => {
+  const p = new FakePlatform({ width: 300, height: 200 });
+  const chart = new Chart({ theme: lightTheme, meta: { title: 'Sales', role: 'img', aria: { 'aria-live': 'polite', owns: 'x' } } });
+  chart.attach(p).flush();
+  const text = () => p.toString();
+  assert.match(text(), /aria-label="Sales"/);
+  assert.match(text(), /aria-live="polite"/);
+  assert.match(text(), /aria-owns="x"/);
+  chart.setAttribute('meta', { title: 'Sales', role: 'img' });
+  chart.flush();
+  assert.ok(!/aria-live|aria-owns/.test(text()), 'a key dropped from `aria`');
+  chart.setAttribute('meta', undefined);
+  chart.flush();
+  assert.ok(!/aria-label="Sales"|role="img"/.test(text()), 'a cleared title and role');
+});

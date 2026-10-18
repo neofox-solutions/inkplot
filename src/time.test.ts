@@ -278,3 +278,19 @@ test('time', () => {
     }
   }
 });
+
+test('time: dates are written in the platform locale unless the chart or the scale says another', () => {
+  const T = Date.UTC(2024, 5, 11, 22, 10);
+  const draw = (platformLocale: string | undefined, chartLocale?: string) => {
+    const scale = new IntlTimeScale({ timeZone: 'UTC' });
+    const chart = new Chart(
+      { theme: lightTheme, width: 400, height: 200, locale: chartLocale },
+      new CartesianPlane({}, new Axis({}, scale), new Axis({ orientation: 'left' }, new LinearScale())),
+    );
+    chart.attach(new StringPlatform({ width: 400, height: 200 }, platformLocale === undefined ? {} : { locale: platformLocale })).flush();
+    return scale.label(T);
+  };
+  assert.equal(draw(undefined), 'Jun 11, 2024, 22:10:00 UTC', 'a string platform writes en-US without being told');
+  assert.match(draw('de-DE')!, /^11\. Juni 2024|^11\.6\.2024/, 'or what it is given');
+  assert.match(draw('de-DE', 'fr-FR')!, /11 juin 2024/, "the chart's locale wins over the platform's");
+});

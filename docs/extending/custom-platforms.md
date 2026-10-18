@@ -17,6 +17,7 @@ Only the first group is required. A platform with nothing to observe leaves the 
 | `setAttribute(node, name, value)` | Sets an attribute. The surface only calls it when the value changed. |
 | `setText(node, text)` | Sets a text node's content. |
 | `insertBefore(parent, node, before)` | **Exactly `Node.insertBefore`**: `before` is a child of `parent`, or `null` to append; a node already placed is moved. |
+| `removeAttribute(node, name)` | Takes an attribute off, as `Element.removeAttribute` does (a cleared ARIA label). |
 | `remove(node)` | Takes the node, and everything in it, out of whatever holds it. |
 | `dispose()` | Releases whatever the platform holds. |
 
@@ -32,6 +33,7 @@ Only the first group is required. A platform with nothing to observe leaves the 
 | `onFocus(callback)` | Feeds `RawFocus` (`node`, `focused`, `visible`: whether a ring is wanted, the browser's `:focus-visible`). |
 | `focus(node)` | Moves focus to a node that has a `tabindex`. |
 | `announce(text)` | Says something to a screen reader without showing it, politely. |
+| `locale` | A property: the BCP 47 tag dates are written in when neither the chart nor the scale has a `locale`. Absent: the runtime's own. `StringPlatform` says `en-US` (or its `locale` option) so a picture is the same wherever it is made. |
 | `setCursor(cursor)` | The mouse cursor over the chart, as a CSS cursor name; `''` for the default. |
 
 Everything the chart gets from the outside is one of these, in one normalised shape, so no element needs to know whether a pointer came from a mouse, a pen, a finger or a test.

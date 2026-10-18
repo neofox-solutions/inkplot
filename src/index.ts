@@ -40,6 +40,7 @@ export {
   type RawKey,
   type RawPointer,
   StringPlatform,
+  type StringPlatformOptions,
   type SvgTag,
   type TextMeasurer,
   type Unsubscribe,

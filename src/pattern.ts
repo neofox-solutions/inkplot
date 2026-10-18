@@ -173,6 +173,8 @@ export function dotPattern(s: Surface, pattern: PlatformNode, key: string, o: Do
 }
 
 /** The colour to draw in, as a part of an id. */
+/** Counts the patterns made, so that each has an id of its own in the page. */
+let patternCounter = 0;
 const slug = (color: string) => color.replace(/[^a-zA-Z0-9]+/g, '_');
 
 /**
@@ -192,6 +194,7 @@ export abstract class Pattern<A extends PatternAttributes = PatternAttributes> e
     const a = this.attrs;
     return a.fill !== undefined ? { fill: a.fill } : a.tint ? { fill: color, fillOpacity: a.tint } : {};
   }
+  readonly #serial = ++patternCounter;
   /** The colours in use, by the key of their node, with the last flush that asked for each. */
   readonly #variants = new Map<string, { color: string; flush: number }>();
 
@@ -211,7 +214,9 @@ export abstract class Pattern<A extends PatternAttributes = PatternAttributes> e
 
   /** Make or update the pattern for a colour and give its id. */
   #draw(tag: string, color: string, asked = true): string {
-    const id = tag ? `${this.attrs.id}-${tag}` : this.attrs.id;
+    // The id the pattern has in the page is its own and the page's: two charts that both name a pattern `hatch` do not share one.
+    const domId = `${this.attrs.id}-${this.#serial}`,
+      id = tag ? `${domId}-${tag}` : domId;
     const key = `p:${tag || '-'}`;
     const s = this.surface;
     const flush = this.requireChart().flushCount;

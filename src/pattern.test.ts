@@ -132,3 +132,18 @@ test('a tint is a background in the colour in use', () => {
   assert.ok(own.includes('fill="#eeeeee"') && !own.includes('fill-opacity="0.25"'));
   assert.ok(!svgOf(plane('url(#h)'), new HatchPattern({ id: 'h' })).includes('fill-opacity="0.25"'));
 });
+
+test('two charts that name a pattern alike do not share an id in the page, and an export is the same every time', () => {
+  const draw = () => {
+    const chart = new Chart({ theme: lightTheme, width: 300, height: 200 }, plane('url(#hatch)'), new HatchPattern({ id: 'hatch' }));
+    const platform = new StringPlatform({ width: 300, height: 200 });
+    chart.attach(platform).flush();
+    return { chart, text: platform.toString() };
+  };
+  const idOf = (text: string) => /<pattern[^>]* id="([^"]+)"/.exec(text)?.[1];
+  const one = draw(),
+    two = draw();
+  assert.ok(idOf(one.text) && idOf(two.text) && idOf(one.text) !== idOf(two.text), `${idOf(one.text)} and ${idOf(two.text)}`);
+  assert.ok(one.text.includes(`url(#${idOf(one.text)})`), 'and what uses the pattern names that id');
+  assert.equal(toSvgString(one.chart.detach()), toSvgString(two.chart.detach()), 'an export does not depend on what was drawn before');
+});
