@@ -17,7 +17,7 @@ import type { Extent } from './geometry.ts';
 export interface TableOptions {
   /** The channels to read, after the domain and the value. Default: every one the node offers (`channelNames`). */
   channels?: readonly string[];
-  /** The part of the domain to read. Default: all of it. For generated data (a function, a trendline) it is the span sampled. */
+  /** The part of the domain to read. Default: all of it (the node's own `domain()`). For generated data (a function, a trendline) it is the span sampled. */
   domain?: Extent;
   /** For generated data: how many evenly spaced points to make across the span (default: the node's own count, else 512). For a `Decimator`: the width in pixels it reduces to. */
   samples?: number;
@@ -41,7 +41,8 @@ export function readTable(node: DataNode, options: TableOptions = {}): Table {
   const context: PlanContext = {
     width: options.samples ?? 0,
     height: 0,
-    domainRange: options.domain ?? { min: -Infinity, max: Infinity },
+    // A stage that reduces to a width (a decimator) cannot spread columns over an infinite range: it needs the span of the data.
+    domainRange: options.domain ?? node.domain() ?? { min: -Infinity, max: Infinity },
     sorted: true,
     columns: ['domain', 'value', ...channels],
   };

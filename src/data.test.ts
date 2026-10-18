@@ -367,3 +367,29 @@ test('data', () => {
     );
   }
 });
+
+test('data: a null from an accessor function is a missing value, as it is from a property', () => {
+  type R = { t: number; v: number | null };
+  const rows: R[] = [
+    { t: 0, v: 1 },
+    { t: 1, v: null },
+    { t: 2, v: 3 },
+  ];
+  const byName = new ObjectDataSource<R>({ source: rows, domain: 't', value: 'v' });
+  const byFunction = new ObjectDataSource<R>({ source: rows, domain: (r) => r.t, value: (r) => r.v as number });
+  const read = (s: ObjectDataSource<R>) => {
+    const plan = s.plan({
+      width: 0,
+      height: 0,
+      domainRange: { min: -Infinity, max: Infinity },
+      sorted: true,
+      columns: ['domain', 'value'],
+    });
+    const out = new Float64Array(plan.capacity * 2);
+    const r = plan.fill(out);
+    return { values: Array.from({ length: r.count }, (_, i) => out[2 * i + 1]!), extent: r.extents[1] };
+  };
+  assert.deepEqual(read(byFunction).values.map(Number.isNaN), [false, true, false], 'the null is a gap, not a 0');
+  assert.deepEqual(read(byFunction).extent, read(byName).extent);
+  assert.deepEqual(byFunction.valueExtent(), { min: 1, max: 3 });
+});

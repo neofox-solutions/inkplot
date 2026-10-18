@@ -70,3 +70,23 @@ test('slice', () => {
     assert.equal(chart.flush().filled, 0, 'and then it is cached');
   }
 });
+
+test('slice: a request for the metadata does not answer a later request for the drawing', () => {
+  const N = 20000;
+  const data = Float64Array.from({ length: N }, (_, i) => Math.sin(i / 50));
+  const slice = new Slice(
+    {},
+    new Decimator({}, new MinMaxKernel(), new FlatDataSource({ data, regularDomain: { start: 0, step: 1 }, count: N })),
+  );
+  const read = (min: number, max: number) => {
+    const plan = slice.plan({ width: 400, height: 50, domainRange: { min, max }, sorted: true, columns: ['domain', 'value'] });
+    const out = new Float64Array(plan.capacity * 2);
+    const r = plan.fill(out);
+    return { count: r.count, first: out[0]!, last: out[2 * (r.count - 1)]! };
+  };
+  slice.valueExtent(); // axes ask before the first draw, with a width of 1: that must not become the drawn rows
+  const whole = read(0, N);
+  assert.ok(whole.count > 400, `${whole.count} rows for 400 pixels`);
+  const part = read(5000, 6000);
+  assert.ok(part.first >= 4900 && part.last <= 6100, `window ${part.first}..${part.last} follows the range`);
+});

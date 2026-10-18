@@ -167,3 +167,19 @@ test('density', () => {
   }
   assert(registry.Density);
 });
+
+test('density: every sample lands in a bin, the maximum included, for any bin count', () => {
+  // `lo + bins * (span / bins)` is rarely exactly the maximum, so the top edge has to be recognised to within rounding.
+  let seed = 12345;
+  const random = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  for (let trial = 0; trial < 400; trial++) {
+    const n = 2 + Math.floor(random() * 40),
+      bins = 1 + Math.floor(random() * 12),
+      offset = (random() - 0.5) * 3,
+      scale = 10 ** (Math.floor(random() * 8) - 4);
+    const rows = Array.from({ length: n }, () => ({ x: offset + random() * scale, y: 0 }));
+    const t = readTable(new Density({ bins }, new ObjectDataSource({ source: rows, domain: 'x', value: 'y' })));
+    const total = Array.from(t.column('value')).reduce((p, q) => p + q, 0);
+    assert.equal(total, n, `trial ${trial}: ${n} samples in ${bins} bins`);
+  }
+});

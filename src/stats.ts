@@ -102,6 +102,12 @@ export class BoxStats extends KeyedTransform<BoxStatsAttributes, [source: DataNo
       outV: number[] = [];
     for (let i = 0; i < count;) {
       const key = buf[2 * i]!;
+      // A group with no key (a gap in the domain, or an infinite one) has no place on the axis. It also could never be matched
+      // against itself (`NaN === NaN` is false), so skipping it is what keeps this loop moving.
+      if (!Number.isFinite(key)) {
+        i++;
+        continue;
+      }
       let j = i;
       const values: number[] = [];
       for (; j < count && buf[2 * j] === key; j++) {
@@ -115,10 +121,10 @@ export class BoxStats extends KeyedTransform<BoxStatsAttributes, [source: DataNo
         q1 = quantile(values, 0.25, method),
         med = quantile(values, 0.5, method),
         q3 = quantile(values, 0.75, method);
-      const reach = fence * (q3 - q1);
+      const reach = fence * (q3 - q1); // NaN for 'minmax' on a zero spread (Infinity * 0): that case never looks at it
       let lo = values[0]!,
         hi = values[n - 1]!;
-      if (reach !== Infinity) {
+      if (fence !== Infinity) {
         // The furthest samples still inside the fences; those beyond are outliers.
         lo = values.find((v) => v >= q1 - reach) ?? q1;
         hi = [...values].reverse().find((v) => v <= q3 + reach) ?? q3;

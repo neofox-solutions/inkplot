@@ -17,6 +17,7 @@ import {
   Stack,
   hitTest,
   quantile,
+  readTable,
   registry,
   type AnyElement,
 } from './index.ts';
@@ -218,4 +219,22 @@ test('boxplot', () => {
     assert.equal(((/<path d="(M[^"]*Z)"[^>]*fill-opacity="0.4"/.exec(t.svg())?.[1] ?? '').match(/Z/g) ?? []).length, 2, 'two boxes');
   }
   assert(registry.BoxPath && registry.BoxStats);
+});
+
+test('boxplot: minmax whiskers reach the extremes when the middle half is equal, and a gap in the domain ends nowhere', () => {
+  const rows = [5, 5, 5, 5, 9].map((y) => ({ g: 1, y }));
+  const mm = readTable(new BoxStats({ fence: 'minmax' }, new ObjectDataSource({ source: rows, domain: 'g', value: 'y' })));
+  assert.deepEqual([Array.from(mm.column('min')), Array.from(mm.column('max'))], [[5], [9]], 'a zero spread must not hide the maximum');
+  // A source read in place can deliver a NaN key (a gap in the domain): it used to spin forever, since NaN !== NaN.
+  const gappy = new ObjectDataSource({
+    source: [
+      { g: 1, y: 1 },
+      { g: NaN, y: 2 },
+      { g: 3, y: 3 },
+    ],
+    domain: 'g',
+    value: 'y',
+    isSorted: true,
+  });
+  assert.deepEqual(Array.from(readTable(new BoxStats({}, gappy)).column('domain')), [1, 3]);
 });

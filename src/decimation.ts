@@ -177,7 +177,20 @@ function emitRun(
  */
 const runExtent = { min: Infinity, max: -Infinity };
 
-/** Slow path for a column that contains NaN: split it into runs between the gaps and reduce each. */
+/**
+ * Points of room beyond the two a column needs, for the extra runs and gap points a few gaps cost (about 3 points a gap in min/max,
+ * 5 in M4). Past that, columns with gaps give up the gaps inside them (see `reduceAroundGaps`) rather than cut the line short.
+ */
+const GAP_ROOM = 48;
+
+/**
+ * Slow path for a column that contains NaN: split it into runs between the gaps and reduce each.
+ *
+ * Every column after this one still has to be able to write its own points, or the end of the line would be cut off, so a column
+ * may only spend what is left once they are provided for (`reserve`, in points). When the gaps in it would cost more than that,
+ * the column is reduced as one run with its gaps left out, keeping a gap at either edge (those are what stop a line being drawn
+ * across a hole); the gaps inside are narrower than the pixel column, so a line drawn through them is the same to within a pixel.
+ */
 function reduceAroundGaps(
   v: PointView,
   i0: number,
@@ -186,6 +199,7 @@ function reduceAroundGaps(
   m: number,
   cap: number,
   keepEnds: boolean,
+  reserve: number,
   keyOffset = -1,
   slotOf?: (key: number) => number,
   slot = 0,
@@ -194,6 +208,53 @@ function reduceAroundGaps(
   const d = v.data,
     s = v.stride,
     yo = v.valueOffset;
+  // Each stretch of NaN can cost a gap point and a run of its own; the most a run costs is `perRun`.
+  const perRun = keepEnds ? 4 : 2;
+  let stretches = 0,
+    inStretch = false;
+  for (let i = i0; i < i1; i++) {
+    if (slotOf && slotOf(d[i * s + keyOffset]!) !== slot) continue;
+    const y = d[i * s + yo]!;
+    if (y !== y) {
+      if (!inStretch) stretches++;
+      inStretch = true;
+    } else inStretch = false;
+  }
+  if ((stretches + 1) * perRun + stretches > cap - m - reserve) {
+    let first = -1,
+      last = -1,
+      mn = Infinity,
+      mx = -Infinity,
+      im = 0,
+      iM = 0,
+      firstOwn = -1,
+      lastOwn = -1;
+    for (let i = i0; i < i1; i++) {
+      if (slotOf && slotOf(d[i * s + keyOffset]!) !== slot) continue;
+      if (firstOwn < 0) firstOwn = i;
+      lastOwn = i;
+      const y = d[i * s + yo]!;
+      if (y !== y) continue;
+      if (first < 0) first = i;
+      last = i;
+      if (y < mn) {
+        mn = y;
+        im = i;
+      }
+      if (y > mx) {
+        mx = y;
+        iM = i;
+      }
+    }
+    const edges = cap - m - reserve >= perRun + 2;
+    if (first < 0) return firstOwn < 0 || !edges ? m : putGap(v, out, m, cap, firstOwn, rows);
+    if (edges && first !== firstOwn) m = putGap(v, out, m, cap, firstOwn, rows);
+    if (mn < runExtent.min) runExtent.min = mn;
+    if (mx > runExtent.max) runExtent.max = mx;
+    m = emitRun(v, out, m, cap, keepEnds, first, last, im, iM, rows);
+    if (edges && last !== lastOwn) m = putGap(v, out, m, cap, lastOwn, rows);
+    return m;
+  }
   let run = false,
     f = 0,
     l = 0,
@@ -327,7 +388,7 @@ function reduceByColumn(
         iM = i;
       } else if (y !== y) nan = true;
     }
-    if (nan) m = reduceAroundGaps(v, i0, i1, out, m, cap, keepEnds, -1, undefined, 0, rows);
+    if (nan) m = reduceAroundGaps(v, i0, i1, out, m, cap, keepEnds, (W - c - 1) * (keepEnds ? 4 : 2), -1, undefined, 0, rows);
     else {
       if (mn < runExtent.min) runExtent.min = mn;
       if (mx > runExtent.max) runExtent.max = mx;
@@ -440,7 +501,20 @@ function reduceByColumnKeyed(
       if (nan[sl]) {
         runExtent.min = Infinity;
         runExtent.max = -Infinity;
-        count[sl] = reduceAroundGaps(v, i0, i1, outs[sl]!, count[sl]!, cap, keepEnds, ko, slotOf, sl, rows?.[sl]);
+        count[sl] = reduceAroundGaps(
+          v,
+          i0,
+          i1,
+          outs[sl]!,
+          count[sl]!,
+          cap,
+          keepEnds,
+          (W - c - 1) * (keepEnds ? 4 : 2),
+          ko,
+          slotOf,
+          sl,
+          rows?.[sl],
+        );
         if (runExtent.min < yMin[sl]!) yMin[sl] = runExtent.min;
         if (runExtent.max > yMax[sl]!) yMax[sl] = runExtent.max;
       } else {
@@ -467,7 +541,7 @@ function reduceByColumnKeyed(
  */
 export class MinMaxKernel extends DecimationKernel {
   capacity(columns: number): number {
-    return 2 * columns + 2;
+    return 2 * columns + 2 + GAP_ROOM;
   }
   override get tracksRows(): boolean {
     return true;
@@ -490,7 +564,7 @@ export class MinMaxKernel extends DecimationKernel {
 /** Min/max plus the first and last value in each column, which keeps joins between columns exact. At most 4 per column. */
 export class M4Kernel extends DecimationKernel {
   capacity(columns: number): number {
-    return 4 * columns + 4;
+    return 4 * columns + 4 + 2 * GAP_ROOM;
   }
   override get tracksRows(): boolean {
     return true;
@@ -534,6 +608,17 @@ export class LttbKernel extends DecimationKernel {
     let m = 0,
       yMin = Infinity,
       yMax = -Infinity;
+    if (n <= W) {
+      // Fewer rows than buckets (zoomed far in, or the window barely touches the data): every row is its own bucket. The
+      // buckets below would be empty, and would write the same row again and again, or one that is not there.
+      for (let i = 0; i < n; i++) {
+        m = putPoint(v, out, m, cap, i, rows);
+        const y = d[i * s + yo]!;
+        if (y < yMin) yMin = y;
+        if (y > yMax) yMax = y;
+      }
+      return { count: m, yMin, yMax };
+    }
     m = putPoint(v, out, m, cap, 0, rows);
     const every = (n - 2) / (W - 2);
     let a = 0;

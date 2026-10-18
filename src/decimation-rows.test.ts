@@ -153,3 +153,80 @@ for (const [name, kernel] of kernels.slice(0, 2)) {
     }
   });
 }
+
+test('decimation: a line with more gaps than the output has room for still reaches the end of the data', () => {
+  // Each stretch of NaN can cost a gap point and a run of its own, so a column with several can want more than the 2 points a
+  // column is given: the columns after it used to find the buffer full, and the right of the line was cut off.
+  const N = 100000,
+    W = 100;
+  const patterns: [string, (i: number) => number][] = [
+    ['ten isolated gaps', (i) => (i % 10007 === 5 ? NaN : Math.sin(i / 300))],
+    ['alternating', (i) => (i % 2 ? NaN : Math.sin(i / 300))],
+    ['gaps in every column', (i) => (i % 400 < 3 ? NaN : Math.sin(i / 300))],
+    ['a wide gap and scattered ones', (i) => (i > 30000 && i < 36000 ? NaN : i % 997 === 0 ? NaN : Math.cos(i / 200))],
+  ];
+  for (const [name, f] of patterns) {
+    for (const kernel of [new MinMaxKernel(), new M4Kernel()]) {
+      const data = Float64Array.from({ length: N }, (_, i) => f(i));
+      const plan = new Decimator({}, kernel, new FlatDataSource({ data, regularDomain: { start: 0, step: 1 }, count: N })).plan({
+        width: W,
+        height: 50,
+        domainRange: { min: 0, max: N - 1 },
+        sorted: true,
+        columns: ['domain', 'value'],
+      });
+      const out = new Float64Array(plan.capacity * 2);
+      const r = plan.fill(out);
+      const label = `${name}, ${kernel.constructor.name}`;
+      assert.ok(r.count <= plan.capacity, `${label}: ${r.count} of ${plan.capacity}`);
+      let lastX = -1,
+        lo = Infinity,
+        hi = -Infinity;
+      for (let i = 0; i < r.count; i++) {
+        const y = out[2 * i + 1]!;
+        if (y === y) {
+          lastX = out[2 * i]!;
+          lo = Math.min(lo, y);
+          hi = Math.max(hi, y);
+        }
+      }
+      assert.ok(lastX >= N - (2 * N) / W, `${label}: the line ends at ${lastX} of ${N - 1}`);
+      let want = [Infinity, -Infinity];
+      for (let i = 0; i < N; i++) if (data[i]! === data[i]!) want = [Math.min(want[0]!, data[i]!), Math.max(want[1]!, data[i]!)];
+      assert.deepEqual([lo, hi], want, `${label}: the extremes survive`);
+    }
+  }
+});
+
+test('decimation: LTTB over fewer rows than pixel columns keeps each row once', () => {
+  // A large source, zoomed in until the window holds a handful of rows: the kernel runs on them and must not repeat or invent any.
+  const N = 5000;
+  const data = Float64Array.from({ length: N }, (_, i) => i * 2);
+  for (const [min, max] of [
+    [500, 500.5],
+    [500, 501.5],
+    [500, 502.5],
+    [500, 504.5],
+    [-100, 0.5],
+  ] as const) {
+    const plan = new Decimator({}, new LttbKernel(), new FlatDataSource({ data, regularDomain: { start: 0, step: 1 }, count: N })).plan({
+      width: 10,
+      height: 50,
+      domainRange: { min, max },
+      sorted: true,
+      columns: ['domain', 'value'],
+    });
+    const out = new Float64Array(plan.capacity * 2);
+    const r = plan.fill(out);
+    const xs = Array.from({ length: r.count }, (_, i) => out[2 * i]!);
+    assert.deepEqual(
+      xs,
+      [...new Set(xs)].sort((a, b) => a - b),
+      `${min}..${max}: ascending, none repeated: ${xs.join()}`,
+    );
+    assert.ok(
+      xs.every((x) => Number.isFinite(x) && out[2 * xs.indexOf(x) + 1] === x * 2),
+      `${min}..${max}: real rows: ${xs.join()}`,
+    );
+  }
+});

@@ -59,7 +59,11 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
     const { source, domain } = this.attrs;
     const n = source.length;
     if (domain === undefined) return n > 0 ? { min: 0, max: n - 1 } : null;
-    const read = typeof domain === 'function' ? domain : (row: Row) => num((row as Record<string | number, unknown>)[domain]);
+    // A function's `null` is a missing value too (a typed array would store it as 0, and draw a point there).
+    const read =
+      typeof domain === 'function'
+        ? (row: Row, i: number) => num(domain(row, i))
+        : (row: Row) => num((row as Record<string | number, unknown>)[domain]);
     return endsOf(n, (i) => read(source[i]!, i));
   }
 
@@ -70,7 +74,8 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
 
   protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
     const { source, domain, value, channels } = this.attrs;
-    const field = (f: Field<Row>) => (typeof f === 'function' ? f : (row: Row) => num((row as Record<string | number, unknown>)[f]));
+    const field = (f: Field<Row>) =>
+      typeof f === 'function' ? (row: Row, i: number) => num(f(row, i)) : (row: Row) => num((row as Record<string | number, unknown>)[f]);
     const names = context.columns,
       k = names.length;
     const fns = names.map((name) => {

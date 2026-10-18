@@ -104,7 +104,7 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
     return {
       capacity: inner.capacity,
       fill: (out) => {
-        const r = this.#fillRows(inner, stride, context.columns);
+        const r = this.#fillRows(inner, stride, context.columns, context);
         out.set(this.#scratch.subarray(stride * r.first, stride * (r.first + r.count)));
         const { rowOf } = r;
         return { count: r.count, extents: r.extents, rowOf: rowOf && ((i) => rowOf(r.first + i)) };
@@ -140,11 +140,14 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
   #rows(columns: readonly string[]): { count: number; extents: readonly Extent[] } {
     const source = this.source;
     const context: PlanContext = { width: 1, height: 1, domainRange: source.domain() ?? NO_POINTS, sorted: true, columns };
-    return this.#fillRows(source.plan(context), columns.length, columns);
+    return this.#fillRows(source.plan(context), columns.length, columns, context);
   }
 
-  #fillRows(inner: FillPlan, stride: number, columns: readonly string[]) {
-    const key = `${this.source.version}.${this.#version}|${stride}|${columns.join()}`;
+  #fillRows(inner: FillPlan, stride: number, columns: readonly string[], context: PlanContext) {
+    // What is beneath may answer differently to a different width or range (a decimator, a function sampled over the view), so
+    // the cache is of one request, not of the data: the metadata asks with a width of 1, the plan with the real one.
+    const { width, domainRange } = context;
+    const key = `${this.source.version}.${this.#version}|${stride}|${columns.join()}|${width}|${domainRange.min}|${domainRange.max}`;
     if (this.#cache?.key === key) return this.#cache;
     if (inner.rows !== undefined) {
       const [from, to] = this.#bounds(inner.rows);

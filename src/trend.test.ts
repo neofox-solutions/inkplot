@@ -108,6 +108,13 @@ test('trend', () => {
     near(nf.period!, T, 'noisy period', 0.05);
     assert(nf.r2 > 0.9);
     assert.throws(() => new SinusoidalTrend({ period: -1 }, src(even)).fit, /period/);
+    // Long data is scanned on a subsample, and an even stride through it would alias a short period into a long one.
+    for (const n of [5000, 20000]) {
+      const long = Array.from({ length: n }, (_, i) => ({ t: i, v: Math.sin((2 * Math.PI * i) / T) + 0.3 * Math.sin(i * 78.233) }));
+      const fit = new SinusoidalTrend({}, src(long)).fit!;
+      near(fit.period!, T, `${n} points`, 0.01);
+      assert(fit.amplitude! > 0.9, `${n} points: amplitude ${fit.amplitude}`);
+    }
   }
   {
     // Loess: smoothness 0 joins the points, 1 is the line exactly, between the curve is smoother with more of it.

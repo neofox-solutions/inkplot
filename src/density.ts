@@ -232,9 +232,11 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
         for (let d = 0; d < k; d++) {
           const ax = axes[d]!,
             v = buf[stride * i + cols[d]!]!,
-            x = Math.floor((v - ax.lo) / ax.width + 1e-9);
-          // The top edge belongs to the last bin; a point past the ends (an explicit extent) is left out.
-          const idx = v === ax.lo + ax.n * ax.width ? ax.n - 1 : x;
+            ratio = (v - ax.lo) / ax.width,
+            x = Math.floor(ratio + 1e-9);
+          // The top edge belongs to the last bin (to within rounding: `lo + n * width` is rarely exactly the maximum when
+          // `width` came from a division); a point past the ends (an explicit extent) is left out.
+          const idx = x === ax.n && ratio <= ax.n + 1e-9 ? ax.n - 1 : x;
           if (idx < 0 || idx >= ax.n) {
             inside = false;
             break;

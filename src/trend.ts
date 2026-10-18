@@ -383,10 +383,20 @@ export interface SinusoidalTrendAttributes extends TrendlineAttributes {
   period?: number;
 }
 /** Frequencies tried when the period is not given, and points used to try them (the best is then refined on all). */
-const SCAN_FREQUENCIES = 3000;
+/** The scan of a sinusoid's period tries about this many (frequency, point) pairs at most: roughly a tenth of a second. */
+const SCAN_BUDGET = 4_000_000;
+/** Most points the scan uses, and the fewest it falls back to when there are many frequencies to try. */
 const SCAN_POINTS = 2000;
+const SCAN_MIN_POINTS = 256;
 
 /** Sums for the least-squares fit of `c + a cos(wx) + b sin(wx)` at one frequency: the coefficients and the squared error left. */
+/** A number from 0 up to 1 that depends on `k` in no pattern a signal could line up with (an integer mixing hash, the finalizer of murmur3). */
+function hashed(k: number): number {
+  let h = Math.imul(k ^ 0x9e3779b9, 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return ((h ^ (h >>> 16)) >>> 0) / 0x100000000;
+}
+
 function sinFit(
   xs: ArrayLike<number>,
   ys: ArrayLike<number>,
@@ -456,9 +466,21 @@ export class SinusoidalTrend extends Trendline<SinusoidalTrendAttributes> {
       const gap = gaps[gaps.length >> 1]!;
       const fMin = 1 / span,
         fMax = Math.max(fMin * 2, 1 / (2 * gap));
-      const df = (fMax - fMin) / Math.min(SCAN_FREQUENCIES, Math.max(8, Math.ceil(4 * span * (fMax - fMin))));
-      const use = Math.min(n, SCAN_POINTS),
-        idx = use < n ? (k: number) => Math.floor((k * (n - 1)) / (use - 1)) : null;
+      // Frequencies a quarter of a peak's width apart (the peak is 1 / span wide) so none is stepped over, on as many of the
+      // points as the budget allows. A few hundred points find a peak as well as thousands do; the refinement below uses them all.
+      const wanted = Math.max(8, Math.ceil(4 * span * (fMax - fMin)));
+      const use =
+        wanted * Math.min(n, SCAN_POINTS) > SCAN_BUDGET
+          ? Math.min(n, Math.max(SCAN_MIN_POINTS, Math.floor(SCAN_BUDGET / wanted)))
+          : Math.min(n, SCAN_POINTS);
+      const steps = Math.min(wanted, Math.max(8, Math.floor(SCAN_BUDGET / use)));
+      const df = (fMax - fMin) / steps;
+      // A subsample at an even stride would alias: a period under twice the stride is indistinguishable from a longer one, and the
+      // scan reaches up to the periods of the whole data. Jittering each pick inside its stride (a fixed hash, so the fit is
+      // repeatable) turns the alias into noise instead of a peak.
+      const picks = new Int32Array(use);
+      for (let k = 0; k < use; k++) picks[k] = use < n ? Math.min(n - 1, Math.floor((k + hashed(k)) * (n / use))) : k;
+      const idx = (k: number) => picks[k]!;
       let best = fMin,
         bestSse = Infinity;
       for (let f = fMin; f <= fMax + 1e-12; f += df) {

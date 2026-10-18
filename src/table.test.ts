@@ -81,7 +81,7 @@ test('table', () => {
       regularDomain: { start: 0, step: 1 },
     });
     const d = readTable(new Decimator({}, new MinMaxKernel({}), big), { samples: 100 });
-    assert(d.count > 0 && d.count < 5000, `thinned: ${d.count}`);
+    assert(d.count > 100 && d.count <= 202, `thinned to about two points a pixel: ${d.count}`);
     assert.equal(readTable(big).count, 5000, 'its source has every row');
   }
   {
