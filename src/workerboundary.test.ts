@@ -358,7 +358,10 @@ test('worker boundary: a detach and attach in one go keeps the worker, even when
   const boundary = new WorkerBoundary({ worker: s.worker, registry, transfer: true }, stages(data));
   const { chart, series } = chartOf(boundary);
   await chart.idle();
-  assert.equal(data.buffer.byteLength, 0, 'the array moved to the worker');
+  // Where there is no structuredClone (Node 16) a loopback cannot detach the array, and leaves it whole.
+  // oxlint-disable-next-line baseline-js/use-baseline -- probed on purpose: Node 17 and every current browser have it
+  const detaches = typeof structuredClone === 'function';
+  if (detaches) assert.equal(data.buffer.byteLength, 0, 'the array moved to the worker');
   assert.ok(series.points.count > 100);
   // Strict Mode, or the element moved in the document: unmount and mount again straight away.
   chart.detach();
@@ -371,7 +374,7 @@ test('worker boundary: a detach and attach in one go keeps the worker, even when
   chart.detach();
   await worker.idle();
   assert.deepEqual(s.kinds().slice(-1), ['detach']);
-  assert.throws(() => chart.attach(new StringPlatform({ width: W, height: H })).flush(), /moved to a worker/);
+  if (detaches) assert.throws(() => chart.attach(new StringPlatform({ width: W, height: H })).flush(), /moved to a worker/);
 });
 
 test('worker boundary: a failed fill or attach is thrown once, then asked again when something changes, and nothing stays pending', async () => {
