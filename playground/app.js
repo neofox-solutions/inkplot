@@ -1598,8 +1598,8 @@ demos.push({
 });
 
 // ── Oscilloscope ─────────────────────────────────────────────────────────────
-// A phosphor XY screen and the three channels it is made of. One `CompositeDataSource` holds the signal (X, Y and their
-// magnitude, made up, with noise and a one-pole low-pass), one `Slice` is the stretch of time on the screen, and every view
+// A phosphor XY screen and the three channels it is made of. One `CompositeDataSource` holds the signal (X, Y and Z, the
+// beam's brightness, made up, with noise and a one-pole low-pass), one `Slice` is the stretch of time on the screen, and every view
 // reads that slice through a `LinkedData`: the screen bins it into a heat map with a `Density` whose `halfLife` is the phosphor's
 // decay, and the three traces plot a channel of it against time. Moving the slice is the whole of the animation.
 const SCOPE_THEME = L.extendTheme(L.darkTheme, {
@@ -1615,7 +1615,7 @@ const SCOPE_THEME = L.extendTheme(L.darkTheme, {
 demos.push({
   id: 'scope',
   title: 'Oscilloscope',
-  blurb: 'A phosphor XY screen with X, Y and magnitude traces: one shared Slice moved by time, read by four LinkedData',
+  blurb: 'A phosphor XY screen with X, Y and Z traces: one shared Slice moved by time, read by four LinkedData',
   setup(ctx) {
     const RATE = 12000, // samples a second of the made-up signal
       PERIOD = 30000, // two and a half seconds, then it goes round again
@@ -1626,12 +1626,21 @@ demos.push({
       EDGE = 1.25;
     const S = { playing: true, speed: 1, window: 1200, halfLife: 300, gain: 1, noise: 0.04, bandwidth: 0.4, scene: -1, t: 0 };
     const SCENES = [
-      ['Lissajous 3:2', (u) => [0.85 * Math.sin(6 * Math.PI * u + 0.4), 0.85 * Math.sin(4 * Math.PI * u + Math.PI / 2)]],
+      [
+        'Lissajous 3:2',
+        (u) => [
+          0.85 * Math.sin(6 * Math.PI * u + 0.4),
+          0.85 * Math.sin(4 * Math.PI * u + Math.PI / 2),
+          0.65 + 0.35 * Math.sin(12 * Math.PI * u),
+        ],
+      ],
       [
         'Two circles',
         (u) => {
           const a = 4 * Math.PI * u;
-          return [(u < 0.5 ? -0.46 : 0.46) + 0.38 * Math.cos(a), 0.38 * Math.sin(a)];
+          // Dark while the beam jumps from one circle to the other.
+          const jump = Math.abs(u - 0.5) < 0.02 || u < 0.02 || u > 0.98;
+          return [(u < 0.5 ? -0.46 : 0.46) + 0.38 * Math.cos(a), 0.38 * Math.sin(a), jump ? 0.05 : 1];
         },
       ],
       [
@@ -1639,7 +1648,7 @@ demos.push({
         (u) => {
           const th = Math.PI * u,
             r = 0.92 * Math.cos(3 * th);
-          return [r * Math.cos(th), r * Math.sin(th)];
+          return [r * Math.cos(th), r * Math.sin(th), Math.sin(18 * Math.PI * u) > -0.2 ? 1 : 0.1];
         },
       ],
       [
@@ -1647,17 +1656,18 @@ demos.push({
         (u) => {
           if (u >= 0.7) {
             const a = (2 * Math.PI * (u - 0.7)) / 0.3;
-            return [0.32 * Math.cos(a), 0.32 * Math.sin(a)];
+            return [0.32 * Math.cos(a), 0.32 * Math.sin(a), 0.6];
           }
           const side = (u / 0.7) * 4,
             k = Math.floor(side),
             f = side - k,
             c = 0.8;
+          const blank = u < 0.02 || u > 0.68 ? 0.05 : 0.95;
           return [
-            [-c + 2 * c * f, -c],
-            [c, -c + 2 * c * f],
-            [c - 2 * c * f, c],
-            [-c, c - 2 * c * f],
+            [-c + 2 * c * f, -c, blank],
+            [c, -c + 2 * c * f, blank],
+            [c - 2 * c * f, c, blank],
+            [-c, c - 2 * c * f, blank],
           ][k];
         },
       ],
@@ -1670,23 +1680,26 @@ demos.push({
     const signal = () => {
       const r = rng(11);
       const x = new Float64Array(N),
-        y = new Float64Array(N);
+        y = new Float64Array(N),
+        z = new Float64Array(N);
       for (let i = 0; i < N; i++) {
         const scene = S.scene >= 0 ? S.scene : Math.floor(i / SCENE) % SCENES.length,
           next = S.scene >= 0 ? S.scene : (scene + 1) % SCENES.length;
         const mix = S.scene >= 0 ? 0 : smooth(0.85, 1, (i % SCENE) / SCENE);
         const u = ((((i * F0 * 1.003) / RATE) % 1) + 1) % 1;
-        const [ax, ay] = SCENES[scene][1](u),
-          [bx, by] = mix > 0 ? SCENES[next][1](u) : [0, 0];
+        const [ax, ay, az] = SCENES[scene][1](u),
+          [bx, by, bz] = mix > 0 ? SCENES[next][1](u) : [0, 0, 0];
         const breathe = 1 + 0.04 * Math.sin((2 * Math.PI * i) / (RATE * 1.7));
         x[i] = ((1 - mix) * ax + mix * bx) * breathe + gauss(r) * S.noise;
         y[i] = ((1 - mix) * ay + mix * by) * breathe + gauss(r) * S.noise;
+        z[i] = (1 - mix) * az + mix * bz + gauss(r) * S.noise * 0.5;
       }
       // Two passes, so that the end meets the start when the screen goes round again.
       const a = S.bandwidth;
-      for (const v of [x, y])
+      for (const v of [x, y, z])
         for (let pass = 0, last = v[N - 1]; pass < 2; pass++) for (let i = 0; i < N; i++) v[i] = last += a * (v[i] - last);
-      return { x, y, m: Float64Array.from(x, (v, i) => Math.hypot(v, y[i])) };
+      for (let i = 0; i < N; i++) z[i] = Math.max(0, z[i]);
+      return { x, y, z };
     };
     let sig = signal();
     const source = new L.CompositeDataSource({
@@ -1694,17 +1707,18 @@ demos.push({
       count: N,
       domain: (i) => i,
       isSorted: true,
-      channels: { x: sig.x, y: sig.y, m: sig.m },
+      channels: { x: sig.x, y: sig.y, z: sig.z },
     });
     const endAt = () => MAX_WINDOW + (Math.floor(S.t * RATE) % PERIOD);
     const win = new L.Slice({ id: 'window', last: S.window, end: endAt() }, source);
 
     // ── The screen: a heat map of where the beam has been, brighter where it was lately. A coarser layer under it is the glow.
     const PHOSPHOR = ['#010603', '#04301a', '#0c8a45', '#46ff8c', '#e6fff0'];
-    const fine = new L.ColorAxis({ id: 'beam', ramp: PHOSPHOR, min: 0, max: 1.6 }, new L.LinearScale());
-    const halo = new L.ColorAxis({ id: 'glow', ramp: PHOSPHOR, min: 0, max: 6 }, new L.LinearScale());
+    const fine = new L.ColorAxis({ id: 'beam', ramp: PHOSPHOR, min: 0, max: 1.2 }, new L.LinearScale());
+    const halo = new L.ColorAxis({ id: 'glow', ramp: PHOSPHOR, min: 0, max: 4.5 }, new L.LinearScale());
     const bins = (n) => ({
       by: ['x', 'y'],
+      weight: 'z',
       halfLife: S.halfLife,
       extent: [
         { min: -EDGE, max: EDGE },
@@ -1737,7 +1751,7 @@ demos.push({
     const traces = [
       ['CH1  X', 'x', -EDGE, EDGE, 0.5],
       ['CH2  Y', 'y', -EDGE, EDGE, 0.5],
-      ['CH3  |XY|', 'm', 0, 1.5, 0.5],
+      ['CH3  Z', 'z', -0.1, 1.2, 0.25],
     ].map(([name, channel, min, max, step], k) => {
       const series = new L.XYSeries(
         { x: 'domain', y: channel, name, hit: false },
@@ -1747,7 +1761,10 @@ demos.push({
       const plane = new L.CartesianPlane(
         {
           frame: true,
-          meta: { title: name, description: `The ${channel === 'm' ? 'magnitude' : channel.toUpperCase()} channel against time` },
+          meta: {
+            title: name,
+            description: `The ${channel.toUpperCase()} channel against time${channel === 'z' ? ', which sets how bright the beam is' : ''}`,
+          },
         },
         new L.Axis({ orientation: 'bottom', visible: false, nice: false, padding: 0, tickCount: 9 }, new L.LinearScale()),
         fixed('left', min, max, step),
@@ -1803,7 +1820,7 @@ demos.push({
     playButton = h('button', { type: 'button', onclick: () => ((S.playing = !S.playing), refresh()) }, 'Pause');
     const regen = () => {
       sig = signal();
-      source.setAttribute('channels', { x: sig.x, y: sig.y, m: sig.m });
+      source.setAttribute('channels', { x: sig.x, y: sig.y, z: sig.z });
     };
     const decay = () => {
       for (const l of [haloLayer, beamLayer]) l.child(0, L.Density).setAttribute('halfLife', S.halfLife);
@@ -1847,8 +1864,8 @@ demos.push({
         value: S.gain,
         onChange: (v) => {
           S.gain = v;
-          fine.setAttribute('max', 1.6 / v);
-          halo.setAttribute('max', 6 / v);
+          fine.setAttribute('max', 1.2 / v);
+          halo.setAttribute('max', 4.5 / v);
         },
       }),
       ui.slider({
@@ -1889,7 +1906,7 @@ demos.push({
       }),
       read,
       ui.note(
-        "The signal is three channels of made-up samples (X, Y and their magnitude) in a CompositeDataSource, with noise added and a one-pole low-pass filter over it: the filter rounds the corners, smears the jumps between shapes, and makes the trace wider. One `Slice` is the stretch of time on the screen and is moved by the clock; the source is a child of the chart and the slice reads it. The four views each read the slice through a `LinkedData`. The screen is a two-dimensional `Density` over X and Y with a `halfLife`, so a point counts for less the further it is behind the newest one: that is the phosphor's decay, and each cell's sum is its brightness. A coarser layer beneath is the glow. The traces are `XYSeries` of the time and a channel.",
+        "The signal is three channels of made-up samples (X, Y and Z, the beam's brightness) in a CompositeDataSource, with noise added and a one-pole low-pass filter over it: the filter rounds the corners, smears the jumps between shapes, and makes the trace wider. One `Slice` is the stretch of time on the screen and is moved by the clock; the source is a child of the chart and the slice reads it. The four views each read the slice through a `LinkedData`. Z blanks the beam while it jumps, dashes the rose, and dims the circle. The screen is a two-dimensional `Density` over X and Y, weighted by Z, with a `halfLife`, so a point counts for less the dimmer the beam was and the further it is behind the newest one: that is the phosphor's decay, and each cell's sum is its brightness. A coarser layer beneath is the glow. The traces are `XYSeries` of the time and a channel.",
       ),
     );
     show();
