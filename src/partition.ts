@@ -100,7 +100,7 @@ export function partitionOf(source: DataSource, channel: string, order: Order, m
     view = { data: buffer, count: filled.count, stride, domainOffset: 0, valueOffset: 1, regularDomain: null, channelOffsets };
     storageRow = filled.rowOf ?? ((i) => i);
   }
-  const keyOffset = view.channelOffsets?.[channel] ?? fail(`the data has no channel "${channel}"`);
+  const keyOffset = view.channelOffsets?.[channel] ?? fail(121, channel);
   const d = view.data,
     s = view.stride,
     n = view.count,
@@ -236,7 +236,7 @@ export function partitionOf(source: DataSource, channel: string, order: Order, m
     channelExtents(name) {
       let known = extentsOf.get(name);
       if (known) return known;
-      const o = view.channelOffsets?.[name] ?? fail(`the data has no channel "${name}"`);
+      const o = view.channelOffsets?.[name] ?? fail(121, name);
       const lo = new Float64Array(keys.length).fill(Infinity),
         hi = new Float64Array(keys.length).fill(-Infinity);
       for (let i = 0, p = keyOffset, q = o; i < n; i++, p += s, q += s) {
@@ -259,7 +259,7 @@ export function leafOf(node: DataNode): DataSource {
   while (!(n instanceof DataSource)) {
     let next: AnyElement | undefined;
     for (let c = n.firstChild; c; c = c.nextSibling) if (c instanceof DataSource || c instanceof DataTransform) next = c;
-    n = next ?? fail('a data transform has no source beneath it');
+    n = next ?? fail(160);
   }
   return n;
 }
@@ -274,7 +274,7 @@ export function canPartition(node: DataNode): boolean {
 export function planPartitioned(node: DataNode, context: PlanContext, partition: Partition): PartitionedPlan {
   if (node instanceof DataSource) return rawPlan(partition, context);
   if (node.planPartitioned) return node.planPartitioned(context, partition);
-  return fail(`${node.constructor.name} cannot be split by a channel`);
+  return fail(159, node.constructor.name);
 }
 
 /** All the rows of a key, as a source's own `plan` gives them: the domain, the value, then the channels asked for. */
@@ -290,7 +290,7 @@ export function rawPlan(p: Partition, context: PlanContext, window?: readonly [f
     if (at !== undefined) return at;
     if (isDomainName(name)) return reg ? -1 : v.domainOffset;
     if (isValueName(name)) return v.valueOffset;
-    return fail(`the data has no channel "${name}"`);
+    return fail(121, name);
   });
   const os = offsets.length,
     start = reg?.start ?? 0,
@@ -430,10 +430,10 @@ export class KeySource extends DataSource {
     return stage ? stage.channelExtent(name) : (this.#partition?.channelExtents(name)[this.#slot] ?? null);
   }
   protected fill(): FillResult {
-    return fail('the rows of a key are read through plan');
+    return fail(158);
   }
   override plan(context: PlanContext): FillPlan {
-    const partition = this.#partition ?? fail('a key has no rows');
+    const partition = this.#partition ?? fail(157);
     const plan = this.#top ? planPartitioned(this.#top(), context, partition) : rawPlan(partition, context);
     const slot = this.#slot;
     return { capacity: plan.capacity(slot), fill: (out) => plan.fill(slot, out) };
@@ -458,7 +458,7 @@ export abstract class KeyedTransform<
   protected get input(): DataNode {
     let found: DataNode | null = null;
     for (let c = this.firstChild; c; c = c.nextSibling) if (c instanceof DataSource || c instanceof DataTransform) found = c;
-    return found ?? fail(`${this.constructor.name} has no data beneath it`);
+    return found ?? fail(156, this.constructor.name);
   }
   override partitionable(): boolean {
     return canPartition(this.input);

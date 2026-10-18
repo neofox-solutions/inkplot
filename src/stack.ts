@@ -171,8 +171,7 @@ export function layOut(tables: readonly Rows[], mode: StackMode, reuse?: Layout 
 }
 
 function domainOnly(s: Series): DomainSeries {
-  if (!(s instanceof DomainSeries))
-    fail('a group in a stack has to be of series with a domain and a value: it has `x`, so its series are XY');
+  if (!(s instanceof DomainSeries)) fail(219);
   return s;
 }
 
@@ -199,9 +198,7 @@ export class Stack extends ChartElement<Plane, (DomainSeries | SeriesGroup)[], S
     const members = this.members.filter((m) => m.shown); // a member that is not shown leaves the stack: the rest close up
     if (members.length === 0) return;
     const { domainAxis, valueAxis } = members[0]!;
-    for (const m of members)
-      if (m.domainAxis !== domainAxis || m.valueAxis !== valueAxis)
-        fail('the series of a stack have to share their domain axis and their value axis');
+    for (const m of members) if (m.domainAxis !== domainAxis || m.valueAxis !== valueAxis) fail(218);
     const own = members.map((m) => m.prepare(estimate));
     for (const c of this.#holders()) if (!(c instanceof DomainSeries)) c.contribute();
     const how = this.attrs.align ?? 'strict',
@@ -212,10 +209,7 @@ export class Stack extends ChartElement<Plane, (DomainSeries | SeriesGroup)[], S
       let tables: readonly Rows[] = own,
         aligned: Rows[] | null = null;
       if (!own.every((t) => sameDomain(own[0]!, t))) {
-        if (how === 'strict')
-          fail(
-            "the series of a stack have to share their domain values: give the stack `align: 'gaps'` (bars) or `align: 'interpolate'` (lines, areas) to merge them",
-          );
+        if (how === 'strict') fail(217);
         tables = aligned = alignRows(own, how);
       }
       const layout = layOut(tables, mode, made?.layout);

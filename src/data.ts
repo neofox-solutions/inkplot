@@ -173,11 +173,8 @@ export const isValueName = (name: string): boolean => name === 'value' || name =
 export function expectDomainValue(context: PlanContext, who: string): void {
   const [first, second] = context.columns;
   if (first === 'domain' && second === 'value' && context.sorted) return;
-  if (first === 'domain' && second === 'value')
-    fail(`${who} needs the points ascending in the domain, but they were asked for in the order they are stored`);
-  fail(
-    `Expected 'domain' and 'value' as the first requested channels but got ${[first, second].map((n) => (n === undefined ? 'nothing' : `'${n}'`)).join(' and ')}; ${who} must be attached to a DomainSeries or compatible`,
-  );
+  if (first === 'domain' && second === 'value') fail(125, who);
+  fail(124, [first, second].map((n) => (n === undefined ? 'nothing' : `'${n}'`)).join(' and '), who);
 }
 /** `names` once each, in order of first appearance. */
 export const distinct = (names: readonly string[]): string[] => names.filter((n, i) => names.indexOf(n) === i);
@@ -374,7 +371,7 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
       // The closing point is a copy of the first one period on; the loader allocated one spare row for it.
       const wrap = this.attrs.wrap;
       if (wrap !== undefined && count > 0) {
-        if (buf[0]! + wrap < buf[stride * (count - 1)]!) fail('the wrap period is shorter than the domain of the data');
+        if (buf[0]! + wrap < buf[stride * (count - 1)]!) fail(123);
         for (let c = 1; c < stride; c++) buf[stride * count + c] = buf[c]!;
         buf[stride * count] = buf[0]! + wrap;
         // The copy is the first point again, so an edit to it lands on the first point's row.
@@ -483,10 +480,7 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
    * from storage, in the order it is stored.
    */
   plan(context: PlanContext): FillPlan {
-    if (context.sorted && this.attrs.isSorted === true && context.columns[0] !== 'domain')
-      fail(
-        `the data says it is sorted along the domain (isSorted), but the first column asked of it is "${context.columns[0]}", not "domain": the series and the layout of the data disagree`,
-      );
+    if (context.sorted && this.attrs.isSorted === true && context.columns[0] !== 'domain') fail(122, context.columns[0]);
     // A wrapped source is closed along its domain, so it is always the sorted copy that is read.
     if (this.inPlace || (!context.sorted && this.attrs.wrap === undefined)) {
       const n = this.pointCount;
@@ -507,7 +501,7 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
     // Where each requested column is in the managed buffer: a channel by name, else the default assignments.
     const columns = want.map((name) => {
       const i = have.indexOf(name);
-      return i >= 0 ? 2 + i : isDomainName(name) ? 0 : isValueName(name) ? 1 : fail(`the data has no channel "${name}"`);
+      return i >= 0 ? 2 + i : isDomainName(name) ? 0 : isValueName(name) ? 1 : fail(121, name);
     });
     if (columns.length === m.stride && columns.every((c, i) => c === i)) {
       return {

@@ -45,6 +45,7 @@ import {
   type WorkerLike,
   type WorkerMeta,
 } from './workerproto.ts';
+import { inkplotError } from './fail.ts';
 
 export interface WorkerBoundaryAttributes extends BaseAttributes {
   /** Where the stages inside run. */
@@ -162,8 +163,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
 
   constructor(...args: ConstructorParameters<typeof DataTransform<WorkerBoundaryAttributes, [source: DataNode]>>) {
     super(...args);
-    if (!(this.firstChild instanceof DataSource || this.firstChild instanceof DataTransform))
-      fail('WorkerBoundary: what is inside has to be a data source or transform');
+    if (!(this.firstChild instanceof DataSource || this.firstChild instanceof DataTransform)) fail(245);
   }
 
   /** Rows shared with the worker (see `shared`) were changed in place: it counts, thins and draws them again. */
@@ -367,11 +367,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       tree = toJSON(this.source, a.registry, { refs: this.#refs });
     } catch (e) {
       const text = e instanceof Error ? e.message : String(e);
-      if (/detached/.test(text))
-        fail(
-          'WorkerBoundary: an array of the description was moved to a worker (`transfer`) and is not here any more: ' +
-            'give each boundary its own array, or leave `transfer` off to copy it',
-        );
+      if (/detached/.test(text)) fail(244);
       throw e;
     }
     // Names the tree no longer mentions (an array that was replaced) are let go here and in the worker, or every array the chart has ever shown stays alive.
@@ -397,15 +393,9 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       }
       const value = this.#refs.get(name);
       if (this.#sent.get(name) === value) continue;
-      if (ArrayBuffer.isView(value) && value.buffer.byteLength === 0 && this.#moved.has(value.buffer))
-        fail(
-          `WorkerBoundary: "${name}" was moved to a worker (\`transfer\`) and is not here any more: ` +
-            'give each boundary its own array, or leave `transfer` off to copy it',
-        );
+      if (ArrayBuffer.isView(value) && value.buffer.byteLength === 0 && this.#moved.has(value.buffer)) fail(243, name);
       if (!a.shared && ArrayBuffer.isView(value) && typeof SharedArrayBuffer !== 'undefined' && value.buffer instanceof SharedArrayBuffer)
-        fail(
-          `WorkerBoundary: "${name}" is backed by a SharedArrayBuffer: set \`shared\` to share it with the worker (the page has to be cross-origin isolated)`,
-        );
+        fail(242, name);
       sent.push([name, value]);
       refs[name] = value;
       if (a.transfer && ArrayBuffer.isView(value) && value.buffer instanceof ArrayBuffer && !this.#moved.has(value.buffer)) {
@@ -483,9 +473,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
     try {
       a.worker.post((this.#wire ?? envelopeOf(a.envelope)).wrap(message), transfer);
     } catch (e) {
-      this.#error = new Error(
-        `WorkerBoundary: the worker could not be sent a ${message.kind}: ${e instanceof Error ? e.message : String(e)}`,
-      );
+      this.#error = inkplotError(241, message.kind, e instanceof Error ? e.message : String(e));
       this.#inflight = null;
     } finally {
       this.#posting--;
@@ -524,7 +512,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       case 'error':
         this.#release?.();
         this.#release = null;
-        this.#error ??= new Error(`WorkerBoundary: ${m.message}`);
+        this.#error ??= inkplotError(240, m.message);
         // What was asked for failed, and what waited behind it is asked again by the next plan, not held for ever.
         this.#inflight = this.#waiting = null;
         this.#wanted = '';

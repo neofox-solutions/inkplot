@@ -24,6 +24,7 @@
  */
 import { type AnyArgs, type AnyElement, ChartElement } from './element.ts';
 import { type JsxRef, expandAttributes } from './attrs.ts';
+import { inkplotError } from './fail.ts';
 
 type Props = Record<string, unknown>;
 type ElementConstructor = abstract new (...args: AnyArgs) => AnyElement;
@@ -37,9 +38,7 @@ function flatten(children: unknown, into: AnyElement[], tag: string): AnyElement
   } else if (children instanceof ChartElement) {
     into.push(children);
   } else {
-    throw new TypeError(
-      `<${tag}>: a child must be a chart element, not ${typeof children === 'object' ? 'an object' : `${typeof children} ${JSON.stringify(children)}`}`,
-    );
+    throw inkplotError(151, tag, typeof children === 'object' ? 'an object' : `${typeof children} ${JSON.stringify(children)}`);
   }
   return into;
 }
@@ -64,7 +63,7 @@ export function jsx(type: JsxType, props: Props, _key?: unknown): AnyElement {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- a function component may return an array of elements, which `flatten` turns into one element
     if (Array.isArray(made)) element = flatten(made, [], tag) as unknown as AnyElement;
     else if (made instanceof ChartElement) element = made;
-    else throw new TypeError(`<${tag}>: a function used as a tag must return a chart element`);
+    else throw inkplotError(150, tag);
   }
   if (typeof ref === 'function') ref(element);
   // oxlint-disable-next-line typescript/consistent-type-assertions -- a `ref` is an object with `current`, or a callback, which is handled on the line above

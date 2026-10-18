@@ -218,7 +218,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    * there are more series than colours. It is only a default: a renderer's own colour attribute or any `style` beats it.
    */
   get accentColor(): string {
-    const palette = (this.chart ?? fail('series is not in a chart')).attrs.theme.palette;
+    const palette = (this.chart ?? fail(210)).attrs.theme.palette;
     const index = Math.max(0, this.plane.allSeries.indexOf(this));
     return palette[index % palette.length] ?? '#888';
   }
@@ -600,7 +600,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    * the data forward and this backward is a closed shape on a rectangle and on a circle alike.
    */
   baseline(value: number): Readonly<PointBuffer> {
-    const plane = this.#plane ?? fail('series has not been projected'),
+    const plane = this.#plane ?? fail(209),
       { raw, count: n, stride: rs } = this.rows(),
       layer = this.#layer;
     const key = `${this.#projections}|${value}`;
@@ -653,10 +653,10 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   #valueAxis: Axis | null = null;
 
   get domainAxis(): Axis {
-    return this.#domainAxis ?? fail('series has not been laid out');
+    return this.#domainAxis ?? fail(208);
   }
   get valueAxis(): Axis {
-    return this.#valueAxis ?? fail('series has not been laid out');
+    return this.#valueAxis ?? fail(208);
   }
   get firstAxis(): Axis {
     return this.domainAxis;
@@ -673,8 +673,8 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
 
   resolveAxes(plane: Plane): void {
     const a = this.attrs;
-    this.#domainAxis = resolveRef<Axis>(a.domainAxis, this, Axis) ?? plane.defaultAxis('first') ?? fail('plane has no axis for the domain');
-    this.#valueAxis = resolveRef<Axis>(a.valueAxis, this, Axis) ?? plane.defaultAxis('second') ?? fail('plane has no axis for the value');
+    this.#domainAxis = resolveRef<Axis>(a.domainAxis, this, Axis) ?? plane.defaultAxis('first') ?? fail(102);
+    this.#valueAxis = resolveRef<Axis>(a.valueAxis, this, Axis) ?? plane.defaultAxis('second') ?? fail(101);
   }
 
   contributeDomain(): void {
@@ -774,10 +774,10 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   #yAxis: Axis | null = null;
 
   get xAxis(): Axis {
-    return this.#xAxis ?? fail('series has not been laid out');
+    return this.#xAxis ?? fail(208);
   }
   get yAxis(): Axis {
-    return this.#yAxis ?? fail('series has not been laid out');
+    return this.#yAxis ?? fail(208);
   }
   get firstAxis(): Axis {
     return this.xAxis;
@@ -792,8 +792,8 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
 
   resolveAxes(plane: Plane): void {
     const a = this.attrs;
-    this.#xAxis = resolveRef<Axis>(a.xAxis, this, Axis) ?? plane.defaultAxis('first') ?? fail('plane has no axis for x');
-    this.#yAxis = resolveRef<Axis>(a.yAxis, this, Axis) ?? plane.defaultAxis('second') ?? fail('plane has no axis for y');
+    this.#xAxis = resolveRef<Axis>(a.xAxis, this, Axis) ?? plane.defaultAxis('first') ?? fail(207);
+    this.#yAxis = resolveRef<Axis>(a.yAxis, this, Axis) ?? plane.defaultAxis('second') ?? fail(206);
   }
 
   // An order has no extent to agree on before reading, so there is nothing to do ahead of `load`.

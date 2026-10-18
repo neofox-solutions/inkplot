@@ -52,7 +52,7 @@ export class BoxZoom extends InteractiveElement<Plane, [], BoxZoomAttributes> {
         const plane = this.requireParent();
         for (let sibling = plane.firstChild; sibling; sibling = sibling.nextSibling) {
           if (sibling === this) break;
-          if (sibling.claimsPress) fail('add a BoxZoom before PanZoom in a plane: the box has to see a press first to take it');
+          if (sibling.claimsPress) fail(109);
         }
         return;
       }

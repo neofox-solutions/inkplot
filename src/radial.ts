@@ -150,7 +150,7 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
   place(points: PointBuffer, first: Axis, second: Axis): void {
     const angleIsDomain = first.orientation === 'angle';
     if ((first.orientation !== 'angle' && first.orientation !== 'radius') || (second.orientation === 'angle') === angleIsDomain) {
-      fail('a series needs one angle axis and one radius axis');
+      fail(175);
     }
     const { data, count, stride } = points;
     const R = this.#radius,

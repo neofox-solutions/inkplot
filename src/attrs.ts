@@ -16,6 +16,7 @@
 
 import type { AnyElement } from './element.ts';
 import type { Theme } from './theme.ts';
+import { inkplotError } from './fail.ts';
 
 /** Whether `key` is the object's own (`Object.hasOwn`, which is a year newer than the rest of what the library uses). */
 export const hasOwn = (o: object, key: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(o, key);
@@ -110,9 +111,9 @@ export function expandAttributes(flat: Readonly<Obj>, options: ExpandOptions = {
     const raw = key.split('-');
     const path: string[] = [];
     for (const part of raw) {
-      if (part === '') throw new Error(`attribute '${key}': empty name part`);
+      if (part === '') throw inkplotError(105, key);
       const name = options.name ? options.name(part, path) : part;
-      if (name === '__proto__') throw new Error(`attribute '${key}': not allowed`);
+      if (name === '__proto__') throw inkplotError(104, key);
       path.push(name);
     }
     let at = out;
@@ -129,7 +130,7 @@ export function expandAttributes(flat: Readonly<Obj>, options: ExpandOptions = {
         // oxlint-disable-next-line typescript/consistent-type-assertions -- `made` holds only the objects this function created, so a member of it is one of our `Obj`
         at = have as Obj;
       } else {
-        throw new Error(`attribute '${key}' conflicts with '${path.slice(0, i + 1).join('-')}', which is a value`);
+        throw inkplotError(103, key, path.slice(0, i + 1).join('-'));
       }
     }
     // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
@@ -143,11 +144,7 @@ export function expandAttributes(flat: Readonly<Obj>, options: ExpandOptions = {
         at[last] = value;
         continue;
       }
-      throw new Error(
-        typeof have === 'object' && have !== null && made.has(have)
-          ? `attribute '${key}' conflicts with '${key}-…', which are nested values`
-          : `attribute '${key}' is given twice`,
-      );
+      throw inkplotError(typeof have === 'object' && have !== null && made.has(have) ? 252 : 253, key);
     }
     at[last] = value;
   }

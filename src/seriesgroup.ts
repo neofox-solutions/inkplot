@@ -71,7 +71,7 @@ const DEFAULT_MAX = 100;
 /** The colour or size axis a binding names (a `MappedDimension` is not imported here, so that a group costs nothing to a chart that does not bind). */
 function dimensionOf(spec: { axis: ElementRef<MappedDimension<unknown>> }, from: AnyElement): MappedDimension<unknown> {
   const d = resolveRef<MappedDimension<unknown>>(spec.axis, from);
-  return 'valueAt' in d ? d : fail('SeriesGroup: a binding needs a ColorAxis or a ScalarAxis');
+  return 'valueAt' in d ? d : fail(214);
 }
 /** The name of the stage in a chain of data stages that a group cannot work through: the lowest one that is not a `KeyedTransform`, for the error. */
 function stageThatCannot(node: DataNode): string {
@@ -203,10 +203,7 @@ export class SeriesGroup
    */
   private partition(data: DataNode): void {
     const a = this.attrs;
-    if (!canPartition(data))
-      fail(
-        `SeriesGroup: ${stageThatCannot(data)} cannot work on the rows of a key: a data transform in a group has to extend KeyedTransform`,
-      );
+    if (!canPartition(data)) fail(213, stageThatCannot(data));
     const leaf = leafOf(data);
     const old = this.#partition;
     const max = a.maxGroups ?? DEFAULT_MAX,
@@ -214,8 +211,7 @@ export class SeriesGroup
     // Rows that are kept somewhere else (a worker) are counted there, and the partition is what it last said.
     let remote: Partition | null | undefined;
     if (data instanceof DataTransform && data.partitionBy) {
-      if (typeof order === 'function')
-        fail('SeriesGroup: over a WorkerBoundary the series are in the order of `first` or `sorted`: a function cannot go to the worker');
+      if (typeof order === 'function') fail(212);
       remote = data.partitionBy(a.channel, order, max);
     }
     if (remote ? remote === old : data === this.#source && old && old.source === leaf && old.version === leaf.version) {
@@ -224,7 +220,7 @@ export class SeriesGroup
       for (const part of this.#parts.values()) part.touch();
       return;
     }
-    const partition = remote ?? partitionOf(leaf, a.channel, order, max) ?? fail(`SeriesGroup: the data has no channel "${a.channel}"`);
+    const partition = remote ?? partitionOf(leaf, a.channel, order, max) ?? fail(211, a.channel);
     this.#source = data;
     this.#version = data.version;
     this.#partition = partition;

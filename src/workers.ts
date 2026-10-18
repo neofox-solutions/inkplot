@@ -68,7 +68,7 @@ export function cloneMessage(value: unknown, transfer: readonly ArrayBuffer[] = 
 
 function clone(value: unknown, moved: ReadonlyMap<ArrayBuffer, ArrayBuffer>): unknown {
   if (value === null || typeof value !== 'object') {
-    if (typeof value === 'function' || typeof value === 'symbol') fail(`DataCloneError: a ${typeof value} cannot be sent to a worker`);
+    if (typeof value === 'function' || typeof value === 'symbol') fail(251, typeof value);
     return value;
   }
   if (value instanceof ArrayBuffer) return moved.get(value) ?? value.slice(0);
@@ -85,10 +85,7 @@ function clone(value: unknown, moved: ReadonlyMap<ArrayBuffer, ArrayBuffer>): un
   }
   if (Array.isArray(value)) return value.map((x) => clone(x, moved));
   const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null)
-    fail(
-      `DataCloneError: ${value.constructor?.name ?? 'an object'} cannot be sent to a worker: only plain objects, arrays and typed arrays can`,
-    );
+  if (proto !== Object.prototype && proto !== null) fail(250, value.constructor?.name ?? 'an object');
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value)) out[k] = clone(v, moved);
   return out;

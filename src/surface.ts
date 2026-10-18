@@ -7,6 +7,7 @@
  * time, and only real changes reach the platform (and, in a browser, the DOM).
  */
 import type { Platform, PlatformNode, SvgTag } from './platform.ts';
+import { inkplotError } from './fail.ts';
 
 /** The timed phases of producing a series' path, for the chart's diagnostics. */
 export type StageName = 'generate' | 'decimate' | 'normalize' | 'place' | 'path';
@@ -94,7 +95,7 @@ export class Surface {
    */
   wrapper(tag: SvgTag = 'g'): PlatformNode {
     if (!this.wrapperNode) {
-      if (this.nodes.size > 0 || this.placement.childrenFirst()) throw new Error('wrapper() must come before the element draws anything');
+      if (this.nodes.size > 0 || this.placement.childrenFirst()) throw inkplotError(223);
       this.wrapperNode = this.platform.createNode(tag);
       this.platform.insertBefore(this.placement.container(), this.wrapperNode, this.placement.end());
       if (this.hidden) this.set(this.wrapperNode, 'display', 'none');

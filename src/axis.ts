@@ -26,12 +26,12 @@ export type AxisOrientation = CartesianOrientation | PolarOrientation;
 export const isHorizontal = (o: AxisOrientation) => o === 'top' || o === 'bottom';
 /** Narrows to the sides a Cartesian plane can draw. Polar sides belong to a PolarPlane. */
 export function cartesianSide(o: AxisOrientation): CartesianOrientation {
-  return o === 'angle' || o === 'radius' ? fail(`an axis on the "${o}" side needs a PolarPlane`) : o;
+  return o === 'angle' || o === 'radius' ? fail(107, o) : o;
 }
 
 /** Narrows to the sides a PolarPlane can draw. */
 export function polarSide(o: AxisOrientation): PolarOrientation {
-  return o === 'angle' || o === 'radius' ? o : fail(`an axis on the "${o}" side needs a CartesianPlane`);
+  return o === 'angle' || o === 'radius' ? o : fail(106, o);
 }
 
 /**

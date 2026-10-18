@@ -86,6 +86,7 @@ For when the library's elements are not enough. Every built-in element is writte
 | [Attribute reference](reference/api.md) | Every element: where it goes, what it holds, every attribute. Generated from the source. |
 | [Functions and other exports](reference/exports.md) | Everything the package exports that is not an element. |
 | [Troubleshooting](reference/troubleshooting.md) | Error messages and "it draws wrongly" symptoms, with fixes. |
+| [Error codes](reference/errors.md) | What a `Minified inkplot error` code means. Generated from the source. |
 | [Writing documentation](authoring.md) | The live example format, for people writing these docs. |
 
 ## For LLMs

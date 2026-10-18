@@ -8,6 +8,7 @@
  */
 import { type AttrTypesFor, type Opaque, STRING } from './attrs.ts';
 import { TimeScale, TIME_FORMATS_TYPES, type TimeRank, type TimeScaleAttributes, type TimeUnit } from './time.ts';
+import { inkplotError } from './fail.ts';
 
 /** The part of a `Temporal.ZonedDateTime` that this uses. */
 export interface ZonedLike {
@@ -64,7 +65,7 @@ export class TemporalTimeScale extends TimeScale<Intl.DateTimeFormatOptions, Tem
   get #temporal(): TemporalLike {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- `Temporal` is not in every runtime's global types
     const T = this.attrs.temporal ?? (globalThis as { Temporal?: TemporalLike }).Temporal;
-    if (!T) throw new Error('TemporalTimeScale: this runtime has no Temporal; pass one as the `temporal` attribute, or use IntlTimeScale');
+    if (!T) throw inkplotError(225);
     return T;
   }
   #at(t: number): ZonedLike {

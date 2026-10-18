@@ -74,7 +74,7 @@ export function resolveBindings(
   for (const property in map) {
     const b = map[property];
     if (!b) continue;
-    const axis = b.map ? valueMap(b.map) : b.axis ? resolveRef(b.axis, from) : fail(`the binding of ${property} needs an axis or a map`);
+    const axis = b.map ? valueMap(b.map) : b.axis ? resolveRef(b.axis, from) : fail(112, property);
     out.push({ property, channel: b.channel, axis, stylistic: !isGeometric(property) });
   }
   return out;
@@ -86,7 +86,7 @@ export function stepsFor(bindings: readonly ResolvedBinding[], maxNodes: number)
   if (k === 0) return 0;
   // The last step of each binding is kept for data with no value, so a binding colours with one fewer.
   const steps = Math.floor(maxNodes ** (1 / k) + 1e-9);
-  if (steps < 2) fail(`maxNodes ${maxNodes} leaves fewer than 2 steps for ${k} bound styles`);
+  if (steps < 2) fail(111, maxNodes, k);
   return steps;
 }
 

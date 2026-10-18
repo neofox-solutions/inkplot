@@ -86,9 +86,8 @@ export class Refs {
   }
   /** Name a value. The name must be free; a value that already has a name keeps it first and answers to both on reading. */
   set(name: string, value: unknown): this {
-    if (value === null || (typeof value !== 'object' && typeof value !== 'function'))
-      fail(`ref "${name}": only objects and functions can be named`);
-    if (this.#byName.has(name) && this.#byName.get(name) !== value) fail(`ref "${name}" already names something else`);
+    if (value === null || (typeof value !== 'object' && typeof value !== 'function')) fail(205, name);
+    if (this.#byName.has(name) && this.#byName.get(name) !== value) fail(204, name);
     this.#byName.set(name, value);
     if (!this.#byValue.has(value)) this.#byValue.set(value, name);
     return this;
@@ -98,10 +97,7 @@ export class Refs {
   }
   get(name: string): unknown {
     if (!this.#byName.has(name))
-      fail(
-        `no ref named "${name}"` +
-          (this.#byName.size ? ` (known: ${[...this.#byName.keys()].slice(0, 12).join(', ')})` : ' (there are none)'),
-      );
+      fail(203, name, this.#byName.size ? ` (known: ${[...this.#byName.keys()].slice(0, 12).join(', ')})` : ' (there are none)');
     return this.#byName.get(name);
   }
   /** The name a value goes by, if it has one. */
@@ -151,9 +147,7 @@ function nameOf(ctor: unknown, registry: ElementRegistry, path: string): string 
   }
   const name = map.get(ctor);
   if (name === undefined)
-    fail(
-      `${at(path)}${(ctor as { name?: string }).name || 'an anonymous class'} is not in the registry: add it, as in { ...registry, ${(ctor as { name?: string }).name || 'Mine'} }`,
-    );
+    fail(202, at(path), (ctor as { name?: string }).name || 'an anonymous class', (ctor as { name?: string }).name || 'Mine');
   return name;
 }
 const at = (path: string) => (path ? `${path}: ` : '');
@@ -182,7 +176,7 @@ const hintOf = (path: string) => /([A-Za-z_]\w*)(?:\[\d+\])*$/.exec(path)?.[1] ?
 
 function byReference(value: unknown, path: string, w: Writing, what: string): unknown {
   if (w.refs?.auto) return { $ref: w.refs.adopt(value, hintOf(path)) };
-  fail(`${at(path)}${what}, which JSON cannot hold: name it in \`refs\` (a Refs with \`auto: true\` names whatever it meets)`);
+  fail(201, at(path), what);
 }
 
 function encode(v: unknown, path: string, w: Writing): unknown {
@@ -202,12 +196,12 @@ function encode(v: unknown, path: string, w: Writing): unknown {
       return byReference(v, path, w, 'a function');
     case 'bigint':
     case 'symbol':
-      return fail(`${at(path)}a ${typeof v} cannot be written as JSON`);
+      return fail(200, at(path), typeof v);
   }
   if (v === null) return null;
   if (v instanceof ChartElement) {
     const id = (v.attrs as { id?: unknown }).id;
-    if (typeof id !== 'string') fail(`${at(path)}refers to a ${v.constructor.name} that has no id: give it one so JSON can name it`);
+    if (typeof id !== 'string') fail(199, at(path), v.constructor.name);
     return id;
   }
   if (ArrayBuffer.isView(v)) {
@@ -218,8 +212,7 @@ function encode(v: unknown, path: string, w: Writing): unknown {
     try {
       return { $typed: type, data: Array.from(a, (n) => (Number.isFinite(n) ? n : n !== n ? null : String(n))) };
     } catch (e) {
-      if (/detached/.test(messageOf(e)))
-        fail(`${at(path)}a ${type} whose buffer was moved to another thread (transferred), so there is nothing to write`);
+      if (/detached/.test(messageOf(e))) fail(198, at(path), type);
       throw e;
     }
   }
@@ -234,7 +227,7 @@ function encode(v: unknown, path: string, w: Writing): unknown {
     for (const key of Object.keys(object)) {
       const x = object[key];
       if (x === undefined) continue;
-      if (key.startsWith('$')) fail(`${at(path)}the key "${key}" is reserved: JSON marks references and special values with a leading $`);
+      if (key.startsWith('$')) fail(197, at(path), key);
       out[key] = encode(x, path ? `${path}.${key}` : key, w);
     }
     return out;
@@ -268,16 +261,10 @@ function checkVersion(json: ElementJSON): void {
   if (json === null || typeof json !== 'object') return; // the reader says what it is
   const v: unknown = json.version;
   const ok = Array.isArray(v) && v.length === 2 && v.every((n) => Number.isInteger(n) && n >= 0);
-  if (!ok)
-    fail(
-      `the JSON has no "version", or one that is not [major, minor]: a document written by toJSON has it; one written by hand needs \`version: JSON_VERSION\` (now ${JSON_VERSION.join('.')})`,
-    );
+  if (!ok) fail(196, JSON_VERSION.join('.'));
   const [major, minor] = v as number[];
   if (major !== JSON_VERSION[0] || (minor as number) > JSON_VERSION[1])
-    fail(
-      `the JSON is version ${major}.${minor}, which this release (reading ${JSON_VERSION[0]}.0 to ${JSON_VERSION.join('.')}) cannot read: ` +
-        `it was written by ${major !== JSON_VERSION[0] ? 'an incompatible' : 'a newer'} release. To read it as it is anyway, set its \`version\` to JSON_VERSION`,
-    );
+    fail(195, major, minor, JSON_VERSION[0], JSON_VERSION.join('.'), major !== JSON_VERSION[0] ? 'an incompatible' : 'a newer');
 }
 
 // ─── Reading ───
@@ -287,54 +274,54 @@ function decode(v: unknown, path: string, refs: Refs | undefined): unknown {
   if (v === null || typeof v !== 'object') return v;
   const o = v as Record<string, unknown>;
   if ('$ref' in o) {
-    if (typeof o.$ref !== 'string') fail(`${at(path)}a $ref has to be the name of a ref`);
-    if (!refs) fail(`${at(path)}refers to "${o.$ref}", and no refs were given to look it up in`);
+    if (typeof o.$ref !== 'string') fail(194, at(path));
+    if (!refs) fail(193, at(path), o.$ref);
     try {
       return refs.get(o.$ref);
     } catch (e) {
-      return fail(`${at(path)}${messageOf(e)}`);
+      return fail(192, at(path), messageOf(e));
     }
   }
   if ('$number' in o) {
     const n = { NaN, Infinity, '-Infinity': -Infinity }[String(o.$number)];
-    if (n === undefined) fail(`${at(path)}$number has to be "NaN", "Infinity" or "-Infinity"`);
+    if (n === undefined) fail(191, at(path));
     return n;
   }
   if ('$typed' in o) {
     const type = String(o.$typed);
-    if (!(TYPED as readonly string[]).includes(type) || !Array.isArray(o.data))
-      fail(`${at(path)}a $typed value is { "$typed": one of ${TYPED.join(', ')}, "data": [numbers] }`);
+    if (!(TYPED as readonly string[]).includes(type) || !Array.isArray(o.data)) fail(190, at(path), TYPED.join(', '));
     // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
     const Ctor = (globalThis as unknown as Record<string, new (a: number[]) => unknown>)[type]!;
     const data = (o.data as unknown[]).map((n, i) => {
       if (n === null) return NaN;
       if (n === 'Infinity') return Infinity;
       if (n === '-Infinity') return -Infinity;
-      if (typeof n !== 'number')
-        fail(`${at(path)}a $typed value holds numbers, null (NaN), "Infinity" or "-Infinity": item ${i} is ${JSON.stringify(n)}`);
+      if (typeof n !== 'number') fail(189, at(path), i, JSON.stringify(n));
       return n;
     });
     return new Ctor(data);
   }
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(o)) {
-    if (key.startsWith('$')) fail(`${at(path)}unknown marker "${key}"`);
+    if (key.startsWith('$')) fail(188, at(path), key);
     // Assigning `__proto__` would replace the object's prototype instead of adding a key.
-    if (key === '__proto__') fail(`${at(path)}"__proto__" is not an attribute name`);
+    if (key === '__proto__') fail(187, at(path));
     out[key] = decode(o[key], path ? `${path}.${key}` : key, refs);
   }
   return out;
 }
 
 function lookup(type: unknown, registry: ElementRegistry, path: string): new (...args: AnyArgs) => AnyElement {
-  if (typeof type !== 'string') fail(`${at(path)}every element needs a "type", the name of a class`);
+  if (typeof type !== 'string') fail(186, at(path));
   if (!hasOwn(registry, type)) {
     const near = Object.keys(registry).filter(
       (n) => n.toLowerCase().includes(type.toLowerCase()) || type.toLowerCase().includes(n.toLowerCase()),
     );
     fail(
-      `${at(path)}unknown type "${type}"` +
-        (near.length ? ` (did you mean ${near.slice(0, 4).join(', ')}?)` : ` (the registry has ${Object.keys(registry).length} types)`),
+      185,
+      at(path),
+      type,
+      near.length ? ` (did you mean ${near.slice(0, 4).join(', ')}?)` : ` (the registry has ${Object.keys(registry).length} types)`,
     );
   }
   // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
@@ -342,16 +329,16 @@ function lookup(type: unknown, registry: ElementRegistry, path: string): new (..
 }
 
 function build(json: ElementJSON, registry: ElementRegistry, refs: Refs | undefined, path: string): AnyElement {
-  if (json === null || typeof json !== 'object') fail(`${at(path)}an element is an object { type, attrs?, children? }`);
+  if (json === null || typeof json !== 'object') fail(184, at(path));
   const Ctor = lookup(json.type, registry, path);
   const attrs = json.attrs === undefined ? {} : decode(json.attrs, `${path ? path + '.' : ''}attrs`, refs);
-  if (attrs === null || typeof attrs !== 'object' || Array.isArray(attrs)) fail(`${at(path)}"attrs" has to be an object`);
-  if (json.children !== undefined && !Array.isArray(json.children)) fail(`${at(path)}"children" has to be an array`);
+  if (attrs === null || typeof attrs !== 'object' || Array.isArray(attrs)) fail(183, at(path));
+  if (json.children !== undefined && !Array.isArray(json.children)) fail(181, at(path));
   const children = (json.children ?? []).map((c, i) => build(c, registry, refs, `${path ? path + '.' : ''}children[${i}]`));
   try {
     return new Ctor(attrs, ...children);
   } catch (e) {
-    return fail(`${at(path)}${json.type}: ${messageOf(e)}`);
+    return fail(182, at(path), json.type, messageOf(e));
   }
 }
 
@@ -401,7 +388,7 @@ function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: 
 
   const kids = [...el],
     wanted = json.children ?? [];
-  if (!Array.isArray(wanted)) fail(`${at(path)}"children" has to be an array`);
+  if (!Array.isArray(wanted)) fail(181, at(path));
   wanted.forEach((child, i) => {
     const at = `${here}children[${i}]`,
       existing = kids[i];
@@ -430,10 +417,9 @@ function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: 
  */
 export function applyJSON(element: AnyElement, json: ElementJSON, registry: ElementRegistry, options: SerializeOptions = {}): void {
   const w: Writing = { registry, refs: options.refs, limit: options.inlineLimit ?? 1000 };
-  if (json === null || typeof json !== 'object') fail('an element is an object { type, attrs?, children? }');
+  if (json === null || typeof json !== 'object') fail(180);
   checkVersion(json);
-  if (nameOf(element.constructor, registry, '') !== json.type)
-    fail(`the root is a ${element.constructor.name}: JSON for a "${json.type}" cannot be applied to it`);
+  if (nameOf(element.constructor, registry, '') !== json.type) fail(179, element.constructor.name, json.type);
   const ops: (() => void)[] = [];
   plan(element, json, '', w, ops);
   for (const op of ops) op();

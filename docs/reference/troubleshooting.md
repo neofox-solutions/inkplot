@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Find the symptom, read the cause, apply the fix. Errors are thrown by the element at fault and say which one; the first part of this page is those messages, the second is charts that draw wrongly or not at all.
+Find the symptom, read the cause, apply the fix. Errors are thrown by the element at fault and say which one; the first part of this page is those messages (a production build prints `Minified inkplot error: …#N` instead; look the number up in [Error codes](errors.md)), the second is charts that draw wrongly or not at all.
 
 ## Error messages
 

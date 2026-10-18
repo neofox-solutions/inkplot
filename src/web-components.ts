@@ -39,6 +39,7 @@ import type { Chart } from './chart.ts';
 import { DOMPlatform, type DOMPlatformOptions } from './dom-platform.ts';
 import type { AnyArgs, AnyElement } from './element.ts';
 import { STYLE_NAMES } from './style-names.ts';
+import { inkplotError } from './fail.ts';
 
 /* oxlint-disable typescript/consistent-type-assertions -- the bridge between the DOM's custom-element types and the chart elements: the classes are made at registration time and the DOM types cannot describe them */
 
@@ -52,7 +53,7 @@ function lowerNames(spec: AttrTypes, where = 'attribute types'): Map<string, str
     map = new Map();
     for (const n of Object.keys(spec)) {
       const lower = n.toLowerCase();
-      if (map.has(lower) && map.get(lower) !== n) throw new Error(`${where}: '${n}' and '${map.get(lower)}' differ only in case`);
+      if (map.has(lower) && map.get(lower) !== n) throw inkplotError(237, where, n, map.get(lower));
       map.set(lower, n);
     }
     lowerCache.set(spec, map);
@@ -115,7 +116,7 @@ function convert(text: string, kind: Coerce, name: string): unknown {
       return text;
     case NUMBER: {
       const n = Number(text);
-      if (text.trim() === '' || Number.isNaN(n)) throw new TypeError(`attribute '${name}': '${text}' is not a number`);
+      if (text.trim() === '' || Number.isNaN(n)) throw inkplotError(236, name, text);
       return n;
     }
     case BOOLEAN:
@@ -129,7 +130,7 @@ function convert(text: string, kind: Coerce, name: string): unknown {
           return JSON.parse(text);
         } catch (cause) {
           // (The `cause` option of `Error` is a year newer than the rest of what the library uses.)
-          const error = new TypeError(`attribute '${name}': '${text}' is not valid JSON`);
+          const error = inkplotError(235, name, text);
           Object.defineProperty(error, 'cause', { value: cause, writable: true, configurable: true });
           throw error;
         }
@@ -395,7 +396,7 @@ export function defineElements(classes: Readonly<Record<string, ElementConstruct
     const have = registry.get(tag);
     if (have) {
       if ((have as unknown as { cls?: unknown }).cls === cls) continue;
-      throw new Error(`<${tag}> is already defined for something else`);
+      throw inkplotError(234, tag);
     }
     registry.define(tag, wrapper);
   }

@@ -103,7 +103,7 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
         const plane = this.requireParent();
         for (let sibling = plane.firstChild; sibling; sibling = sibling.nextSibling) {
           if (sibling === this) break;
-          if (sibling.claimsPress) fail('add a Brush before PanZoom in a plane: the brush has to see a press first to take it');
+          if (sibling.claimsPress) fail(110);
         }
         return;
       }

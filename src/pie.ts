@@ -45,7 +45,7 @@ export interface PieChartOptions extends ChartShortcutOptions {
 export function pieChart(slices: readonly PieSlice[], options: PieChartOptions): Chart {
   let total = 0;
   for (const s of slices) {
-    if (!(s.value >= 0)) fail(`pieChart: the value of "${s.name}" must be a number that is not negative, not ${s.value}`);
+    if (!(s.value >= 0)) fail(163, s.name, s.value);
     total += s.value;
   }
   const { innerRadius, startAngle, label, extras, ...chartAttributes } = options;

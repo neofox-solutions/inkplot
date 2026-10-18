@@ -7,6 +7,7 @@
  * optional: a platform with nothing to observe simply leaves `schedule`/`onResize`/`onPointer` out.
  */
 import type { Size } from './geometry.ts';
+import { inkplotError } from './fail.ts';
 
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 export type SvgTag =
@@ -189,7 +190,7 @@ export class StringPlatform implements Platform {
   }
   setAttribute(node: PlatformNode, name: string, value: string | number): void {
     // As in a browser, a name that is not a name is an error; written out it would add attributes of its own to the picture.
-    if (!/^[A-Za-z_:][-\w:.]*$/.test(name)) throw new Error(`StringPlatform: "${name}" is not an attribute name`);
+    if (!/^[A-Za-z_:][-\w:.]*$/.test(name)) throw inkplotError(167, name);
     nodeOf(node).attrs.set(name, value);
   }
   removeAttribute(node: PlatformNode, name: string): void {

@@ -11,6 +11,7 @@
  */
 import { createHost, type HostOptions } from './workerhost.ts';
 import type { ElementRegistry } from './serialize.ts';
+import { inkplotError } from './fail.ts';
 
 export { createHost, type HostOptions } from './workerhost.ts';
 export type { Envelope } from './workerproto.ts';
@@ -47,5 +48,5 @@ export function serveWorker(registry: ElementRegistry, options: ServeOptions = {
     port.on('message', on);
     return () => void port.off?.('message', on);
   }
-  throw new Error('serveWorker: there is no worker scope to listen on: run it in a worker, or give it a `port`');
+  throw inkplotError(239);
 }

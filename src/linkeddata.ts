@@ -41,7 +41,7 @@ export class LinkedData extends DataTransform<LinkedDataAttributes, []> {
 
   /** The stage this one forwards to. */
   get target(): DataNode {
-    return resolveRef<DataNode>(this.attrs.source, this) ?? fail('LinkedData has no source');
+    return resolveRef<DataNode>(this.attrs.source, this) ?? fail(152);
   }
 
   override get version(): number {

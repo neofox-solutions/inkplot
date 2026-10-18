@@ -14,6 +14,7 @@
 import { type Chart, toSvgString } from './chart.ts';
 import type { Size } from './geometry.ts';
 import { StringPlatform } from './platform.ts';
+import { inkplotError } from './fail.ts';
 
 export interface PngOptions {
   /** Pixels per CSS pixel. Default 1. */
@@ -46,7 +47,7 @@ const browserHost = (): PngHost => ({
     new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight, image });
-      image.onerror = () => reject(new Error('toPng: the browser could not draw this SVG'));
+      image.onerror = () => reject(inkplotError(171));
       image.src = url;
     }),
   canvas: (width, height) => {
@@ -62,10 +63,7 @@ const browserHost = (): PngHost => ({
     return {
       // oxlint-disable-next-line typescript/consistent-type-assertions -- the canvas context is handed to the renderer as the one type it draws on
       context: c.getContext('2d') as never,
-      blob: () =>
-        new Promise((resolve, reject) =>
-          c.toBlob((b) => (b ? resolve(b) : reject(new Error('toPng: the canvas gave no image'))), 'image/png'),
-        ),
+      blob: () => new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(inkplotError(170))), 'image/png')),
     };
   },
 });
@@ -73,7 +71,7 @@ const browserHost = (): PngHost => ({
 /** An SVG document as a PNG. Its own `width` and `height` give the size, else `options.size`. */
 export async function svgToPng(svg: string, options: PngOptions = {}, host: PngHost = browserHost()): Promise<Blob> {
   const scale = options.scale ?? 1;
-  if (!(scale > 0)) throw new Error('toPng: scale must be above 0');
+  if (!(scale > 0)) throw inkplotError(169);
   const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   const { width: w, height: h, image } = await host.loadImage(url);
   const width = Math.max(1, Math.round((options.size?.width ?? w) * scale)),
@@ -102,7 +100,7 @@ export function toPng(chart: Chart, options: PngOptions = {}, host?: PngHost): P
   }
   if (chart.platform) {
     // On a string platform the SVG is already in hand; on anything else there is nothing to draw it from.
-    if (!(chart.platform instanceof StringPlatform)) throw new Error('toPng: the chart is attached to a platform that is not a DOM one');
+    if (!(chart.platform instanceof StringPlatform)) throw inkplotError(168);
     return svgToPng(chart.platform.toString(), { ...options, size: options.size ?? chart.platform.size() }, host);
   }
   const a = chart.attrs,

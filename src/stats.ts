@@ -94,8 +94,7 @@ export class BoxStats extends KeyedTransform<BoxStatsAttributes, [source: DataNo
     const a = this.attrs,
       fence = a.fence === 'minmax' ? Infinity : (a.fence ?? 1.5),
       method = a.method ?? 'inclusive';
-    if (a.fence !== undefined && a.fence !== 'minmax' && !(typeof a.fence === 'number' && a.fence >= 0))
-      fail('BoxStats: fence is a number of interquartile ranges, or "minmax"');
+    if (a.fence !== undefined && a.fence !== 'minmax' && !(typeof a.fence === 'number' && a.fence >= 0)) fail(222);
     const groups: number[] = [],
       cols: Record<SummaryChannel, number[]> = { min: [], q1: [], median: [], q3: [], max: [], mean: [], sd: [], sem: [], n: [] };
     const outD: number[] = [],
@@ -193,10 +192,8 @@ export class BoxStats extends KeyedTransform<BoxStatsAttributes, [source: DataNo
       outliers = this.attrs.output === 'outliers';
     const want = context.columns.map((n) => {
       if (isDomainName(n) || isValueName(n)) return isDomainName(n) ? 'domain' : 'value';
-      if (outliers) fail('BoxStats: the outliers have no channels, only the sample (the value)');
-      return (SUMMARY as readonly string[]).includes(n)
-        ? (n as SummaryChannel)
-        : fail(`BoxStats has no channel "${n}" (it has ${SUMMARY.join(', ')})`);
+      if (outliers) fail(221);
+      return (SUMMARY as readonly string[]).includes(n) ? (n as SummaryChannel) : fail(220, n, SUMMARY.join(', '));
     });
     const count = outliers ? c.outlierDomain.length : c.groups.length,
       stride = want.length;

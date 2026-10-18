@@ -76,8 +76,11 @@ test('element', () => {
   // ═══ A wrong or missing fixed child says so, where the tree is used, whichever way it was built ═══
   {
     const axisWith = (...kids: unknown[]) => new Axis({}, ...(kids as [LinearScale]));
-    assert.throws(() => axisWith().scale, /^Error: Axis: has no child 0 \(it needs Scale\)$/);
-    assert.throws(() => axisWith(new LinePath(new LinearCurve())).scale, /^Error: Axis: child 0 should be Scale, but is LinePath$/);
+    assert.throws(() => axisWith().scale, /^Error: \[inkplot 255\] Axis: has no child 0 \(it needs Scale\)$/);
+    assert.throws(
+      () => axisWith(new LinePath(new LinearCurve())).scale,
+      /^Error: \[inkplot 254\] Axis: child 0 should be Scale, but is LinePath$/,
+    );
     assert.equal(axisWith(new LogScale()).scale.constructor, LogScale, 'a subclass of the expected class is fine');
     const series = (...kids: unknown[]) => new DomainSeries(...(kids as [FlatDataSource]));
     assert.throws(() => series(new LinearScale()).data, /DomainSeries: child 0 should be DataSource or DataTransform, but is LinearScale/);

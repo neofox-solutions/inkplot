@@ -37,6 +37,8 @@ export function runtimeGraph(dir = new URL('../src/', import.meta.url)): Map<str
 
 /** The layers the library is built in: a module may use its own layer and the ones below, features only the few listed ways. */
 export const FOUNDATION = [
+  'messages',
+  'fail',
   'geometry',
   'events',
   'theme',

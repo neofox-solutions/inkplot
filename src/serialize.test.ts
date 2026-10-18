@@ -169,7 +169,7 @@ test('serialize', () => {
     assert.throws(() => fromJSON(json, registry), /attrs\.theme: refers to "lightTheme", and no refs were given/);
     assert.throws(
       () => fromJSON(json, registry, { refs: new Refs({ lightTheme }) }),
-      /attrs\.onFlush: no ref named "onFlush" \(known: lightTheme\)/,
+      /attrs\.onFlush: .*no ref named "onFlush" \(known: lightTheme\)/,
     );
     // Under the limit the rows are written out, and read back as an equal copy.
     const inline = toJSON(make(), registry, { refs: new Refs({ lightTheme }, { auto: true }) });
@@ -203,7 +203,7 @@ test('serialize', () => {
       at((j) => {
         j.children![0]!.children![0]!.attrs = { format: { $ref: 'x' } };
       }),
-      /children\[0\]\.children\[0\]\.attrs\.format: no ref named "x"/,
+      /children\[0\]\.children\[0\]\.attrs\.format: .*no ref named "x"/,
     );
     assert.throws(
       at((j) => {
@@ -445,7 +445,7 @@ test('serialize', () => {
           registry,
           { refs },
         ),
-      /children\[3\]\.attrs\.value: no ref named "missing"/,
+      /children\[3\]\.attrs\.value: .*no ref named "missing"/,
     );
     assert.throws(
       () =>

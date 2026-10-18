@@ -32,8 +32,8 @@ function axesOf(
   valueAxis: ElementRef<Axis> | undefined,
 ): [Axis, Axis] {
   return [
-    resolveRef<Axis>(domainAxis, element, Axis) ?? plane.defaultAxis('first') ?? fail('plane has no axis for the domain'),
-    resolveRef<Axis>(valueAxis, element, Axis) ?? plane.defaultAxis('second') ?? fail('plane has no axis for the value'),
+    resolveRef<Axis>(domainAxis, element, Axis) ?? plane.defaultAxis('first') ?? fail(102),
+    resolveRef<Axis>(valueAxis, element, Axis) ?? plane.defaultAxis('second') ?? fail(101),
   ];
 }
 

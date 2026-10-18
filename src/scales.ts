@@ -49,7 +49,7 @@ export interface LogScaleAttributes extends ScaleAttributes {
 export class LogScale extends Scale<LogScaleAttributes> {
   private get base(): number {
     const b = this.attrs.base ?? 10;
-    if (!(b > 0) || b === 1) fail(`LogScale: base is above 0 and not 1 (got ${b})`);
+    if (!(b > 0) || b === 1) fail(178, b);
     return b;
   }
 

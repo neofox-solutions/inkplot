@@ -131,8 +131,7 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
   /** In a group with `keyed` false, the window is of the rows of the data as a whole and each key gets the part of it that is its own. */
   override planPartitioned(context: PlanContext, partition: Partition): PartitionedPlan {
     if (this.attrs.keyed !== false) return super.planPartitioned(context, partition);
-    if (!(this.source instanceof DataSource))
-      fail('a Slice with keyed set to false has to sit directly on the source, which is what it windows');
+    if (!(this.source instanceof DataSource)) fail(216);
     return rawPlan(partition, context, this.#bounds(partition.view.count));
   }
 

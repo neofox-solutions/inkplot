@@ -288,7 +288,7 @@ export class LinePath extends SeriesRenderer<LinePathAttributes, [curve: Curve]>
     const counters = this.counters,
       s = this.surface,
       a = this.attrs;
-    if (a.bind) fail('a LinePath has one colour: to colour it by a channel of the data, use a GradientLinePath');
+    if (a.bind) fail(177);
     const look = this.look();
     const t0 = performance.now();
     const d = this.curve.lineText(this.requireParent());
@@ -346,7 +346,7 @@ export class AreaPath extends SeriesRenderer<AreaPathAttributes, [curve: Curve]>
     const counters = this.counters,
       s = this.surface,
       a = this.attrs;
-    if (a.bind) fail('an AreaPath has one colour: to colour it by a channel of the data, use a GradientAreaPath');
+    if (a.bind) fail(176);
     const look = this.look();
     const t0 = performance.now();
     const d = this.curve.areaText(this.requireParent(), a.baseline ?? 0);

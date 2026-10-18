@@ -6,6 +6,8 @@ import process from 'node:process';
 // process ends, so a file that registers no tests (or stops early) is seen rather than passing in silence.
 let chain: Promise<void> = Promise.resolve();
 let ran = 0;
+// Deno before 2 has no global `process`; fail.ts reads `process.env.NODE_ENV` and, finding no `process`, would use the short production message the tests do not expect.
+(globalThis as { process?: unknown }).process ??= process;
 process.on('beforeExit', () => {
   console.log(`# ${ran} tests`);
   if (ran === 0) process.exitCode = 1;

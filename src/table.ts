@@ -13,6 +13,7 @@
  */
 import type { DataNode, FillPlan, PlanContext } from './data.ts';
 import type { Extent } from './geometry.ts';
+import { inkplotError } from './fail.ts';
 
 export interface TableOptions {
   /** The channels to read, after the domain and the value. Default: every one the node offers (`channelNames`). */
@@ -63,7 +64,7 @@ export function readTable(node: DataNode, options: TableOptions = {}): Table {
     data,
     column(name) {
       const at = columns.indexOf(name);
-      if (at < 0) throw new Error(`readTable: no column "${name}" (have ${columns.join(', ')})`);
+      if (at < 0) throw inkplotError(224, name, columns.join(', '));
       // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
       return data[at]!;
     },

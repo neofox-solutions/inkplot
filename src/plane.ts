@@ -172,7 +172,7 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
     const used = new Map<O, number>();
     let next = 0;
     for (const a of this.axes) {
-      const o = check(a.attrs.orientation ?? defaults[next++] ?? fail('too many axes without an orientation'));
+      const o = check(a.attrs.orientation ?? defaults[next++] ?? fail(166));
       const slot = used.get(o) ?? 0;
       used.set(o, slot + 1);
       a.assign(o, slot);
@@ -319,7 +319,7 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
    */
   place(points: PointBuffer, first: Axis, second: Axis): void {
     if (isHorizontal(first.orientation) === isHorizontal(second.orientation)) {
-      fail('a series needs one horizontal and one vertical axis');
+      fail(165);
     }
     const { data, count, stride } = points;
     const w = this.rect.width,
@@ -394,9 +394,7 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
     if (at === undefined) return null;
     const horizontal = isHorizontal(axis.orientation);
     const cross =
-      resolveRef<Axis>(axis.attrs.crossAxis, axis, Axis) ??
-      this.axes.find((a) => isHorizontal(a.orientation) !== horizontal) ??
-      fail('a floating axis needs an axis on the other orientation to cross');
+      resolveRef<Axis>(axis.attrs.crossAxis, axis, Axis) ?? this.axes.find((a) => isHorizontal(a.orientation) !== horizontal) ?? fail(164);
     return Math.min(1, Math.max(0, cross.fractionOf(at)));
   }
 

@@ -113,11 +113,7 @@ export abstract class Dimension<
   get scale(): Scale {
     const first = this.firstChild;
     if (first instanceof Scale) return first;
-    return fail(
-      first
-        ? `${this.constructor.name}: child 0 should be Scale, but is ${first.constructor.name}`
-        : `${this.constructor.name}: has no child 0 (it needs Scale)`,
-    );
+    return first ? fail(254, this.constructor.name, first.constructor.name) : fail(255, this.constructor.name);
   }
 
   // ─── Engine protocol: a plane and its series negotiate the range through these. ───

@@ -136,8 +136,8 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
     const a = this.attrs,
       dims = this.#dims,
       k = dims.length;
-    if (k === 0) fail('Density: `by` needs at least one dimension');
-    if (new Set(dims).size !== k) fail('Density: `by` names a dimension twice');
+    if (k === 0) fail(137);
+    if (new Set(dims).size !== k) fail(136);
     const weightName = a.weight;
     // Read what is needed from the source: its own two columns, and a channel for each other name.
     const names = [...new Set([...dims, ...(weightName ? [weightName] : [])].filter((n) => n !== 'domain' && n !== 'value'))];
@@ -193,12 +193,12 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
         bins = list(a.bins, d),
         origin = list(a.origin, d) ?? 0,
         maxBins = a.maxBins ?? 200;
-      if (width !== undefined && !(width > 0)) fail(`Density: width must be above 0 (got ${width})`);
-      if (bins !== undefined && !(bins >= 1)) fail(`Density: bins must be at least 1 (got ${bins})`);
+      if (width !== undefined && !(width > 0)) fail(135, width);
+      if (bins !== undefined && !(bins >= 1)) fail(134, bins);
       if (width !== undefined) {
         const i0 = Math.floor((min - origin) / width + 1e-9),
           i1 = Math.floor((max - origin) / width + 1e-9);
-        if (i1 - i0 + 1 > MAX_CELLS) fail(`Density: width ${width} makes ${i1 - i0 + 1} bins along "${dims[d]}": use a wider bin`);
+        if (i1 - i0 + 1 > MAX_CELLS) fail(133, width, i1 - i0 + 1, dims[d]);
         return { lo: origin + i0 * width, width, n: i1 - i0 + 1 };
       }
       const span = max - min;
@@ -219,8 +219,7 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
     let cells = 1;
     for (const ax of axes) {
       cells *= Math.max(ax.n, 1);
-      if (cells > MAX_CELLS)
-        fail(`Density: ${axes.map((x) => x.n).join(' by ')} bins is too many cells: use \`width\` or \`bins\` to make them fewer`);
+      if (cells > MAX_CELLS) fail(132, axes.map((x) => x.n).join(' by '));
     }
     const fade = a.halfLife !== undefined && a.halfLife > 0 ? 1 / a.halfLife : 0;
     const counts = new Float64Array(cells),
@@ -286,7 +285,7 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
   #value(c: Computed): Float64Array {
     if (this.#dims.length > 1) return c.centres[1]!;
     const stat = this.attrs.stat ?? (this.attrs.weight || this.attrs.halfLife ? 'sum' : 'count');
-    if (!STATS.includes(stat)) fail(`Density: stat is one of ${STATS.join(', ')} (got "${stat}")`);
+    if (!STATS.includes(stat)) fail(131, STATS.join(', '), stat);
     return c.columns[stat];
   }
   /** A named channel's column. */
@@ -296,7 +295,7 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
     if (name === 'domain') return c.centres[0]!;
     if (extra >= 2) return c.centres[extra]!;
     if ((STATS as readonly string[]).includes(name) || (SIZES as readonly string[]).includes(name)) return c.columns[name as Stat];
-    return fail(`Density has no channel "${name}" (it has ${this.channelNames.join(', ')})`);
+    return fail(130, name, this.channelNames.join(', '));
   }
   #extent(a: Float64Array): Extent | null {
     let min = Infinity,

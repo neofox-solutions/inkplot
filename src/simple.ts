@@ -67,8 +67,7 @@ export function lineChart(series: SeriesInput | readonly SeriesInput[], options:
   const x = new Axis({ id: 'domain', ...domainAxis }, domainScale ?? new LinearScale());
   const y = new Axis({ id: 'value', ...valueAxis }, valueScale ?? new LinearScale());
   const list = isMany(series) ? series : [series];
-  if (curve instanceof Curve && list.length > 1)
-    fail('lineChart: a curve is an element and has one parent, so give `curve` as a function that makes one, `() => new MonotoneCurve()`');
+  if (curve instanceof Curve && list.length > 1) fail(215);
   const made = list.map((input) => {
     const { source, name, color } = seriesParts(input);
     const colour = color ?? stroke;

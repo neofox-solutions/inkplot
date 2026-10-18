@@ -57,7 +57,9 @@ export async function bundle(o: BundleOptions): Promise<{ code: string; modules:
       },
       transform: {
         target: 'es2022',
-        ...(o.define ? { define: o.define } : {}),
+        // A browser has no `process`, which src/fail.ts would read as production and print only error codes: bundles made here are
+        // for tests and demos, which want the messages. A caller that wants production says so in `define`.
+        define: { ...((o.platform ?? 'node') === 'browser' ? { 'process.env.NODE_ENV': '"development"' } : {}), ...o.define },
         ...(o.jsx ? { jsx: { runtime: 'automatic', importSource: o.jsx } } : {}),
       },
       plugins: [

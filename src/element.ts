@@ -39,6 +39,7 @@ import type { Roots, SelectorName, Theme } from './theme.ts';
 import { resolveStyle } from './theme.ts';
 import { type Counters, Surface } from './surface.ts';
 import { type AttrTypesFor, type JsxChild, STRING } from './attrs.ts';
+import { fail } from './fail.ts';
 
 /* oxlint-disable typescript/consistent-type-assertions -- the generic base class: attributes and children are typed by each subclass's type parameters, which the base can reach only by narrowing after construction or a runtime `instanceof` check */
 
@@ -192,7 +193,7 @@ export abstract class ChartElement<
   }
   /** For elements that only make sense inside a parent (an axis in a plane): fails loudly rather than returning null. */
   requireParent(): Parent & AnyElement {
-    if (!this.#parent) fail(`${this.constructor.name} has no parent`);
+    if (!this.#parent) fail(148, this.constructor.name);
     return this.#parent as Parent & AnyElement;
   }
   /** The root chart, if this element is in a tree that has one: found by walking up the parents. */
@@ -204,7 +205,7 @@ export abstract class ChartElement<
   }
   /** Like `chart`, for code that only runs inside a chart (painting, input): fails loudly rather than returning null. */
   requireChart(): Chart {
-    return this.chart ?? fail(`${this.constructor.name} is not in a chart`);
+    return this.chart ?? fail(144, this.constructor.name);
   }
   /** True for an element that takes a pointer press (PanZoom): one that must see the press first (a BoxZoom, a Brush) is placed before it. */
   declare readonly claimsPress?: boolean;
@@ -246,9 +247,8 @@ export abstract class ChartElement<
   ): Children[I] {
     const found = this.nth(index);
     const names = classes.map((k) => k.name || 'a different class').join(' or ');
-    if (!found) fail(`${this.constructor.name}: has no child ${index as number} (it needs ${names})`);
-    if (!classes.some((k) => found instanceof k))
-      fail(`${this.constructor.name}: child ${index as number} should be ${names}, but is ${found.constructor.name}`);
+    if (!found) fail(147, this.constructor.name, index as number, names);
+    if (!classes.some((k) => found instanceof k)) fail(146, this.constructor.name, index as number, names, found.constructor.name);
     return found as Children[I];
   }
   private nth(index: number): AnyElement | null {
@@ -258,7 +258,7 @@ export abstract class ChartElement<
   }
   /** What this element draws with. Created on first use, so an element that draws nothing costs nothing. */
   protected get surface(): Surface {
-    const ctx = this.#ctx ?? fail(`${this.constructor.name} is not attached`);
+    const ctx = this.#ctx ?? fail(145, this.constructor.name);
     if (!this.#surface) {
       this.#surface = new Surface(ctx.platform, ctx.counters, {
         container: () => this.container(),
@@ -275,7 +275,7 @@ export abstract class ChartElement<
   }
   /** The chart's flush counters. Only valid between attach and detach. */
   protected get counters(): Counters {
-    return (this.#ctx ?? fail(`${this.constructor.name} is not attached`)).counters;
+    return (this.#ctx ?? fail(145, this.constructor.name)).counters;
   }
 
   /** Setting `undefined` removes the attribute, so defaults apply again. Unchanged values do not invalidate. */
@@ -289,7 +289,7 @@ export abstract class ChartElement<
     local?: Partial<Roots[R]>,
     accent?: Partial<Roots[R]>,
   ): Roots[R] {
-    const chart = this.chart ?? fail(`${this.constructor.name} is not in a chart`);
+    const chart = this.chart ?? fail(144, this.constructor.name);
     const scopes: (Theme | undefined)[] = [];
     // oxlint-disable-next-line typescript/no-this-alias -- a walk up the parent chain that starts at this element
     for (let e: AnyElement | null = this; e; e = e.#parent) scopes.push(e.#attrs.style);
@@ -321,11 +321,10 @@ export abstract class ChartElement<
   /** Put `child` in front of `before` (null: at the end). Constant time: the siblings are linked both ways. */
   private link(child: AnyElement, before: AnyElement | null): void {
     // An element inside itself would make every walk up or down the tree (invalidate, mount, a lookup by id) endless.
-    const inside = 'an element cannot be added inside itself or beneath its own child';
-    if (child === this) fail(inside);
-    for (let up = this.#parent; up; up = up.#parent) if (up === child) fail(inside);
-    if (child.#parent) fail('element already has a parent');
-    if (before && before.#parent !== this) fail('element is not a child of this element');
+    if (child === this) fail(256);
+    for (let up = this.#parent; up; up = up.#parent) if (up === child) fail(256);
+    if (child.#parent) fail(143);
+    if (before && before.#parent !== this) fail(141);
     const prev = before ? before.#prev : this.#last;
     treeVersion++;
     child.#parent = this;
@@ -337,7 +336,7 @@ export abstract class ChartElement<
     else this.#last = child;
   }
   private unlink(child: AnyElement): void {
-    if (child.#parent !== this) fail('element is not a child of this element');
+    if (child.#parent !== this) fail(141);
     treeVersion++;
     const prev = child.#prev;
     const next = child.#next;
@@ -365,7 +364,7 @@ export abstract class ChartElement<
   }
   remove(child: VariadicChild<Children>): this {
     // Check before unmounting: a child of another element would be left unmounted inside its real parent.
-    if ((child as AnyElement).#parent !== this) fail('element is not a child of this element');
+    if ((child as AnyElement).#parent !== this) fail(141);
     (child as AnyElement).unmount(true);
     this.unlink(child as AnyElement);
     this.invalidate();
@@ -373,7 +372,7 @@ export abstract class ChartElement<
   }
   /** Swap one of the fixed children for another of the same kind. */
   setChild<I extends FixedIndex<Children> & keyof Children>(index: I, child: Children[I]): this {
-    const old = this.nth(index) ?? fail(`${this.constructor.name}: has no child ${index as number} to replace`);
+    const old = this.nth(index) ?? fail(142, this.constructor.name, index as number);
     this.link(child as AnyElement, old);
     old.unmount(true);
     this.unlink(old);
@@ -392,7 +391,7 @@ export abstract class ChartElement<
   }
   /** The other half of `adopt`. */
   protected release(child: AnyElement): void {
-    if (child.#parent !== this) fail('element is not a child of this element');
+    if (child.#parent !== this) fail(141);
     child.unmount(true);
     this.unlink(child);
   }
@@ -510,7 +509,7 @@ export abstract class ChartElement<
       const wrapper = p.#surface?.wrapperRoot;
       if (wrapper) return wrapper;
     }
-    return (this.#ctx ?? fail('element is not attached')).platform.root;
+    return (this.#ctx ?? fail(140)).platform.root;
   }
   /** Hidden by `visible: false` on it or on any element above it, which takes no input. */
   private inert(): boolean {
@@ -644,12 +643,12 @@ export function resolveRef<T extends AnyElement>(ref: ElementRef<T> | undefined,
   let el: AnyElement | undefined;
   if (typeof ref === 'string') {
     el = lookup(from, ref);
-    if (!el) fail(`no element with id "${ref}"`);
+    if (!el) fail(139, ref);
   } else {
     el = ref;
   }
   if (type && !(el instanceof type)) {
-    fail(`element "${typeof ref === 'string' ? ref : (ref.attrs.id ?? '?')}" is not a ${type.name}`);
+    fail(138, typeof ref === 'string' ? ref : (ref.attrs.id ?? '?'), type.name);
   }
   return el as T;
 }
@@ -675,7 +674,4 @@ function paintsOf<T>(from: AnyElement, look: T, accent: unknown): T {
   return look;
 }
 
-/** `throw` as an expression, so a missing value can be reported inline: `x ?? fail('no x')`. */
-export function fail(message: string): never {
-  throw new Error(message);
-}
+export { fail };

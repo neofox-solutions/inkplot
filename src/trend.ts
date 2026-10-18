@@ -190,7 +190,7 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
       hi = xs[xs.length - 1]!,
       e = this.attrs.extend ?? 0;
     const [before, after] = typeof e === 'number' ? [e, e] : e;
-    if (!(before >= 0 && after >= 0)) fail(`${this.constructor.name}: extend must be 0 or more (got ${String(e)})`);
+    if (!(before >= 0 && after >= 0)) fail(233, this.constructor.name, String(e));
     return { min: lo - (hi - lo) * before, max: hi + (hi - lo) * after };
   }
   /** The samples for a plot: where they are and how many. */
@@ -222,18 +222,14 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
     return min <= max ? { min, max } : null;
   }
   channelExtent(name: string): Extent | null {
-    if (name !== 'domain') fail(`${this.constructor.name} has no channel "${name}" (it has domain)`);
+    if (name !== 'domain') fail(232, this.constructor.name, name);
     return this.domain();
   }
 
   plan(context: PlanContext): FillPlan {
     // The curve is `domain` and `value`, and `domain` again for anything else it is asked for by that name.
     const kinds = context.columns.map((c) =>
-      c === 'domain' || c === 'x'
-        ? 0
-        : c === 'value' || c === 'y'
-          ? 1
-          : fail(`${this.constructor.name} has no channel "${c}" (it has domain)`),
+      c === 'domain' || c === 'x' ? 0 : c === 'value' || c === 'y' ? 1 : fail(232, this.constructor.name, c),
     );
     const xs = this.#samples(context),
       n = xs.length,
@@ -340,8 +336,7 @@ export class PolynomialTrend extends Trendline<PolynomialTrendAttributes> {
   static override attrTypes = { ...Trendline.attrTypes, degree: NUMBER } satisfies AttrTypesFor<PolynomialTrendAttributes>;
   protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
     const d = this.attrs.degree ?? 2;
-    if (!Number.isInteger(d) || d < 1 || d > MAX_DEGREE)
-      fail(`PolynomialTrend: degree is a whole number from 1 to ${MAX_DEGREE} (got ${d})`);
+    if (!Number.isInteger(d) || d < 1 || d > MAX_DEGREE) fail(231, MAX_DEGREE, d);
     const n = xs.length,
       m = d + 1;
     const lo = xs[0]!,
@@ -451,7 +446,7 @@ export class SinusoidalTrend extends Trendline<SinusoidalTrendAttributes> {
   protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
     const n = xs.length,
       given = this.attrs.period;
-    if (given !== undefined && !(given > 0)) fail(`SinusoidalTrend: period must be above 0 (got ${given})`);
+    if (given !== undefined && !(given > 0)) fail(230, given);
     const lo = xs[0]!,
       hi = xs[n - 1]!,
       span = hi - lo,
@@ -557,8 +552,8 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
   protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
     const s = this.attrs.smoothness ?? 0.5,
       kernel = this.attrs.kernel ?? 'tricube';
-    if (!(s >= 0 && s <= 1)) fail(`LoessTrend: smoothness is from 0 to 1 (got ${s})`);
-    if (kernel !== 'tricube' && kernel !== 'gaussian') fail(`LoessTrend: kernel is 'tricube' or 'gaussian' (got "${String(kernel)}")`);
+    if (!(s >= 0 && s <= 1)) fail(229, s);
+    if (kernel !== 'tricube' && kernel !== 'gaussian') fail(228, String(kernel));
     const n = xs.length,
       span = xs[n - 1]! - xs[0]!;
     if (!(span > 0)) return null;
@@ -608,7 +603,7 @@ export class LoessTrend extends Trendline<LoessTrendAttributes> {
 
 /** How a point's weight falls with its distance `q` (as a fraction of the reach, 0 to 1) under a kernel. */
 function kernelWeight(kernel: unknown): (q: number) => number {
-  if (kernel !== 'tricube' && kernel !== 'gaussian') fail(`kernel is 'tricube' or 'gaussian' (got "${String(kernel)}")`);
+  if (kernel !== 'tricube' && kernel !== 'gaussian') fail(227, String(kernel));
   return kernel === 'tricube'
     ? (q) => {
         const t = 1 - q * q * q;
@@ -681,7 +676,7 @@ export class MeanTrend extends Trendline<MeanTrendAttributes> {
   protected fitModel(xs: Float64Array, ys: Float64Array): TrendModel | null {
     const s = this.attrs.smoothness ?? 0.5,
       kernel = this.attrs.kernel ?? 'tricube';
-    if (!(s >= 0 && s <= 1)) fail(`MeanTrend: smoothness is from 0 to 1 (got ${s})`);
+    if (!(s >= 0 && s <= 1)) fail(226, s);
     const weight = kernelWeight(kernel);
     const n = xs.length,
       first = xs[0]!,

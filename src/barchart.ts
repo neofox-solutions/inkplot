@@ -11,6 +11,7 @@ import { BandScale, LinearScale } from './scales.ts';
 import { DomainSeries } from './series.ts';
 import { type ChartShortcutOptions, type SeriesInput, isMany, seriesParts } from './shortcut.ts';
 import { Stack, type StackMode } from './stack.ts';
+import { inkplotError } from './fail.ts';
 
 export interface BarChartOptions extends ChartShortcutOptions {
   /** The label of each bar, or group of bars: one for each row of the data. Unless `domainScale` is given. */
@@ -36,7 +37,7 @@ export interface BarChartOptions extends ChartShortcutOptions {
 /** A bar chart: one bar for each category per series (a source, or `{ source, name, color }`). Give `categories`, or a `domainScale`. */
 export function barChart(series: SeriesInput | readonly SeriesInput[], options: BarChartOptions): Chart {
   const { categories, stack, horizontal, bandGap, domainAxis, valueAxis, domainScale, valueScale, extras, ...chartAttributes } = options;
-  if (!domainScale && !categories) throw new Error('barChart: give the `categories` (one label for each bar), or a `domainScale`');
+  if (!domainScale && !categories) throw inkplotError(108);
   // No sides given: the plane puts the first axis below and the second beside the plot (mirrored for a chart that reads right to left).
   const d = new Axis(
     { id: 'domain', ...domainAxis },

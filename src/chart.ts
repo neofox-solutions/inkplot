@@ -182,7 +182,7 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
 
   /** Construction has no side effects; this makes the chart live. */
   attach(platform: Platform): this {
-    if (this.platform) fail('chart is already attached');
+    if (this.platform) fail(115);
     this.#platform = platform;
     this.mount({ platform, counters: this.counts });
     const resize = platform.onResize?.(() => this.invalidate());
@@ -292,7 +292,7 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
   /** Run layout and paint now. The only way to render on a platform with no `schedule`. */
   flush(): FlushStats {
     const platform = this.platform;
-    if (!platform) fail('chart is not attached');
+    if (!platform) fail(114);
     // A flush asked for by hand (in an animation frame of the app's own, say) makes the one that was waiting for the next frame pointless.
     this.unschedule?.();
     this.unschedule = null;
@@ -342,7 +342,7 @@ export class Chart extends Container<null, ChartChildren, ChartAttributes> {
 
     let bodies = 0;
     for (let c = this.firstChild; c; c = c.nextSibling) if (isBody(c)) bodies++;
-    if (bodies > 1) fail('a chart has one plane or group: put several in a ChartGroup');
+    if (bodies > 1) fail(113);
     this.layOutFurniture(content, (area) => {
       for (let child = this.firstChild; child; child = child.nextSibling) if (isBody(child)) this.arrangeChild(child, area);
     });

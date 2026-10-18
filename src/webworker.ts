@@ -9,6 +9,7 @@
  * (its script is missing, or throws on load) is told to every boundary on it as an error, and not covered up.
  */
 import type { WorkerLike } from './workerproto.ts';
+import { errorText } from './fail.ts';
 
 export interface WebWorkerOptions {
   /** Passed to `new Worker`, which is only done when given an address. Default `{ type: 'module' }`. */
@@ -34,8 +35,8 @@ export class WebWorker implements WorkerLike {
       this.#failed = { kind: 'error', id: 0, message };
       for (const l of Array.from(this.#listeners)) l(this.#failed);
     };
-    this.worker.addEventListener('error', (e: ErrorEvent) => fail(`the worker failed: ${e.message || 'it could not be started'}`)());
-    this.worker.addEventListener('messageerror', fail('a message from the worker could not be read'));
+    this.worker.addEventListener('error', (e: ErrorEvent) => fail(errorText(257, e.message || 'it could not be started'))());
+    this.worker.addEventListener('messageerror', fail(errorText(259)));
   }
   post(message: unknown, transfer: ArrayBuffer[] = []): void {
     this.worker.postMessage(message, transfer);

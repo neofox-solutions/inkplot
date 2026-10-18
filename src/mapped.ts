@@ -76,7 +76,7 @@ function stopsToRgb(stops: readonly string[]): Float64Array {
   if (cached) return cached;
   const rgb = new Float64Array(stops.length * 3);
   stops.forEach((c, i) => {
-    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c) ?? fail(`a linear colour ramp takes #rgb or #rrggbb stops, not "${c}"`);
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c) ?? fail(153, c);
     const h = m[1]!.length === 3 ? m[1]!.replace(/./g, '$&$&') : m[1]!;
     for (let k = 0; k < 3; k++) rgb[3 * i + k] = parseInt(h.slice(2 * k, 2 * k + 2), 16);
   });

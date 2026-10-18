@@ -80,7 +80,7 @@ export class PointerListener extends InteractiveElement<Plane, [], PointerListen
       const plane = this.requireParent();
       for (let sibling = plane.firstChild; sibling; sibling = sibling.nextSibling) {
         if (sibling === this) break;
-        if (sibling.claimsPress) fail('add a PointerListener before PanZoom in a plane: the listener has to see a press first to claim it');
+        if (sibling.claimsPress) fail(174);
       }
       return;
     }

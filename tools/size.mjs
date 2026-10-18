@@ -249,6 +249,8 @@ async function bundle(s) {
     type: s.jsx ? 'jsx' : 'js',
     minify: true,
     format: 'esm',
+    // As an app ships: the error messages are left out (src/fail.ts).
+    define: { 'process.env.NODE_ENV': '"production"' },
     ...(s.jsx ? { jsx: s.reactJsx ? 'react' : 'inkplot' } : {}),
     ...(s.external ? { external: s.external } : {}),
     alias: {

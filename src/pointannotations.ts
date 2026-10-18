@@ -137,14 +137,8 @@ export class PointAnnotations extends ChartElement<Plane, [], PointAnnotationsAt
       s = this.surface,
       a = this.attrs;
     const renderer = resolveRef<AnySeriesRenderer>(a.anchor, this, SeriesRenderer);
-    const series =
-      resolveRef<Series>(a.series, this, Series) ??
-      (renderer ? renderer.requireParent() : plane.series[0]) ??
-      fail('PointAnnotations: the plane has no series');
-    if (!(series instanceof Series))
-      fail(
-        `PointAnnotations: ${renderer ? `the renderer "${String(renderer.attrs.id ?? '?')}"` : 'the series'} is in a SeriesGroup, which draws a copy of it for each series, so notes cannot anchor to it`,
-      );
+    const series = resolveRef<Series>(a.series, this, Series) ?? (renderer ? renderer.requireParent() : plane.series[0]) ?? fail(173);
+    if (!(series instanceof Series)) fail(172, renderer ? `the renderer "${String(renderer.attrs.id ?? '?')}"` : 'the series');
     const points = series.points;
     if (!series.drawn || !series.shown) {
       for (const [i, lines] of this.#drawn) clearCallout(s, lines, undefined, `n${i}/`);

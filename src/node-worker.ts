@@ -9,6 +9,7 @@
  */
 import { Worker, type WorkerOptions } from 'node:worker_threads';
 import type { WorkerLike } from './workerproto.ts';
+import { errorText } from './fail.ts';
 
 export interface NodeWorkerOptions {
   /** Passed to `new Worker` when given a file. */
@@ -35,8 +36,8 @@ export class NodeWorker implements WorkerLike {
       this.#failed = { kind: 'error', id: 0, message };
       for (const l of Array.from(this.#listeners)) l(this.#failed);
     };
-    this.worker.on('error', (e: Error) => fail(`the worker failed: ${e.message}`));
-    this.worker.on('exit', (code: number) => code !== 0 && fail(`the worker exited with code ${code}`));
+    this.worker.on('error', (e: Error) => fail(errorText(257, e.message)));
+    this.worker.on('exit', (code: number) => code !== 0 && fail(errorText(258, code)));
   }
   post(message: unknown, transfer: ArrayBuffer[] = []): void {
     this.worker.postMessage(message, transfer);

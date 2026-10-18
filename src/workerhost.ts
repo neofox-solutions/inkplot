@@ -51,13 +51,13 @@ function partitionFor(entry: Entry): void {
     entry.partition = null;
     return;
   }
-  if (!canPartition(entry.root)) fail('the stages inside the boundary cannot be split by a channel: each has to extend KeyedTransform');
+  if (!canPartition(entry.root)) fail(249);
   const leaf = leafOf(entry.root),
     held = entry.partition;
   const made = JSON.stringify(spec);
   if (held && held.source === leaf && held.version === leaf.version && entry.heldSpec === made) return;
   entry.heldSpec = made;
-  entry.partition = partitionOf(leaf, spec.channel, spec.order, spec.max) ?? fail(`the data has no channel "${spec.channel}"`);
+  entry.partition = partitionOf(leaf, spec.channel, spec.order, spec.max) ?? fail(121, spec.channel);
 }
 function partitionMeta(p: Partition, names: readonly string[]): PartitionMeta {
   const slots = p.keys.map((_, i) => i);
@@ -106,7 +106,7 @@ export function createHost(registry: ElementRegistry, options: HostOptions = {})
           const live = new Refs(Object.fromEntries(refs), { auto: true });
           if (message.kind === 'attach' || !entry) {
             const root = fromJSON(message.tree, registry, { refs: live });
-            if (!isNode(root)) fail('the boundary holds something that is not a data source or transform');
+            if (!isNode(root)) fail(248);
             entry = { root, refs, epoch: message.epoch, spec: null, heldSpec: '', partition: null };
             entries.set(id, entry);
           } else {
@@ -122,7 +122,7 @@ export function createHost(registry: ElementRegistry, options: HostOptions = {})
           return;
         }
         case 'fill': {
-          const entry = entries.get(id) ?? fail('fill before attach');
+          const entry = entries.get(id) ?? fail(247);
           const context: PlanContext = {
             width: message.width,
             height: message.height,
@@ -131,7 +131,7 @@ export function createHost(registry: ElementRegistry, options: HostOptions = {})
             sorted: message.sorted,
           };
           if (message.byKey) {
-            const part = entry.partition ?? fail('a fill by key needs the boundary to have been given a partition'),
+            const part = entry.partition ?? fail(246),
               plan = planPartitioned(entry.root, context, part),
               stride = message.columns.length;
             const slots = part.keys.map((_, i) => i),

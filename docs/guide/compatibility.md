@@ -27,6 +27,23 @@ Server-side, the SVG output uses nothing from a browser: the same bundle runs un
 - **TypeScript 5.0 or later.** The declaration files import their neighbours with the `.ts` extension, which TypeScript accepts in declarations from 5.0 on; older compilers do not follow those imports and type what they reach as `any`. Use `moduleResolution` `bundler`, `node16` or `nodenext` (the `exports` map needs one of them).
 - **`@types/node` for the Node entry points.** `inkplot/node-worker` imports from `node:worker_threads`, so a project that type-checks it needs `@types/node` (or `skipLibCheck`). The main entry point and the browser entry points need no Node types.
 
+## Error messages in production builds
+
+Every error inkplot throws has a numeric code. A development build throws the full message, `[inkplot 255] Axis: has no child 0 (it needs Scale)`. A production build leaves the message table out of the bundle (about 3 KB gzipped for the whole library, 0.4 KB for a minimal chart) and throws `Minified inkplot error: https://inkplot.neofox.solutions/errors#255 [Axis]`, with the values the message mentions in brackets; [the error reference](../reference/errors.md) has every code.
+
+The build type is read from `import.meta.env.PROD` first, then `process.env.NODE_ENV === 'production'`, and the message table drops out only if your bundler replaces one of them with a constant. Most do it by themselves for a production build:
+
+| Where | What to do | Checked |
+|---|---|---|
+| Vite | Nothing: `vite build` sets both. | Yes: a Vite build is in the tests. |
+| Rolldown, esbuild | Define `process.env.NODE_ENV` as `"production"` (`--define:process.env.NODE_ENV=\"production\"` for esbuild). | Rolldown in the tests; esbuild by hand. |
+| webpack | Nothing: `mode: 'production'` defines `process.env.NODE_ENV`. | No: reasoned from how webpack treats `process.env.NODE_ENV` and an unknown `import.meta` property, not run. |
+| Bun, Deno (bundling) | Define `process.env.NODE_ENV` as above (`bun build --production` does). | No. |
+| No bundler (a browser loading the modules as they are) | Nothing: there is no `process` to read, so errors use the short form. | Yes. |
+| Node, Deno, Bun running the sources | Set `NODE_ENV=production` for the short form; otherwise the full messages. | Yes (Node). |
+
+If the bundler defines neither, the messages stay in the bundle and the errors are the full ones: a larger bundle, never a wrong one. In a Vite dev server that serves a linked copy of inkplot's own sources, the browser has no `process`, so errors there use the short form; look the code up in the reference, or build inkplot in development mode.
+
 ## How it is held
 
 - `tsconfig.lib.json` compiles the library against the ES2021 built-ins and no Node types, so a newer method (`Object.hasOwn`, `Array.prototype.at`, `toSorted`) is a type error.

@@ -102,9 +102,7 @@ export class SharedAxis extends Axis {
   /** The range it draws. */
   get shared(): SharedRange {
     const ref = this.attrs.sharedRef;
-    return ref === undefined
-      ? fail('SharedAxis needs a sharedRef: the id of a SharedRange')
-      : resolveRef<SharedRange>(ref, this, SharedRange);
+    return ref === undefined ? fail(120) : resolveRef<SharedRange>(ref, this, SharedRange);
   }
   override get scale(): Scale {
     return this.shared.scale;
@@ -155,8 +153,7 @@ export class ChartGroupItem extends Container<ChartGroup, ChartChildren, ChartGr
   get span(): readonly [columns: number, rows: number] {
     const s = this.attrs.span ?? 1;
     const [c, r] = typeof s === 'number' ? [s, 1] : s;
-    if (!(Number.isInteger(c) && Number.isInteger(r) && c >= 1 && r >= 1))
-      fail(`ChartGroupItem: span ${String(s)} is not a whole number of columns and rows`);
+    if (!(Number.isInteger(c) && Number.isInteger(r) && c >= 1 && r >= 1)) fail(119, String(s));
     return [c, r];
   }
 
@@ -279,7 +276,7 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
       ['columns', a.columns],
       ['rows', a.rows],
     ] as const)
-      if (v !== undefined && !(Number.isInteger(v) && v >= 1)) fail(`ChartGroup: ${name} has to be a whole number of at least 1`);
+      if (v !== undefined && !(Number.isInteger(v) && v >= 1)) fail(118, name);
     // `perLine` cells make a line along the flow; `limit` lines are allowed across it (Infinity when the group does not say).
     const along = rowFlow ? a.columns : a.rows,
       across = rowFlow ? a.rows : a.columns;
@@ -310,7 +307,7 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
         lines = 1;
         return;
       }
-      if (s.along > perLine) fail(`ChartGroup: an item spans ${s.along} cells along the flow, and a line has ${perLine}`);
+      if (s.along > perLine) fail(117, s.along, perLine);
       if (item.attrs.newLine && at > 0) {
         line++;
         at = 0;
@@ -325,8 +322,7 @@ export class ChartGroup extends ChartElement<Container, (ChartGroupItem | Shared
         if (free) break;
         at++;
       }
-      if (line + s.across > limit)
-        fail(`ChartGroup: the ${items.length} items do not fit in ${a.columns ?? '?'} columns and ${a.rows ?? '?'} rows`);
+      if (line + s.across > limit) fail(116, items.length, a.columns ?? '?', a.rows ?? '?');
       for (let l = 0; l < s.across; l++) for (let k = 0; k < s.along; k++) taken.add(key(line + l, at + k));
       placed.push({ item, line, at, along: s.along, across: s.across });
       lines = Math.max(lines, line + s.across);

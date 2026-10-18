@@ -84,7 +84,7 @@ export class ObjectDataSource<Row = any, Channel extends string = string> extend
       if (f !== undefined) return field(f);
       if (isDomainName(name)) return domain === undefined ? (_: Row, i: number) => i : field(domain);
       if (isValueName(name)) return value === undefined ? () => NaN : field(value);
-      return fail(`the data has no channel "${name}"`);
+      return fail(121, name);
     });
     const mins = new Float64Array(k).fill(Infinity),
       maxs = new Float64Array(k).fill(-Infinity);
@@ -192,7 +192,7 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
       if (o !== undefined) return o;
       if (isDomainName(name)) return r ? -1 : domainOffset;
       if (isValueName(name)) return valueOffset;
-      return fail(`the data has no channel "${name}"`);
+      return fail(121, name);
     });
     const start = r?.start ?? 0,
       step = r?.step ?? 0;
@@ -264,7 +264,7 @@ export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttribute
   protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
     const names = context.columns,
       k = names.length;
-    const wants = names.map((n) => (isDomainName(n) ? 0 : isValueName(n) ? 1 : fail(`the data has no channel "${n}"`)));
+    const wants = names.map((n) => (isDomainName(n) ? 0 : isValueName(n) ? 1 : fail(121, n)));
     // With a fixed count the span is the whole domain whatever is in view; otherwise only the part in view is sampled.
     const { fn, domain, count } = this.attrs;
     const { lo, hi, n } = count === undefined ? this.span(context) : { lo: domain.min, hi: domain.max, n: count };
@@ -341,7 +341,7 @@ export class CompositeDataSource<Channel extends string = string> extends DataSo
       if (col !== undefined) return reader(col);
       if (isDomainName(name)) return reader(domain);
       if (isValueName(name)) return value === undefined ? () => NaN : reader(value);
-      return fail(`the data has no channel "${name}"`);
+      return fail(121, name);
     });
     const mins = new Float64Array(k).fill(Infinity),
       maxs = new Float64Array(k).fill(-Infinity);

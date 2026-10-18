@@ -806,10 +806,7 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
   /** The columns after the domain and the value that were asked for: the kept rows carry them, if the kernel says which rows it kept. */
   #carried(context: PlanContext): readonly string[] {
     const names = context.columns.slice(2);
-    if (names.length > 0 && !this.kernel.tracksRows)
-      fail(
-        `a Decimator cannot carry channels with ${this.kernel.constructor.name}, which does not say which rows it kept (tracksRows): bind on undecimated data, or turn the Decimator off`,
-      );
+    if (names.length > 0 && !this.kernel.tracksRows) fail(129, this.kernel.constructor.name);
     return names;
   }
 
@@ -829,7 +826,7 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
   ): FillResult {
     const kernel = this.kernel,
       reg = view.regularDomain;
-    if (reg && !(reg.step > 0)) fail('a Decimator needs a regular domain that ascends');
+    if (reg && !(reg.step > 0)) fail(128);
     const [first, end] = windowBounds(view, range),
       windowed = subView(view, first, end);
     // A view that cannot be sliced is read from its start, whole.
@@ -912,8 +909,8 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
       fill: (slot, out) => {
         if (small(slot)) return inner.fill(slot, out);
         const pass = this.#reduceKeys(partition, context.domainRange, columns, capacity);
-        const made = pass.results.get(slot) ?? fail('a Decimator was asked for a key it did not reduce');
-        out.set((pass.outs[slot] ?? fail('a Decimator has no room for a key')).subarray(0, 2 * made.count));
+        const made = pass.results.get(slot) ?? fail(127);
+        out.set((pass.outs[slot] ?? fail(126)).subarray(0, 2 * made.count));
         return made;
       },
     };
