@@ -318,6 +318,9 @@ export abstract class ChartElement<
 
   /** Put `child` in front of `before` (null: at the end). Constant time: the siblings are linked both ways. */
   private link(child: AnyElement, before: AnyElement | null): void {
+    // An element inside itself would make every walk up or down the tree (invalidate, mount, a lookup by id) endless.
+    for (let up: AnyElement | null = this; up; up = up.#parent)
+      if (up === child) fail('an element cannot be added inside itself or beneath its own child');
     if (child.#parent) fail('element already has a parent');
     if (before && before.#parent !== this) fail('element is not a child of this element');
     const prev = before ? before.#prev : this.#last;
@@ -358,6 +361,8 @@ export abstract class ChartElement<
     return this;
   }
   remove(child: VariadicChild<Children>): this {
+    // Check before unmounting: a child of another element would be left unmounted inside its real parent.
+    if ((child as AnyElement).#parent !== this) fail('element is not a child of this element');
     (child as AnyElement).unmount(true);
     this.unlink(child as AnyElement);
     this.invalidate();
@@ -384,6 +389,7 @@ export abstract class ChartElement<
   }
   /** The other half of `adopt`. */
   protected release(child: AnyElement): void {
+    if (child.#parent !== this) fail('element is not a child of this element');
     child.unmount(true);
     this.unlink(child);
   }

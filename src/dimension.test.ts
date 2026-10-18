@@ -200,3 +200,45 @@ test('dimension', () => {
     near(y.denormalize(0), 100);
   }
 });
+
+test('dimension: labels write each tick as itself, and a log axis finds ticks inside a short range', () => {
+  const ticksOf = (attrs: object, scale: LinearScale | LogScale, ys: number[]) => {
+    const y = new Axis({ orientation: 'left', ...attrs }, scale);
+    const plane = new CartesianPlane(
+      {},
+      new Axis({}, new LinearScale()),
+      y,
+      new DomainSeries(
+        {},
+        new FlatDataSource({ data: Float64Array.from(ys), regularDomain: { start: 0, step: 1 } }),
+        new LinePath({}, new LinearCurve()),
+      ),
+    );
+    new Chart({ theme: lightTheme, width: 400, height: 300 }, plane).attach(new StringPlatform({ width: 400, height: 300 })).flush();
+    return y.getTicks(300);
+  };
+  // The gap between neighbours used to decide the decimals, so 0.5 beside 50 and 100 read as "1".
+  assert.deepEqual(
+    ticksOf({ min: 0, max: 100, ticks: [0.5, 50, 100] }, new LinearScale(), [0, 100]).map((t) => t.label),
+    ['0.5', '50', '100'],
+  );
+  assert.deepEqual(
+    ticksOf({ min: 0, max: 1, ticks: [0, 0.25, 0.5, 0.75, 1] }, new LinearScale(), [0, 1]).map((t) => t.label),
+    ['0.00', '0.25', '0.50', '0.75', '1.00'],
+    'evenly spaced ticks keep the same number of decimals',
+  );
+  // Powers are not evenly spaced: no padding to the decimals of the smallest.
+  const log = ticksOf({ min: 0.001, max: 1000, nice: false }, new LogScale(), [0.001, 1000]);
+  assert.ok(
+    log.map((t) => t.label).every((l) => !/\.\d*0$/.test(l) || l.startsWith('0.')),
+    log.map((t) => t.label).join(),
+  );
+  assert.ok(
+    log.some((t) => t.label === '1000'),
+    `1000, not 1000.000: ${log.map((t) => t.label).join()}`,
+  );
+  // Under a decade, with no 1, 2 or 5 times a power of ten inside: there are still ticks.
+  const short = ticksOf({ min: 6, max: 9, nice: false }, new LogScale(), [6, 9]);
+  assert.ok(short.length >= 2, `${short.length} ticks between 6 and 9`);
+  assert.ok(short.every((t) => t.value >= 6 && t.value <= 9));
+});

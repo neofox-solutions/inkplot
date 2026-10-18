@@ -94,7 +94,9 @@ export class LogScale extends Scale<LogScaleAttributes> {
           const v = clean(m * 10 ** e);
           if (v >= r.min && v <= r.max) out.push(v);
         }
-      return out;
+      // Under a decade, with no 1, 2 or 5 times a power of ten inside (6 to 9): ordinary tidy numbers, which at that scale are
+      // close enough to evenly spaced to read.
+      return out.length >= 2 ? out : new LinearScale().ticks(r, count);
     }
     const stride = Math.max(1, Math.ceil(decades / Math.max(1, count)));
     for (let e = first; e <= last && out.length < 1000; e += stride) out.push(clean(b ** e));

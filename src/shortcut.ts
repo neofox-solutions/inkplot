@@ -1,6 +1,7 @@
 /** The parts the chart shortcuts (`lineChart`, `barChart`, `pieChart`) share: what they take and how they read a series. */
 import type { ChartAttributes, ChartChildren } from './chart.ts';
 import type { DataNode } from './data.ts';
+import { ChartElement } from './element.ts';
 
 /** What every chart shortcut takes besides the chart's own attributes. */
 export interface ChartShortcutOptions extends ChartAttributes {
@@ -13,7 +14,8 @@ export type SeriesInput = DataNode | { source: DataNode; name?: string; color?: 
 
 /** The pieces of a `SeriesInput`, whichever form it was given in. */
 export function seriesParts(input: SeriesInput): { source: DataNode; name?: string; color?: string } {
-  return 'source' in input ? input : { source: input };
+  // Not `'source' in input`: a transform (a Slice, a Decimator, a trendline) has a `source` of its own, and is data, not a spec.
+  return input instanceof ChartElement ? { source: input } : input;
 }
 
 /** A data source is an element and a spec is a plain object, so a list is told apart by being an array. */

@@ -404,8 +404,15 @@ export function toSvgString(chart: Chart, options?: SvgOptions): string {
   const a = chart.attrs;
   const platform = new StringPlatform({ width: options?.width ?? a.width ?? 640, height: options?.height ?? a.height ?? 400 });
   // The chart's own width and height attributes beat the platform's size (see `layout`), so a size given here only matters for what they leave out.
-  chart.attach(platform).flush();
-  const svg = platform.toString();
-  chart.detach();
+  chart.attach(platform);
+  let svg: string;
+  try {
+    chart.flush();
+    svg = platform.toString();
+  } finally {
+    // Whatever the flush did, leave the chart as it was found: left attached, the next call would fail with "already attached"
+    // and hide the error that was the real problem.
+    chart.detach();
+  }
   return scopeIds(svg, options?.idPrefix);
 }

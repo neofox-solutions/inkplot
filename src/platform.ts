@@ -142,7 +142,11 @@ const nodeOf = (node: PlatformNode): StringNode => node as unknown as StringNode
 // oxlint-disable-next-line typescript/consistent-type-assertions -- the one place an opaque handle becomes our own node, and back: every handle on this platform is a `StringNode`
 const handleOf = (node: StringNode): PlatformNode => node as unknown as PlatformNode;
 
-const escapeText = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Control characters other than tab, newline and carriage return cannot appear in an XML 1.0 document, escaped or not (a browser's
+// serializer would refuse them); the replacement character stands in, so what is written is always a document that can be read back.
+// oxlint-disable-next-line no-control-regex -- the control characters are what this matches
+const XML_INVALID = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
+const escapeText = (s: string) => s.replace(XML_INVALID, '\uFFFD').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const escapeAttr = (s: string) => escapeText(s).replace(/"/g, '&quot;');
 
 /**
@@ -168,6 +172,8 @@ export class StringPlatform implements Platform {
     return handleOf({ tag, attrs: new Map(), children: [], text: null, parent: null });
   }
   setAttribute(node: PlatformNode, name: string, value: string | number): void {
+    // As in a browser, a name that is not a name is an error; written out it would add attributes of its own to the picture.
+    if (!/^[A-Za-z_:][-\w:.]*$/.test(name)) throw new Error(`StringPlatform: "${name}" is not an attribute name`);
     nodeOf(node).attrs.set(name, value);
   }
   setText(node: PlatformNode, text: string): void {

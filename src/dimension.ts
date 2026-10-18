@@ -62,6 +62,13 @@ function numberFormat(locale: string, options: Intl.NumberFormatOptions): Intl.N
   return f;
 }
 
+/** The fewest decimals (up to 10) that write `value` as it is, to the 12 digits the ticks are rounded to. */
+function decimalsOf(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  const v = Number(value.toPrecision(12));
+  for (let d = 0; d < 10; d++) if (Math.abs(Number(v.toFixed(d)) - v) <= 1e-12 * Math.max(1, Math.abs(v))) return d;
+  return 10;
+}
 /** Anything that turns a data range into 0..1. Its one child is the scale that does the turning. */
 export abstract class Dimension<
   Parent extends AnyElement = AnyElement,
@@ -274,18 +281,16 @@ export abstract class Dimension<
     const a = this.attrs;
     count = a.tickCount ?? count ?? this.tickCountFor(lengthInPixels);
     const values = this.tickValues(count);
-    let step = values.length > 1 ? Infinity : Math.abs(this.range.max - this.range.min) || 1;
-    for (let i = 1; i < values.length; i++) {
-      // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-      const d = Math.abs(values[i]! - values[i - 1]!);
-      if (d > 0 && d < step) step = d;
-    }
-    // Enough decimals to tell neighbouring ticks apart, and the same for all so the labels line up.
-    const decimals = Math.min(10, Math.max(0, Math.ceil(-Math.log10(step) - 1e-9)));
+    // Enough decimals for every tick to read as itself (0.5 is not "1"). On evenly spaced ticks all get as many as the one that needs
+    // most, so the labels line up; on ticks that are not (powers on a log axis) each keeps its own, so 1000 is not "1000.000".
+    const own = values.map(decimalsOf),
+      most = Math.max(0, ...own),
+      first = values.length > 1 ? values[1]! - values[0]! : 0;
+    const even = values.every((v, i) => i < 2 || Math.abs(v - values[i - 1]! - first) <= 1e-9 * Math.abs(first));
     const set = !a.format ? this.scale.labels?.(values, this.range) : undefined;
     return values.map((value, i) => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
-      let label = a.format ? a.format(value) : set ? set[i]! : (this.scale.label?.(value) ?? this.#plain(value, decimals));
+      let label = a.format ? a.format(value) : set ? set[i]! : (this.scale.label?.(value) ?? this.#plain(value, even ? most : own[i]!));
       if (label === '-0') label = '0'; // toFixed keeps the sign of a tiny negative
       return { value, label, major: true };
     });

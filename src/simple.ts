@@ -7,7 +7,8 @@
  * out, such as a legend, a title or a cursor, is given in `extras`: the chart's other children, passed as the elements themselves so that the
  * shortcut refers only to what you use. For anything else build the elements.
  */
-import { type Curve, LinearCurve } from './curve.ts';
+import { Curve, LinearCurve } from './curve.ts';
+import { fail } from './element.ts';
 import { Axis, type AxisAttributes } from './axis.ts';
 import { Chart } from './chart.ts';
 import { CartesianPlane } from './plane.ts';
@@ -37,13 +38,16 @@ export interface LineChartOptions extends ChartShortcutOptions {
   markerStroke?: string;
   /** Wrap each source in a decimator with a kernel of this class: `MinMaxKernel`, `M4Kernel`. */
   decimate?: new () => DecimationKernel;
-  /** How the points are joined: a curve of any kind (`new MonotoneCurve()`, `new StepCurve({ mode: 'after' })`). Default straight lines. */
-  curve?: Curve;
+  /**
+   * How the points are joined: a curve of any kind. Give a function that makes one, `() => new MonotoneCurve()`, so every line has its own
+   * (a curve is an element, and an element has one parent); a curve itself will do for a single line. Default straight lines.
+   */
+  curve?: Curve | (() => Curve);
 }
 
 /**
- * A line chart in one call: one line per series (a source, or `{ source, name, color }`), on a plane with the horizontal axis below and the vertical one beside it (on the left, or on the right in a chart that reads right to left). A curve
- * can be shared by lines only if it is stateless, which the built-in ones are; the options are applied to every series.
+ * A line chart in one call: one line per series (a source, or `{ source, name, color }`), on a plane with the horizontal axis below and the vertical one beside it (on the left, or on the right in a chart that reads right to left).
+ * The options are applied to every series.
  */
 export function lineChart(series: SeriesInput | readonly SeriesInput[], options: LineChartOptions): Chart {
   const {
@@ -63,12 +67,14 @@ export function lineChart(series: SeriesInput | readonly SeriesInput[], options:
   const x = new Axis({ id: 'domain', ...domainAxis }, domainScale ?? new LinearScale());
   const y = new Axis({ id: 'value', ...valueAxis }, valueScale ?? new LinearScale());
   const list = isMany(series) ? series : [series];
+  if (curve instanceof Curve && list.length > 1)
+    fail('lineChart: a curve is an element and has one parent, so give `curve` as a function that makes one, `() => new MonotoneCurve()`');
   const made = list.map((input) => {
     const { source, name, color } = seriesParts(input);
     const colour = color ?? stroke;
     const line = new LinePath(
       { ...(colour !== undefined && { stroke: colour }), ...(strokeWidth !== undefined && { strokeWidth }) },
-      curve ?? new LinearCurve(),
+      typeof curve === 'function' ? curve() : (curve ?? new LinearCurve()),
     );
     const data = decimate ? new Decimator({}, new decimate(), source) : source;
     const mark = markerStroke ?? colour;

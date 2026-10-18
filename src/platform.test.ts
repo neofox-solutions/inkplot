@@ -33,3 +33,18 @@ test('platform', () => {
   assert(estimateTextWidth('wwww', font).width > estimateTextWidth('ww', font).width);
   assert(estimateTextWidth('ww', { ...font, size: 20 }).width > estimateTextWidth('ww', font).width);
 });
+
+test('StringPlatform: an attribute name that is not a name is refused, and characters XML cannot hold are replaced', () => {
+  const p = new StringPlatform({ width: 200, height: 100 });
+  const node = p.createNode('text');
+  p.insertBefore(p.root, node, null);
+  for (const bad of ['x" onload="alert(1)', 'a b', '', '1x', 'a>b'])
+    assert.throws(() => p.setAttribute(node, bad, '1'), /not an attribute name/, JSON.stringify(bad));
+  p.setAttribute(node, 'aria-label', 'a\u0001b\u000bc\td');
+  p.setText(node, 'x\u0000y\nz');
+  const out = p.toString();
+  assert.ok(out.includes('aria-label="a�b�c\td"'), out);
+  assert.ok(out.includes('>x�y\nz</text>'), out);
+  for (let c = 0; c < 32; c++)
+    if (c !== 9 && c !== 10 && c !== 13) assert.ok(!out.includes(String.fromCharCode(c)), `character ${c} does not survive`);
+});

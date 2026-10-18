@@ -386,3 +386,24 @@ test('chart', () => {
     assert.match(toSvgString(line([1, 3, 2]), { width: 999 }), /width="200" height="120"/, "the chart's own size wins");
   }
 });
+
+test('toSvgString: a chart whose flush throws is left unattached, so the next call says the same thing', () => {
+  const broken = new ObjectDataSource({
+    source: [{ x: 1 }],
+    domain: 'x',
+    value: () => {
+      throw new Error('boom');
+    },
+  });
+  const chart = new Chart(
+    { theme: lightTheme, width: 200, height: 100 },
+    new CartesianPlane(
+      {},
+      new Axis({}, new LinearScale()),
+      new Axis({ orientation: 'left' }, new LinearScale()),
+      new DomainSeries({}, broken, new LinePath({}, new LinearCurve())),
+    ),
+  );
+  assert.throws(() => toSvgString(chart), /boom/);
+  assert.throws(() => toSvgString(chart), /boom/, 'not "already attached"');
+});

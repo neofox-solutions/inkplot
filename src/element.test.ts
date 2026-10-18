@@ -207,3 +207,20 @@ test('element lookups stay right while the tree changes', () => {
   });
   assert.deepEqual(seen, ['a', 'b', 'c']);
 });
+
+test('element: a tree cannot be made into a loop, and removing what is not a child changes nothing', () => {
+  const x = new Axis({}, new LinearScale()),
+    y = new Axis({ orientation: 'left' }, new LinearScale());
+  const a = new CartesianPlane({}, x, y),
+    b = new CartesianPlane({}, new Axis({}, new LinearScale()), new Axis({ orientation: 'left' }, new LinearScale()));
+  const chart = new Chart({ theme: lightTheme, width: 200, height: 100 }, a);
+  assert.throws(() => a.append(a as never), /inside itself/);
+  assert.throws(() => a.append(chart as never), /inside itself/);
+  assert.throws(() => b.append(b as never), /inside itself/, 'a loose element too');
+  // `b` is in no tree; removing one of a's own children from it must not unmount the child from `a`.
+  const child = x;
+  assert.throws(() => b.remove(child as never), /not a child/);
+  chart.attach(new StringPlatform({ width: 200, height: 100 })).flush();
+  assert.equal(child.parent, a, 'still where it was');
+  assert.doesNotThrow(() => chart.flush());
+});
