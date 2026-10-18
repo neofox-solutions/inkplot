@@ -218,7 +218,8 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
   #paint(): void {
     const s = this.surface,
       box = this.#rect();
-    if (!box || box.x1 - box.x0 !== box.x1 - box.x0 || box.y1 - box.y0 !== box.y1 - box.y0) {
+    // A range outside the plot clamps to nothing (or to a negative size); NaN fails these tests too.
+    if (!box || !(box.x1 - box.x0 >= 0) || !(box.y1 - box.y0 >= 0)) {
       s.remove('brush');
       return;
     }

@@ -90,6 +90,11 @@ export function moveView(axis: Axis, range: Extent | null, options: MoveViewOpti
     axis.setViewRange(range);
     return;
   }
+  if (Math.abs(f0) < 1e-9 && Math.abs(f1 - 1) < 1e-9) {
+    // Already there: no tween to run (and no frames to schedule).
+    axis.setViewRange(range);
+    return;
+  }
   const ease = parseEasing(transition.easing ?? 'ease-out'),
     now = options.now ?? (() => performance.now()),
     start = now();

@@ -878,7 +878,7 @@ A rectangle at each point, coloured by a channel; with `Density`, a heat map.
 
 | Attribute | Type | |
 |---|---|---|
-| `cellWidth` | `number` | The size of a cell along the first axis, in data units. Default: the `widthChannel`. |
+| `cellWidth` | `number` | The size of a cell along the first axis, in data units. Default: the `widthChannel`, or `cellHeight` when only that is given (square cells). |
 | `cellHeight` | `number` | The size along the second axis. Default: the `heightChannel`, or `cellWidth` when only that is given (square cells). |
 | `widthChannel` | `string` | The channel with each cell's width. Default 'width'. |
 | `heightChannel` | `string` | The channel with each cell's height. Default 'height'. |

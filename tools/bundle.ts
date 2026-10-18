@@ -63,7 +63,8 @@ export async function bundle(o: BundleOptions): Promise<{ code: string; modules:
       plugins: [
         {
           name: 'bundle-helper',
-          resolveId: (id) => (Object.hasOwn(alias, id) ? alias[id] : o.contents !== undefined && id === entryId ? id : null),
+          resolveId: (id) =>
+            Object.prototype.hasOwnProperty.call(alias, id) ? alias[id] : o.contents !== undefined && id === entryId ? id : null,
           transform: (code: string, id: string) =>
             o.pinImportMeta !== undefined && /import\.meta\.(url|dirname|filename)/.test(code) ? pin(code, id, o.pinImportMeta) : null,
           load: (id) => (o.contents !== undefined && id === entryId ? { code: o.contents, moduleType: o.type ?? 'ts' } : null),

@@ -90,7 +90,7 @@ test('brush', () => {
 
   // ── The box follows the axes when they zoom, and `select`/`clear` work from code.
   {
-    const { x, drag, rects, brush, heard, chart } = setup({ mode: 'x' });
+    const { platform, x, drag, rects, brush, heard, chart } = setup({ mode: 'x' });
     drag([0.25, 0.5], [0.5, 0.5]);
     const before = rects()[0]!;
     x.setViewRange({ min: 0, max: 5 });
@@ -103,6 +103,11 @@ test('brush', () => {
     chart.flush();
     assert.equal(heard[heard.length - 1], null);
     assert.equal(rects().length, 0);
+    // A selection wholly outside the view draws nothing rather than a rectangle of negative size.
+    brush.select([{ axis: x, min: 8, max: 9 }]);
+    chart.flush();
+    assert.equal(rects().length, 0);
+    assert(!/width="-/.test(platform.toString()), 'no negative width');
   }
 
   // ── With Shift required, a plain drag pans; `live` reports while dragging; a touch only brushes when always.

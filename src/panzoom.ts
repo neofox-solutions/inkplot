@@ -253,18 +253,24 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
         // A turn that is mostly sideways moves the view along (a trackpad's two-finger swipe, or Shift and the wheel).
         if (!ev.ctrl && Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) {
           if (a.pan === false) break;
+          let moved = false;
           for (const { axis, at, snap } of targets) {
-            if (axis.ruler.horizontal) this.apply(axis, { snap, scale: 1, anchor: 0, shift: at(ev.x + ev.deltaX, ev.y) - at(ev.x, ev.y) });
+            if (
+              axis.ruler.horizontal &&
+              this.apply(axis, { snap, scale: 1, anchor: 0, shift: at(ev.x + ev.deltaX, ev.y) - at(ev.x, ev.y) })
+            )
+              moved = true;
           }
-          ev.handled = true;
+          if (moved) ev.handled = true;
           break;
         }
         if (a.zoom === false || ev.deltaY === 0) break;
         // A pinch on a trackpad arrives as a wheel turn with Ctrl held, in much smaller steps than a wheel's notch: it gets its own speed.
         const speed = ev.ctrl ? (a.pinchSpeed ?? PINCH_SPEED) : (a.zoomSpeed ?? 0.002);
         const scale = Math.exp(ev.deltaY * speed);
-        for (const { axis, at, snap } of targets) this.apply(axis, { snap, scale, anchor: at(ev.x, ev.y), shift: 0 });
-        ev.handled = true;
+        let moved = false;
+        for (const { axis, at, snap } of targets) if (this.apply(axis, { snap, scale, anchor: at(ev.x, ev.y), shift: 0 })) moved = true;
+        if (moved) ev.handled = true;
         break;
       }
       case 'pinch': {
@@ -553,9 +559,12 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
   }
 
   /** Applies the change and sets the axis' view range; a view that covers the natural range is recorded as no view at all. */
-  private apply(axis: Axis, change: ViewChange): void {
+  /** Moves the axis's view; false when that changed nothing (already at its limit), so a wheel turn can be left to scroll the page. */
+  private apply(axis: Axis, change: ViewChange): boolean {
     const view = this.viewFor(axis, change);
-    if (view !== null) axis.setViewRange(view === 'natural' ? null : view);
+    if (view === null || (view === 'natural' && axis.viewRange === null)) return false;
+    axis.setViewRange(view === 'natural' ? null : view);
+    return true;
   }
 
   /**

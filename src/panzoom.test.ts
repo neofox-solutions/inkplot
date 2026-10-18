@@ -155,6 +155,7 @@ test('panzoom', async () => {
     t.wheel(100, 100, 10000); // zoom out as far as it will go
     assert.deepEqual({ ...t.x.range }, natural);
     assert(!t.x.isZoomed && !t.y.isZoomed, 'fully zoomed out is no view at all: the axis fits its data again');
+    assert.equal(t.wheel(100, 100, 400), false, 'a turn that cannot zoom out further is left to scroll the page');
   }
   {
     const t = setup({ pz: { limit: false } });
