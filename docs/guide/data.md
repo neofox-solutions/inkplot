@@ -169,7 +169,7 @@ Click the legend entries to compare. The stride kernel loses most of the spikes;
 Things to know:
 
 - **An `XYSeries` refuses a decimator** (`Expected 'domain' and 'value' as the first requested channels…`). Kernels thin by pixel column of the domain, which means nothing when the points are only in the order of a path. Markers already leave out what is off the plot.
-- **A decimator's points are made up** (the extremes of a column are not a row), so a hit on one can be shown but not edited (the hit has no `row`).
+- **A decimator keeps rows of the source as they are**, and the four kernels say which, so it can carry channels (a marker's colour, error bars: the channel of each row it keeps) and a hit on a point reports the `row` of the source it is. Editing through it reaches only the rows it kept: it drops the rest by design, so the whole of the data cannot be edited this way. A kernel of your own opts in with `get tracksRows()` and by filling the `rows` it is given; without, the decimator refuses channels. The extent of a carried channel is that of the rows kept.
 - **In a stack, decimate the sources before the stack**, not per series: decimation is per series and would thin each differently, so rows would no longer line up (`Stack` has `align` for that).
 - **Sources that are not sorted** still work under a decimator; they are sorted once into a copy. Set `isSorted` on data you know is ordered and it is read in place.
 

@@ -12,7 +12,7 @@ For: an error message, or a chart that draws nothing or draws wrongly. Find the 
 | Error `no element with id "x"` | The `id` is missing or misspelt on the axis or series that is referred to. |
 | Error `LinePath bindings is not implemented yet` | Only markers can `bind`. |
 | Error `add a PointerListener before PanZoom` / `add a BoxZoom before PanZoom` / `add a Brush before PanZoom` | Put the `PointerListener`, `BoxZoom` or `Brush` first. |
-| Error `a Decimator cannot carry channels` | No bound channels through a `Decimator`. |
+| Error `a Decimator cannot carry channels with …` | A custom kernel that does not report which rows it kept (`tracksRows`). |
 | Type error: `JSX element type … construct or call signatures` | The file is using another JSX runtime. Add `/** @jsxImportSource inkplot */`. | <!-- jsx-only -->
 | Type error: `Type 'Element' is not assignable to type 'Chart'` | Same: this file is using React's JSX. | <!-- jsx-only -->
 | Nothing is drawn (browser) | The container has no height; the chart was not attached (`chart.attach(new DOMPlatform(el))`); no `theme`. |

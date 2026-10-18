@@ -173,7 +173,9 @@ test('hit', () => {
     const p = series.points;
     const hit = hitTest(series, p.data[2 * 10]!, p.data[2 * 10 + 1]!)!;
     assert(hit, 'a decimated series can still be hovered');
-    assert.equal(hit.row, undefined, 'but its points are not the source rows');
+    // The points kept are rows of the source, and say which: that row holds the value the hit reports.
+    assert.ok(hit.row !== undefined, 'its points are source rows');
+    assert.equal(big.view()!.data[hit.row], hit.second);
   }
 
   // ── XY series report x and y as first and second, with channels by name.

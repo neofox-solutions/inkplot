@@ -366,7 +366,7 @@ export default () => (
 );
 ```
 
-The axes leave room for the bars, and zooming out never goes past them. A gap in the value or the error leaves that point without a bar. On bars the whisker sits on the bar's top (on the layer's top in a `Stack`, and on its own bar in a group); give it a different colour from the bars with `stroke`, or through the `errorBar` selector. Neither renderer is hit, and neither works through a `Decimator` (channels cannot). An error in a `'normalize'` stack has no unit and is not meaningful.
+The axes leave room for the bars, and zooming out never goes past them. A gap in the value or the error leaves that point without a bar. On bars the whisker sits on the bar's top (on the layer's top in a `Stack`, and on its own bar in a group); give it a different colour from the bars with `stroke`, or through the `errorBar` selector. Neither renderer is hit, and through a `Decimator` they are drawn on the points it keeps. An error in a `'normalize'` stack has no unit and is not meaningful.
 
 On bars, the whisker sits on the bar's top:
 

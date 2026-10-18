@@ -48,10 +48,25 @@ export abstract class DecimationKernel<A extends BaseAttributes = BaseAttributes
   /** The most points `reduce` can write for this many columns. */
   abstract capacity(columns: number): number;
   /**
+   * True when `reduce` fills `rows` (see there): a kernel that keeps rows of the view as they are, and none it made up. Only such a
+   * kernel can let a `Decimator` carry channels and say which row of the source each point is. Default false.
+   */
+  get tracksRows(): boolean {
+    return false;
+  }
+  /**
    * Reduce `view` to at most `capacity` points over `domainRange`, writing (domain, value) pairs into `out`.
    * Points outside the range land in the edge columns. A gap (NaN value) is kept as one NaN point if the kernel handles gaps.
+   * A kernel with `tracksRows` is also given `rows`, and writes into it the row of `view` that each point written is.
    */
-  abstract reduce(view: PointView, domainRange: Extent, columns: number, out: Float64Array, capacity: number): ReduceResult;
+  abstract reduce(
+    view: PointView,
+    domainRange: Extent,
+    columns: number,
+    out: Float64Array,
+    capacity: number,
+    rows?: Uint32Array,
+  ): ReduceResult;
   /**
    * `reduce` for every key of a partition at once, in one pass over `view`: the rows of the keys that `want` marks, each written
    * into that slot's `outs`. Absent in a kernel that needs the rows of a key side by side (it is then given them one key at a time).
@@ -94,8 +109,9 @@ export interface KeyedResult {
 }
 
 /** Writes point `i` of a view into `out` slot `m`, if there is room. */
-function putPoint(v: PointView, out: Float64Array, m: number, cap: number, i: number): number {
+function putPoint(v: PointView, out: Float64Array, m: number, cap: number, i: number, rows?: Uint32Array): number {
   if (m < cap) {
+    if (rows) rows[m] = i;
     const r = v.regularDomain;
     out[2 * m] = r ? r.start + r.step * i : v.data[i * v.stride + v.domainOffset]!;
     out[2 * m + 1] = v.data[i * v.stride + v.valueOffset]!;
@@ -104,8 +120,9 @@ function putPoint(v: PointView, out: Float64Array, m: number, cap: number, i: nu
   return m;
 }
 /** A gap point, unless the last point written already is one. */
-function putGap(v: PointView, out: Float64Array, m: number, cap: number, i: number): number {
+function putGap(v: PointView, out: Float64Array, m: number, cap: number, i: number, rows?: Uint32Array): number {
   if (m < cap && !(m > 0 && out[2 * m - 1] !== out[2 * m - 1])) {
+    if (rows) rows[m] = i;
     const r = v.regularDomain;
     out[2 * m] = r ? r.start + r.step * i : v.data[i * v.stride + v.domainOffset]!;
     out[2 * m + 1] = NaN;
@@ -125,29 +142,30 @@ function emitRun(
   l: number,
   im: number,
   iM: number,
+  rows?: Uint32Array,
 ): number {
   const a = im < iM ? im : iM,
     b = im < iM ? iM : im;
   if (!keepEnds) {
-    m = putPoint(v, out, m, cap, a);
-    if (b !== a) m = putPoint(v, out, m, cap, b);
+    m = putPoint(v, out, m, cap, a, rows);
+    if (b !== a) m = putPoint(v, out, m, cap, b, rows);
     return m;
   }
   let prev = -1;
   if (f !== prev) {
-    m = putPoint(v, out, m, cap, f);
+    m = putPoint(v, out, m, cap, f, rows);
     prev = f;
   }
   if (a !== prev) {
-    m = putPoint(v, out, m, cap, a);
+    m = putPoint(v, out, m, cap, a, rows);
     prev = a;
   }
   if (b !== prev) {
-    m = putPoint(v, out, m, cap, b);
+    m = putPoint(v, out, m, cap, b, rows);
     prev = b;
   }
   if (l !== prev) {
-    m = putPoint(v, out, m, cap, l);
+    m = putPoint(v, out, m, cap, l, rows);
   }
   return m;
 }
@@ -170,6 +188,7 @@ function reduceAroundGaps(
   keyOffset = -1,
   slotOf?: (key: number) => number,
   slot = 0,
+  rows?: Uint32Array,
 ): number {
   const d = v.data,
     s = v.stride,
@@ -189,10 +208,10 @@ function reduceAroundGaps(
       if (run) {
         if (mn < runExtent.min) runExtent.min = mn;
         if (mx > runExtent.max) runExtent.max = mx;
-        m = emitRun(v, out, m, cap, keepEnds, f, l, im, iM);
+        m = emitRun(v, out, m, cap, keepEnds, f, l, im, iM, rows);
         run = false;
       }
-      if (i < i1) m = putGap(v, out, m, cap, i);
+      if (i < i1) m = putGap(v, out, m, cap, i, rows);
       continue;
     }
     if (!run) {
@@ -246,7 +265,15 @@ function columnEnd(v: PointView, c: number, W: number, x0: number, k: number, i0
  * then scan only the values in that range. Four values at a time are checked against the running extremes,
  * and a group strictly inside them costs one comparison chain and nothing else.
  */
-function reduceByColumn(v: PointView, domainRange: Extent, W: number, out: Float64Array, cap: number, keepEnds: boolean): ReduceResult {
+function reduceByColumn(
+  v: PointView,
+  domainRange: Extent,
+  W: number,
+  out: Float64Array,
+  cap: number,
+  keepEnds: boolean,
+  rows?: Uint32Array,
+): ReduceResult {
   const d = v.data,
     s = v.stride,
     yo = v.valueOffset,
@@ -299,11 +326,11 @@ function reduceByColumn(v: PointView, domainRange: Extent, W: number, out: Float
         iM = i;
       } else if (y !== y) nan = true;
     }
-    if (nan) m = reduceAroundGaps(v, i0, i1, out, m, cap, keepEnds);
+    if (nan) m = reduceAroundGaps(v, i0, i1, out, m, cap, keepEnds, -1, undefined, 0, rows);
     else {
       if (mn < runExtent.min) runExtent.min = mn;
       if (mx > runExtent.max) runExtent.max = mx;
-      m = emitRun(v, out, m, cap, keepEnds, i0, i1 - 1, im, iM);
+      m = emitRun(v, out, m, cap, keepEnds, i0, i1 - 1, im, iM, rows);
     }
     i0 = i1;
   }
@@ -440,8 +467,11 @@ export class MinMaxKernel extends DecimationKernel {
   capacity(columns: number): number {
     return 2 * columns + 2;
   }
-  reduce(view: PointView, range: Extent, columns: number, out: Float64Array, capacity: number): ReduceResult {
-    return reduceByColumn(view, range, columns, out, capacity, false);
+  override get tracksRows(): boolean {
+    return true;
+  }
+  reduce(view: PointView, range: Extent, columns: number, out: Float64Array, capacity: number, rows?: Uint32Array): ReduceResult {
+    return reduceByColumn(view, range, columns, out, capacity, false, rows);
   }
   override reduceKeyed(
     view: PointView,
@@ -459,8 +489,11 @@ export class M4Kernel extends DecimationKernel {
   capacity(columns: number): number {
     return 4 * columns + 4;
   }
-  reduce(view: PointView, range: Extent, columns: number, out: Float64Array, capacity: number): ReduceResult {
-    return reduceByColumn(view, range, columns, out, capacity, true);
+  override get tracksRows(): boolean {
+    return true;
+  }
+  reduce(view: PointView, range: Extent, columns: number, out: Float64Array, capacity: number, rows?: Uint32Array): ReduceResult {
+    return reduceByColumn(view, range, columns, out, capacity, true, rows);
   }
   override reduceKeyed(
     view: PointView,
@@ -482,7 +515,10 @@ export class LttbKernel extends DecimationKernel {
   capacity(columns: number): number {
     return columns + 2;
   }
-  reduce(v: PointView, _range: Extent, W: number, out: Float64Array, cap: number): ReduceResult {
+  override get tracksRows(): boolean {
+    return true;
+  }
+  reduce(v: PointView, _range: Extent, W: number, out: Float64Array, cap: number, rows?: Uint32Array): ReduceResult {
     const d = v.data,
       s = v.stride,
       xo = v.domainOffset,
@@ -494,7 +530,7 @@ export class LttbKernel extends DecimationKernel {
     let m = 0,
       yMin = Infinity,
       yMax = -Infinity;
-    m = putPoint(v, out, m, cap, 0);
+    m = putPoint(v, out, m, cap, 0, rows);
     const every = (n - 2) / (W - 2);
     let a = 0;
     for (let b = 0; b < W - 2; b++) {
@@ -527,10 +563,10 @@ export class LttbKernel extends DecimationKernel {
           bi = i;
         }
       }
-      m = putPoint(v, out, m, cap, bi);
+      m = putPoint(v, out, m, cap, bi, rows);
       a = bi;
     }
-    m = putPoint(v, out, m, cap, n - 1);
+    m = putPoint(v, out, m, cap, n - 1, rows);
     const y0 = d[yo]!,
       yl = d[(n - 1) * s + yo]!;
     if (y0 < yMin) yMin = y0;
@@ -546,7 +582,10 @@ export class StrideKernel extends DecimationKernel {
   capacity(columns: number): number {
     return columns + 2;
   }
-  reduce(v: PointView, _range: Extent, columns: number, out: Float64Array, cap: number): ReduceResult {
+  override get tracksRows(): boolean {
+    return true;
+  }
+  reduce(v: PointView, _range: Extent, columns: number, out: Float64Array, cap: number, rows?: Uint32Array): ReduceResult {
     const n = v.count,
       d = v.data,
       s = v.stride,
@@ -560,7 +599,7 @@ export class StrideKernel extends DecimationKernel {
       const y = d[i * s + yo]!;
       if (y < yMin) yMin = y;
       if (y > yMax) yMax = y;
-      m = putPoint(v, out, m, cap, i);
+      m = putPoint(v, out, m, cap, i, rows);
     }
     return { count: m, yMin, yMax };
   }
@@ -627,6 +666,8 @@ function windowSplit(v: PointView, range: Extent): [number, number] {
 export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: DecimationKernel, source: DataNode]> {
   #version = 0;
   #scratch = new Float64Array(0);
+  #pairs = new Float64Array(0);
+  #kept = new Uint32Array(0);
 
   get kernel(): DecimationKernel {
     return this.child(0, DecimationKernel);
@@ -661,41 +702,94 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
 
   plan(context: PlanContext): FillPlan {
     const source = this.source,
-      kernel = this.kernel,
       a = this.attrs;
     const inner = source.plan(context);
     if (a.enabled === false) return inner;
     // Kernels thin by pixel column of the domain, which a path that only has an order does not have.
     expectDomainValue(context, 'a Decimator');
-    // Kernels reduce (domain, value) pairs; a channel column would not follow the points they keep.
-    if (context.columns.length > 2) fail('a Decimator cannot carry channels: bind on undecimated data, or turn the Decimator off');
+    const names = this.#carried(context);
     // At least 3 so the kernels' first/last handling has columns to work with.
     const columns = Math.max(3, Math.floor(context.width * (a.resolution ?? 1)));
-    const capacity = kernel.capacity(columns);
+    const capacity = this.kernel.capacity(columns);
     // Already small enough: reducing would only cost time and change nothing.
     if (inner.capacity <= capacity) return inner;
     return {
       capacity,
       fill: (out) => {
-        const view = this.#read(source, inner);
-        const reg = view.regularDomain;
-        if (reg && !(reg.step > 0)) fail('a Decimator needs a regular domain that ascends');
-        const windowed = windowView(view, context.domainRange);
-        const t0 = performance.now();
-        const r = kernel.reduce(windowed, context.domainRange, columns, out, capacity);
-        const counters = this.countersOrNull;
-        if (counters) counters.stages.decimate += performance.now() - t0;
-        const n = windowed.count;
-        const x = (i: number) =>
-          windowed.regularDomain
-            ? windowed.regularDomain.start + windowed.regularDomain.step * i
-            : windowed.data[i * windowed.stride + windowed.domainOffset]!;
-        return {
-          count: r.count,
-          extents: [n > 0 ? { min: x(0), max: x(n - 1) } : NO_POINTS, { min: r.yMin, max: r.yMax }],
-        };
+        const read = this.#read(source, inner, names);
+        return this.#reduce(read.view, read.offsets, read.rowOf, context.domainRange, columns, out, capacity);
       },
     };
+  }
+
+  /** The columns after the domain and the value that were asked for: the kept rows carry them, if the kernel says which rows it kept. */
+  #carried(context: PlanContext): readonly string[] {
+    const names = context.columns.slice(2);
+    if (names.length > 0 && !this.kernel.tracksRows)
+      fail(
+        `a Decimator cannot carry channels with ${this.kernel.constructor.name}, which does not say which rows it kept (tracksRows): bind on undecimated data, or turn the Decimator off`,
+      );
+    return names;
+  }
+
+  /**
+   * Reduce `view` (rows of the domain, the value, then the carried columns at `offsets`) and write what is kept into `out`: the
+   * domain, the value, and for each kept row the other columns, copied as they are. `rowOf` says where a row of `view` came from,
+   * when it is known; the points kept are rows of it, so it is then the answer for them too.
+   */
+  #reduce(
+    view: PointView,
+    offsets: readonly number[],
+    rowOf: ((index: number) => number) | null,
+    range: Extent,
+    columns: number,
+    out: Float64Array,
+    capacity: number,
+  ): FillResult {
+    const kernel = this.kernel,
+      reg = view.regularDomain;
+    if (reg && !(reg.step > 0)) fail('a Decimator needs a regular domain that ascends');
+    const [first, end] = windowBounds(view, range),
+      windowed = subView(view, first, end);
+    // A view that cannot be sliced is read from its start, whole.
+    const shift = windowed === view ? 0 : first;
+    const track = kernel.tracksRows,
+      k = 2 + offsets.length;
+    if (track && this.#kept.length < capacity) this.#kept = new Uint32Array(capacity);
+    if (k > 2 && this.#pairs.length < 2 * capacity) this.#pairs = new Float64Array(2 * capacity);
+    const pairs = k > 2 ? this.#pairs : out;
+    const t0 = performance.now();
+    const r = kernel.reduce(windowed, range, columns, pairs, capacity, track ? this.#kept : undefined);
+    const counters = this.countersOrNull;
+    if (counters) counters.stages.decimate += performance.now() - t0;
+    const n = windowed.count;
+    const x = (i: number) =>
+      windowed.regularDomain
+        ? windowed.regularDomain.start + windowed.regularDomain.step * i
+        : windowed.data[i * windowed.stride + windowed.domainOffset]!;
+    const extents: Extent[] = [n > 0 ? { min: x(0), max: x(n - 1) } : NO_POINTS, { min: r.yMin, max: r.yMax }];
+    if (k > 2) {
+      const lo = new Float64Array(k - 2).fill(Infinity),
+        hi = new Float64Array(k - 2).fill(-Infinity),
+        d = windowed.data;
+      for (let m = 0; m < r.count; m++) {
+        const row = this.#kept[m]! * windowed.stride;
+        out[k * m] = pairs[2 * m]!;
+        out[k * m + 1] = pairs[2 * m + 1]!;
+        for (let j = 0; j < k - 2; j++) {
+          const v = d[row + offsets[j]!]!;
+          out[k * m + 2 + j] = v;
+          if (v < lo[j]!) lo[j] = v;
+          if (v > hi[j]!) hi[j] = v;
+        }
+      }
+      // The extents of the carried columns are those of the rows kept.
+      for (let j = 0; j < k - 2; j++) extents.push(lo[j]! <= hi[j]! ? { min: lo[j]!, max: hi[j]! } : NO_POINTS);
+    }
+    if (!track || !rowOf) return { count: r.count, extents };
+    // Copied: the next pass writes over the scratch, and a drawn series keeps this answer.
+    const kept = this.#kept.slice(0, r.count);
+    return { count: r.count, extents, rowOf: (m) => rowOf(shift + kept[m]!) };
   }
 
   /** What the last pass over a partition made, for every key, so the keys that follow the first in a flush cost a copy and no more. */
@@ -724,10 +818,12 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
     const a = this.attrs;
     if (a.enabled === false) return inner;
     expectDomainValue(context, 'a Decimator');
-    if (context.columns.length > 2) fail('a Decimator cannot carry channels: bind on undecimated data, or turn the Decimator off');
+    const names = this.#carried(context);
     const columns = Math.max(3, Math.floor(context.width * (a.resolution ?? 1)));
     const capacity = this.kernel.capacity(columns);
-    if (!(this.source instanceof DataSource)) return this.#viaSource(inner, columns, capacity, context.domainRange);
+    // The keys reduced together in one pass have no channels to carry: with some, or over a stage, each key is reduced from its rows.
+    if (!(this.source instanceof DataSource) || names.length > 0)
+      return this.#viaSource(inner, columns, capacity, context.domainRange, names.length);
     const small = (slot: number) => partition.counts[slot]! <= capacity;
     return {
       capacity: (slot) => (small(slot) ? inner.capacity(slot) : capacity),
@@ -741,31 +837,25 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
     };
   }
   /** Each key reduced from what the stage beneath makes of it, as a `Decimator` does over any stage. */
-  #viaSource(inner: PartitionedPlan, columns: number, capacity: number, range: Extent): PartitionedPlan {
-    const kernel = this.kernel;
+  #viaSource(inner: PartitionedPlan, columns: number, capacity: number, range: Extent, carried: number): PartitionedPlan {
+    const k = 2 + carried,
+      offsets = Array.from({ length: carried }, (_, j) => 2 + j);
     return {
       capacity: (slot) => Math.min(inner.capacity(slot), capacity),
       fill: (slot, out) => {
         const room = inner.capacity(slot);
         if (room <= capacity) return inner.fill(slot, out);
-        if (this.#scratch.length < room * 2) this.#scratch = new Float64Array(room * 2);
+        if (this.#scratch.length < room * k) this.#scratch = new Float64Array(room * k);
         const filled = inner.fill(slot, this.#scratch);
         const all: PointView = {
           data: this.#scratch,
           count: filled.count,
-          stride: 2,
+          stride: k,
           domainOffset: 0,
           valueOffset: 1,
           regularDomain: null,
         };
-        const windowed = windowView(all, range);
-        const t0 = performance.now();
-        const r = kernel.reduce(windowed, range, columns, out, capacity);
-        const counters = this.countersOrNull;
-        if (counters) counters.stages.decimate += performance.now() - t0;
-        const n = windowed.count;
-        const x = (i: number) => windowed.data[i * windowed.stride + windowed.domainOffset]!;
-        return { count: r.count, extents: [n > 0 ? { min: x(0), max: x(n - 1) } : NO_POINTS, { min: r.yMin, max: r.yMax }] };
+        return this.#reduce(all, offsets, filled.rowOf ?? null, range, columns, out, capacity);
       },
     };
   }
@@ -885,12 +975,29 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
     return (this.#keyed = { partition, version: this.#version, columns, capacity, min: range.min, max: range.max, results, outs });
   }
 
-  /** The source's own storage if it offers it, else the source filled into a scratch buffer. */
-  #read(source: DataNode, inner: FillPlan): PointView {
+  /**
+   * The source's own storage if it offers it with the carried channels, else the source filled into a scratch buffer: the rows
+   * to reduce, where each carried channel is in them, and which row of the source a row is, when that is known.
+   */
+  #read(
+    source: DataNode,
+    inner: FillPlan,
+    names: readonly string[],
+  ): { view: PointView; offsets: readonly number[]; rowOf: ((index: number) => number) | null } {
     const own = source.view?.();
-    if (own) return own; // null for generated data and for transforms, which fill a scratch buffer instead
-    if (this.#scratch.length < inner.capacity * 2) this.#scratch = new Float64Array(inner.capacity * 2);
+    const at = own ? names.map((n) => own.channelOffsets?.[n]) : [];
+    if (own && at.every((o) => o !== undefined)) {
+      // The rows of a source's own view are its sorted rows: `storageRow` says where each was stored. A stage that shows another's has no say.
+      return { view: own, offsets: at, rowOf: source instanceof DataSource ? (i) => source.storageRow(i) : null };
+    }
+    // Generated data and transforms fill a scratch buffer: domain, value, then the carried channels, as asked.
+    const k = 2 + names.length;
+    if (this.#scratch.length < inner.capacity * k) this.#scratch = new Float64Array(inner.capacity * k);
     const filled = inner.fill(this.#scratch);
-    return { data: this.#scratch, count: filled.count, stride: 2, domainOffset: 0, valueOffset: 1, regularDomain: null };
+    return {
+      view: { data: this.#scratch, count: filled.count, stride: k, domainOffset: 0, valueOffset: 1, regularDomain: null },
+      offsets: names.map((_, j) => 2 + j),
+      rowOf: filled.rowOf ?? null,
+    };
   }
 }

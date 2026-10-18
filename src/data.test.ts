@@ -212,13 +212,18 @@ test('data', () => {
     assert.equal(v.stride, 4);
     assert.equal(v.count, 5);
 
-    // A decimator reduces (domain, value) pairs, so it cannot carry channels, and says so rather than misaligning them.
+    // A kernel that does not say which rows it kept cannot have channels carried through it, and says so rather than misaligning them.
     const big = new FlatDataSource({
       data: new Float64Array(5000).map((_, i) => i % 7),
       regularDomain: { start: 0, step: 1 },
       channels: {},
     });
-    const dec = new Decimator({}, new MinMaxKernel(), big);
+    class Unaware extends MinMaxKernel {
+      override get tracksRows(): boolean {
+        return false;
+      }
+    }
+    const dec = new Decimator({}, new Unaware(), big);
     assert.throws(() => dec.plan({ ...ctx, columns: ['domain', 'value', 'w'] }), /cannot carry channels/);
     dec.plan(ctx); // no channels asked for: fine
     new Decimator(
