@@ -210,9 +210,14 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     const index = Math.max(0, this.plane.allSeries.indexOf(this));
     return palette[index % palette.length] ?? '#888';
   }
-  /** Whether the series is on show: `visible` is not false. One that is not takes no part: it is not drawn, does not set the axes' ranges, and is not hit. */
+  /**
+   * Whether the series is on show: neither it nor a `Stack` or `SeriesGroup` it is in has `visible` false. One that is not takes
+   * no part: it is not drawn, does not set the axes' ranges, and is not hit.
+   */
   get shown(): boolean {
-    return this.attrs.visible !== false;
+    if (this.attrs.visible === false) return false;
+    for (let p = this.parent; p && groupOf(p); p = p.parent) if (p.attrs.visible === false) return false;
+    return true;
   }
   /**
    * Draw a sample of what this series looks like into `parent`, `width` by `height` from its top left corner: each renderer's
@@ -568,10 +573,13 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     this.firstAxis.normalize(b.data, n, 2, 0);
     this.secondAxis.normalize(b.data, n, 2, 1);
     // Keep the baseline inside its axis, so a fill to a value outside the range closes along the edge.
+    // A baseline the scale cannot place (0 on a log axis) is the edge of the axis; a gap in the data stays a gap.
+    const unplaced = !layer && !this.secondAxis.scale.canPlace(value);
     for (let i = 1; i < 2 * n; i += 2) {
       const v = b.data[i]!;
       if (v < 0) b.data[i] = 0;
       else if (v > 1) b.data[i] = 1;
+      else if (unplaced && v !== v && Number.isFinite(raw[(i >> 1) * rs + c1]!)) b.data[i] = 0;
     }
     plane.place(b, this.firstAxis, this.secondAxis);
     return b;

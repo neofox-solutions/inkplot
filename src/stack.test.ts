@@ -360,4 +360,15 @@ test('stack', () => {
     assert.equal(edits[0]!.row, 0);
     near(edits[0]!.value, 5, 1e-6);
   }
+
+  // ── `visible: false` on a stack hides what is in it: the axis ignores its data and nothing in it is hit.
+  {
+    const a = new DomainSeries({ name: 'a' }, flat([1, 2, 3]), new LinePath(new LinearCurve())),
+      b = new DomainSeries({ name: 'b' }, flat([100, 200, 300]), new LinePath(new LinearCurve()));
+    const y = left();
+    mount(new CartesianPlane({}, bottom(), y, a, new Stack({ visible: false }, b)));
+    assert.equal(b.shown, false);
+    assert.equal(a.shown, true);
+    assert(y.range.max < 10, `the value axis fits only the shown series (got ${y.range.max})`);
+  }
 });

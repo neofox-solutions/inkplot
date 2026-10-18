@@ -7,6 +7,7 @@ import {
   PolarPlane,
   Axis,
   LinearScale,
+  LogScale,
   BandScale,
   DomainSeries,
   BarPath,
@@ -304,5 +305,18 @@ test('bars', () => {
       assert(Math.hypot(tx, ty) > Math.hypot(fx, fy));
       near(g.data[k + 2]!, s.points.data[2 * i]!, 1e-9); // and the top is where the point is
     }
+  }
+
+  // ── On a log value axis the baseline (0) cannot be placed, so bars and stems start at the axis edge instead of vanishing.
+  for (const R of [BarPath, StemPath]) {
+    const series = new DomainSeries({ name: 'b' }, flat([10, 100, 1000]), new R({}));
+    const x = new Axis({ orientation: 'bottom', min: -0.5, max: 2.5 }, new LinearScale()),
+      y = new Axis({ orientation: 'left' }, new LogScale());
+    mount(new CartesianPlane({}, x, y, series));
+    const s = (R === BarPath ? barShapes : stemLines)(series)!;
+    assert(s.count === 3 && s.data.every(Number.isFinite), `${R.name} on a log axis are drawn`);
+    assert.deepEqual([y.range.min, y.range.max], [10, 1000], 'the axis fits the data, not a 0 it cannot show');
+    const bottom = Math.max(...ys(s.data, 0, s.perShape * 3));
+    near(bottom, series.baseline(0).data[1]!, 1e-6); // the foot is on the axis edge
   }
 });

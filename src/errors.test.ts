@@ -20,6 +20,7 @@ import {
   PanZoom,
   type AnyElement,
   type Series,
+  barShapes,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
 import { test } from 'vite-plus/test';
@@ -147,6 +148,32 @@ test('errors', async () => {
     );
     assert.equal(all.length, 2);
     assert(all[0]![0]! < all[1]![0]!, 'the first series is left of the second in its band');
+  }
+
+  // ── Grouped bars with a width of their own: the whiskers move with the bars (the gap between the two is the bars' gap).
+  {
+    const x = new Axis({ orientation: 'bottom' }, new BandScale({ categories: ['a', 'b', 'c', 'd'] })),
+      y = new Axis({ orientation: 'left' }, new LinearScale());
+    const mk = (error: string) => new DomainSeries({}, source(), new BarPath({ width: 0.5 }), new ErrorBars({ error, capWidth: 0 }));
+    const one = mk('up'),
+      two = mk('down');
+    const platform = new FakePlatform({ width: 400, height: 300 });
+    new Chart({ theme: lightTheme }, new CartesianPlane({}, x, y, new Stack({ mode: 'group' }, one, two))).attach(platform).flush();
+    const whisker = [...platform.toString().matchAll(/<path d="(M[^"]*)"[^>]*stroke-linecap="butt"/g)].map((m) =>
+      Number(/M([\d.-]+) /.exec(m[1]!)![1]),
+    );
+    const centre = (s: DomainSeries) => {
+      const g = barShapes(s, { width: 0.5 })!;
+      let lo = Infinity,
+        hi = -Infinity;
+      for (let j = 0; j < g.perShape; j++) {
+        lo = Math.min(lo, g.data[2 * j]!);
+        hi = Math.max(hi, g.data[2 * j]!);
+      }
+      return (lo + hi) / 2;
+    };
+    assert.equal(whisker.length, 2);
+    assert(Math.abs(whisker[1]! - whisker[0]! - (centre(two) - centre(one))) < 0.02, 'each whisker is at the middle of its own bar');
   }
 
   // ── An XYSeries with an error along x: the x axis is fitted to it.

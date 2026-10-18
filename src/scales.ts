@@ -67,6 +67,9 @@ export class LogScale extends Scale<LogScaleAttributes> {
     const lo = Math.log(r.min);
     return Math.exp(lo + f * (Math.log(r.max) - lo));
   }
+  override canPlace(value: number): boolean {
+    return value > 0;
+  }
   /**
    * A range reaching zero or below cannot be drawn. Pull the low end up to three orders of magnitude under the high end
    * (or the high end up from it, if both are bad): a choice, since there is no right answer, but a readable one.

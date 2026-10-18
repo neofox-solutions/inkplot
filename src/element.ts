@@ -56,7 +56,7 @@ export interface BaseAttributes {
   /** Lets other elements (and JSON/adapter configs) refer to this one by name; see `resolveRef`. */
   id?: string;
   meta?: Meta;
-  /** False hides the element and everything inside it without removing it, so toggling is cheap and keeps state. */
+  /** False hides the element and everything inside it without removing it, so toggling is cheap and keeps state. On a `Stack` or `SeriesGroup` it hides every series in it, and they take no part in the axes' ranges. */
   visible?: boolean;
   /**
    * Looks for this element and everything below it, by selector (see theme.ts). Nearer blocks beat farther ones, and every

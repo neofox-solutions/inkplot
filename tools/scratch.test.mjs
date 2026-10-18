@@ -4,21 +4,23 @@
 // @resvg/resvg-wasm is installed, JSON, HTML) and that the HTML page runs and holds every figure.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { builtinModules } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { convertCode } from './jsx-to-new.mjs';
-import { test } from 'vite-plus/test';
+import { onTestFinished, test } from 'vite-plus/test';
 
 test('scratch', async () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
-  const tgz = execFileSync(
-    process.execPath,
-    [join(root, 'tools/pack-scratch.mjs'), join(tmpdir(), `inkplot-scratch-pack-${process.pid}`)],
-    { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] },
-  )
+  const packDir = join(tmpdir(), `inkplot-scratch-pack-${process.pid}`);
+  onTestFinished(() => rmSync(packDir, { recursive: true, force: true }));
+  const tgz = execFileSync(process.execPath, [join(root, 'tools/pack-scratch.mjs'), packDir], {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
     .toString()
     .trim();
   const inkplotTgz = readdirSync(join(tgz, '../../inkplot-lib/inkplot'))
@@ -26,6 +28,7 @@ test('scratch', async () => {
     .map((f) => join(tgz, '../../inkplot-lib/inkplot', f))[0];
 
   const ws = mkdtempSync(join(tmpdir(), 'inkplot-scratch-ws-'));
+  onTestFinished(() => rmSync(ws, { recursive: true, force: true }));
   const nm = join(ws, 'node_modules');
   mkdirSync(join(nm, '.bin'), { recursive: true });
   for (const [name, file] of [
@@ -35,9 +38,27 @@ test('scratch', async () => {
     mkdirSync(join(nm, name));
     execFileSync('tar', ['-xzf', file, '-C', join(nm, name), '--strip-components=1']);
   }
-  // What npm would fetch beside them: linked from this repository's own install.
+  // What npm would fetch beside them: the manifest's own dependencies, linked from this repository's install. A package the bin
+  // imports that the manifest leaves out is then missing here, as it would be for a person.
+  const manifest = JSON.parse(readFileSync(join(nm, 'inkplot-scratch/package.json'), 'utf8'));
   const png = existsSync(join(root, 'node_modules/@resvg/resvg-wasm/index_bg.wasm'));
-  for (const dep of ['typescript', 'rolldown', ...(png ? ['@resvg'] : [])]) symlinkSync(join(root, 'node_modules', dep), join(nm, dep));
+  const declared = new Set([...Object.keys(manifest.dependencies), ...Object.keys(manifest.optionalDependencies ?? {})]);
+  for (const dep of declared) {
+    if (dep === 'inkplot' || (dep.startsWith('@resvg') && !png)) continue;
+    mkdirSync(join(nm, dep, '..'), { recursive: true });
+    symlinkSync(join(root, 'node_modules', dep), join(nm, dep));
+  }
+  const imported = new Set(
+    [...readFileSync(join(nm, 'inkplot-scratch/bin.mjs'), 'utf8').matchAll(/(?:from|import)\s*\(?\s*['"]([^'"./][^'"]*)['"]/g)].map((m) => {
+      const parts = m[1].split('/');
+      return m[1].startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+    }),
+  );
+  for (const name of imported)
+    assert(
+      name.startsWith('node:') || builtinModules.includes(name) || declared.has(name),
+      `bin.mjs imports ${name}, which package.json does not list`,
+    );
 
   const run = (args) => spawnSync(process.execPath, [join(nm, 'inkplot-scratch/bin.mjs'), ...args], { cwd: ws, encoding: 'utf8' });
   const write = (name, text) => writeFileSync(join(ws, name), text);

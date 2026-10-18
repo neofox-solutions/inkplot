@@ -25,6 +25,13 @@ export abstract class Scale<A extends ScaleAttributes = ScaleAttributes> extends
   abstract normalize(buffer: Float64Array, count: number, stride: number, offset: number, range: Extent): void;
   /** The inverse of `normalize` for one value: how pointer positions become data values. */
   abstract denormalize(fraction: number, range: Extent): number;
+  /**
+   * Whether the scale can place this value at all (false for 0 on a log scale). Bars use it to start at the edge of the axis
+   * rather than at a baseline that cannot be drawn. Default: every number.
+   */
+  canPlace(_value: number): boolean {
+    return true;
+  }
   /** Replaces ends the scale cannot represent (a log range reaching zero). */
   abstract constrain(range: Extent): Extent;
   /** Pull a raw range out to tidy ends. */

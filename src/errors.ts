@@ -23,7 +23,7 @@
  */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
-import { barShift } from './bars.ts';
+import { BarRenderer, barShift } from './bars.ts';
 import type { Extent } from './geometry.ts';
 import { f2 } from './geometry.ts';
 import { SeriesRenderer, type SeriesRendererAttributes, type Spread, type SpreadView } from './renderer.ts';
@@ -163,7 +163,10 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
     }
     first.normalize(pts, n * 4, 2, 0);
     second.normalize(pts, n * 4, 2, 1);
-    const shift = domain ? 0 : barShift(series);
+    // The bars' own width decides how wide their slot is, so the first sibling bar renderer says where in the band the bars are.
+    let bars: BarRenderer | null = null;
+    for (let r = series.firstChild; r && !bars; r = r.nextSibling) if (r instanceof BarRenderer) bars = r;
+    const shift = domain ? 0 : barShift(series, bars?.attrs ?? {});
     const clamp = (v: number) => (v < -REACH ? -REACH : v > 1 + REACH ? 1 + REACH : v);
     for (let i = 0; i < n; i++) {
       for (const slot of [0, 2]) {

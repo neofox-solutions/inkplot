@@ -191,7 +191,7 @@ Bars, in one path.
 | `bind` | `Bindings<Bindable>` | Attributes fed from data instead of fixed. |
 | `maxNodes` | `number` | Most paths this renderer may create. Default 1000. |
 | `width` | `number` | Fraction of the room each bar fills. Default: a band's own `bandwidth`, else 0.8. |
-| `baseline` | `number` | The value bars grow from when there is no stack to say. Default 0. |
+| `baseline` | `number` | The value bars grow from when there is no stack to say. Default 0; on a log axis, which cannot place 0, the bars start at the edge of the axis. |
 | `from` | `string` | The channel of the data that holds where each bar starts, for bars that float: a waterfall's steps, a candlestick's body (the series' value is where it ends). |
 
 ### StemPath
@@ -210,6 +210,6 @@ Bars drawn as stems.
 | `bind` | `Bindings<Bindable>` | Attributes fed from data instead of fixed. |
 | `maxNodes` | `number` | Most paths this renderer may create. Default 1000. |
 | `width` | `number` | Fraction of the room each bar fills. Default: a band's own `bandwidth`, else 0.8. |
-| `baseline` | `number` | The value bars grow from when there is no stack to say. Default 0. |
+| `baseline` | `number` | The value bars grow from when there is no stack to say. Default 0; on a log axis, which cannot place 0, the bars start at the edge of the axis. |
 | `from` | `string` | The channel of the data that holds where each bar starts, for bars that float: a waterfall's steps, a candlestick's body (the series' value is where it ends). |
 <!-- api:end -->

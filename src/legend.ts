@@ -144,7 +144,7 @@ export class Legend extends InteractiveElement<Container, [], LegendAttributes> 
   }
 
   #toggle(series: Series): void {
-    series.setAttribute('visible', !series.shown);
+    series.setAttribute('visible', series.attrs.visible === false); // its own switch, whatever a group it is in says
   }
 
   /** Where a series' entry is, in the chart's pixels (valid after layout), or null if it is not listed. */

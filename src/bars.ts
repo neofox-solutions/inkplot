@@ -51,7 +51,7 @@ const MAX_VALUE_ARC = 48;
 export interface BarOptions {
   /** Fraction of the room each bar fills. Default: a band's own `bandwidth`, else 0.8. */
   width?: number;
-  /** The value bars grow from when there is no stack to say. Default 0. */
+  /** The value bars grow from when there is no stack to say. Default 0; on a log axis, which cannot place 0, the bars start at the edge of the axis. */
   baseline?: number;
   /**
    * The channel of the data that holds where each bar starts, for bars that float: a waterfall's steps, a candlestick's body
@@ -91,6 +91,9 @@ export function layoutBars(series: Series, options: BarOptions): BarLayout | nul
   first.normalize(norm, n, 3, 0);
   second.normalize(norm, n, 3, 1);
   second.normalize(norm, n, 3, 2);
+  // A baseline the value scale cannot place (0 on a log axis) is the start of the axis instead, so the bars are drawn.
+  if (!d.base && fromColumn < 0 && !second.scale.canPlace(baseline))
+    for (let i = 0; i < n; i++) if (!Number.isFinite(norm[3 * i + 1]!) && Number.isFinite(norm[3 * i + 2]!)) norm[3 * i + 1] = 0;
 
   // The room one bar (or one group of them) has along the domain.
   // oxlint-disable-next-line typescript/consistent-type-assertions -- a scale is read for the optional `bandwidth` and `gap` that only a band scale has
@@ -221,7 +224,10 @@ export abstract class BarRenderer<A extends BarRendererAttributes<object> = BarR
   } satisfies Partial<AttrTypesFor<Omit<BarRendererAttributes, 'bind'>>>;
   protected abstract outline(): PolygonSet | null;
   override get includes(): readonly number[] {
-    return this.attrs.from === undefined ? [this.attrs.baseline ?? 0] : [];
+    if (this.attrs.from !== undefined) return [];
+    const baseline = this.attrs.baseline ?? 0;
+    // A baseline the value axis cannot place is not asked of it: the bars start at the axis edge (see layoutBars).
+    return this.parent?.secondAxis.scale.canPlace(baseline) === false ? [] : [baseline];
   }
   override get channelNames(): readonly string[] {
     return this.attrs.from === undefined ? [] : [this.attrs.from];
