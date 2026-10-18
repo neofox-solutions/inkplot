@@ -21,6 +21,10 @@
  * counts as 1; with a channel (or `'value'`) named, `sum` and `mean` are of it. `stat` is the value of a one-dimensional
  * output: `'count'` (the default; with a `weight`, `'sum'`), `'sum'`, `'mean'`, `'fraction'` or `'density'`.
  *
+ * `halfLife` makes the points fade with their place in the source: the last counts in full, the one `halfLife` points before
+ * it counts half, and so on. Over a window moved along the data by a `Slice` that is a trail that fades behind the newest
+ * point, which is how a phosphor screen draws, and each bin's `sum` is how bright it is.
+ *
  * Bin size is set for each dimension, as a number (every dimension) or an array with one for each:
  *   `width`   the size of a bin, in the dimension's own units. Edges fall at `origin` plus a whole number of widths (origin 0 by default).
  *   `bins`    how many bins, spread evenly over the dimension's extent.
@@ -52,6 +56,11 @@ export interface DensityAttributes extends BaseAttributes {
   by?: readonly string[];
   /** What each point counts for: a channel name or 'value'. Default: 1 for each point. */
   weight?: string;
+  /**
+   * Points count for less the further they are before the last one the source delivers (in the domain's order): one
+   * `halfLife` points back counts half. Multiplies the `weight`, and, like it, is what `sum` adds up. Default: all alike.
+   */
+  halfLife?: number;
   /** The value of a one-dimensional output: 'count', 'sum', 'mean', 'fraction' (the share of the total, 0 to 1) or 'density'. Default 'count', or 'sum' with a `weight`. */
   stat?: Stat;
   /** Bin size in each dimension's units: one number for all, or one for each dimension. */
@@ -90,6 +99,7 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
     ...DataTransform.attrTypes,
     by: AUTO,
     weight: STRING,
+    halfLife: NUMBER,
     stat: STRING,
     width: AUTO,
     bins: AUTO,
@@ -206,6 +216,7 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
       if (cells > MAX_CELLS)
         fail(`Density: ${axes.map((x) => x.n).join(' by ')} bins is too many cells: use \`width\` or \`bins\` to make them fewer`);
     }
+    const fade = a.halfLife !== undefined && a.halfLife > 0 ? 1 / a.halfLife : 0;
     const counts = new Float64Array(cells),
       sums = new Float64Array(cells);
     if (!axes.some((ax) => ax.n === 0)) {
@@ -226,7 +237,7 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
         }
         if (!inside) continue;
         counts[at]!++;
-        sums[at]! += wcol >= 0 ? buf[stride * i + wcol]! : 1;
+        sums[at]! += (wcol >= 0 ? buf[stride * i + wcol]! : 1) * (fade > 0 ? 2 ** (-(n - 1 - i) * fade) : 1);
       }
     }
 
@@ -266,7 +277,7 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
   /** The value column: the statistic for one dimension, else the second dimension's centres. */
   #value(c: Computed): Float64Array {
     if (this.#dims.length > 1) return c.centres[1]!;
-    const stat = this.attrs.stat ?? (this.attrs.weight ? 'sum' : 'count');
+    const stat = this.attrs.stat ?? (this.attrs.weight || this.attrs.halfLife ? 'sum' : 'count');
     if (!STATS.includes(stat)) fail(`Density: stat is one of ${STATS.join(', ')} (got "${stat}")`);
     return c.columns[stat];
   }

@@ -156,5 +156,14 @@ test('density', () => {
     assert(!/NaN/.test(platform.toString()));
     assert.equal(series.points.count, 4);
   }
+  {
+    // A half life: the last point counts in full, and one half-life before it half, so a trail fades behind the newest.
+    const trail = new ObjectDataSource({ source: [0, 1, 2, 3, 4].map((x) => ({ x, y: 0 })), domain: 'x', value: 'y' });
+    const t = readTable(new Density({ width: 1, halfLife: 2 }, trail));
+    assert.deepEqual(
+      Array.from(t.column('value')).map((v) => +v.toFixed(3)),
+      [0.25, 0.354, 0.5, Math.SQRT1_2, 1].map((v) => +v.toFixed(3)),
+    );
+  }
   assert(registry.Density);
 });

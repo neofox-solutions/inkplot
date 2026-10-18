@@ -1597,6 +1597,329 @@ demos.push({
   },
 });
 
+// ── Oscilloscope ─────────────────────────────────────────────────────────────
+// A phosphor XY screen and the three channels it is made of. One `CompositeDataSource` holds the signal (X, Y and their
+// magnitude, made up, with noise and a one-pole low-pass), one `Slice` is the stretch of time on the screen, and every view
+// reads that slice through a `LinkedData`: the screen bins it into a heat map with a `Density` whose `halfLife` is the phosphor's
+// decay, and the three traces plot a channel of it against time. Moving the slice is the whole of the animation.
+const SCOPE_THEME = L.extendTheme(L.darkTheme, {
+  palette: ['#5cff8a', '#f5e663', '#5ce1e6', '#ff6ad5'],
+  text: { color: '#7fcf98', size: 11, family: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+  chart: { background: '#030a06' },
+  gridline: { color: '#0f2d1a' },
+  frame: { color: '#24663c', width: 1.5 },
+  chartSubtitle: { color: '#79d596', size: 11, weight: 'bold', align: 'start' },
+  seriesLine: { width: 1.4 },
+});
+
+demos.push({
+  id: 'scope',
+  title: 'Oscilloscope',
+  blurb: 'A phosphor XY screen with X, Y and magnitude traces: one shared Slice moved by time, read by four LinkedData',
+  setup(ctx) {
+    const RATE = 12000, // samples a second of the made-up signal
+      PERIOD = 30000, // two and a half seconds, then it goes round again
+      SCENE = 7500, // just over half a second a scene
+      MAX_WINDOW = 2400,
+      N = PERIOD + MAX_WINDOW,
+      F0 = 40, // the picture is drawn forty times a second
+      EDGE = 1.25;
+    const S = { playing: true, speed: 1, window: 1200, halfLife: 300, gain: 1, noise: 0.04, bandwidth: 0.4, scene: -1, t: 0 };
+    const SCENES = [
+      ['Lissajous 3:2', (u) => [0.85 * Math.sin(6 * Math.PI * u + 0.4), 0.85 * Math.sin(4 * Math.PI * u + Math.PI / 2)]],
+      [
+        'Two circles',
+        (u) => {
+          const a = 4 * Math.PI * u;
+          return [(u < 0.5 ? -0.46 : 0.46) + 0.38 * Math.cos(a), 0.38 * Math.sin(a)];
+        },
+      ],
+      [
+        'Rose',
+        (u) => {
+          const th = Math.PI * u,
+            r = 0.92 * Math.cos(3 * th);
+          return [r * Math.cos(th), r * Math.sin(th)];
+        },
+      ],
+      [
+        'Square and circle',
+        (u) => {
+          if (u >= 0.7) {
+            const a = (2 * Math.PI * (u - 0.7)) / 0.3;
+            return [0.32 * Math.cos(a), 0.32 * Math.sin(a)];
+          }
+          const side = (u / 0.7) * 4,
+            k = Math.floor(side),
+            f = side - k,
+            c = 0.8;
+          return [
+            [-c + 2 * c * f, -c],
+            [c, -c + 2 * c * f],
+            [c - 2 * c * f, c],
+            [-c, c - 2 * c * f],
+          ][k];
+        },
+      ],
+    ];
+    const smooth = (a, b, v) => {
+      const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    };
+    /** The clean signal, then the physical part: noise from the input, and a low-pass filter that rounds corners and smears jumps. */
+    const signal = () => {
+      const r = rng(11);
+      const x = new Float64Array(N),
+        y = new Float64Array(N);
+      for (let i = 0; i < N; i++) {
+        const scene = S.scene >= 0 ? S.scene : Math.floor(i / SCENE) % SCENES.length,
+          next = S.scene >= 0 ? S.scene : (scene + 1) % SCENES.length;
+        const mix = S.scene >= 0 ? 0 : smooth(0.85, 1, (i % SCENE) / SCENE);
+        const u = ((((i * F0 * 1.003) / RATE) % 1) + 1) % 1;
+        const [ax, ay] = SCENES[scene][1](u),
+          [bx, by] = mix > 0 ? SCENES[next][1](u) : [0, 0];
+        const breathe = 1 + 0.04 * Math.sin((2 * Math.PI * i) / (RATE * 1.7));
+        x[i] = ((1 - mix) * ax + mix * bx) * breathe + gauss(r) * S.noise;
+        y[i] = ((1 - mix) * ay + mix * by) * breathe + gauss(r) * S.noise;
+      }
+      // Two passes, so that the end meets the start when the screen goes round again.
+      const a = S.bandwidth;
+      for (const v of [x, y])
+        for (let pass = 0, last = v[N - 1]; pass < 2; pass++) for (let i = 0; i < N; i++) v[i] = last += a * (v[i] - last);
+      return { x, y, m: Float64Array.from(x, (v, i) => Math.hypot(v, y[i])) };
+    };
+    let sig = signal();
+    const source = new L.CompositeDataSource({
+      id: 'signal',
+      count: N,
+      domain: (i) => i,
+      isSorted: true,
+      channels: { x: sig.x, y: sig.y, m: sig.m },
+    });
+    const endAt = () => MAX_WINDOW + (Math.floor(S.t * RATE) % PERIOD);
+    const win = new L.Slice({ id: 'window', last: S.window, end: endAt() }, source);
+
+    // ── The screen: a heat map of where the beam has been, brighter where it was lately. A coarser layer under it is the glow.
+    const PHOSPHOR = ['#010603', '#04301a', '#0c8a45', '#46ff8c', '#e6fff0'];
+    const fine = new L.ColorAxis({ id: 'beam', ramp: PHOSPHOR, min: 0, max: 1.6 }, new L.LinearScale());
+    const halo = new L.ColorAxis({ id: 'glow', ramp: PHOSPHOR, min: 0, max: 6 }, new L.LinearScale());
+    const bins = (n) => ({
+      by: ['x', 'y'],
+      halfLife: S.halfLife,
+      extent: [
+        { min: -EDGE, max: EDGE },
+        { min: -EDGE, max: EDGE },
+      ],
+      width: (2 * EDGE) / n,
+    });
+    const layer = (n, axis, opacity) =>
+      new L.XYSeries(
+        { x: 'domain', y: 'value', hit: false },
+        new L.Density(bins(n), new L.LinkedData({ source: 'window' })),
+        new L.HeatMap({ opacity, bind: { fill: { axis, channel: 'sum' } } }),
+      );
+    const haloLayer = layer(40, halo, 0.5),
+      beamLayer = layer(96, fine, 1);
+    const fixed = (orientation, min, max, step) =>
+      new L.Axis({ orientation, visible: false, min, max, tickStep: step, padding: 0 }, new L.LinearScale());
+    const screen = new L.CartesianPlane(
+      {
+        frame: true,
+        meta: { title: 'XY screen', description: 'The signal drawn as a shape on a phosphor screen, fading behind the beam' },
+      },
+      fixed('bottom', -EDGE, EDGE, 0.25),
+      fixed('left', -EDGE, EDGE, 0.25),
+      haloLayer,
+      beamLayer,
+    );
+
+    // ── The channels: each is a trace against time over the same slice.
+    const traces = [
+      ['CH1  X', 'x', -EDGE, EDGE, 0.5],
+      ['CH2  Y', 'y', -EDGE, EDGE, 0.5],
+      ['CH3  |XY|', 'm', 0, 1.5, 0.5],
+    ].map(([name, channel, min, max, step], k) => {
+      const series = new L.XYSeries(
+        { x: 'domain', y: channel, name, hit: false },
+        new L.LinkedData({ source: 'window' }),
+        new L.LinePath({ stroke: SCOPE_THEME.palette[k + 1] }, new L.LinearCurve()),
+      );
+      const plane = new L.CartesianPlane(
+        {
+          frame: true,
+          meta: { title: name, description: `The ${channel === 'm' ? 'magnitude' : channel.toUpperCase()} channel against time` },
+        },
+        new L.Axis({ orientation: 'bottom', visible: false, nice: false, padding: 0, tickCount: 9 }, new L.LinearScale()),
+        fixed('left', min, max, step),
+        series,
+      );
+      return new L.ChartGroupItem({}, new L.ChartTitle({ text: name, role: 'subtitle' }), plane);
+    });
+    const group = new L.ChartGroup(
+      { columns: 4, rows: 3, gap: 12 },
+      new L.ChartGroupItem({ span: [3, 3] }, new L.ChartTitle({ text: 'XY', role: 'subtitle' }), screen),
+      ...traces,
+    );
+    const chart = new L.Chart({ theme: SCOPE_THEME, padding: 14, onFlush: ctx.onFlush }, win, group, fine, halo);
+
+    // ── The look of the page round it, which the other two heroes do not have.
+    const box = ctx.host.style;
+    const before = {
+      height: box.height,
+      background: box.background,
+      border: box.borderColor,
+      shadow: box.boxShadow,
+      radius: box.borderRadius,
+    };
+    box.height = Math.round(Math.min(ctx.host.clientWidth * 0.75, 720)) + 'px';
+    box.background = '#030a06';
+    box.borderColor = '#1d4a2d';
+    box.borderRadius = '16px';
+    box.boxShadow = 'inset 0 0 70px rgba(60, 255, 120, 0.09), 0 0 0 4px #0c1a12';
+
+    // ── Time: the slice moves, and nothing else is rebuilt.
+    let raf = 0,
+      last = 0,
+      playButton = null;
+    const read = ui.readout();
+    const report = () => {
+      const scene = S.scene >= 0 ? S.scene : Math.floor((endAt() % PERIOD) / SCENE) % SCENES.length;
+      read.textContent = `${SCENES[scene][0]}\n${(((endAt() - MAX_WINDOW) / RATE) % (PERIOD / RATE)).toFixed(2)} s   ${S.window} samples on screen`;
+    };
+    const show = () => {
+      win.setAttribute('end', endAt());
+      report();
+    };
+    const frame = (now) => {
+      if (S.playing) {
+        S.t += (Math.min(100, now - last) / 1000) * S.speed;
+        show();
+        chart.flush(); // here, in the frame that moved it, so the page lays out once
+      }
+      last = now;
+      raf = requestAnimationFrame(frame);
+    };
+    const refresh = () => playButton && (playButton.textContent = S.playing ? 'Pause' : 'Play');
+    playButton = h('button', { type: 'button', onclick: () => ((S.playing = !S.playing), refresh()) }, 'Pause');
+    const regen = () => {
+      sig = signal();
+      source.setAttribute('channels', { x: sig.x, y: sig.y, m: sig.m });
+    };
+    const decay = () => {
+      for (const l of [haloLayer, beamLayer]) l.child(0, L.Density).setAttribute('halfLife', S.halfLife);
+    };
+    ctx.add(
+      h('div', { class: 'field' }, h('div', { class: 'seg' }, playButton)),
+      ui.seg({
+        label: 'speed',
+        options: [
+          [0.1, 'slow motion'],
+          [1, 'real time'],
+          [4, 'fast'],
+        ],
+        value: S.speed,
+        onChange: (v) => (S.speed = v),
+      }),
+      ui.seg({
+        label: 'picture',
+        options: [[-1, 'cycle'], ...SCENES.map(([name], k) => [k, name.split(' ')[0].toLowerCase()])],
+        value: S.scene,
+        onChange: (v) => {
+          S.scene = v;
+          regen();
+        },
+      }),
+      ui.slider({
+        label: 'phosphor half-life (samples)',
+        min: 20,
+        max: 1200,
+        value: S.halfLife,
+        onChange: (v) => {
+          S.halfLife = v;
+          decay();
+        },
+      }),
+      ui.slider({
+        label: 'brightness',
+        min: 0.3,
+        max: 3,
+        step: 0.1,
+        value: S.gain,
+        onChange: (v) => {
+          S.gain = v;
+          fine.setAttribute('max', 1.6 / v);
+          halo.setAttribute('max', 6 / v);
+        },
+      }),
+      ui.slider({
+        label: 'noise',
+        min: 0,
+        max: 0.12,
+        step: 0.005,
+        value: S.noise,
+        format: (v) => v.toFixed(3),
+        onChange: (v) => {
+          S.noise = v;
+          regen();
+        },
+      }),
+      ui.slider({
+        label: 'bandwidth (low-pass)',
+        min: 0.04,
+        max: 1,
+        step: 0.01,
+        value: S.bandwidth,
+        format: (v) => v.toFixed(2),
+        onChange: (v) => {
+          S.bandwidth = v;
+          regen();
+        },
+      }),
+      ui.slider({
+        label: 'time on screen (samples)',
+        min: 400,
+        max: MAX_WINDOW,
+        step: 100,
+        value: S.window,
+        onChange: (v) => {
+          S.window = v;
+          win.setAttribute('last', v);
+          report();
+        },
+      }),
+      read,
+      ui.note(
+        "The signal is three channels of made-up samples (X, Y and their magnitude) in a CompositeDataSource, with noise added and a one-pole low-pass filter over it: the filter rounds the corners, smears the jumps between shapes, and makes the trace wider. One `Slice` is the stretch of time on the screen and is moved by the clock; the source is a child of the chart and the slice reads it. The four views each read the slice through a `LinkedData`. The screen is a two-dimensional `Density` over X and Y with a `halfLife`, so a point counts for less the further it is behind the newest one: that is the phosphor's decay, and each cell's sum is its brightness. A coarser layer beneath is the glow. The traces are `XYSeries` of the time and a channel.",
+      ),
+    );
+    show();
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still) S.playing = false;
+    refresh();
+    // It starts a moment after it is shown, so that something that wants the chart as it stands (the page test) gets it.
+    const starter = setTimeout(() => {
+      raf = requestAnimationFrame((t) => {
+        last = t;
+        frame(t);
+      });
+    }, 400);
+    return {
+      chart,
+      dispose: () => {
+        clearTimeout(starter);
+        cancelAnimationFrame(raf);
+        Object.assign(box, {
+          height: before.height,
+          background: before.background,
+          borderColor: before.border,
+          borderRadius: before.radius,
+          boxShadow: before.shadow,
+        });
+      },
+    };
+  },
+});
+
 // ── 1. Basic line ────────────────────────────────────────────────────────────
 demos.push({
   id: 'basic',
