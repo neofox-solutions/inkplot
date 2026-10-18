@@ -359,7 +359,6 @@ test('worker boundary: a detach and attach in one go keeps the worker, even when
   const { chart, series } = chartOf(boundary);
   await chart.idle();
   // Where there is no structuredClone (Node 16) a loopback cannot detach the array, and leaves it whole.
-  // oxlint-disable-next-line baseline-js/use-baseline -- probed on purpose: Node 17 and every current browser have it
   const detaches = typeof structuredClone === 'function';
   if (detaches) assert.equal(data.buffer.byteLength, 0, 'the array moved to the worker');
   assert.ok(series.points.count > 100);
