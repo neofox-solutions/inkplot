@@ -23,7 +23,8 @@ Find the symptom, read the cause, apply the fix. Errors are thrown by the elemen
 | `no element with id "x"` / `element "x" is not a Y` | A ref (`bind`, `domainAxis`, `dimension`…) names an id that does not exist, or names the wrong kind of element. | Check the `id` is on the element and is spelt the same. |
 | `the data has no channel "x"` | A binding, an `XYSeries` `x` or `y`, or a tooltip asks for a channel the source does not deliver. | Declare it: `channels={{ x: 'x', y: 'y' }}` (object and column sources), `channels` offsets (flat; plain pairs have `x` and `y` already). A transform's output is `x="domain" y="value"`. |
 | `a Decimator cannot carry channels: bind on undecimated data…` | Channels bound through a `Decimator`. | Put the decimator only on series with no channels; bind on undecimated data. |
-| `a Decimator needs a domain that is a position on an axis…` | A decimator on an `XYSeries`, whose x is a channel and not an axis position. | Draw an XY series undecimated. |
+| `Expected 'domain' and 'value' as the first requested channels but got …; a Decimator must be attached to a DomainSeries or compatible` | A decimator under an `XYSeries` (or anything that asks for other columns first). | Draw an XY series undecimated, or use a `DomainSeries`. |
+| `the data says it is sorted along the domain (isSorted), but the first column asked of it is …` | Data flagged `isSorted` read by something that asks for another column first. | `isSorted` means sorted by the domain: drop the flag, or ask for `domain` first. |
 | `a Decimator needs a regular domain that ascends` | `regularDomain` with a non-positive step. | Use a positive `step`. |
 | `the wrap period is shorter than the domain of the data` | `wrap` smaller than the data's span. | Make `wrap` reach past the last point. |
 | `the series of a stack have to share their domain axis and their value axis` | Series in a `Stack` on different axes. | Put them on the same pair. |

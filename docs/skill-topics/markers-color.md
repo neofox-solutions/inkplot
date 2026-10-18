@@ -7,7 +7,7 @@ Read `SKILL.md` first (rules, template, and the attributes of `Chart`, `Cartesia
 ## Scatter, coloured by a value, with a key
 
 
-`XYSeries` takes x and y from channels (`x` and `y` name them, default `'x'` and `'y'`; the source's `domain` is not used and can be left out, and neither is `value`). A `FlatDataSource` of plain x,y pairs (`stride={2}`) has both channels by itself. Colour comes from a `ColorAxis` (a child of the **chart**, beside the plane) that the marker binds to by id. A `ColorKey` shows it.
+`XYSeries` takes x and y from channels (`x` and `y` name them, default `'x'` and `'y'`; the points are drawn in the order the source stores them, not sorted by x; `x="domain"` asks for them ascending in the domain). A `FlatDataSource` of plain x,y pairs (`stride={2}`) has both channels by itself. Colour comes from a `ColorAxis` (a child of the **chart**, beside the plane) that the marker binds to by id. A `ColorKey` shows it.
 
 ```tsx check title="Coloured scatter"
 /** @jsxImportSource inkplot */

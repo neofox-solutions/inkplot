@@ -4,7 +4,7 @@ Two of the contracts you are most likely to meet when your data or axes are unus
 
 ## The data contract
 
-A point is a row of numbers, one for each column a series asks for by name (`context.columns`): usually `[domain, value, ...channels]`. Every stage that delivers points delivers them **ascending in the domain**, because everything downstream (windowing to the visible range, decimating, building paths) wants that. How a source achieves it is its own business:
+A point is a row of numbers, one for each column a series asks for by name (`context.columns`): usually `[domain, value, ...channels]`. When the request says `sorted` (a series along a domain asks so), every stage that delivers points delivers them **ascending in the domain**, because everything downstream (windowing to the visible range, decimating, building paths) wants that; the first requested column is then `domain`. Otherwise (an `XYSeries` that is not read along the domain) they come in the order they are stored, with nothing sorted or dropped. A source that is flagged `isSorted` and is asked for sorted points along anything but `domain` fails, since the flag means sorted by the domain and the series and the layout of the data cannot both be right. A `Decimator` checks that it was asked for `domain` and `value` first, sorted, and says which series kind it needs otherwise. How a source achieves the order is its own business:
 
 - Already ascending (`isSorted`, a regular domain, generated data): the data is read where it is stored, with no copy.
 - Otherwise: copied once per change into a buffer the source owns, with NaN domains dropped and rows sorted.

@@ -113,6 +113,7 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
       width: 0,
       height: 0,
       domainRange: { min: -Infinity, max: Infinity },
+      sorted: true,
       columns: name ? ['domain', 'value', name] : ['domain', 'value'],
     });
     const stride = name ? 3 : 2,
@@ -209,7 +210,7 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
   }
   valueExtent(): Extent | null {
     const ys = this.evaluate(
-      this.#samples({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, columns: ['domain', 'value'] }),
+      this.#samples({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, sorted: true, columns: ['domain', 'value'] }),
     );
     let min = Infinity,
       max = -Infinity;

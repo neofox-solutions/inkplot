@@ -52,7 +52,7 @@ export type ToWorker =
       height: number;
       domainRange: Extent;
       columns: string[];
-      sequence: boolean;
+      sorted: boolean;
       /** Fill every key of the partition (the spec of the last attach or update), one block each. */
       byKey?: boolean;
       recycle?: ArrayBuffer;

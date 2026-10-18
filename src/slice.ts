@@ -11,7 +11,7 @@
  */
 /* oxlint-disable typescript/no-non-null-assertion -- stride-addressed rows of a flat buffer: every index is bounded by the row count */
 import { type AttrTypesFor, BOOLEAN, NUMBER } from './attrs.ts';
-import { type DataNode, DataSource, DataTransform, type FillPlan, NO_POINTS, type PlanContext, rowRange } from './data.ts';
+import { type DataNode, DataSource, DataTransform, distinct, type FillPlan, NO_POINTS, type PlanContext, rowRange } from './data.ts';
 import { KeyedTransform, type Partition, type PartitionedPlan, rawPlan } from './partition.ts';
 import { type BaseAttributes, ChartElement, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
@@ -75,7 +75,9 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
   channelExtent(name: string): Extent | null {
     const i = this.channelNames.indexOf(name);
     if (i < 0) return null;
-    const e = this.#rows([name]).extents[0]!;
+    // Asked with the domain, as the rows of the sorted source are, so the window is the same as everything else's.
+    const columns = distinct(['domain', name]),
+      e = this.#rows(columns).extents[columns.indexOf(name)]!;
     return e.min <= e.max ? e : null;
   }
 
@@ -137,7 +139,7 @@ export class Slice extends KeyedTransform<SliceAttributes, [source: DataNode]> {
   /** The kept rows of the whole source, with the extents of those rows: cached against the version and the channels asked for. */
   #rows(columns: readonly string[]): { count: number; extents: readonly Extent[] } {
     const source = this.source;
-    const context: PlanContext = { width: 1, height: 1, domainRange: source.domain() ?? NO_POINTS, columns };
+    const context: PlanContext = { width: 1, height: 1, domainRange: source.domain() ?? NO_POINTS, sorted: true, columns };
     return this.#fillRows(source.plan(context), columns.length, columns);
   }
 

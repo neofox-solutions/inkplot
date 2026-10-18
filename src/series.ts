@@ -334,6 +334,13 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   get columns(): readonly string[] {
     return distinct([...this.coordinates, ...this.channels]);
   }
+  /**
+   * Whether the data is asked for ascending along the first coordinate, which is the domain: so for a series along a domain, and
+   * for one that draws x against the domain. Otherwise the points come in the order the source stores them.
+   */
+  protected get sorted(): boolean {
+    return this.coordinates[0] === 'domain';
+  }
   /** Which column of the raw rows is the first coordinate. */
   protected get firstColumn(): number {
     return this.columns.indexOf(this.coordinates[0]);
@@ -363,7 +370,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     const data = this.data,
       counters = this.counters;
     const stride = ctx.columns.length;
-    const key = `${nodeId(data)}.${data.version}|${ctx.domainRange.min}|${ctx.domainRange.max}|${ctx.width}|${ctx.columns.join()}`;
+    const key = `${nodeId(data)}.${data.version}|${ctx.domainRange.min}|${ctx.domainRange.max}|${ctx.width}|${ctx.sorted ? 1 : 0}|${ctx.columns.join()}`;
     if (key === this.#key) {
       counters.cached++;
     } else {
@@ -630,7 +637,9 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   }
 
   load(estimate: Size): void {
-    const ext = this.fill({ ...estimate, domainRange: this.domainAxis.range, columns: this.columns })[this.secondColumn] ?? NO_EXTENT;
+    const ext =
+      this.fill({ ...estimate, domainRange: this.domainAxis.range, sorted: this.sorted, columns: this.columns })[this.secondColumn] ??
+      NO_EXTENT;
     this.valueAxis.contribute(ext.min, ext.max);
     this.reachBeyondBars(ext);
     this.contributeChannels();
@@ -647,7 +656,7 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
 
   /** Engine protocol for a `Stack`: read the data (the first half of `load`) and give the rows, leaving the extents to the stack. */
   prepare(estimate: Size): Rows {
-    this.fill({ ...estimate, domainRange: this.domainAxis.range, columns: this.columns });
+    this.fill({ ...estimate, domainRange: this.domainAxis.range, sorted: this.sorted, columns: this.columns });
     return this.ownRows();
   }
   /** Engine protocol for a `Stack`: the rest of `load`, with the value extent the stack worked out for its stacked values. */
@@ -676,8 +685,8 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
 
 export interface XYSeriesAttributes<Channel extends string = string> extends SeriesAttributes {
   /**
-   * The channel of the source that is x. Default 'x', which a `FlatDataSource` of x,y pairs offers by itself. The source's
-   * domain is only the order the points are drawn in. The type checker confirms the source offers the channel when its
+   * The channel of the source that is x. Default 'x', which a `FlatDataSource` of x,y pairs offers by itself. The points are
+   * drawn in the order the source stores them, not sorted by x, unless x is `'domain'`. The type checker confirms the source offers the channel when its
    * channels are spelled out. `'domain'` is the source's own domain column (what a transform that makes a sequence of
    * positions, like a trendline or a density, writes its x to).
    */
@@ -693,9 +702,10 @@ export interface XYSeriesAttributes<Channel extends string = string> extends Ser
 /**
  * Two values per point, one on each axis, joined in the order the source holds them: a scatter, a trajectory, a loop.
  *
- * The source's domain is only the sequence (leave `domain` out and it is the row's index). x and y are channels, named by
+ * The points come in the order the source stores them (leave `domain` out and it is the row's index), not sorted by x; with
+ * `x: 'domain'` they are asked for ascending along it, as a `DomainSeries` does. x and y are channels, named by
  * the `x` and `y` attributes (default 'x' and 'y'; a `FlatDataSource` of x,y pairs has both without being told). Because
- * order is all the domain means:
+ * order is all there is to go by:
  *  - every point is always read, whatever the view: there is nothing to window by;
  *  - a `Decimator` refuses it, since kernels thin by pixel column of the domain; draw it undecimated (markers already
  *    leave out what is off the plot);
@@ -737,7 +747,7 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   resolveDomain(): void {}
 
   load(estimate: Size): void {
-    const ext = this.fill({ ...estimate, domainRange: { min: -Infinity, max: Infinity }, sequence: true, columns: this.columns });
+    const ext = this.fill({ ...estimate, domainRange: { min: -Infinity, max: Infinity }, sorted: this.sorted, columns: this.columns });
     const x = ext[this.firstColumn] ?? NO_EXTENT,
       y = ext[this.secondColumn] ?? NO_EXTENT;
     this.xAxis.contribute(x.min, x.max);

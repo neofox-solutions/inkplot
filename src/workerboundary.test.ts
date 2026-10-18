@@ -39,6 +39,7 @@ const context = (min = 0, max = 1e5, width = W): PlanContext => ({
   width,
   height: H,
   domainRange: { min, max },
+  sorted: true,
   columns: ['domain', 'value'],
 });
 

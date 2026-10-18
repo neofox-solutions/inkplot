@@ -88,7 +88,7 @@ export class BoxStats extends KeyedTransform<BoxStatsAttributes, [source: DataNo
   #compute(): Computed {
     if (this.#cache && this.#cache.version === this.#version) return this.#cache.value;
     const src = this.source,
-      plan = src.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, columns: ['domain', 'value'] });
+      plan = src.plan({ width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, sorted: true, columns: ['domain', 'value'] });
     const buf = new Float64Array(plan.capacity * 2),
       { count } = plan.fill(buf);
     const a = this.attrs,

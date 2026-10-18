@@ -15,7 +15,7 @@ import {
 import { test } from 'vite-plus/test';
 
 test('data', () => {
-  const ctx: PlanContext = { width: 600, height: 300, domainRange: { min: 0, max: 100 }, columns: ['domain', 'value'] };
+  const ctx: PlanContext = { width: 600, height: 300, domainRange: { min: 0, max: 100 }, sorted: true, columns: ['domain', 'value'] };
   const points = (src: FlatDataSource | ObjectDataSource | CompositeDataSource | SyntheticDataSource): number[] => {
     const plan = src.plan(ctx),
       out = new Float64Array(plan.capacity * 2),

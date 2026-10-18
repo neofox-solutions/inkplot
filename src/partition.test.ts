@@ -84,7 +84,7 @@ function check(keysList: number[], sparse: number, tableOnly: boolean) {
       const sharedPart = partitionOf(shared.source as FlatDataSource, 'k', 'first', 100)!;
       for (const range of ranges) {
         for (const width of [120, 600]) {
-          const ctx = { width, height: 100, domainRange: range, columns: ['domain', 'value'] };
+          const ctx = { width, height: 100, domainRange: range, sorted: true, columns: ['domain', 'value'] };
           const keyed = reuse ? shared : new Decimator({}, kernel(), make());
           const part = reuse ? sharedPart : partitionOf(keyed.source as FlatDataSource, 'k', 'first', 100)!;
           const plan = planPartitioned(keyed, ctx, part);

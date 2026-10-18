@@ -170,6 +170,7 @@ test('trend', () => {
       width: 300,
       height: 100,
       domainRange: { min: 5, max: 10 },
+      sorted: true,
       columns: ['domain', 'value'],
     });
     assert.equal(wide.capacity, 300);

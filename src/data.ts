@@ -49,11 +49,11 @@ export interface PlanContext {
    */
   readonly columns: readonly string[];
   /**
-   * True when the domain is only the order of the points, as in an XY plot where a path wanders across the plane, and
-   * not a position on an axis. Nothing may window or thin such points by pixel column, so a `Decimator` refuses them.
-   * Default false.
+   * True when the points are wanted ascending along the first requested column, which is the domain (`'domain'`): a series
+   * along a domain asks so. False when the order is the data's own, as in an XY plot where a path wanders across the plane,
+   * and the points come as they are stored. A `Decimator` needs ascending points, so it refuses the others.
    */
-  readonly sequence?: boolean;
+  readonly sorted: boolean;
 }
 /**
  * `extents` has one entry per column: the domain, the value, then each channel.
@@ -172,7 +172,9 @@ export const isValueName = (name: string): boolean => name === 'value' || name =
  */
 export function expectDomainValue(context: PlanContext, who: string): void {
   const [first, second] = context.columns;
-  if (first === 'domain' && second === 'value') return;
+  if (first === 'domain' && second === 'value' && context.sorted) return;
+  if (first === 'domain' && second === 'value')
+    fail(`${who} needs the points ascending in the domain, but they were asked for in the order they are stored`);
   fail(
     `Expected 'domain' and 'value' as the first requested channels but got ${[first, second].map((n) => (n === undefined ? 'nothing' : `'${n}'`)).join(' and ')}; ${who} must be attached to a DomainSeries or compatible`,
   );
@@ -181,7 +183,13 @@ export function expectDomainValue(context: PlanContext, who: string): void {
 export const distinct = (names: readonly string[]): string[] => names.filter((n, i) => names.indexOf(n) === i);
 
 /** What a source's loader is given: nothing about the plot, since loading from storage does not depend on it. */
-const LOAD_CONTEXT: PlanContext = { width: 0, height: 0, domainRange: { min: -Infinity, max: Infinity }, columns: ['domain', 'value'] };
+const LOAD_CONTEXT: PlanContext = {
+  width: 0,
+  height: 0,
+  domainRange: { min: -Infinity, max: Infinity },
+  columns: ['domain', 'value'],
+  sorted: false,
+};
 
 /** A source's own sorted copy of its points, valid for one `version`. `extents` has one entry per column. */
 interface ManagedPoints {
@@ -442,8 +450,8 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
         if (y > max) max = y;
       }
     } else {
-      const plan = this.plan({ ...LOAD_CONTEXT, columns: ['value'] }),
-        extent = plan.fill(new Float64Array(plan.capacity)).extents[0];
+      const plan = this.plan({ ...LOAD_CONTEXT, sorted: true }),
+        extent = plan.fill(new Float64Array(2 * plan.capacity)).extents[1];
       if (extent) {
         min = extent.min;
         max = extent.max;
@@ -460,8 +468,10 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
     if (!c || c.version !== this.version) c = this.channelCache = { version: this.version, byName: new Map() };
     const known = c.byName.get(name);
     if (known !== undefined) return known;
-    const plan = this.plan({ ...LOAD_CONTEXT, columns: [name] }),
-      column = plan.fill(new Float64Array(plan.capacity)).extents[0];
+    // Asked with the domain, sorted: the rows that count are the ones a series would draw (no NaN domains).
+    const columns = distinct(['domain', name]),
+      plan = this.plan({ ...LOAD_CONTEXT, columns, sorted: true }),
+      column = plan.fill(new Float64Array(columns.length * plan.capacity)).extents[columns.indexOf(name)];
     const extent = column && column.min <= column.max ? column : null;
     c.byName.set(name, extent);
     return extent;
@@ -469,10 +479,16 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
 
   /**
    * In place: fill straight from storage in the requested column order. Managed: copy the sorted buffer, repacking rows
-   * only when the series wants a different selection of channels than the source stores.
+   * only when the series wants a different selection of channels than the source stores. Not `sorted` (and not wrapped): always straight
+   * from storage, in the order it is stored.
    */
   plan(context: PlanContext): FillPlan {
-    if (this.inPlace) {
+    if (context.sorted && this.attrs.isSorted === true && context.columns[0] !== 'domain')
+      fail(
+        `the data says it is sorted along the domain (isSorted), but the first column asked of it is "${context.columns[0]}", not "domain": the series and the layout of the data disagree`,
+      );
+    // A wrapped source is closed along its domain, so it is always the sorted copy that is read.
+    if (this.inPlace || (!context.sorted && this.attrs.wrap === undefined)) {
       const n = this.pointCount;
       return {
         capacity: n,

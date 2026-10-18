@@ -23,6 +23,7 @@ const ctx = (channels: string[] = [], width = 64): PlanContext => ({
   width,
   height: 10,
   domainRange: { min: -1e9, max: 1e9 },
+  sorted: true,
   columns: ['domain', 'value', ...channels],
 });
 const full = (plan: FillPlan, stride: number) => {

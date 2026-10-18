@@ -127,7 +127,7 @@ export function createHost(registry: ElementRegistry, options: HostOptions = {})
             height: message.height,
             domainRange: message.domainRange,
             columns: message.columns,
-            sequence: message.sequence,
+            sorted: message.sorted,
           };
           if (message.byKey) {
             const part = entry.partition ?? fail('a fill by key needs the boundary to have been given a partition'),

@@ -22,7 +22,7 @@ test('slice', () => {
   const ys = Float64Array.from({ length: N }, (_, i) => (i % 100 === 0 ? 50 : Math.sin(i / 10)));
   const flat = () => new FlatDataSource({ data: ys, regularDomain: { start: 0, step: 1 }, count: N });
   const read = (s: Slice) => {
-    const plan = s.plan({ width: 100, height: 50, domainRange: { min: 0, max: N }, columns: ['domain', 'value'] });
+    const plan = s.plan({ width: 100, height: 50, domainRange: { min: 0, max: N }, sorted: true, columns: ['domain', 'value'] });
     const out = new Float64Array(plan.capacity * 2);
     const r = plan.fill(out);
     return { out, r };

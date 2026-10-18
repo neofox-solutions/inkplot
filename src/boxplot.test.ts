@@ -76,6 +76,7 @@ test('boxplot', () => {
       width: 0,
       height: 0,
       domainRange: { min: -Infinity, max: Infinity },
+      sorted: true,
       columns: ['domain', 'value', 'min', 'q1', 'median', 'q3', 'max', 'mean', 'sd', 'n'],
     });
     const out = new Float64Array(3 * 10),
@@ -112,7 +113,14 @@ test('boxplot', () => {
     chartOf([inc, new BoxPath({})]);
     assert.notEqual(ex.channelExtent('q1')?.min, inc.channelExtent('q1')?.min, 'the rules differ');
     assert.throws(
-      () => new BoxStats({}, source()).plan({ width: 0, height: 0, domainRange: { min: 0, max: 1 }, columns: ['domain', 'value', 'nope'] }),
+      () =>
+        new BoxStats({}, source()).plan({
+          width: 0,
+          height: 0,
+          domainRange: { min: 0, max: 1 },
+          sorted: true,
+          columns: ['domain', 'value', 'nope'],
+        }),
       /no channel "nope"/,
     );
   }

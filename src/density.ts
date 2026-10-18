@@ -145,6 +145,7 @@ export class Density extends KeyedTransform<DensityAttributes, [source: DataNode
       width: 0,
       height: 0,
       domainRange: { min: -Infinity, max: Infinity },
+      sorted: true,
       columns: ['domain', 'value', ...names],
     });
     const stride = 2 + names.length,

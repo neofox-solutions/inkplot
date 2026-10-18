@@ -37,10 +37,10 @@ The source delivers ascending in the domain and only the visible part is read, s
 
 ### `XYSeries`
 
-x and y are **channels** of the source, named by the `x` and `y` attributes (default `'x'` and `'y'`, so a source that calls its columns that needs no attributes at all). The source's domain is only the order points are drawn in (leave `domain` out and it is the row's index). The source's own columns are always there too, as the channels `'domain'` and `'value'`: that is how a transform's output (a `Density`, a trendline) is read. Because order is all the domain means:
+x and y are **channels** of the source, named by the `x` and `y` attributes (default `'x'` and `'y'`, so a source that calls its columns that needs no attributes at all). The points are drawn in the order the source stores them, whatever x is: a path wanders, and nothing sorts it (leave `domain` out and the order is the row's index). The source's own columns are always there too, as the channels `'domain'` and `'value'`: that is how a transform's output (a `Density`, a trendline) is read. Name the domain as x (`x="domain"`) and the points are asked for ascending along it instead, as a `DomainSeries` asks, which is what you want when the x values are the domain and should be sorted. Because the order is all there is to go by:
 
 - every point is always read, whatever the view: there is nothing to window by;
-- a `Decimator` refuses it;
+- a `Decimator` refuses it (it needs `domain` and `value` first, ascending: the `DomainSeries` kind);
 - an axis fits *all* the data, and zooming one axis does not refit the other to the points in view.
 
 ```tsx live title="A trajectory: an XY series joined in order" height=300

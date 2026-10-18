@@ -90,6 +90,7 @@ export function partitionOf(source: DataSource, channel: string, order: Order, m
       width: 1,
       height: 1,
       domainRange: { min: -Infinity, max: Infinity },
+      sorted: true,
       columns: ['domain', 'value', ...names],
     });
     const buffer = new Float64Array(plan.capacity * stride);

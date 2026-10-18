@@ -58,7 +58,7 @@ export default () => (
 );
 ```
 
-> **Note.** For an `XYSeries` x and y are channels (here the first two columns), and the domain is only the order the points are drawn in. With no `domainOffset`, a flat source takes column 0 as the domain too, which sorts the points by it. A flat source of plain pairs (`stride={2}`, no `channels`) offers its two numbers as `x` and `y` by itself; add `regularDomain` and they stay in the order of the array. For a path that must stay in the order you gave (a trajectory), see [Series and renderers](series.md#xyseries).
+> **Note.** For an `XYSeries` x and y are channels (here the first two columns), and the domain is only the order the points are drawn in. With no `domainOffset`, a flat source takes column 0 as the domain too, but an `XYSeries` does not sort by it: it draws the rows in the order they are stored. A flat source of plain pairs (`stride={2}`, no `channels`) offers its two numbers as `x` and `y` by itself; add `regularDomain` and they stay in the order of the array. For a path that must stay in the order you gave (a trajectory), see [Series and renderers](series.md#xyseries).
 
 ## `ObjectDataSource`
 
@@ -168,7 +168,7 @@ Click the legend entries to compare. The stride kernel loses most of the spikes;
 
 Things to know:
 
-- **An `XYSeries` refuses a decimator.** Kernels thin by pixel column of the domain, which means nothing when the domain is only the order of a path. Markers already leave out what is off the plot.
+- **An `XYSeries` refuses a decimator** (`Expected 'domain' and 'value' as the first requested channels…`). Kernels thin by pixel column of the domain, which means nothing when the points are only in the order of a path. Markers already leave out what is off the plot.
 - **A decimator's points are made up** (the extremes of a column are not a row), so a hit on one can be shown but not edited (the hit has no `row`).
 - **In a stack, decimate the sources before the stack**, not per series: decimation is per series and would thin each differently, so rows would no longer line up (`Stack` has `align` for that).
 - **Sources that are not sorted** still work under a decimator; they are sorted once into a copy. Set `isSorted` on data you know is ordered and it is read in place.

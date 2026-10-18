@@ -124,8 +124,8 @@ test('series', () => {
     near(series.points.data[0]!, 0.1 * plane.rect.width);
     near(series.points.data[3]!, 0.6 * plane.rect.height);
     near(series.points.data[4]!, 0.5 * plane.rect.width);
-    // With a stored domain the pairs are in order of x, as a line is.
-    const sorted = new XYSeries({}, new FlatDataSource({ data: new Float64Array([1, 2, 9, 4, 5, 8]) }));
+    // Pairs not flagged as sorted keep the order they are stored in, whatever x is; asking for the domain as x sorts by it.
+    const sorted = new XYSeries({ x: 'domain', y: 'value' }, new FlatDataSource({ data: new Float64Array([9, 4, 1, 2, 5, 8]) }));
     const plane2 = new CartesianPlane(
       {},
       new Axis({ orientation: 'bottom', min: 0, max: 10 }, lin()),
@@ -134,6 +134,16 @@ test('series', () => {
     );
     render(plane2);
     near(sorted.points.data[2]!, 0.5 * plane2.rect.width);
+    const stored = new XYSeries({}, new FlatDataSource({ data: new Float64Array([9, 4, 1, 2, 5, 8]) }));
+    const plane3 = new CartesianPlane(
+      {},
+      new Axis({ orientation: 'bottom', min: 0, max: 10 }, lin()),
+      new Axis({ orientation: 'left', min: 0, max: 10 }, lin()),
+      stored,
+    );
+    render(plane3);
+    near(stored.points.data[0]!, 0.9 * plane3.rect.width);
+    near(stored.points.data[2]!, 0.1 * plane3.rect.width);
   }
 
   // ── Wrap closes a loop: the first point once more, one period on.
@@ -191,7 +201,7 @@ test('series', () => {
     const x = new Axis({ orientation: 'bottom' }, lin()),
       y = new Axis({ orientation: 'left' }, lin());
     const series = new XYSeries({ x: 'x' }, new Decimator({}, new MinMaxKernel(), source()), new LinePath(new LinearCurve()));
-    assert.throws(() => render(new CartesianPlane({}, x, y, series)), /position on an axis/);
+    assert.throws(() => render(new CartesianPlane({}, x, y, series)), /must be attached to a DomainSeries or compatible/);
     // The same decimator is fine on a domain series.
     const ok = new DomainSeries(
       new Decimator({}, new MinMaxKernel(), new ObjectDataSource({ source: rows, domain: 'x', value: 'y' })),

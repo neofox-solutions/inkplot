@@ -236,7 +236,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
       throw e;
     }
     this.#sync();
-    const key = `${this.#epoch}|${byKey ? 'k' : 'p'}|${context.width}|${context.domainRange.min},${context.domainRange.max}|${context.columns.join(',')}|${context.sequence ? 1 : 0}`;
+    const key = `${this.#epoch}|${byKey ? 'k' : 'p'}|${context.width}|${context.domainRange.min},${context.domainRange.max}|${context.columns.join(',')}|${context.sorted ? 1 : 0}`;
     if (key !== this.#wanted) {
       this.#wanted = key;
       const request: Request = { key, context, byKey };
@@ -394,7 +394,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
         height: c.height,
         domainRange: c.domainRange,
         columns: [...c.columns],
-        sequence: c.sequence ?? false,
+        sorted: c.sorted,
         byKey: request.byKey,
         recycle,
       },

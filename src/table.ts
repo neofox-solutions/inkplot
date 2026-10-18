@@ -42,6 +42,7 @@ export function readTable(node: DataNode, options: TableOptions = {}): Table {
     width: options.samples ?? 0,
     height: 0,
     domainRange: options.domain ?? { min: -Infinity, max: Infinity },
+    sorted: true,
     columns: ['domain', 'value', ...channels],
   };
   const plan: FillPlan = node.plan(context),

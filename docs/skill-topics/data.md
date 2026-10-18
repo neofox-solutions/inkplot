@@ -7,7 +7,7 @@ Read `SKILL.md` first (rules, template, and the attributes of `Chart`, `Cartesia
 ## Large data, and a live update
 
 
-`Decimator` takes a **kernel first, then the source**, and goes where the source would. It cannot carry channels or sit on an `XYSeries`.
+`Decimator` takes a **kernel first, then the source**, and goes where the source would. It cannot carry channels (other than `domain` and `value`) or sit on an `XYSeries`.
 
 ```tsx check title="A million points, then updates"
 /** @jsxImportSource inkplot */
