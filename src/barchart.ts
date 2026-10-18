@@ -23,7 +23,7 @@ export interface BarChartOptions extends ChartShortcutOptions {
   /** Bars that run sideways: the categories go up the left and the values along the bottom. Default false. */
   horizontal?: boolean;
   /** The fraction of each band left empty between neighbours, 0..1. Default 0.2. */
-  gap?: number;
+  bandGap?: number;
   /** Attributes of the axis the categories run along (a `title`, …). */
   domainAxis?: AxisAttributes;
   /** Attributes of the axis the bars' length is read on. */
@@ -35,12 +35,12 @@ export interface BarChartOptions extends ChartShortcutOptions {
 
 /** A bar chart: one bar for each category per series (a source, or `{ source, name, color }`). Give `categories`, or a `domainScale`. */
 export function barChart(series: SeriesInput | readonly SeriesInput[], options: BarChartOptions): Chart {
-  const { categories, stack, horizontal, gap, domainAxis, valueAxis, domainScale, valueScale, extras, ...chartAttributes } = options;
+  const { categories, stack, horizontal, bandGap, domainAxis, valueAxis, domainScale, valueScale, extras, ...chartAttributes } = options;
   if (!domainScale && !categories) throw new Error('barChart: give the `categories` (one label for each bar), or a `domainScale`');
   // No sides given: the plane puts the first axis below and the second beside the plot (mirrored for a chart that reads right to left).
   const d = new Axis(
     { id: 'domain', ...domainAxis },
-    domainScale ?? new BandScale({ categories: categories ?? [], ...(gap !== undefined && { gap }) }),
+    domainScale ?? new BandScale({ categories: categories ?? [], ...(bandGap !== undefined && { bandGap }) }),
   );
   const v = new Axis({ id: 'value', ...valueAxis }, valueScale ?? new LinearScale());
   const list = isMany(series) ? series : [series];

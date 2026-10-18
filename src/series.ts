@@ -50,7 +50,7 @@ export interface SeriesAttributes extends BaseAttributes {
    * the axis reaches it). Markers and bars draw nothing at a gap whichever; and the readings of a tooltip and a drag
    * stay the data's own. In a `Stack`, 'zero' is not applied: a gap there leaves its layer out.
    */
-  gaps?: 'break' | 'connect' | 'zero';
+  missing?: 'break' | 'connect' | 'zero';
 }
 /**
  * Where a `Stack` puts one of its series: the value each row starts from and the one it is plotted at, in the value
@@ -157,7 +157,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
 
   /** Whether a missing value is drawn as 0 (not in a stack, which has its own say). */
   get #zero(): boolean {
-    return this.attrs.gaps === 'zero' && this.#layer === null;
+    return this.attrs.missing === 'zero' && this.#layer === null;
   }
   /** The plane this series is drawn on, which is its parent unless a stack sits between them. */
   get plane(): Plane {

@@ -61,7 +61,7 @@ test('scale', () => {
 
   // ── Band: categories fix the range; ticks are the categories; labels are their names.
   {
-    const s = new BandScale({ categories: ['a', 'b', 'c', 'd'], gap: 0.5 });
+    const s = new BandScale({ categories: ['a', 'b', 'c', 'd'], bandGap: 0.5 });
     assert.deepEqual(s.constrain(), { min: -0.5, max: 3.5 });
     near(norm(s, [0], s.constrain())[0]!, 0.125);
     near(norm(s, [3], s.constrain())[0]!, 0.875);

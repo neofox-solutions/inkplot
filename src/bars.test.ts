@@ -80,7 +80,7 @@ test('bars', () => {
       mount(
         new CartesianPlane(
           {},
-          new Axis({ orientation: 'bottom' }, new BandScale({ categories: cats, gap: 0.4 })),
+          new Axis({ orientation: 'bottom' }, new BandScale({ categories: cats, bandGap: 0.4 })),
           new Axis({ orientation: 'left' }, new LinearScale()),
           s,
         ),
@@ -255,7 +255,7 @@ test('bars', () => {
     mount(
       new CartesianPlane(
         {},
-        new Axis({ orientation: 'bottom' }, new BandScale({ categories: ['p', 'q'], gap: 0.4 })),
+        new Axis({ orientation: 'bottom' }, new BandScale({ categories: ['p', 'q'], bandGap: 0.4 })),
         new Axis({ orientation: 'left' }, new LinearScale()),
         new Stack({}, a, b),
       ),
@@ -269,7 +269,7 @@ test('bars', () => {
     mount(
       new CartesianPlane(
         {},
-        new Axis({ orientation: 'bottom' }, new BandScale({ categories: ['p', 'q'], gap: 0.4 })),
+        new Axis({ orientation: 'bottom' }, new BandScale({ categories: ['p', 'q'], bandGap: 0.4 })),
         new Axis({ orientation: 'left' }, new LinearScale()),
         new Stack({ mode: 'group' }, c, e),
       ),

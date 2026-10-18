@@ -68,7 +68,7 @@ A scale and range the charts of a group share; each chart draws it with a Shared
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
@@ -97,7 +97,7 @@ An axis that draws a SharedRange of the group, with the same attributes as Axis 
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
@@ -305,7 +305,7 @@ Positions data along one side of a plane, with ticks and labels.
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
@@ -330,7 +330,7 @@ Maps data to colours.
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
@@ -354,7 +354,7 @@ Maps data to sizes or other numbers.
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
@@ -431,7 +431,7 @@ Categories in equal bands.
 | Attribute | Type | |
 |---|---|---|
 | `categories` (required) | `readonly string[]` | Category labels in order; the domain values are indexes into this list. |
-| `gap` | `number` | Fraction of each band left empty between neighbours, 0..1. Default 0.2. |
+| `bandGap` | `number` | Fraction of each band left empty between neighbours, 0..1. Default 0.2. |
 
 ## IntlTimeScale
 
@@ -472,7 +472,7 @@ A value at each position along a domain.
 | `valueAxis` | `ElementRef<Axis>` | Default: the plane's second axis (the vertical one, the radius). |
 | `name` | `string` | What the series is called where it is named: a tooltip's heading. |
 | `hit` | `false \| HitMode \| HitOptions` | How pointer hits find this series: a mode name, options, or `false` for a series that should never be hit (a selection overlay, a reference line). |
-| `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value (NaN, or infinite) means. 'break' (default): nothing is there, so a line stops and starts again and an area splits. 'connect': the line goes straight across to the next value there is. 'zero': the value is 0 (and the axis reaches it). |
+| `missing` | `'break' \| 'connect' \| 'zero'` | What a missing value (NaN, or infinite) means. 'break' (default): nothing is there, so a line stops and starts again and an area splits. 'connect': the line goes straight across to the next value there is. 'zero': the value is 0 (and the axis reaches it). |
 
 ## XYSeries
 
@@ -488,7 +488,7 @@ Points with x and y both from the data.
 | `yAxis` | `ElementRef<Axis>` | Default: the plane's second axis (the vertical one). |
 | `name` | `string` | What the series is called where it is named: a tooltip's heading. |
 | `hit` | `false \| HitMode \| HitOptions` | How pointer hits find this series: a mode name, options, or `false` for a series that should never be hit (a selection overlay, a reference line). |
-| `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value (NaN, or infinite) means. 'break' (default): nothing is there, so a line stops and starts again and an area splits. 'connect': the line goes straight across to the next value there is. 'zero': the value is 0 (and the axis reaches it). |
+| `missing` | `'break' \| 'connect' \| 'zero'` | What a missing value (NaN, or infinite) means. 'break' (default): nothing is there, so a line stops and starts again and an area splits. 'connect': the line goes straight across to the next value there is. 'zero': the value is 0 (and the axis reaches it). |
 
 ## Stack
 
@@ -517,7 +517,7 @@ One series for each value of a channel of the data, each drawn with a copy of th
 | `y` | `string` | The channel that is y, for `XYSeries`. Default 'y'. |
 | `xAxis` | `ElementRef<Axis>` |  |
 | `yAxis` | `ElementRef<Axis>` |  |
-| `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
+| `missing` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
 | `bind` | `Readonly<Record<string, GroupBinding>>` | An attribute of the renderers of every series, from the key: `{ stroke: { axis: 'heat' }, opacity: { map: (key) => key > year ? 0.2 : 1 } }`. |
 | `order` | `'first' \| 'sorted' \| ((a: number, b: number) => number)` | The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. |
 | `maxGroups` | `number` | The most series made; more keys than this are left out (`omitted` says how many). Default 100. |
@@ -836,7 +836,7 @@ Box and whisker from min, q1, median, q3, max channels.
 | `median` | `string` | The channel of the median. Default: the series' own value, which is what a data source's `value` names. |
 | `q3` | `string` | The channel of the third quartile (the top of the box). Default 'q3'. |
 | `high` | `string` | The channel of the upper whisker's end. Default 'max'. |
-| `capWidth` | `number` | Width of the cap on each whisker, as a fraction of the box's width; 0 for none. Default 0.5. |
+| `capFraction` | `number` | Width of the cap on each whisker, as a fraction of the box's width; 0 for none. Default 0.5. |
 
 ## BoxStats
 
@@ -1162,7 +1162,7 @@ Drag, wheel, pinch, touch and keys change the view.
 | Attribute | Type | |
 |---|---|---|
 | `axes` | `readonly ElementRef<Axis>[]` | The axes it may move, as elements or ids. Default: all of the plane's that can be dragged along: not the rim of a polar or radar plane. |
-| `direction` | `'both' \| 'horizontal' \| 'vertical'` | Which way things may move. Default 'both'. |
+| `along` | `'xy' \| 'x' \| 'y'` | Which axes move: 'xy' (all, the default), 'x' (the horizontal ones only) or 'y' (the vertical ones only). |
 | `pan` | `boolean` | Drag with the primary button to pan. Default true. |
 | `zoom` | `boolean` | Turn the wheel to zoom about the pointer. Default true. |
 | `limit` | `boolean` | Keep the view inside the natural range of each axis, so there is no panning off the data or zooming out past it. Default true. |
@@ -1186,7 +1186,7 @@ Drag a box (Shift by default) to zoom to it. Before PanZoom.
 |---|---|---|
 | `axes` | `readonly ElementRef<Axis>[]` | The axes it may zoom, as elements or ids. Default: all of the plane's that can be followed along (not the rim of a polar plane). |
 | `activate` | `'shift' \| 'always'` | When a drag makes a box: with Shift held (the default), so a plain drag can pan, or always. |
-| `mode` | `'xy' \| 'x' \| 'y' \| 'auto'` | Which axes the box zooms. Default 'xy'. |
+| `along` | `'xy' \| 'x' \| 'y' \| 'auto'` | Which axes the box zooms. Default 'xy'. |
 | `minSize` | `number` | Smallest side of a box, in pixels, along an axis it zooms; below that the box does nothing. Default 8. |
 | `onZoom` | `(box: { x: number; y: number; width: number; height: …` | Called after a zoom, with the box in plot pixels. |
 
@@ -1200,7 +1200,7 @@ Drag a range to select it and report it with onBrush; the selection stays drawn.
 |---|---|---|
 | `axes` | `readonly ElementRef<Axis>[]` | The axes it may cover, as elements or ids. Default: all of the plane's that can be followed along. |
 | `activate` | `'shift' \| 'always'` | When a drag brushes: always (the default) or with Shift held, to leave a plain drag to `PanZoom`. |
-| `mode` | `'xy' \| 'x' \| 'y'` | Which axes it covers. Default 'xy'. |
+| `along` | `'xy' \| 'x' \| 'y'` | Which axes it covers. Default 'xy'. |
 | `minSize` | `number` | Smallest side of a brush, in pixels, along an axis it covers; below that a drag only clears. Default 4. |
 | `live` | `boolean` | Call `onBrush` while dragging too. Default false. |
 | `onBrush` | `(selection: BrushSelection \| null) => void` | Called with the selection, or null when it is cleared. |

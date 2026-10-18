@@ -93,7 +93,7 @@ export default () => (
 
 Notes:
 
-- **A gap** in the data arrives as a `NaN` placed point. Lift the pen at it; `series.attrs.gaps === 'connect'` asks you to cross it instead. `polyline(points, connect)` and `areaOutline(top, base, connect)` are the library's straight-line helpers to start from.
+- **A gap** in the data arrives as a `NaN` placed point. Lift the pen at it; `series.attrs.missing === 'connect'` asks you to cross it instead. `polyline(points, connect)` and `areaOutline(top, base, connect)` are the library's straight-line helpers to start from.
 - **Hit testing.** A curve whose path is not straight lines through the points should also implement `trace(series, baseline)`, returning the path it draws as vertices, with the series point each belongs to (`Trace`). Pointer hits and tooltip readings are then measured against what is on screen. The right-angle curve above would do this to be exact; without it, hits follow the straight lines through the points.
 - **Many curves share the work**: `curves.ts` has `StrokeCurve`, where you say only what pieces a run of points is made of, and gets the lines, areas, gaps and traces.
 - Area under a curve needs `area`, which must produce a shape that closes back along the baseline: `series.baseline(value)` gives the baseline points placed like the data.

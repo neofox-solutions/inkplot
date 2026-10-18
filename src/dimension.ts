@@ -5,7 +5,7 @@
  *   1. The plane calls `begin()` on each dimension to forget last layout's data.
  *   2. Each series `contribute()`s the extent it will draw (for the value axis, only the part inside the view).
  *   3. The plane calls `resolve()`, which fixes the range once: a pan/zoom `view` wins, otherwise `fit()` applies the
- *      attributes (`min`/`max`/`include`/`padding`/`nice`) to what was contributed.
+ *      attributes (`min`/`max`/`include`/`rangePadding`/`nice`) to what was contributed.
  * After `resolve()` further contributions are ignored, which is what lets a series' domain window depend on the domain
  * dimension's resolved range while still being allowed to contribute to the value dimension afterwards.
  */
@@ -29,7 +29,7 @@ export interface DimensionAttributes extends BaseAttributes {
   /** Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. */
   include?: readonly number[];
   /** Extra room at both ends as a fraction of the data's span. */
-  padding?: number;
+  rangePadding?: number;
   /** Round the ends outwards to tidy tick values. Recommended with a RadarPlane, whose spokes come from the ticks. */
   nice?: boolean;
   /** Run from max to min along the axis. */
@@ -81,6 +81,7 @@ export abstract class Dimension<
     tickCount: NUMBER,
     tickStep: NUMBER,
     locale: STRING,
+    rangePadding: NUMBER,
     onViewChange: AUTO,
   } satisfies AttrTypesFor<DimensionAttributes>;
 
@@ -152,7 +153,7 @@ export abstract class Dimension<
   }
 
   /**
-   * The range these data extents ask for once the attributes have had their say: `include`, `padding`, fixed
+   * The range these data extents ask for once the attributes have had their say: `include`, `rangePadding`, fixed
    * `min` and `max`, what the scale can represent, and tidy ends. With nothing to fit it is 0 to 1.
    */
   fit(lo: number, hi: number): Extent {
@@ -168,9 +169,9 @@ export abstract class Dimension<
       hi = 1;
     }
     const span = hi - lo;
-    if (a.padding && span > 0) {
-      lo -= span * a.padding;
-      hi += span * a.padding;
+    if (a.rangePadding && span > 0) {
+      lo -= span * a.rangePadding;
+      hi += span * a.rangePadding;
     }
     let r: Extent = { min: a.min ?? lo, max: a.max ?? hi };
     // A flat line has zero span; open it up so the scale has something to divide by.

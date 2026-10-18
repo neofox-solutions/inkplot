@@ -110,7 +110,7 @@ Points with x and y both from the data.
 | `yAxis` | `ElementRef<Axis>` | Default: the plane's second axis (the vertical one). |
 | `name` | `string` | What the series is called where it is named: a tooltip's heading. |
 | `hit` | `false \| HitMode \| HitOptions` | How pointer hits find this series: a mode name, options, or `false` for a series that should never be hit (a selection overlay, a reference line). |
-| `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value (NaN, or infinite) means. 'break' (default): nothing is there, so a line stops and starts again and an area splits. 'connect': the line goes straight across to the next value there is. 'zero': the value is 0 (and the axis reaches it). |
+| `missing` | `'break' \| 'connect' \| 'zero'` | What a missing value (NaN, or infinite) means. 'break' (default): nothing is there, so a line stops and starts again and an area splits. 'connect': the line goes straight across to the next value there is. 'zero': the value is 0 (and the axis reaches it). |
 
 ### GradientLinePath
 
@@ -245,7 +245,7 @@ Maps data to colours.
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
@@ -269,7 +269,7 @@ Maps data to sizes or other numbers.
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |

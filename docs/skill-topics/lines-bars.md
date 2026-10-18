@@ -30,15 +30,15 @@ Stacked or side by side: wrap several `DomainSeries` in `<Stack mode="stack">` (
 ## Notes
 
 - `Stack` `mode`: `'stack'`, `'group'`, `'normalize'`, `'center'`.
-- `BarPath` bars start at `baseline` (default 0, and the axis includes it); the tallest bar touches the top of the plot, so add `padding={0.05}` (a fraction of the span) to the value `Axis` for headroom.
+- `BarPath` bars start at `baseline` (default 0, and the axis includes it); the tallest bar touches the top of the plot, so add `rangePadding={0.05}` (a fraction of the span) to the value `Axis` for headroom.
 - Floating bars (a waterfall's steps, a candlestick's body and wick): put each bar's start in a data channel and name it with `from="start"` on `BarPath` or `StemPath`; the series' value is the end. Draw one series per colour (a row of another kind has `NaN` for its value), a `StepCurve` line under the bars for connectors, and a `StemPath` from `low` to `high` under `BarPath` bodies from `open` to `close` for a candlestick. Colour bars by data with `bind={{ fill: { channel: 'kind', map: (v) => … } }}` (a function of a channel; `StemPath` binds `stroke`), so up and down need no separate series. Both are worked in the recipes page.
 - Curves: `LinearCurve`, `MonotoneCurve`, `StepCurve`, `NaturalCurve`, `CardinalCurve`, `CatmullRomCurve`, `BasisCurve`, `BumpCurve`, `QuadraticCurve`, `ArcCurve`.
-- `hit` on a series: `'point'`, `'line'`, `'area'`, `'shape'` or `false`. `gaps`: `'break'` (default), `'connect'`, `'zero'`.
+- `hit` on a series: `'point'`, `'line'`, `'area'`, `'shape'` or `false`. `missing`: `'break'` (default), `'connect'`, `'zero'`.
 
 | To… | Use |
 |---|---|
 | Smooth lines | `<LinePath><MonotoneCurve /></LinePath>`; steps: `<StepCurve mode="after" />` |
-| Series gaps | `NaN` values are gaps; `gaps="connect"` on the series to cross them |
+| Series gaps | `NaN` values are gaps; `missing="connect"` on the series to cross them |
 | Hide a series | `series.setAttribute('visible', false)` |
 
 ## Attributes of this topic's elements
@@ -73,7 +73,7 @@ One series for each value of a channel of the data, each drawn with a copy of th
 | `y` | `string` | The channel that is y, for `XYSeries`. Default 'y'. |
 | `xAxis` | `ElementRef<Axis>` |  |
 | `yAxis` | `ElementRef<Axis>` |  |
-| `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
+| `missing` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
 | `bind` | `Readonly<Record<string, GroupBinding>>` | An attribute of the renderers of every series, from the key: `{ stroke: { axis: 'heat' }, opacity: { map: (key) => key > year ? 0.2 : 1 } }`. |
 | `order` | `'first' \| 'sorted' \| ((a: number, b: number) => number)` | The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. |
 | `maxGroups` | `number` | The most series made; more keys than this are left out (`omitted` says how many). Default 100. |

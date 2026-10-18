@@ -7,7 +7,7 @@
  * Shift held and a plain drag still pans. With `activate: 'always'` every drag is a box, which suits a chart whose `PanZoom`
  * has `pan: false`. A box takes a press, so it has to come **before** `PanZoom` in the plane (as a `PointerListener` does).
  *
- * `mode` is which axes the box zooms: both, only the horizontal ones, only the vertical ones, or 'auto', which takes the one
+ * `along` is which axes the box zooms: both, only the horizontal ones, only the vertical ones, or 'auto', which takes the one
  * direction the box is much longer in (a wide, flat box zooms x alone) and both otherwise. It sets the same view ranges
  * `PanZoom` does, so a pinch, a reset and `setViewRange(null)` all undo it. A box smaller than `minSize` pixels is not a box
  * and does nothing, which is how to take one back: drag it small again before letting go. It looks as `selection` says (a shape).
@@ -26,10 +26,10 @@ import { moveView } from './viewtween.ts';
 export interface BoxZoomAttributes extends BaseAttributes {
   /** The axes it may zoom, as elements or ids. Default: all of the plane's that can be followed along (not the rim of a polar plane). */
   axes?: readonly ElementRef<Axis>[];
-  /** When a drag makes a box: with Shift held (the default), so a plain drag can pan, or always. */
+  /** When a drag makes a box: with Shift held (the default), so a plain drag can pan, or always. (`Brush` defaults to always: where one is used, selecting is the main gesture.) */
   activate?: 'shift' | 'always';
   /** Which axes the box zooms. Default 'xy'. */
-  mode?: 'xy' | 'x' | 'y' | 'auto';
+  along?: 'xy' | 'x' | 'y' | 'auto';
   /** Smallest side of a box, in pixels, along an axis it zooms; below that the box does nothing. Default 8. */
   minSize?: number;
   /** Called after a zoom, with the box in plot pixels. */
@@ -122,7 +122,7 @@ export class BoxZoom extends InteractiveElement<Plane, [], BoxZoomAttributes> {
     const w = Math.abs(to.x - from.x),
       h = Math.abs(to.y - from.y),
       min = this.attrs.minSize ?? 8,
-      mode = this.attrs.mode ?? 'xy';
+      mode = this.attrs.along ?? 'xy';
     // 'auto': a box much longer one way than the other is a zoom along that way only.
     const only = mode === 'auto' ? (w > 3 * h ? 'x' : h > 3 * w ? 'y' : 'xy') : mode;
     const alongX = only !== 'y',

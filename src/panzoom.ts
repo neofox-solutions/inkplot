@@ -73,10 +73,10 @@ export interface PanZoomAttributes extends BaseAttributes {
   /** The axes it may move, as elements or ids. Default: all of the plane's that can be dragged along: not the rim of a polar or radar plane. */
   axes?: readonly ElementRef<Axis>[];
   /**
-   * Which way things may move. Default 'both'. Along one direction only, the other axes keep fitting what is in view.
+   * Which axes move: 'xy' (all, the default), 'x' (the horizontal ones only) or 'y' (the vertical ones only). Along one direction only, the other axes keep fitting what is in view.
    * A radius axis counts as vertical.
    */
-  direction?: 'both' | 'horizontal' | 'vertical';
+  along?: 'xy' | 'x' | 'y';
   /** Drag with the primary button to pan. Default true. */
   pan?: boolean;
   /** Turn the wheel to zoom about the pointer. Default true. */
@@ -164,6 +164,8 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
   readonly #touches = new Map<number, Touch>();
   #pinch: { ids: [number, number]; moves: (Moving & { a1: number; a2: number; length: number })[] } | null = null;
   #lastDown = { time: -Infinity, x: 0, y: 0 };
+  /** While a wheel gesture is going on (turns come in quick succession), the turns that reach a limit are still ours, so the page does not start to scroll under a hard spin. */
+  #wheelUntil = -Infinity;
 
   /** Put every controlled axis back to the range its data asks for. */
   reset(): void {
@@ -261,7 +263,7 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
             )
               moved = true;
           }
-          if (moved) ev.handled = true;
+          if (this.#ownsWheel(moved)) ev.handled = true;
           break;
         }
         if (a.zoom === false || ev.deltaY === 0) break;
@@ -270,7 +272,7 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
         const scale = Math.exp(ev.deltaY * speed);
         let moved = false;
         for (const { axis, at, snap } of targets) if (this.apply(axis, { snap, scale, anchor: at(ev.x, ev.y), shift: 0 })) moved = true;
-        if (moved) ev.handled = true;
+        if (this.#ownsWheel(moved)) ev.handled = true;
         break;
       }
       case 'pinch': {
@@ -282,6 +284,14 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
         break;
       }
     }
+  }
+
+  /** Whether this wheel turn is handled: it moved the view, or it follows one that did closely enough to be the same spin. */
+  #ownsWheel(moved: boolean): boolean {
+    const now = performance.now();
+    if (!moved && now >= this.#wheelUntil) return false;
+    this.#wheelUntil = now + 400;
+    return true;
   }
 
   /** Two presses close together reset the axis under them, or all of them. True when this press was the second. */
@@ -535,15 +545,15 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
     }
   }
 
-  /** The axes this will move, as of now: the chosen ones (or all the plane's) that can be followed along and fit `direction`. */
+  /** The axes this will move, as of now: the chosen ones (or all the plane's) that can be followed along and fit `along`. */
   private controlled(): Moving[] {
     const a = this.attrs,
-      only = a.direction ?? 'both';
+      only = a.along ?? 'xy';
     const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : this.requireParent().axes;
     const out: Moving[] = [];
     for (const axis of axes) {
       const ruler = axis.ruler;
-      if (typeof ruler.fractionAt === 'function' && (only === 'both' || ruler.horizontal === (only === 'horizontal'))) {
+      if (typeof ruler.fractionAt === 'function' && (only === 'xy' || ruler.horizontal === (only === 'x'))) {
         out.push({ axis, at: ruler.fractionAt.bind(ruler), snap: { ...(axis.viewRange ?? axis.range) } });
       }
     }

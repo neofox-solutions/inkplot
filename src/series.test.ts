@@ -242,7 +242,7 @@ test('series', () => {
     const data = () =>
       new FlatDataSource({ data: Float64Array.from([4, 6, NaN, 8, 5, Infinity, 7]), regularDomain: { start: 0, step: 1 } });
     const draw = (gaps: 'break' | 'connect' | 'zero' | undefined, renderer: () => LinePath | AreaPath) => {
-      const series = new DomainSeries({ gaps }, data(), renderer());
+      const series = new DomainSeries({ missing: gaps }, data(), renderer());
       const x = new Axis({ orientation: 'bottom', min: 0, max: 6 }, lin()),
         y = new Axis({ orientation: 'left' }, lin());
       const plane = new CartesianPlane({}, x, y, series);
@@ -270,7 +270,7 @@ test('series', () => {
     near(p.data[2 * 2 + 1]!, (1 - (0 - zero.y.range.min) / (zero.y.range.max - zero.y.range.min)) * h);
     assert.equal(zero.series.extentFor(zero.y)?.min, 4, 'what a reading or a zoom limit sees is the data');
     const noGap = new DomainSeries(
-      { gaps: 'zero' },
+      { missing: 'zero' },
       new FlatDataSource({ data: Float64Array.from([4, 6]), regularDomain: { start: 0, step: 1 } }),
       new LinePath(new LinearCurve()),
     );

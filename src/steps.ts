@@ -13,7 +13,7 @@
  * a radar's polygon, exactly), which a straight chord between the two ends would cut across.
  *
  * The line passes through every point of the data, and a marker on the series sits on a corner. A gap in the data
- * breaks the steps in two, unless the series says its `gaps` are 'connect'. The curve `trace`s what it draws, so a
+ * breaks the steps in two, unless the series says its `missing` is 'connect'. The curve `trace`s what it draws, so a
  * 'line' or 'area' hit is measured to the steps on the screen and reports the point whose level it is on, and a tooltip
  * reading between points (`interpolate`) gives the level there, not a value on a straight line between the points.
  */
@@ -55,8 +55,8 @@ export function stepLines(series: Series, mode: StepMode, baseline: number | nul
     rs = d.stride,
     raw = d.raw,
     wantBase = baseline !== null;
-  const zero = series.attrs.gaps === 'zero' && !d.top,
-    connect = series.attrs.gaps === 'connect';
+  const zero = series.attrs.missing === 'zero' && !d.top,
+    connect = series.attrs.missing === 'connect';
   const norm = new Float64Array(n * 3);
   for (let i = 0; i < n; i++) {
     const x = raw[i * rs + d.firstColumn]!;
@@ -187,7 +187,7 @@ export class StepCurve extends Curve<StepCurveAttributes> {
   /** The steps of a series, kept until it is projected again or they are asked for differently. */
   #steps(series: Series, baseline: number | null): Stepped | null {
     const mode = this.attrs.mode ?? 'after',
-      key = `${series.projection}|${mode}|${baseline}|${series.attrs.gaps}`;
+      key = `${series.projection}|${mode}|${baseline}|${series.attrs.missing}`;
     if (key !== this.#key) {
       this.#value = stepLines(series, mode, baseline);
       this.#key = key;

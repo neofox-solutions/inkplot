@@ -380,7 +380,7 @@ test('group interaction', () => {
         new FlatDataSource({ data: Float64Array.from([0, 1, 5, 3, 10, 2]), stride: 2 }),
         new LinePath(new LinearCurve()),
       ),
-      ...(pan ? [new PanZoom({ direction: 'horizontal' })] : []),
+      ...(pan ? [new PanZoom({ along: 'x' })] : []),
     );
     const own = cursor ? new Cursor({ mode: 'shared' }, new Crosshair()) : null;
     return { plane, cursor: own, item: new ChartGroupItem({}, plane, ...(own ? [own] : [])) };

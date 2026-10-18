@@ -250,7 +250,7 @@ export function paintBox(
 export interface LinePathAttributes extends SeriesRendererAttributes {}
 /**
  * One path through the points, in the way its `Curve` says: straight lines (`LinearCurve`), a spline, steps. A gap in the
- * data lifts the pen, or is crossed if the series says its `gaps` are 'connect'.
+ * data lifts the pen, or is crossed if the series says its `missing` is 'connect'.
  */
 export class LinePath extends SeriesRenderer<LinePathAttributes, [curve: Curve]> {
   /** How the points are joined. */

@@ -78,16 +78,16 @@ test('boxzoom', () => {
 
   // ── mode: one direction, or 'auto' from the shape of the box. A box too small does nothing.
   {
-    const x = setup({ mode: 'x' });
+    const x = setup({ along: 'x' });
     x.drag([0.2, 0.2], [0.6, 0.8]);
     assert(x.x.isZoomed && !x.y.isZoomed, "mode 'x' zooms the horizontal axis only");
-    const y = setup({ mode: 'y' });
+    const y = setup({ along: 'y' });
     y.drag([0.2, 0.2], [0.6, 0.8]);
     assert(!y.x.isZoomed && y.y.isZoomed, "mode 'y'");
-    const wide = setup({ mode: 'auto' });
+    const wide = setup({ along: 'auto' });
     wide.drag([0.1, 0.5], [0.9, 0.55]);
     assert(wide.x.isZoomed && !wide.y.isZoomed, "'auto': a wide flat box zooms x");
-    const square = setup({ mode: 'auto' });
+    const square = setup({ along: 'auto' });
     square.drag([0.2, 0.2], [0.5, 0.5]);
     assert(square.x.isZoomed && square.y.isZoomed, "'auto': a square box zooms both");
     const tiny = setup();

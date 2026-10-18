@@ -39,7 +39,7 @@ export interface BoxPathAttributes extends Omit<SeriesRendererAttributes, 'bind'
   /** The channel of the upper whisker's end. Default 'max'. */
   high?: string;
   /** Width of the cap on each whisker, as a fraction of the box's width; 0 for none. Default 0.5. */
-  capWidth?: number;
+  capFraction?: number;
 }
 
 const REACH = 2;
@@ -64,7 +64,7 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
     median: STRING,
     q3: STRING,
     high: STRING,
-    capWidth: NUMBER,
+    capFraction: NUMBER,
     width: NUMBER,
   } satisfies AttrTypesFor<BoxPathAttributes>;
   #geometry: Geometry | null = null;
@@ -152,7 +152,7 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
     const steps = plane.curved ? Math.min(MAX_ARC, Math.max(2, Math.ceil(lay.slot * 64))) : 1,
       per = 2 * (steps + 1),
       median = steps + 1;
-    const cap = Math.max(0, this.attrs.capWidth ?? 0.5);
+    const cap = Math.max(0, this.attrs.capFraction ?? 0.5);
     const total = n * (per + median + 8),
       out = new Float64Array(total * 2);
     const boxAt = 0,
@@ -236,7 +236,7 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
         boxes += b;
         medians += path(medianAt + i * median, median, false);
         whiskers += path(whiskerAt + i * 4, 2, false) + path(whiskerAt + i * 4 + 2, 2, false);
-        if ((this.attrs.capWidth ?? 0.5) > 0) whiskers += path(capAt + i * 4, 2, false) + path(capAt + i * 4 + 2, 2, false);
+        if ((this.attrs.capFraction ?? 0.5) > 0) whiskers += path(capAt + i * 4, 2, false) + path(capAt + i * 4 + 2, 2, false);
       }
     }
     const whisker = s.node('whiskers', 'path');

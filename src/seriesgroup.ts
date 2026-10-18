@@ -55,7 +55,7 @@ export interface SeriesGroupAttributes extends BaseAttributes {
   xAxis?: ElementRef<Axis>;
   yAxis?: ElementRef<Axis>;
   /** What a missing value means in every series (see `Series`). */
-  gaps?: 'break' | 'connect' | 'zero';
+  missing?: 'break' | 'connect' | 'zero';
   /** An attribute of the renderers of every series, from the key: `{ stroke: { axis: 'heat' }, opacity: { map: (key) => key > year ? 0.2 : 1 } }`. */
   bind?: Readonly<Record<string, GroupBinding>>;
   /** The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. */
@@ -92,7 +92,7 @@ export class SeriesGroup
     x: STRING,
     xAxis: STRING,
     yAxis: STRING,
-    gaps: STRING,
+    missing: STRING,
     maxGroups: NUMBER,
   } satisfies Partial<AttrTypesFor<SeriesGroupAttributes>>;
 
@@ -253,7 +253,7 @@ export class SeriesGroup
 
   private seriesAttributes(key: number): Record<string, unknown> {
     const a = this.attrs;
-    const attrs: Record<string, unknown> = { name: a.name ? a.name(key) : String(key), gaps: a.gaps };
+    const attrs: Record<string, unknown> = { name: a.name ? a.name(key) : String(key), missing: a.missing };
     if (a.x === undefined && a.y === undefined) {
       attrs.domainAxis = a.domainAxis;
       attrs.valueAxis = a.valueAxis;

@@ -23,7 +23,7 @@
  *
  * A curve is drawn through the points as they are placed on the plane: a smooth line through the points of a polar
  * series, not an arc of constant radius (a `LinePath` there draws chords, too). A gap in the data starts a new curve unless
- * the series' `gaps` are 'connect'. An area follows the curve forward and the baseline's backward, and a stack's layers each
+ * the series' `missing` is 'connect'. An area follows the curve forward and the baseline's backward, and a stack's layers each
  * have their own curve, which agree except near a gap. The curve's `trace` is what a 'line' or 'area' hit is measured to,
  * and a tooltip reading between points (`interpolate`) is a value on the curve, not on the straight line.
  */
@@ -308,7 +308,7 @@ export abstract class StrokeCurve<A extends CurveAttributes = CurveAttributes> e
 
   line(series: Series): string {
     let d = '';
-    for (const run of runsOf(series.points, series.attrs.gaps === 'connect')) d += this.path(run.pts, 'M', series);
+    for (const run of runsOf(series.points, series.attrs.missing === 'connect')) d += this.path(run.pts, 'M', series);
     return d;
   }
 
@@ -320,7 +320,7 @@ export abstract class StrokeCurve<A extends CurveAttributes = CurveAttributes> e
         y = base.data[2 * i + 1]!;
       return Number.isFinite(x) && Number.isFinite(y);
     };
-    return runsOf(series.points, series.attrs.gaps === 'connect', real).map((run) => {
+    return runsOf(series.points, series.attrs.missing === 'connect', real).map((run) => {
       const foot = new Float64Array(run.pts.length);
       run.index.forEach((row, j) => {
         foot[run.pts.length - 2 - 2 * j] = base.data[2 * row]!;
@@ -339,11 +339,11 @@ export abstract class StrokeCurve<A extends CurveAttributes = CurveAttributes> e
   #key = '';
   #value: Trace | null = null;
   override trace(series: Series, baseline: number | null): Trace | null {
-    const key = `${series.projection}|${baseline}|${series.attrs.gaps}|${JSON.stringify(this.attrs)}`;
+    const key = `${series.projection}|${baseline}|${series.attrs.missing}|${JSON.stringify(this.attrs)}`;
     if (key === this.#key) return this.#value;
     this.#key = key;
     if (baseline === null) {
-      const parts = runsOf(series.points, series.attrs.gaps === 'connect').map((run) => {
+      const parts = runsOf(series.points, series.attrs.missing === 'connect').map((run) => {
         const { pts, owner } = this.polyline(run.pts, series);
         return { pts, owner: owner.map((i) => run.index[i]!) };
       });

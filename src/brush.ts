@@ -1,13 +1,13 @@
 /**
  * Brush: drag a rectangle on the plot to pick a range of the data, and say what was picked. It zooms nothing.
  *
- *   new CartesianPlane({}, x, y, series, new Brush({ mode: 'x', onBrush: (b) => filter(b?.ranges) }), new PanZoom())
+ *   new CartesianPlane({}, x, y, series, new Brush({ along: 'x', onBrush: (b) => filter(b?.ranges) }), new PanZoom())
  *
  * It is the other half of `BoxZoom`: the same drag, but the rectangle stays drawn (and follows the axes as they pan and
  * zoom, since it is held in data terms) and the ranges it covers go to `onBrush`, for the app to filter a table, link another
  * chart or total a selection. A click (a box under `minSize`) or `clear()` takes it away and calls `onBrush(null)`.
  *
- * `mode` is which axes the brush covers: 'xy', or 'x' / 'y' for a band across the plot (a time range). By default
+ * `along` is which axes the brush covers: 'xy', or 'x' / 'y' for a band across the plot (a time range). By default
  * (`activate: 'always'`) every drag brushes, so give a plane that also pans `activate: 'shift'`; like `BoxZoom` it has to come
  * **before** `PanZoom` to see a press first. With `live`, `onBrush` is called as the box is dragged and not only at the end.
  * A touch brushes only with `activate: 'always'` and the plane taking every touch; a rim (polar) cannot be brushed.
@@ -37,10 +37,10 @@ export interface BrushSelection {
 export interface BrushAttributes extends BaseAttributes {
   /** The axes it may cover, as elements or ids. Default: all of the plane's that can be followed along. */
   axes?: readonly ElementRef<Axis>[];
-  /** When a drag brushes: always (the default) or with Shift held, to leave a plain drag to `PanZoom`. */
+  /** When a drag brushes: always (the default) or with Shift held, to leave a plain drag to `PanZoom`. (A `BoxZoom` defaults the other way: zooming is rarer than panning.) */
   activate?: 'shift' | 'always';
   /** Which axes it covers. Default 'xy'. */
-  mode?: 'xy' | 'x' | 'y';
+  along?: 'xy' | 'x' | 'y';
   /** Smallest side of a brush, in pixels, along an axis it covers; below that a drag only clears. Default 4. */
   minSize?: number;
   /** Call `onBrush` while dragging too. Default false. */
@@ -112,7 +112,7 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
 
   #axes(): Axis[] {
     const a = this.attrs,
-      mode = a.mode ?? 'xy';
+      mode = a.along ?? 'xy';
     const axes = a.axes ? a.axes.map((ref) => resolveRef<Axis>(ref, this, Axis)) : this.requireParent().axes;
     return axes.filter((axis) => axis.ruler.fractionAt && (mode === 'xy' || (mode === 'x') === axis.ruler.horizontal));
   }
@@ -138,7 +138,7 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
     const plane = this.requireParent(),
       r = plane.rect,
       min = a.minSize ?? 4,
-      mode = a.mode ?? 'xy';
+      mode = a.along ?? 'xy';
     const clampX = (x: number) => Math.min(r.width, Math.max(0, x)),
       clampY = (y: number) => Math.min(r.height, Math.max(0, y));
     // A box a pixel or two across is a click; along an axis it does not cover its size does not count.

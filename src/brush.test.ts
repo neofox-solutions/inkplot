@@ -76,7 +76,7 @@ test('brush', () => {
 
   // ── mode 'x' is a band over the full height; a click clears and says so.
   {
-    const { drag, heard, rects, send, brush, plane } = setup({ mode: 'x' });
+    const { drag, heard, rects, send, brush, plane } = setup({ along: 'x' });
     drag([0.2, 0.4], [0.6, 0.5]);
     assert.equal(heard[0]!.ranges.length, 1);
     assert.equal(heard[0]!.y, undefined);
@@ -90,7 +90,7 @@ test('brush', () => {
 
   // ── The box follows the axes when they zoom, and `select`/`clear` work from code.
   {
-    const { platform, x, drag, rects, brush, heard, chart } = setup({ mode: 'x' });
+    const { platform, x, drag, rects, brush, heard, chart } = setup({ along: 'x' });
     drag([0.25, 0.5], [0.5, 0.5]);
     const before = rects()[0]!;
     x.setViewRange({ min: 0, max: 5 });
@@ -112,7 +112,7 @@ test('brush', () => {
 
   // ── With Shift required, a plain drag pans; `live` reports while dragging; a touch only brushes when always.
   {
-    const { drag, heard, send } = setup({ activate: 'shift', live: true, mode: 'x' });
+    const { drag, heard, send } = setup({ activate: 'shift', live: true, along: 'x' });
     drag([0.2, 0.5], [0.4, 0.5]);
     assert.equal(heard.length, 0, 'a plain drag was left to pan');
     send('down', 0.2, 0.5, { buttons: 1, shift: true });

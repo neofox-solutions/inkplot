@@ -24,7 +24,7 @@ Both take these attributes:
 | `name` | What the series is called: its legend entry and its tooltip heading. A series without a name is not listed in a legend. |
 | `visible` | `false` takes it out of the drawing, the axes' ranges and the pointer's reach, and keeps it in the tree. |
 | `hit` | How pointer hits find it: `'point'`, `'line'`, `'area'`, `'shape'`, an options object, or `false` for never ([Interaction](interaction.md#hit-testing)). |
-| `gaps` | What a missing value means ([below](#gaps)). |
+| `missing` | What a missing value means ([below](#gaps)). |
 | `id`, `meta`, `style` | As on every element. |
 
 `DomainSeries` adds `domainAxis` and `valueAxis` (an axis or its id) to say which axes it is drawn against; the default is the plane's first axis on each side. `XYSeries` has `xAxis`, `yAxis`, and `x` and `y`, the names of the channels that are x and y (default `'x'` and `'y'`).
@@ -67,9 +67,9 @@ export default () => (
 
 ## Gaps
 
-A `NaN` value is a gap. `gaps` says what that means:
+A `NaN` value is a gap. `missing` says what that means:
 
-| `gaps` | Meaning |
+| `missing` | Meaning |
 |---|---|
 | `'break'` (default) | Nothing is there: a line stops and starts again, an area splits. |
 | `'connect'` | The line goes straight across to the next value there is. |
@@ -82,7 +82,7 @@ import { Axis, CartesianPlane, Chart, DomainSeries, FlatDataSource, Legend, Line
 
 const data = [3, 5, NaN, NaN, 6, 4];
 const series = (gaps: 'break' | 'connect' | 'zero', offset: number) => (
-  <DomainSeries name={gaps} gaps={gaps}>
+  <DomainSeries name={gaps} missing={gaps}>
     <FlatDataSource data={data.map((v) => v + offset)} regularDomain-start={0} regularDomain-step={1} />
     <LinePath><LinearCurve /></LinePath>
   </DomainSeries>
@@ -447,7 +447,7 @@ export default () => (
 | Attribute | Default | Meaning |
 |---|---|---|
 | `low`, `q1`, `median`, `q3`, `high` | `'min'`, `'q1'`, the series' value, `'q3'`, `'max'` | The channel for each number. |
-| `capWidth` | `0.5` | Width of the cap on each whisker as a fraction of the box; `0` for none. |
+| `capFraction` | `0.5` | Width of the cap on each whisker as a fraction of the box; `0` for none. |
 | `width` | `0.8` | Width of a box as a fraction of the gap between points (a band's own width wins). |
 
 A row with any of the five missing has no box. A box is hit as a shape, boxes in a `Stack` in `'group'` mode sit side by side, the domain on the vertical axis gives horizontal boxes (name the axes with `domainAxis` and `valueAxis`, as for bars), and a polar plane gives wedges. Style them through the `seriesBox` and `boxLine` selectors.

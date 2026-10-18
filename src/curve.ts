@@ -25,7 +25,7 @@ export interface CurveAttributes extends BaseAttributes {}
 
 /** Joins the points of a series. The child of a line or an area renderer. */
 export abstract class Curve<A extends CurveAttributes = CurveAttributes> extends ChartElement<AnySeriesRenderer, [], A> {
-  /** The path of the series' line: each run of it (a stretch between gaps, or the whole of it when the series' `gaps` are 'connect') starts with an M. */
+  /** The path of the series' line: each run of it (a stretch between gaps, or the whole of it when the series' `missing` is 'connect') starts with an M. */
   abstract line(series: Series): string;
   /** The path of the shapes between the series' line and its baseline, `baseline` being a value (in a stack, the layer below is used instead). */
   abstract area(series: Series, baseline: number): string;
@@ -111,12 +111,12 @@ export function areaOutline(top: Readonly<PointBuffer>, base: Readonly<PointBuff
   return d;
 }
 
-/** Straight lines from point to point: what a line chart is. A gap lifts the pen, or is crossed if the series says its `gaps` are 'connect'. */
+/** Straight lines from point to point: what a line chart is. A gap lifts the pen, or is crossed if the series says its `missing` is 'connect'. */
 export class LinearCurve extends Curve {
   line(series: Series): string {
-    return polyline(series.points, series.attrs.gaps === 'connect');
+    return polyline(series.points, series.attrs.missing === 'connect');
   }
   area(series: Series, baseline: number): string {
-    return areaOutline(series.points, series.baseline(baseline), series.attrs.gaps === 'connect');
+    return areaOutline(series.points, series.baseline(baseline), series.attrs.missing === 'connect');
   }
 }

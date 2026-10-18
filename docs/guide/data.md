@@ -15,7 +15,7 @@ A point has a **domain** (where it is along the series' first axis, usually x or
 
 Sources always **deliver points in ascending order of domain**, whatever the storage order was. If your data is already ascending, say so with `isSorted` and a source reads it in place, with no copy and no sort; otherwise it sorts a copy once per change.
 
-A value that is `NaN` (or infinite) is a **gap**: nothing is there. What a gap means is the series' choice, via its `gaps` attribute ([Series and renderers](series.md#gaps)). A point whose domain is `NaN` is dropped.
+A value that is `NaN` (or infinite) is a **gap**: nothing is there. What a gap means is the series' choice, via its `missing` attribute ([Series and renderers](series.md#gaps)). A point whose domain is `NaN` is dropped.
 
 Attributes common to all sources:
 

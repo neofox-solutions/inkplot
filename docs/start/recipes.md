@@ -493,7 +493,7 @@ export default () => (
 
 ## Zoom to a box
 
-Add `BoxZoom` **before** `PanZoom`: hold Shift and drag a rectangle (the live example is in [Interaction](../guide/interaction.md#box-zoom)). `mode="auto"` zooms only along the long side of a flat box, and `activate="always"` makes every drag a box.
+Add `BoxZoom` **before** `PanZoom`: hold Shift and drag a rectangle (the live example is in [Interaction](../guide/interaction.md#box-zoom)). `along="auto"` zooms only along the long side of a flat box, and `activate="always"` makes every drag a box.
 
 ## Add a reset zoom button
 
@@ -729,7 +729,7 @@ export default () => (
   <Chart theme={lightTheme} padding={20}>
     <CartesianPlane>
       <Axis orientation="bottom"><BandScale categories={items.map((i) => i.name)} /></Axis>
-      <Axis orientation="left" title="k" padding={0.1}><LinearScale /></Axis>
+      <Axis orientation="left" title="k" rangePadding={0.1}><LinearScale /></Axis>
       <DomainSeries name="Running total">
         <ObjectDataSource source={rows} domain="x" value="end" isSorted />
         <LinePath stroke="#8a8f98" strokeWidth={1}><StepCurve mode="after" /></LinePath>

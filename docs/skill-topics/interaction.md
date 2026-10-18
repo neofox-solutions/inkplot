@@ -40,8 +40,8 @@ export const chart = (
 | To… | Use |
 |---|---|
 | Click a point | `<PointerListener onClick={(info) => info.hit && … } />` in the plane (before `PanZoom`) |
-| Select a range and report it (no zoom) | `<Brush mode="x" onBrush={...} />` before `<PanZoom />`; `brush.select()` / `clear()` from code |
-| Zoom to a dragged box | `<BoxZoom mode="auto" />` in the plane, **before** `<PanZoom />` (Shift-drag; `activate="always"` for every drag) |
+| Select a range and report it (no zoom) | `<Brush along="x" onBrush={...} />` before `<PanZoom />`; `brush.select()` / `clear()` from code |
+| Zoom to a dragged box | `<BoxZoom along="auto" />` in the plane, **before** `<PanZoom />` (Shift-drag; `activate="always"` for every drag) |
 | Reset zoom (button) | `chart.resetViews()`; know when it is zoomed with `onViewChange` on an `Axis` |
 | Touch | Default: one finger scrolls the page, two pinch the chart; `<PanZoom touch="always" />` for one-finger pan |
 | Tooltip text | ``<ChartTooltip format={(hit) => `${hit.series.attrs.name}: ${hit.second}`} />`` |
@@ -99,7 +99,7 @@ Drag, wheel, pinch, touch and keys change the view.
 | Attribute | Type | |
 |---|---|---|
 | `axes` | `readonly ElementRef<Axis>[]` | The axes it may move, as elements or ids. Default: all of the plane's that can be dragged along: not the rim of a polar or radar plane. |
-| `direction` | `'both' \| 'horizontal' \| 'vertical'` | Which way things may move. Default 'both'. |
+| `along` | `'xy' \| 'x' \| 'y'` | Which axes move: 'xy' (all, the default), 'x' (the horizontal ones only) or 'y' (the vertical ones only). |
 | `pan` | `boolean` | Drag with the primary button to pan. Default true. |
 | `zoom` | `boolean` | Turn the wheel to zoom about the pointer. Default true. |
 | `limit` | `boolean` | Keep the view inside the natural range of each axis, so there is no panning off the data or zooming out past it. Default true. |
@@ -123,7 +123,7 @@ Drag a box (Shift by default) to zoom to it. Before PanZoom.
 |---|---|---|
 | `axes` | `readonly ElementRef<Axis>[]` | The axes it may zoom, as elements or ids. Default: all of the plane's that can be followed along (not the rim of a polar plane). |
 | `activate` | `'shift' \| 'always'` | When a drag makes a box: with Shift held (the default), so a plain drag can pan, or always. |
-| `mode` | `'xy' \| 'x' \| 'y' \| 'auto'` | Which axes the box zooms. Default 'xy'. |
+| `along` | `'xy' \| 'x' \| 'y' \| 'auto'` | Which axes the box zooms. Default 'xy'. |
 | `minSize` | `number` | Smallest side of a box, in pixels, along an axis it zooms; below that the box does nothing. Default 8. |
 | `onZoom` | `(box: { x: number; y: number; width: number; height: …` | Called after a zoom, with the box in plot pixels. |
 
@@ -137,7 +137,7 @@ Drag a range to select it and report it with onBrush; the selection stays drawn.
 |---|---|---|
 | `axes` | `readonly ElementRef<Axis>[]` | The axes it may cover, as elements or ids. Default: all of the plane's that can be followed along. |
 | `activate` | `'shift' \| 'always'` | When a drag brushes: always (the default) or with Shift held, to leave a plain drag to `PanZoom`. |
-| `mode` | `'xy' \| 'x' \| 'y'` | Which axes it covers. Default 'xy'. |
+| `along` | `'xy' \| 'x' \| 'y'` | Which axes it covers. Default 'xy'. |
 | `minSize` | `number` | Smallest side of a brush, in pixels, along an axis it covers; below that a drag only clears. Default 4. |
 | `live` | `boolean` | Call `onBrush` while dragging too. Default false. |
 | `onBrush` | `(selection: BrushSelection \| null) => void` | Called with the selection, or null when it is cleared. |

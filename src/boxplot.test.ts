@@ -164,14 +164,14 @@ test('boxplot', () => {
       py = t.series.points.data[st + 1]!;
     assert(hitTest(t.series, px, py)?.index === 1, 'the box of the second group is hit at its median');
     assert.equal(hitTest(t.series, px, r.height + 40), null, 'and not beneath the plot');
-    // capWidth 0: no caps; the whiskers are two lines each.
+    // capFraction 0: no caps; the whiskers are two lines each.
     const bare = chartOf([
       new ObjectDataSource({ source: rows, domain: 'g', value: 'm', isSorted: true, channels: { lo: 'lo', a: 'a', b: 'b', hi: 'hi' } }),
-      new BoxPath({ low: 'lo', q1: 'a', q3: 'b', high: 'hi', capWidth: 0 }),
+      new BoxPath({ low: 'lo', q1: 'a', q3: 'b', high: 'hi', capFraction: 0 }),
     ]);
     const lines = (s: string) => (/<path d="(M[^"]*)"[^>]*fill="none"[^>]*stroke-width="1.5"/.exec(s)?.[1]?.match(/M/g) ?? []).length;
     assert.equal(lines(bare.svg()), 3 * 2, 'two whiskers each');
-    assert.equal(lines(t.svg()), 3 * 4, 'and four caps with capWidth');
+    assert.equal(lines(t.svg()), 3 * 4, 'and four caps with capFraction');
   }
 
   // ── Horizontal boxes (the groups on the vertical axis), a polar wedge, and boxes in a group.

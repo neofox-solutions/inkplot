@@ -94,7 +94,7 @@ export function layoutBars(series: Series, options: BarOptions): BarLayout | nul
 
   // The room one bar (or one group of them) has along the domain.
   // oxlint-disable-next-line typescript/consistent-type-assertions -- a scale is read for the optional `bandwidth` and `gap` that only a band scale has
-  const scale = first.scale as unknown as { bandwidth?: number; attrs?: { gap?: number } };
+  const scale = first.scale as unknown as { bandwidth?: number; attrs?: { bandGap?: number } };
   let room = 0;
   if (typeof scale.bandwidth === 'number' && options.width === undefined) {
     room = scale.bandwidth;
@@ -107,7 +107,7 @@ export function layoutBars(series: Series, options: BarOptions): BarLayout | nul
       if (prev === prev && x > prev && x - prev < pitch) pitch = x - prev;
       prev = x;
     }
-    if (typeof scale.bandwidth === 'number') pitch = scale.bandwidth / (1 - (scale.attrs?.gap ?? 0.2));
+    if (typeof scale.bandwidth === 'number') pitch = scale.bandwidth / (1 - (scale.attrs?.bandGap ?? 0.2));
     room = (options.width ?? 0.8) * (pitch < Infinity ? pitch : 0.25);
   }
   const { index, count } = d.slot,

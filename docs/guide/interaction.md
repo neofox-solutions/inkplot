@@ -136,7 +136,7 @@ A tooltip's words come from you (`format`) or are the default numbers: the libra
 | Attribute | Default | Meaning |
 |---|---|---|
 | `axes` | all that can be dragged along | The axes it may move, as elements or ids. The rim of a polar or radar plane cannot be dragged. |
-| `direction` | `'both'` | `'horizontal'` or `'vertical'` to allow only one. Along one direction only, the other axes keep fitting what is in view. A radius axis counts as vertical. |
+| `along` | `'xy'` | `'x'` or `'y'` to move only the horizontal or only the vertical axes. Along one direction only, the other axes keep fitting what is in view. A radius axis counts as vertical. |
 | `pan` | `true` | Drag with the primary button to pan. |
 | `zoom` | `true` | Turn the wheel, or pinch, to zoom about the pointer. |
 | `limit` | `true` | Keep the view inside the natural range of each axis: no panning off the data or zooming out past it. |
@@ -171,7 +171,7 @@ A plane with a `PointerListener` that handles drags must list it **before** the 
 | Attribute | Default | Meaning |
 |---|---|---|
 | `activate` | `'shift'` | `'shift'`: a box with Shift held. `'always'`: every drag. |
-| `mode` | `'xy'` | Which axes the box zooms: `'xy'`, `'x'`, `'y'`, or `'auto'`, which zooms the one direction a box is much longer in (a wide flat box zooms x alone) and both otherwise. |
+| `along` | `'xy'` | Which axes the box zooms: `'xy'`, `'x'`, `'y'`, or `'auto'`, which zooms the one direction a box is much longer in (a wide flat box zooms x alone) and both otherwise. |
 | `axes` | all that can be followed | The axes it may zoom. |
 | `minSize` | `8` | The least a side of the box may be, in pixels, along an axis it zooms. A smaller box does nothing, which is how to take one back: drag it small again before letting go. |
 | `onZoom` | | Called after a zoom with the box in plot pixels. |
@@ -192,7 +192,7 @@ export default () => (
         <FlatDataSource data={wave} isSorted regularDomain-start={0} regularDomain-step={1} />
         <LinePath strokeWidth={1}><LinearCurve /></LinePath>
       </DomainSeries>
-      <BoxZoom mode="auto" />
+      <BoxZoom along="auto" />
       <PanZoom meta-title="Signal plot" />
     </CartesianPlane>
   </Chart>
@@ -227,7 +227,7 @@ export default () => (
         <FlatDataSource data={wave} isSorted regularDomain-start={0} regularDomain-step={1} />
         <LinePath strokeWidth={1}><LinearCurve /></LinePath>
       </DomainSeries>
-      <Brush mode="x" onBrush={(b) => console.log(b ? `${b.x!.min.toFixed(0)} to ${b.x!.max.toFixed(0)}` : 'cleared')} />
+      <Brush along="x" onBrush={(b) => console.log(b ? `${b.x!.min.toFixed(0)} to ${b.x!.max.toFixed(0)}` : 'cleared')} />
     </CartesianPlane>
   </Chart>
 );

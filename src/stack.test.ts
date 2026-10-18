@@ -244,7 +244,7 @@ test('stack', () => {
     const [a, b, c] = [mk([3, 5]), mk([4, 2]), mk([6, 1])] as [DomainSeries, DomainSeries, DomainSeries];
     const plane = new CartesianPlane(
       {},
-      new Axis({ orientation: 'bottom' }, new BandScale({ categories: ['p', 'q'], gap: 0.4 })),
+      new Axis({ orientation: 'bottom' }, new BandScale({ categories: ['p', 'q'], bandGap: 0.4 })),
       left(),
       new Stack({ mode: 'group' }, a, b, c),
     );

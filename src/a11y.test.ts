@@ -259,7 +259,7 @@ test('a11y', () => {
     assert(Math.abs(own.x.range.max - 5) < 1e-6);
 
     // Direction restricts which axes the arrows move.
-    const horizontal = build({ pan: { direction: 'horizontal' } });
+    const horizontal = build({ pan: { along: 'x' } });
     horizontal.platform.focus(asNode(withAttr(horizontal.platform, 'tabindex')[0]!), true);
     horizontal.platform.key('+');
     horizontal.chart.flush();

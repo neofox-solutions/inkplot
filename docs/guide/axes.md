@@ -14,7 +14,7 @@ You rarely set a range. An axis fits itself to the series drawn against it and r
 |---|---|
 | `min`, `max` | Fix an end. Beats everything else, including `nice`. |
 | `include` | Values the range must cover: `[0]` to anchor at zero. |
-| `padding` | Extra room at both ends, as a fraction of the data's span. |
+| `rangePadding` | Extra room at both ends, as a fraction of the data's span. |
 | `nice` | Round the ends outwards to tidy tick values. |
 | `inverted` | Run from max to min along the axis. |
 
@@ -90,7 +90,7 @@ Axes on one side stack outwards from the plot in child order, each taking the ro
 | `LinearScale` | Equal steps in the data are equal distances. | 1, 2, 5, 10 × a power of ten. | |
 | `LogScale` | Equal *ratios* take equal distances. Values that are not positive have no place and are drawn as gaps. | Powers of the base; with only a few decades, 2 and 5 times each as well. | `base` (default 10) |
 | `SqrtScale` | Square root: gives zero a place while spreading small values out, as for counts or areas. Negative values are gaps. | Like linear. | |
-| `BandScale` | Categories: the values 0, 1, 2… are the positions of equal bands. | One per category, labelled with its name. Labels are never thinned. | `categories` (required), `gap` (fraction of each band left empty, default 0.2) |
+| `BandScale` | Categories: the values 0, 1, 2… are the positions of equal bands. | One per category, labelled with its name. Labels are never thinned. | `categories` (required), `bandGap` (fraction of each band left empty, default 0.2) |
 | `IntlTimeScale`, `TemporalTimeScale` | Timestamps, on the calendar. | Midnights, the hour, the first of the month… | `timeZone`, `weekStart`, `locale`, `formats` |
 
 A scale is a child of its axis, and replaceable on a live chart: `axis.setChild(0, new LogScale())`. Switching a chart between linear and log is one call.
@@ -105,7 +105,7 @@ import { Axis, BandScale, BarPath, CartesianPlane, Chart, DomainSeries, FlatData
 export default () => (
   <Chart theme={lightTheme}>
     <CartesianPlane>
-      <Axis orientation="bottom"><BandScale categories={['Mon', 'Tue', 'Wed', 'Thu', 'Fri']} gap={0.5} /></Axis>
+      <Axis orientation="bottom"><BandScale categories={['Mon', 'Tue', 'Wed', 'Thu', 'Fri']} bandGap={0.5} /></Axis>
       <Axis orientation="left"><LinearScale /></Axis>
       <DomainSeries name="Tickets">
         <FlatDataSource data={[14, 22, 9, 31, 18]} regularDomain-start={0} regularDomain-step={1} />

@@ -1737,7 +1737,7 @@ demos.push({
     const haloLayer = layer(40, halo, 0.5),
       beamLayer = layer(96, fine, 1);
     const fixed = (orientation, min, max, step) =>
-      new L.Axis({ orientation, visible: false, min, max, tickStep: step, padding: 0 }, new L.LinearScale());
+      new L.Axis({ orientation, visible: false, min, max, tickStep: step, rangePadding: 0 }, new L.LinearScale());
     const screen = new L.CartesianPlane(
       {
         frame: true,
@@ -1768,7 +1768,7 @@ demos.push({
             description: `The ${channel.toUpperCase()} channel against time${channel === 'z' ? ', which sets how bright the beam is' : ''}`,
           },
         },
-        new L.Axis({ orientation: 'bottom', visible: false, nice: false, padding: 0, tickCount: 9 }, new L.LinearScale()),
+        new L.Axis({ orientation: 'bottom', visible: false, nice: false, rangePadding: 0, tickCount: 9 }, new L.LinearScale()),
         fixed('left', min, max, step),
         series,
       );
@@ -2023,7 +2023,7 @@ demos.push({
           y.setAttribute('tickCount', v);
         },
       }),
-      ui.slider({ label: 'value padding', min: 0, max: 0.5, step: 0.05, value: 0, onChange: (v) => y.setAttribute('padding', v) }),
+      ui.slider({ label: 'value padding', min: 0, max: 0.5, step: 0.05, value: 0, onChange: (v) => y.setAttribute('rangePadding', v) }),
       ui.text({ label: 'value axis title', value: 'Level', onChange: (v) => y.setAttribute('title', v || undefined) }),
       ui.slider({
         label: 'tick label size',
@@ -3164,7 +3164,7 @@ demos.push({
         bars: [new L.BarPath({})],
       }[S.shape];
       series = new L.DomainSeries(
-        { name: 'readings', gaps: S.gaps, hit: S.shape === 'bars' ? undefined : 'point' },
+        { name: 'readings', missing: S.gaps, hit: S.shape === 'bars' ? undefined : 'point' },
         new L.FlatDataSource({ data: Float64Array.from(ys), regularDomain: { start: 0, step: 1 } }),
         ...r,
       );
@@ -3219,7 +3219,7 @@ demos.push({
         value: S.gaps,
         onChange: (v) => {
           S.gaps = v;
-          series.setAttribute('gaps', v);
+          series.setAttribute('missing', v);
         },
       }),
       ui.seg({
@@ -3384,7 +3384,7 @@ demos.push({
         {
           id: 'd',
           orientation: orient[0],
-          ...(polar ? { min: 0, max: S.n, ...(S.view === 'radar' ? { tickCount: S.n + 1 } : {}) } : { padding: 0.02 }),
+          ...(polar ? { min: 0, max: S.n, ...(S.view === 'radar' ? { tickCount: S.n + 1 } : {}) } : { rangePadding: 0.02 }),
         },
         new L.LinearScale(),
       );
@@ -4012,7 +4012,7 @@ demos.push({
         horizontal = S.view === 'horizontal' && ['bars', 'stems', 'lollipops'].includes(S.shape);
       const percent = S.mode === 'normalize';
       const d = new L.Axis(
-        { id: 'd', orientation: horizontal ? 'left' : polar ? 'angle' : 'bottom', ...(cat ? {} : { padding: 0.04, nice: false }) },
+        { id: 'd', orientation: horizontal ? 'left' : polar ? 'angle' : 'bottom', ...(cat ? {} : { rangePadding: 0.04, nice: false }) },
         cat ? new L.BandScale({ categories: cats }) : new L.LinearScale(),
       );
       const v = new L.Axis(
@@ -4468,7 +4468,7 @@ demos.push({
     };
     const mainSource = dataFor(S.n, S.shape, S.seed);
     const mainDecimator = new L.Decimator({}, new L.MinMaxKernel(), mainSource);
-    const pz = new L.PanZoom({ direction: 'horizontal' });
+    const pz = new L.PanZoom({ along: 'x' });
     const plane = new L.CartesianPlane(
       { frame: true },
       x,
@@ -4606,8 +4606,8 @@ demos.push({
   blurb: 'Dots, crosses and shapes, with colour and size bound to data',
   setup(ctx) {
     const S = { n: 5000, kind: 'circle', colour: true, size: false, cap: 'round', merge: true, px: 3, opacity: 1, maxNodes: 100, seed: 1 };
-    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'x', padding: 0.04 }, new L.LinearScale());
-    const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', padding: 0.04 }, new L.LinearScale());
+    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'x', rangePadding: 0.04 }, new L.LinearScale());
+    const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', rangePadding: 0.04 }, new L.LinearScale());
     const heat = new L.ColorAxis({ id: 'heat', title: 'Pressure' }, new L.LinearScale());
     const mass = new L.ScalarAxis({ id: 'mass', title: 'Mass', output: [2, 10] }, new L.LinearScale());
     // Four clusters. Points are interleaved x, y, pressure, mass, in no particular order: the source sorts them.
@@ -4652,7 +4652,7 @@ demos.push({
     };
     let renderer = build();
     const series = new L.DomainSeries(makeData(), renderer);
-    const plane = new L.CartesianPlane({ frame: true }, x, y, series, new L.PanZoom({ direction: 'both' }));
+    const plane = new L.CartesianPlane({ frame: true }, x, y, series, new L.PanZoom({ along: 'xy' }));
     const heatKey = new L.ColorKey({ dimension: heat }),
       massKey = new L.SizeKey({ dimension: mass, visible: S.size });
     const keys = { show: true, side: 'right' };
@@ -4840,8 +4840,8 @@ demos.push({
         region = i % 5;
       return { income, life: 52 + income * 2.1 + region * 1.2 + (r() - 0.5) * 7, pop: Math.exp(r() * 4.2), region };
     });
-    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'Income (k per head)', padding: 0.08 }, new L.LinearScale());
-    const y = new L.Axis({ id: 'y', orientation: 'left', title: 'Life expectancy', padding: 0.1 }, new L.LinearScale());
+    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'Income (k per head)', rangePadding: 0.08 }, new L.LinearScale());
+    const y = new L.Axis({ id: 'y', orientation: 'left', title: 'Life expectancy', rangePadding: 0.1 }, new L.LinearScale());
     const area = new L.ScalarAxis(
       { id: 'pop', title: 'Population (M)', output: [3, 26], format: (v) => fmt(v * v, 0) },
       new L.LinearScale(),
@@ -5227,11 +5227,11 @@ demos.push({
       return { x: cx + gauss() * 0.8, y: cy + gauss() * 0.8, g };
     });
     const x = new L.Axis(
-      { id: 'x', orientation: 'bottom', crossesAt: 0, style: { tickLabel: { halo: pageBackground() } }, padding: 0.05 },
+      { id: 'x', orientation: 'bottom', crossesAt: 0, style: { tickLabel: { halo: pageBackground() } }, rangePadding: 0.05 },
       new L.LinearScale(),
     );
     const y = new L.Axis(
-      { id: 'y', orientation: 'left', crossesAt: 0, style: { tickLabel: { halo: pageBackground() } }, padding: 0.05 },
+      { id: 'y', orientation: 'left', crossesAt: 0, style: { tickLabel: { halo: pageBackground() } }, rangePadding: 0.05 },
       new L.LinearScale(),
     );
     const group = new L.ColorAxis(
@@ -5309,7 +5309,7 @@ demos.push({
     let density = new L.Density(attrs(), source());
     const bars = new L.BarPath({ width: S.bar });
     const series = new L.DomainSeries({ name: 'Samples' }, density, bars);
-    const plane = new L.CartesianPlane({}, x, y, series, new L.PanZoom({ direction: 'x' }));
+    const plane = new L.CartesianPlane({}, x, y, series, new L.PanZoom({ along: 'x' }));
     const read = ui.readout();
     const chart = new L.Chart(
       {
@@ -5461,19 +5461,19 @@ demos.push({
     function build() {
       const polar = S.plane === 'polar';
       const x = new L.Axis(
-        { id: 'x', orientation: polar ? 'angle' : 'bottom', ...(polar ? {} : { title: 'x' }), padding: 0.02 },
+        { id: 'x', orientation: polar ? 'angle' : 'bottom', ...(polar ? {} : { title: 'x' }), rangePadding: 0.02 },
         new L.LinearScale(),
       );
       const y = new L.Axis(
-        { id: 'y', orientation: polar ? 'radius' : 'left', ...(polar ? {} : { title: 'y' }), padding: 0.02 },
+        { id: 'y', orientation: polar ? 'radius' : 'left', ...(polar ? {} : { title: 'y' }), rangePadding: 0.02 },
         new L.LinearScale(),
       );
       density = new L.Density(attrs(), source());
       cells = makeCells();
       series = new L.XYSeries({ x: 'domain', y: 'value' }, density, cells);
       return polar
-        ? new L.PolarPlane({}, x, y, series, new L.PanZoom({ direction: 'both' }))
-        : new L.CartesianPlane({ frame: true }, x, y, series, new L.PanZoom({ direction: 'both' }));
+        ? new L.PolarPlane({}, x, y, series, new L.PanZoom({ along: 'xy' }))
+        : new L.CartesianPlane({ frame: true }, x, y, series, new L.PanZoom({ along: 'xy' }));
     }
     const read = ui.readout();
     const chart = new L.Chart(
@@ -5667,7 +5667,7 @@ demos.push({
     const kit = tipKit('snap', { swatch: false });
     const plane = new L.CartesianPlane(
       { frame: true },
-      new L.Axis({ id: 'x', orientation: 'bottom', title: 'Distance (km)', padding: 0 }, new L.LinearScale()),
+      new L.Axis({ id: 'x', orientation: 'bottom', title: 'Distance (km)', rangePadding: 0 }, new L.LinearScale()),
       new L.Axis({ id: 'y', orientation: 'left', title: 'Altitude (m)' }, new L.LinearScale()),
       new L.DomainSeries({ name: 'Ride' }, source, area, line),
     );
@@ -6010,7 +6010,7 @@ demos.push({
       }).sort((a, b) => a.t - b.t);
     };
     let data = rows();
-    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 't', padding: 0.02 }, new L.LinearScale());
+    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 't', rangePadding: 0.02 }, new L.LinearScale());
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'v', nice: true }, new L.LinearScale());
     const source = () => new L.ObjectDataSource({ source: data, domain: 't', value: 'v', isSorted: true });
     const common = () => ({ extend: S.extend });
@@ -6031,7 +6031,7 @@ demos.push({
     let trend = make();
     const dots = new L.DomainSeries({ name: 'Data' }, source(), new L.CircleMarker({ size: 2.5, opacity: 0.55 }));
     const line = new L.DomainSeries({ name: 'Trend' }, trend, new L.LinePath(new L.LinearCurve()));
-    const plane = new L.CartesianPlane({}, x, y, dots, line, new L.PanZoom({ direction: 'x' }));
+    const plane = new L.CartesianPlane({}, x, y, dots, line, new L.PanZoom({ along: 'x' }));
     const read = ui.readout();
     const chart = new L.Chart(
       {
@@ -6215,7 +6215,7 @@ demos.push({
     };
     let current = renderers();
     const series = new L.DomainSeries({ name: 'Mean ± error' }, source(), ...current);
-    const plane = new L.CartesianPlane({}, x, y, series, new L.PanZoom({ direction: 'both' }));
+    const plane = new L.CartesianPlane({}, x, y, series, new L.PanZoom({ along: 'xy' }));
     const chart = new L.Chart({ theme: chartTheme(), onFlush: ctx.onFlush }, plane);
     const swap = () => {
       for (const r of current) series.remove(r);
@@ -6341,7 +6341,7 @@ demos.push({
       method: S.method,
       value: S.value,
     });
-    const box = new L.BoxPath({ width: S.width, capWidth: S.cap });
+    const box = new L.BoxPath({ width: S.width, capFraction: S.cap });
     const spread = new L.DomainSeries({ name: 'Spread' }, new L.BoxStats(stats(), source()), box);
     const dots = new L.DomainSeries({ name: 'Outliers' }, new L.BoxStats(stats('outliers'), source()), new L.DotMarker({ size: 3 }));
     const plane = new L.CartesianPlane({}, x, y, spread, dots);
@@ -6476,7 +6476,7 @@ demos.push({
         value: S.cap,
         onChange: (v) => {
           S.cap = v;
-          box.setAttribute('capWidth', v);
+          box.setAttribute('capFraction', v);
         },
       }),
       read,
@@ -6516,8 +6516,8 @@ demos.push({
       });
     };
     let rows = r0();
-    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'x', padding: 0.04 }, new L.LinearScale());
-    const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', padding: 0.04 }, new L.LinearScale());
+    const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'x', rangePadding: 0.04 }, new L.LinearScale());
+    const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', rangePadding: 0.04 }, new L.LinearScale());
     const source = () => new L.ObjectDataSource({ source: rows, channels: { x: 'x', y: 'y' } });
     const read = ui.readout();
     const report = (b) => {
@@ -6536,9 +6536,9 @@ demos.push({
         .filter(Boolean)
         .join('\n');
     };
-    const brush = new L.Brush({ mode: S.mode, activate: 'always', live: S.live, onBrush: report });
-    const zoom = new L.BoxZoom({ mode: 'xy', activate: 'always' });
-    const pan = new L.PanZoom({ direction: 'both', pan: false });
+    const brush = new L.Brush({ along: S.mode, activate: 'always', live: S.live, onBrush: report });
+    const zoom = new L.BoxZoom({ along: 'xy', activate: 'always' });
+    const pan = new L.PanZoom({ along: 'xy', pan: false });
     const dots = new L.CircleMarker({ size: 2.5, opacity: 0.6 });
     const series = new L.XYSeries({ x: 'x' }, source(), dots);
     const plane = new L.CartesianPlane({ frame: true }, x, y, series, pan);
@@ -6580,7 +6580,7 @@ demos.push({
         value: S.mode,
         onChange: (v) => {
           S.mode = v;
-          brush.setAttribute('mode', v);
+          brush.setAttribute('along', v);
           brush.clear?.();
         },
       }),
@@ -6667,7 +6667,7 @@ demos.push({
       x,
       y,
       series,
-      new L.BoxZoom({ axes: ['y'], mode: 'y' }),
+      new L.BoxZoom({ axes: ['y'], along: 'y' }),
       new L.PanZoom({ axes: ['y'], pan: false }),
     );
     const chart = new L.Chart(

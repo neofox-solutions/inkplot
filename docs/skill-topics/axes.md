@@ -43,7 +43,7 @@ export const chart = (
 
 | To… | Use |
 |---|---|
-| Set exact axis limits | `<Axis min={0} max={100}>`; keep zero in range: `include={[0]}`; headroom: `padding` |
+| Set exact axis limits | `<Axis min={0} max={100}>`; keep zero in range: `include={[0]}`; headroom: `rangePadding` |
 | Label ticks yourself | ``format={(v) => `${v}%`}``, `ticks={[0, 50, 100]}`, `tickStep={1}`, `tickCount={5}` |
 | Reverse an axis | `inverted` |
 | Second y axis | `<Axis id="b" orientation="right">` and `<DomainSeries valueAxis="b">` |
@@ -83,7 +83,7 @@ Categories in equal bands.
 | Attribute | Type | |
 |---|---|---|
 | `categories` (required) | `readonly string[]` | Category labels in order; the domain values are indexes into this list. |
-| `gap` | `number` | Fraction of each band left empty between neighbours, 0..1. Default 0.2. |
+| `bandGap` | `number` | Fraction of each band left empty between neighbours, 0..1. Default 0.2. |
 
 ### IntlTimeScale
 

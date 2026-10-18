@@ -142,7 +142,7 @@ export interface BandScaleAttributes extends ScaleAttributes {
   /** Category labels in order; the domain values are indexes into this list. */
   categories: readonly string[];
   /** Fraction of each band left empty between neighbours, 0..1. Default 0.2. */
-  gap?: number;
+  bandGap?: number;
 }
 /**
  * Categories: the domain values 0, 1, 2… are positions of equal bands, one per category, and a value is drawn at the
@@ -156,7 +156,7 @@ export class BandScale extends Scale<BandScaleAttributes> {
 
   /** Width of the drawn part of one band as a fraction of the range, for a renderer that draws bars. */
   get bandwidth(): number {
-    return (1 - (this.attrs.gap ?? 0.2)) / this.n;
+    return (1 - (this.attrs.bandGap ?? 0.2)) / this.n;
   }
 
   normalize(buf: Float64Array, count: number, stride: number, offset: number, range: Extent): void {

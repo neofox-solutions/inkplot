@@ -298,7 +298,7 @@ test('serialize', () => {
         new Stack({ mode: 'stack' }, ...bars),
         new LineAnnotation({ value: 4 }),
         new PointerListener({ dragThreshold: 5 }),
-        new PanZoom({ direction: 'horizontal' }),
+        new PanZoom({ along: 'x' }),
       ),
       heat,
       new ColorKey({ dimension: heat }),

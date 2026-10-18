@@ -103,7 +103,7 @@ export const chart = (
 ) as Chart;
 ```
 
-A `SharedAxis` has no scale of its own, and only says how it is drawn: `orientation`, `title`, `format`, ticks. The range's attributes (`min`, `max`, `include`, `padding`, `nice`) go on the `SharedRange`. `edgeOnly` draws the axis only where its chart is at the edge of the group it faces, and takes no room elsewhere: one row of labels along the bottom, and the plots above it keep their height. A chart is on an edge when no chart lies beyond it, so the chart above a gap in the last row counts as being at the bottom. `edgeOnly` is for Cartesian planes (a polar plane has no edge to face, so it is ignored there); a shared range works on any plane, so radar and polar charts side by side can share a radius scale, or a polar chart a scale with a Cartesian one.
+A `SharedAxis` has no scale of its own, and only says how it is drawn: `orientation`, `title`, `format`, ticks. The range's attributes (`min`, `max`, `include`, `rangePadding`, `nice`) go on the `SharedRange`. `edgeOnly` draws the axis only where its chart is at the edge of the group it faces, and takes no room elsewhere: one row of labels along the bottom, and the plots above it keep their height. A chart is on an edge when no chart lies beyond it, so the chart above a gap in the last row counts as being at the bottom. `edgeOnly` is for Cartesian planes (a polar plane has no edge to face, so it is ignored there); a shared range works on any plane, so radar and polar charts side by side can share a radius scale, or a polar chart a scale with a Cartesian one.
 
 ## Pointer and keyboard
 
@@ -128,7 +128,7 @@ const strip = (name: string, k: number, from: number, to: number) => (
         <FlatDataSource data={series(k, from, to)} stride={2} isSorted />
         <LinePath><LinearCurve /></LinePath>
       </DomainSeries>
-      <PanZoom direction="horizontal" />
+      <PanZoom along="x" />
     </CartesianPlane>
     <Cursor mode="shared"><Crosshair lines="first" /><ChartTooltip /></Cursor>
   </ChartGroupItem>
@@ -194,7 +194,7 @@ A scale and range the charts of a group share; each chart draws it with a Shared
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |
@@ -223,7 +223,7 @@ An axis that draws a SharedRange of the group, with the same attributes as Axis 
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
 | `include` | `readonly number[]` | Values the range must cover, e.g. `[0]` to anchor a bar-like axis at zero. |
-| `padding` | `number` | Extra room at both ends as a fraction of the data's span. |
+| `rangePadding` | `number` | Extra room at both ends as a fraction of the data's span. |
 | `nice` | `boolean` | Round the ends outwards to tidy tick values. |
 | `inverted` | `boolean` | Run from max to min along the axis. |
 | `title` | `string` | The axis title (or, on a `ColorAxis` or `ScalarAxis`, the default title of its key). Default: none. |

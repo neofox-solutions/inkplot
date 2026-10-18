@@ -115,7 +115,7 @@ test('steps', () => {
   {
     const ys = [1, 3, NaN, 2, 4];
     const runs = (gaps: 'break' | 'connect' | 'zero') => {
-      const { series } = rect(ys, new LinePath(new StepCurve({})), { gaps });
+      const { series } = rect(ys, new LinePath(new StepCurve({})), { missing: gaps });
       const p = pairs(stepLines(series, 'after', null)!.top);
       return { p, ends: p.filter((q) => !real(q)).length };
     };
@@ -124,12 +124,12 @@ test('steps', () => {
     assert.equal(runs('zero').ends, 1, 'a zero is a point, so one run');
     // Connected, the 3 holds across to where the next real value is (x = 3).
     const c = runs('connect').p,
-      { at } = rect(ys, new LinePath(new StepCurve({})), { gaps: 'connect' });
+      { at } = rect(ys, new LinePath(new StepCurve({})), { missing: 'connect' });
     near(c[3]![0], at(3, 3)[0]);
     near(c[3]![1], at(3, 3)[1]);
     const z = runs('zero').p;
     assert(
-      z.some((q) => Math.abs(q[1] - rect(ys, new LinePath(new StepCurve({})), { gaps: 'zero' }).at(2, 0)[1]) < 1e-6),
+      z.some((q) => Math.abs(q[1] - rect(ys, new LinePath(new StepCurve({})), { missing: 'zero' }).at(2, 0)[1]) < 1e-6),
       'the zero is a level of its own',
     );
   }

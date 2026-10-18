@@ -217,7 +217,7 @@ test('curves', () => {
   // ── The renderers: a line, broken or connected at gaps, and an area closed round the curve and the baseline's.
   {
     const draw = (renderer: AnySeriesRenderer, ys: number[], gaps?: 'connect') => {
-      const series = new DomainSeries({ gaps }, flat(ys), renderer);
+      const series = new DomainSeries({ missing: gaps }, flat(ys), renderer);
       const plane = new CartesianPlane(
         {},
         new Axis({ orientation: 'bottom', min: 0, max: ys.length - 1 }, lin()),

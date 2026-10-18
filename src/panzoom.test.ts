@@ -155,7 +155,12 @@ test('panzoom', async () => {
     t.wheel(100, 100, 10000); // zoom out as far as it will go
     assert.deepEqual({ ...t.x.range }, natural);
     assert(!t.x.isZoomed && !t.y.isZoomed, 'fully zoomed out is no view at all: the axis fits its data again');
-    assert.equal(t.wheel(100, 100, 400), false, 'a turn that cannot zoom out further is left to scroll the page');
+    assert.equal(t.wheel(100, 100, 400), true, "the rest of a hard spin is still the chart's, so the page does not start to scroll");
+  }
+  {
+    // A turn that starts with nothing to zoom is the page's to scroll.
+    const t = setup();
+    assert.equal(t.wheel(100, 100, 400), false, 'a fresh turn at the limit scrolls the page');
   }
   {
     const t = setup({ pz: { limit: false } });
@@ -168,15 +173,15 @@ test('panzoom', async () => {
 
   // ── Direction and axes.
   {
-    const t = setup({ pz: { direction: 'horizontal' } });
+    const t = setup({ pz: { along: 'x' } });
     t.wheel(100, 100, -400);
     assert(t.x.isZoomed && !t.y.isZoomed, 'horizontal moves only the horizontal axis');
   }
   {
-    const t = setup({ pz: { direction: 'vertical' } });
+    const t = setup({ pz: { along: 'y' } });
     t.drag([50, 50], [80, 90]);
     assert.equal(t.x.isZoomed, false);
-    const z = setup({ pz: { direction: 'vertical' } });
+    const z = setup({ pz: { along: 'y' } });
     z.wheel(100, 100, -400);
     assert(z.y.isZoomed && !z.x.isZoomed);
   }
@@ -259,7 +264,7 @@ test('panzoom', async () => {
       new Decimator({}, new MinMaxKernel(), new FlatDataSource({ data: ys, regularDomain: { start: 0, step: 1 } })),
       new LinePath(new LinearCurve()),
     );
-    const plane = new CartesianPlane({}, x, y, series, new PanZoom({ direction: 'horizontal' }));
+    const plane = new CartesianPlane({}, x, y, series, new PanZoom({ along: 'x' }));
     const chart = new Chart({ theme: lightTheme }, plane);
     const platform = new FakePlatform({ width: 500, height: 300 });
     chart.attach(platform).flush();
@@ -308,7 +313,7 @@ test('panzoom', async () => {
         new Decimator({}, new MinMaxKernel(), new FlatDataSource({ data: ys, regularDomain: { start: 0, step: 10 / (n - 1) } })),
         new LinePath(new LinearCurve()),
       ),
-      new PanZoom({ direction: 'both' }),
+      new PanZoom({ along: 'xy' }),
     );
     const chart = new Chart({ theme: lightTheme }, plane);
     const p = new FakePlatform({ width: 960, height: 400 });

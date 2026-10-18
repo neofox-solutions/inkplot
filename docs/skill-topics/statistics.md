@@ -168,7 +168,7 @@ Box and whisker from min, q1, median, q3, max channels.
 | `median` | `string` | The channel of the median. Default: the series' own value, which is what a data source's `value` names. |
 | `q3` | `string` | The channel of the third quartile (the top of the box). Default 'q3'. |
 | `high` | `string` | The channel of the upper whisker's end. Default 'max'. |
-| `capWidth` | `number` | Width of the cap on each whisker, as a fraction of the box's width; 0 for none. Default 0.5. |
+| `capFraction` | `number` | Width of the cap on each whisker, as a fraction of the box's width; 0 for none. Default 0.5. |
 
 ### BoxStats
 
