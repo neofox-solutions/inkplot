@@ -8,7 +8,9 @@ Step-by-step procedures for the chores that come round. Each says when to do it,
 - [Release a new version](#release-a-new-version)
 - [One-time release setup](#one-time-release-setup)
 - [Update dependencies](#update-dependencies)
+- [Update the GitHub Actions](#update-the-github-actions)
 - [Update the toolchain](#update-the-toolchain)
+- [Change the size baseline](#change-the-size-baseline)
 - [Move the platform floor](#move-the-platform-floor)
 - [Change the Node version the repository uses](#change-the-node-version-the-repository-uses)
 - [Regenerate the generated docs](#regenerate-the-generated-docs)
@@ -37,9 +39,9 @@ Releases are made by publishing a **GitHub release**; the workflow in `.github/w
 4. **Bump the version** in the root `package.json` only. Look for prose that names the previous version: `git grep -n "<old version>"` (the install line in the README and the AI-agents guide say `@beta` while there is a beta; those do not name a number). Commit it as its own commit (`Release 1.0.0-beta.3`) and push.
 5. **Create the release** on GitHub: tag **`v<version>`** exactly (`v1.0.0-beta.3`), target `main`, "Generate release notes", and tick **"Set as a pre-release"** for a prerelease. Publishing it starts the workflow.
 6. **The workflow** (`Publish`):
-   - `verify` fails if the tag is not `v` + the root `package.json` version, then runs the whole of `all`.
-   - `publish` packs both packages and **stages** them with `npm stage publish`, `inkplot` first. The npm dist-tag comes from the version: `1.0.0-beta.3` goes under `beta`, a plain `1.0.0` under `latest`; any other prerelease name becomes its own tag (`rc`, …).
-   - `assets` attaches the two skill zips (`inkplot-data-charts-<version>.zip`, `inkplot-skill-<version>.zip`) and `inkplot-playground-<version>.html` to the release.
+   - `verify` (read-only token) fails if the tag is not `v` + the root `package.json` version or the tagged commit is not on `main`, runs the whole of `all`, and builds what is published: the two package folders, the skill zips and the playground. Only this job runs the repository's code.
+   - `publish` downloads those folders (no checkout, no install) and **stages** them with `npm stage publish`, `inkplot` first. The npm dist-tag comes from the version: `1.0.0-beta.3` goes under `beta`, a plain `1.0.0` under `latest`; any other prerelease name becomes its own tag (`rc`, …).
+   - `assets` downloads the same build and attaches the two skill zips (`inkplot-data-charts-<version>.zip`, `inkplot-skill-<version>.zip`) and `inkplot-playground-<version>.html` to the release.
 7. **Approve the staged versions** (this asks for your 2FA): on npmjs.com under *Staged packages*, or `npm stage list inkplot`, `npm stage approve <stage-id>`, for each of `inkplot` and `inkplot-scratch`. Approve `inkplot` first.
 8. **Check what is live:**
    ```sh
@@ -56,7 +58,7 @@ Releases are made by publishing a **GitHub release**; the workflow in `.github/w
 
 Done once per package/repository; keep as a checklist for a new fork or a renamed package.
 
-- **GitHub:** an environment named `npm` (Settings, Environments), optionally with required reviewers; `publish.yml` runs its publish job in it.
+- **GitHub:** an environment named `npm` (Settings, Environments), with required reviewers (recommended: they are the second gate beside npm's approval); `publish.yml` runs its publish job in it.
 - **npm:** each package exists (npm only lets you configure trusted publishing on a package that exists; `tools/publish-placeholder.mjs` publishes an empty placeholder for that, and can be deleted once it has been used). On each package's settings page add a **trusted publisher**: this GitHub repository, workflow `publish.yml`, environment `npm`, with `npm stage publish` allowed. There is no npm token anywhere; authentication is OIDC.
 - The maintainers who approve staged packages have 2FA on their npm accounts.
 
@@ -72,12 +74,31 @@ The repository has no runtime dependencies; this is about the tooling. Versions 
 
 pnpm refuses to install a package version younger than its minimum release age, as a defence against compromised releases. `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` lists the exact versions taken early on purpose (the Vite+ and Rolldown binaries). Do not add to it casually; remove entries when the versions are old enough to pass on their own.
 
+## Update the GitHub Actions
+
+Every `uses:` in `.github/workflows` names a full commit hash with the release in a comment (`actions/checkout@3d3c42e… # v7.0.1`), because a tag can be moved by whoever holds the action's repository and a commit cannot. `tools/actions.mjs` keeps them that way, and `node tools/actions.mjs check` (part of `all`) fails on any that is not pinned. Dependabot's weekly `github-actions` pull requests move the hash and the comment together; the same can be done by hand:
+
+1. `node tools/actions.mjs update` moves every action to the newest release of the major version it is on and prints what changed (`--major` goes to the newest release of all; read that action's release notes first). It uses `git ls-remote`, so it needs no token but does need the network.
+2. Review `git diff .github`. For an action that holds a token (`davelosert/vitest-coverage-report-action` has `pull-requests: write`; everything in `publish.yml`), read what the new release changed before taking it.
+3. `node tools/actions.mjs check`, commit (`Update GitHub Actions`), push, and look at the CI run: the first run is the test.
+4. To add an action: write `uses: owner/repo@v1` as usual, run `node tools/actions.mjs pin` and commit; `node tools/actions.mjs list` shows what is used.
+
+A moving major written as a branch rather than a tag (`denoland/setup-deno@v2` is one) is pinned the same way.
+
 ## Update the toolchain
 
 - **Formatter (`oxfmt`) or linter (`oxlint` via Vite+):** bump it, run `pnpm vp fmt`, and commit the reformatting **by itself**. Add that commit's full hash to `.git-blame-ignore-revs` (one hash per line, with a comment) so `git blame` skips it. If the new linter reports new things, fix them in separate commits, or add a rule override in `vite.config.ts` with a comment saying why. Remember `--report-unused-disable-directives`: a rule change can make an old opt-out unused, which fails the build.
 - **TypeScript:** run `npx tsc -p .` and `npx tsc -p tsconfig.lib.json`. The library must still compile against ES2021 built-ins only.
 - **Vite+/Vitest:** run the whole suite; the test config (pool, timeouts, retry in CI) is in `vite.config.ts`.
 - After any of these, build the package once (`node tools/pack-scratch.mjs out/release`) and run `pnpm vp run pack:test`.
+
+## Change the size baseline
+
+`pnpm vp run size:check` (part of `all`) fails when a scenario's gzip size in `node tools/size.mjs` is more than 2% (and 100 bytes) over `tools/size-baseline.json`. The minimal chart is what every user pays for, so growth there is never a side effect. When a size change is meant (a feature, or a dependency of it, that is worth its bytes):
+
+1. `node tools/size.mjs` to see the table, and say in the pull request what the change costs and why it is worth it.
+2. `node tools/size.mjs --update` writes the new baseline. Commit it with the change that moved it, so the diff of the baseline is the review of the cost.
+3. A decrease is worth recording too: run `--update` after a win, so the next growth is measured against it. At a release, the size numbers in the README and the performance guide are refreshed from the same table.
 
 ## Move the platform floor
 

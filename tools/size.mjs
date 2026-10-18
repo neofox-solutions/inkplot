@@ -3,10 +3,12 @@
 // a row says what its feature costs on top of a chart that already draws a line.
 //   node tools/size.mjs            the table
 //   node tools/size.mjs --modules  also the cost of each source module in the kitchen-sink bundle
+//   node tools/size.mjs --check    fails if a scenario's gzip size is more than the tolerance over tools/size-baseline.json
+//   node tools/size.mjs --update   writes the baseline from the current sizes (a reviewable diff: do it on purpose, say why in the commit)
 import { bundle as build } from './bundle.ts';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const src = (p) => root + 'src/' + p;
@@ -300,3 +302,34 @@ if (process.argv.includes('--modules')) {
 }
 mkdirSync(root + 'out', { recursive: true });
 writeFileSync(root + 'out/size.md', table + modules + '\n');
+
+// The gate. The baseline holds each scenario's gzip size; growth past the tolerance (a share, plus a few bytes for the compressor
+// differing between versions) fails, so a feature that makes every chart bigger shows up as a failing check and a diff to the baseline.
+const baselineFile = root + 'tools/size-baseline.json';
+const TOLERANCE = 0.02,
+  SLACK = 100;
+if (process.argv.includes('--update')) {
+  const sizes = Object.fromEntries(rows.map(({ s, m }) => [s.name, m.gzip]));
+  writeFileSync(baselineFile, JSON.stringify({ tolerance: TOLERANCE, slackBytes: SLACK, gzip: sizes }, null, 2) + '\n');
+  console.log(`wrote ${baselineFile}`);
+}
+if (process.argv.includes('--check')) {
+  if (!existsSync(baselineFile)) {
+    console.error('no tools/size-baseline.json: run `node tools/size.mjs --update`');
+    process.exit(1);
+  }
+  const { tolerance, slackBytes, gzip } = JSON.parse(readFileSync(baselineFile, 'utf8'));
+  const failures = [];
+  for (const { s, m } of rows) {
+    const was = gzip[s.name];
+    if (was === undefined) failures.push(`"${s.name}" is not in the baseline: run \`node tools/size.mjs --update\``);
+    else if (m.gzip > was * (1 + tolerance) + slackBytes)
+      failures.push(`"${s.name}" grew from ${kb(was)} to ${kb(m.gzip)} KB gzip (${sign(m.gzip - was)}): if that is meant, \`node tools/size.mjs --update\` and say why in the commit`);
+  }
+  for (const name of Object.keys(gzip)) if (!rows.some(({ s }) => s.name === name)) failures.push(`"${name}" is in the baseline but is no longer a scenario: --update`);
+  if (failures.length) {
+    console.error(failures.join('\n'));
+    process.exit(1);
+  }
+  console.log(`sizes are within ${tolerance * 100}% (+${slackBytes} B) of tools/size-baseline.json`);
+}

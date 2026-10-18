@@ -20,9 +20,10 @@ jobs:
       contents: read
       pull-requests: write # for the coverage comment
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6 # the version comes from `packageManager` in package.json
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # the version comes from `packageManager` in package.json
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: pnpm
@@ -32,14 +33,14 @@ jobs:
       # Two tasks at a time: a few tests run against the clock, and CI cores are shared.
       - run: pnpm exec vp run --concurrency-limit 2 all
       # The unit tests' coverage (recorded by the `test` task), as a comment on the pull request and in the job summary.
-      - uses: davelosert/vitest-coverage-report-action@v2
+      - uses: davelosert/vitest-coverage-report-action@8f86cfb56ed6d5613ea8cdc5259f207fbfd51ece # v2.13.1
         if: always()
         continue-on-error: true # a pull request from a fork has a read-only token and cannot comment
         with:
           file-coverage-mode: none
       # The unit tests, bundled for the `runtimes` job below (the oldest Node, Deno and Bun, which cannot run Vitest).
       - run: node tools/runtime-tests.ts
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runtime-tests
           path: out/runtime-tests
@@ -48,7 +49,7 @@ jobs:
       # The tarballs a release would publish, so a packaging problem shows up on the pull request.
       - run: node tools/pack-scratch.mjs out/release
       - run: node tools/pack-skill-zip.mjs out/release/skill
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tarballs
           path: |
@@ -74,23 +75,23 @@ jobs:
           - { runtime: bun, version: '1.0.0', run: bun }
     name: ${{ matrix.runtime }} ${{ matrix.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: src # the tests read their neighbours
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: runtime-tests
           path: out/runtime-tests
       - if: matrix.runtime == 'node'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.version }}
       - if: matrix.runtime == 'deno'
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: ${{ matrix.version }}
       - if: matrix.runtime == 'bun'
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ matrix.version }}
       - run: |

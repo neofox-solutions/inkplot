@@ -21,6 +21,12 @@ A few things are optional and need more, and the library checks for them rather 
 
 Server-side, the SVG output uses nothing from a browser: the same bundle runs unchanged on Node, Deno and Bun. CI runs the unit tests on the oldest of each (Node 16.0, Deno 1.31, Bun 1.0), and `pnpm vp run runtimes` draws a chart on Node 16.20, 20 and the latest, Deno 1.46 and the latest, and Bun 1.0 and the latest. Deno 1.31 is the first with the `node:` imports the tests use; the library itself draws a chart from Deno 1.6.
 
+## Module format and TypeScript
+
+- **ESM only.** inkplot is published as ES modules (`"type": "module"`) with no CommonJS build. `import` works everywhere in the table above. `require('inkplot')` works only where `require` can load an ES module (Node 22.12 or later, Node 20.19 or later, Bun); on Node 16 to 20.18 it fails with `ERR_REQUIRE_ESM`, and TypeScript with `module: node16` reports TS1479 for it. Use `import`, or `await import('inkplot')` from CommonJS.
+- **TypeScript 5.0 or later.** The declaration files import their neighbours with the `.ts` extension, which TypeScript accepts in declarations from 5.0 on; older compilers do not follow those imports and type what they reach as `any`. Use `moduleResolution` `bundler`, `node16` or `nodenext` (the `exports` map needs one of them).
+- **`@types/node` for the Node entry points.** `inkplot/node-worker` imports from `node:worker_threads`, so a project that type-checks it needs `@types/node` (or `skipLibCheck`). The main entry point and the browser entry points need no Node types.
+
 ## How it is held
 
 - `tsconfig.lib.json` compiles the library against the ES2021 built-ins and no Node types, so a newer method (`Object.hasOwn`, `Array.prototype.at`, `toSorted`) is a type error.
