@@ -2,7 +2,7 @@
 
 A small chart library for the web and for servers. A chart is a **tree of elements you keep** (`Chart` → plane → axes and series → data and renderers) that draws SVG through a platform. It is tree-shakeable, has no dependencies, and a minimal chart is about 15 KB gzipped, growing only with the features you import.
 
-> **Beta.** `1.0.0-beta.1` is feature-complete and is out for user testing. Install it with the `beta` tag.
+> **Beta.** inkplot is feature-complete and out for user testing. Install the latest beta with the `beta` tag.
 
 ```sh
 npm install inkplot@beta
@@ -53,7 +53,7 @@ Every release has `inkplot-playground-<version>.html` attached: one self-contain
 
 ## Developing
 
-Node 26 or later and [pnpm](https://pnpm.io) (the version is pinned in `package.json`; `corepack enable` picks it up). `pnpm install`, then `pnpm vp run all` runs the type check, lint, format check, tests, docs checks, and the browser, PNG and packaging tests that CI runs (the tasks are in `vite.config.ts`; `pnpm vp run fmt` formats, and `pnpm vp run` lists them).
+Node 26 or later and [pnpm](https://pnpm.io) (the version is pinned in `package.json`; `corepack enable` picks it up). `pnpm install`, then `pnpm vp run all` runs the type check, lint, format check, tests, docs checks, and the browser, PNG and packaging tests that CI runs (the tasks are in `vite.config.ts`; `pnpm vp run fmt` formats, and `pnpm vp run` lists them). [CONTRIBUTING.md](CONTRIBUTING.md) has the code standards and design philosophy (for people and for LLMs), and [RUNBOOKS.md](RUNBOOKS.md) the steps for releases, dependency updates and platform bumps.
 
 ## Licence
 
