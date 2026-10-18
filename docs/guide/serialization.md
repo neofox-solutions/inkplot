@@ -3,7 +3,7 @@
 A chart is a tree of elements whose attributes are plain data and whose children are ordered, so it maps directly to JSON: `{ type, attrs, children }`. The same format is what lets a saved chart, a config-driven page, an editor, and the framework adapters share one description.
 
 ```ts
-interface ElementJSON { type: string; attrs?: Record<string, unknown>; children?: ElementJSON[] }
+interface ElementJSON { version?: [number, number]; type: string; attrs?: Record<string, unknown>; children?: ElementJSON[] }
 ```
 
 Three functions do the work:
@@ -17,10 +17,11 @@ Three functions do the work:
 ## A chart from JSON
 
 ```tsx live title="Building a chart from a JSON description" height=260
-import { Refs, fromJSON, lightTheme, registry } from 'inkplot';
+import { JSON_VERSION, Refs, fromJSON, lightTheme, registry } from 'inkplot';
 import type { Chart, ElementJSON } from 'inkplot';
 
 const description: ElementJSON = {
+  version: JSON_VERSION,
   type: 'Chart',
   attrs: { theme: { $ref: 'lightTheme' }, meta: { title: 'From JSON' } },
   children: [{
@@ -46,6 +47,8 @@ export default () => fromJSON<Chart>(description, registry, { refs: new Refs({ l
 A `type` is the name a class is registered under. `registry` lists every class the library ships, under its own name (`LinePath`, `CartesianPlane`…).
 
 > **Bundle cost.** `registry` names every class, so importing it brings the whole library into a bundle. It is for tools and configuration-driven pages. A page that builds its charts in code never needs it.
+
+The root carries a `version` (see [Versions](#versions)); `toJSON` writes it and `fromJSON` and `applyJSON` require it, so JSON written by hand puts `version: JSON_VERSION` there.
 
 ## Writing a chart
 
@@ -112,3 +115,14 @@ Naming a class that is not in the registry is an error that says so, with the pl
 ## The adapters use it
 
 The React and Web Components adapters read attributes the same way (hyphens nest, values keep their types), so a description that works here works there. JSON is also what an AI or a tool should produce when asked for a chart: it can be validated by loading it (`fromJSON` names the element and the place on any error) without drawing anything.
+
+## Versions
+
+The root of what `toJSON` returns has `version: [major, minor]`. `fromJSON` and `applyJSON` read a document only when its major is this release's and its minor is not newer, so a chart saved years ago is either read as it was written or refused with a message, and never read as something it was not.
+
+- A **minor** goes up when the format gains something an older release cannot read: a new marker, a new element, a new attribute.
+- A **major** goes up when it loses or changes something: an element or attribute removed or renamed, a different meaning, a marker gone.
+
+What the version covers is the format and the library's own elements and attributes. Classes of your own, added to the registry, are yours to keep compatible, and there is no migration: an old document is read as it is or refused.
+
+`JSON_VERSION` is the version this release writes and the newest it reads. It is frozen, so it can be shared. Use it to write JSON by hand, and to force a document through that was refused: set its `version` to `JSON_VERSION` and its contents are read as they are, with anything that has changed since up to you.

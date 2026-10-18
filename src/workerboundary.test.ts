@@ -23,6 +23,7 @@ import {
   type PlanContext,
   type ToWorker,
   type WorkerLike,
+  JSON_VERSION,
 } from './index.ts';
 import { serveWorker } from './worker.ts';
 
@@ -221,7 +222,7 @@ test('worker boundary: the entrance waits for the first points, and plays then',
 });
 
 test('serveWorker: answers on a port, whichever way the port listens', () => {
-  const tree = { type: 'FlatDataSource', attrs: { data: { $ref: 'data' }, stride: 2, isSorted: true } };
+  const tree = { version: JSON_VERSION, type: 'FlatDataSource', attrs: { data: { $ref: 'data' }, stride: 2, isSorted: true } };
   const attach = { kind: 'attach', id: 7, epoch: 1, tree, refs: { data: wave(100) } };
   const fill = {
     kind: 'fill',

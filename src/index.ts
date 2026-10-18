@@ -368,7 +368,17 @@ export {
 export type { PaintProvider } from './element.ts';
 export { type PointAnnotationsAttributes, PointAnnotations, type PointWords } from './pointannotations.ts';
 export { LINE_HEIGHT, measureBlock, paintLines } from './text.ts';
-export { type ElementJSON, type ElementRegistry, Refs, type SerializeOptions, applyJSON, fromJSON, toJSON } from './serialize.ts';
+export {
+  type ElementJSON,
+  type ElementRegistry,
+  JSON_VERSION,
+  type JSONVersion,
+  Refs,
+  type SerializeOptions,
+  applyJSON,
+  fromJSON,
+  toJSON,
+} from './serialize.ts';
 export { registry } from './registry.ts';
 export { type LineChartOptions, lineChart } from './simple.ts';
 export type { ChartShortcutOptions, SeriesInput } from './shortcut.ts';

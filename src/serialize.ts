@@ -6,6 +6,16 @@
  *     const copy = fromJSON(json, registry);             // a new, unattached tree
  *     applyJSON(chart, editedJson, registry);            // the same tree, changed to match
  *
+ * The version
+ * ───────────
+ * The root of what `toJSON` returns has `version: [major, minor]`, and `fromJSON` and `applyJSON` read only a document
+ * whose major is the same as this release's and whose minor is not newer, so a document kept for years is either read as
+ * written or refused with a message, and never read as something it was not. A minor changes when the form gains
+ * something an older release cannot read (a new marker, a new element or attribute); a major when it loses or changes
+ * something (an element or attribute removed or renamed, a different meaning, a marker gone). The version covers the form
+ * and the library's own elements and attributes; classes of your own are yours to keep compatible, and there is no
+ * migration: an old document is read as it is or refused. `JSON_VERSION` is the current one, for writing JSON by hand.
+ *
  * The registry
  * ────────────
  * `type` is the name a class is registered under (`registry.ts` has all of the library's). An element is written under the
@@ -39,8 +49,20 @@ import { type AnyArgs, type AnyElement, ChartElement, fail } from './element.ts'
 
 /* oxlint-disable typescript/consistent-type-assertions -- reads untrusted JSON and arbitrary attribute values: each value is checked at runtime (`typeof`, `Array.isArray`, the registry) and then narrowed to the shape just checked */
 
-/** The JSON form of one element: its registered class name, attributes, and children in order. */
+/** The version of the JSON form: `[major, minor]`. See the top of this file for what a change to each means. */
+export type JSONVersion = readonly [major: number, minor: number];
+
+/**
+ * The JSON form this release writes, and the newest it reads. Frozen, so it can be shared: to write JSON by hand, put
+ * `version: JSON_VERSION` on the root; to read a document that is refused as incompatible anyway, set `version` to it
+ * (the contents are then read as they are, and any attribute or element that has since changed is up to you).
+ */
+export const JSON_VERSION: JSONVersion = Object.freeze([1, 0] as const);
+
+/** The JSON form of one element: its registered class name, attributes, and children in order. The root also has the `version`. */
 export interface ElementJSON {
+  /** Only on the root of a document (what `toJSON` returns); required there by `fromJSON` and `applyJSON`, and absent from the children. */
+  version?: JSONVersion;
   type: string;
   attrs?: Record<string, unknown>;
   children?: ElementJSON[];
@@ -235,7 +257,27 @@ function write(element: AnyElement, path: string, w: Writing): ElementJSON {
 
 /** An element and everything below it as JSON. See the top of this file for what an attribute may hold. */
 export function toJSON(element: AnyElement, registry: ElementRegistry, options: SerializeOptions = {}): ElementJSON {
-  return write(element, '', { registry, refs: options.refs, limit: options.inlineLimit ?? 1000 });
+  return {
+    version: [JSON_VERSION[0], JSON_VERSION[1]],
+    ...write(element, '', { registry, refs: options.refs, limit: options.inlineLimit ?? 1000 }),
+  };
+}
+
+/** Refuses a document of another major version, or a newer minor, or one with no version at all. */
+function checkVersion(json: ElementJSON): void {
+  if (json === null || typeof json !== 'object') return; // the reader says what it is
+  const v: unknown = json.version;
+  const ok = Array.isArray(v) && v.length === 2 && v.every((n) => Number.isInteger(n) && n >= 0);
+  if (!ok)
+    fail(
+      `the JSON has no "version", or one that is not [major, minor]: a document written by toJSON has it; one written by hand needs \`version: JSON_VERSION\` (now ${JSON_VERSION.join('.')})`,
+    );
+  const [major, minor] = v as number[];
+  if (major !== JSON_VERSION[0] || (minor as number) > JSON_VERSION[1])
+    fail(
+      `the JSON is version ${major}.${minor}, which this release (reading ${JSON_VERSION[0]}.0 to ${JSON_VERSION.join('.')}) cannot read: ` +
+        `it was written by ${major !== JSON_VERSION[0] ? 'an incompatible' : 'a newer'} release. To read it as it is anyway, set its \`version\` to JSON_VERSION`,
+    );
 }
 
 // ─── Reading ───
@@ -311,6 +353,7 @@ export function fromJSON<T extends AnyElement = AnyElement>(
   registry: ElementRegistry,
   options: SerializeOptions = {},
 ): T {
+  checkVersion(json);
   return build(json, registry, options.refs, '') as T;
 }
 
@@ -380,6 +423,7 @@ function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: 
 export function applyJSON(element: AnyElement, json: ElementJSON, registry: ElementRegistry, options: SerializeOptions = {}): void {
   const w: Writing = { registry, refs: options.refs, limit: options.inlineLimit ?? 1000 };
   if (json === null || typeof json !== 'object') fail('an element is an object { type, attrs?, children? }');
+  checkVersion(json);
   if (nameOf(element.constructor, registry, '') !== json.type)
     fail(`the root is a ${element.constructor.name}: JSON for a "${json.type}" cannot be applied to it`);
   const ops: (() => void)[] = [];

@@ -37,7 +37,7 @@ The element classes (with every attribute) are in the [attribute reference](api.
 
 | Export | Is |
 |---|---|
-| `toJSON`, `fromJSON`, `applyJSON` | A tree to JSON, JSON to a tree, and JSON applied to a live tree. [Serialization](../guide/serialization.md) |
+| `toJSON`, `fromJSON`, `applyJSON`, `JSON_VERSION` | A tree to JSON, JSON to a tree, and JSON applied to a live tree. [Serialization](../guide/serialization.md) |
 | `Refs` | A table of names for functions and objects that JSON cannot hold. |
 | `registry` | Every shipped class by name (pulls the whole library into a bundle). |
 

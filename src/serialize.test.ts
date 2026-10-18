@@ -39,6 +39,7 @@ import {
   toSvgString,
   type ElementJSON,
   type ElementRegistry,
+  JSON_VERSION,
 } from './index.ts';
 import { test } from 'vite-plus/test';
 
@@ -178,6 +179,7 @@ test('serialize', () => {
   // ── Reading says where it went wrong.
   {
     const ok: ElementJSON = {
+      version: JSON_VERSION,
       type: 'Chart',
       attrs: { theme: { $ref: 't' } },
       children: [
@@ -234,7 +236,11 @@ test('serialize', () => {
       /needs a "type"/,
     );
     assert.throws(() => fromJSON(null as unknown as ElementJSON, registry), /an element is an object/);
-    assert.throws(() => fromJSON({ type: 'toString' }, registry), /unknown type "toString"/, 'the registry is not the Object prototype');
+    assert.throws(
+      () => fromJSON({ version: JSON_VERSION, type: 'toString' }, registry),
+      /unknown type "toString"/,
+      'the registry is not the Object prototype',
+    );
     // Reserved keys cannot be written by accident; classes of your own need registering.
     const reserved = new Chart({ theme: lightTheme, meta: { $x: 1 } as never });
     assert.throws(() => toJSON(reserved, registry, { refs: new Refs({ lightTheme }) }), /the key "\$x" is reserved/);
@@ -443,7 +449,7 @@ test('serialize', () => {
       /unknown type "Nonsense"/,
     );
     assert.equal(JSON.stringify(toJSON(t.chart, registry, { refs })), before, 'unchanged');
-    assert.throws(() => applyJSON(t.chart, { type: 'PolarPlane' }, registry), /the root is a Chart/);
+    assert.throws(() => applyJSON(t.chart, { version: JSON_VERSION, type: 'PolarPlane' }, registry), /the root is a Chart/);
     assert.throws(() => applyJSON(t.chart, null as never, registry), /an element is an object/);
 
     // Key order in the JSON does not matter to what counts as changed.
@@ -465,4 +471,32 @@ test('serialize', () => {
     assert(t.chart.isAttached);
     t.chart.detach();
   }
+});
+
+test('serialize: the version', () => {
+  const registry = { Chart: L.Chart, CartesianPlane: L.CartesianPlane, Axis: L.Axis, LinearScale: L.LinearScale };
+  const chart = new L.Chart({ theme: lightTheme, width: 100, height: 100 });
+  const json = toJSON(chart, registry);
+  assert.deepEqual(json.version, [JSON_VERSION[0], JSON_VERSION[1]], 'the root says what wrote it');
+  assert(Object.isFrozen(JSON_VERSION), 'the current version is frozen');
+  assert.equal(JSON.parse(JSON.stringify(json)).version.length, 2, 'and it survives JSON');
+  assert(fromJSON(json, registry) instanceof L.Chart);
+  const edit = (version: unknown) => ({ ...json, version }) as ElementJSON;
+  const [major, minor] = JSON_VERSION;
+  // An older or equal minor reads; a newer minor, another major, and no version do not.
+  assert(fromJSON(edit([major, 0]), registry) instanceof L.Chart);
+  assert.throws(
+    () => fromJSON(edit([major, minor + 1]), registry),
+    /version \d+\.\d+, which this release .* cannot read: it was written by a newer release/,
+  );
+  assert.throws(() => fromJSON(edit([major + 1, 0]), registry), /incompatible release/);
+  assert.throws(() => fromJSON(edit([major - 1, 0]), registry), /incompatible release/);
+  assert.throws(() => fromJSON({ type: 'Chart' } as ElementJSON, registry), /no "version"/);
+  for (const bad of ['1.0', [1], [1, 0, 0], [1.5, 0], [-1, 0], [1, '0'], null])
+    assert.throws(() => fromJSON(edit(bad), registry), /no "version", or one that is not \[major, minor\]/, JSON.stringify(bad));
+  // applyJSON checks too, and the document can be forced by saying it is the current version.
+  assert.throws(() => applyJSON(chart, edit([major + 1, 0]), registry), /incompatible release/);
+  assert(fromJSON({ ...edit([major + 1, 0]), version: JSON_VERSION }, registry) instanceof L.Chart);
+  // The children have none.
+  assert.equal(json.children?.[0]?.version, undefined);
 });
