@@ -12,7 +12,10 @@ import type { Surface } from './surface.ts';
 import { LINE_HEIGHT, applyText, measureBlock, paintLines } from './text.ts';
 import type { CalloutMetrics, LineProps, ShapeProps, TextProps } from './theme.ts';
 
-/** Everything a callout's look takes from the theme, resolved by the element that draws it (whose chains differ). */
+/**
+ * Everything a callout's look takes from the theme, resolved by the element that draws it (whose chains differ).
+ * @internal
+ */
 export interface CalloutLook {
   metrics: CalloutMetrics;
   text: TextProps;
@@ -26,7 +29,10 @@ const sampleHeight = (look: CalloutLook) => Math.max(5, Math.round(look.text.siz
 /** The room a column of samples takes at the start of the text: a sample and the gap after it. */
 const swatchIndent = (look: CalloutLook) => sampleWidth(look) + 5;
 
-/** How big the box is for `text`: the text's block and the padding all round, and room for a column of series samples if `swatches`. */
+/**
+ * How big the box is for `text`: the text's block and the padding all round, and room for a column of series samples if `swatches`.
+ * @internal
+ */
 export function calloutSize(measure: TextMeasurer, text: string, look: CalloutLook, swatches = false): Size {
   const size = measureBlock(measure, text, look.text),
     pad = 2 * look.metrics.padding;
@@ -44,6 +50,7 @@ export function calloutSize(measure: TextMeasurer, text: string, look: CalloutLo
  *
  * `prefix` puts every node under another key (`n3/box`), so one element can hold several callouts and take one away with `clearCallout`
  * and the same prefix.
+ * @internal
  */
 export function paintCallout(
   s: Surface,
@@ -137,7 +144,10 @@ export function paintCallout(
   return drawn;
 }
 
-/** Take a callout off the surface (`prefix` as it was drawn with). */
+/**
+ * Take a callout off the surface (`prefix` as it was drawn with).
+ * @internal
+ */
 export function clearCallout(s: Surface, lines: number, samples?: SampleCache, prefix = ''): void {
   for (const key of ['box', 'edge', 'arm', 'dot']) s.remove(prefix + key);
   for (let i = 0; i < lines; i++) {

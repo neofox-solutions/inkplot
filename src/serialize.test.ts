@@ -491,7 +491,7 @@ test('serialize: the version', () => {
   );
   assert.throws(() => fromJSON(edit([major + 1, 0]), registry), /incompatible release/);
   assert.throws(() => fromJSON(edit([major - 1, 0]), registry), /incompatible release/);
-  assert.throws(() => fromJSON({ type: 'Chart' } as ElementJSON, registry), /no "version"/);
+  assert.throws(() => fromJSON({ type: 'Chart' }, registry), /no "version"/);
   for (const bad of ['1.0', [1], [1, 0, 0], [1.5, 0], [-1, 0], [1, '0'], null])
     assert.throws(() => fromJSON(edit(bad), registry), /no "version", or one that is not \[major, minor\]/, JSON.stringify(bad));
   // applyJSON checks too, and the document can be forced by saying it is the current version.

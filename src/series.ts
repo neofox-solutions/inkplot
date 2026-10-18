@@ -770,13 +770,17 @@ export class XYSeries<Channel extends string = string> extends Series<XYSeriesAt
   }
 }
 
-/** What `paintSample` remembers of each group it draws: whose sample it holds and of how many renderers. */
+/**
+ * What `paintSample` remembers of each group it draws: whose sample it holds and of how many renderers.
+ * @internal
+ */
 export type SampleCache = Map<string, { series: Series; renderers: number }>;
 
 /**
  * A sample of `series` in a group of `surface` keyed `key`, set at (x, y), `width` by `height`. A group that last held another
  * series (a tooltip line that now reads another one) is made afresh, so nothing of the old one is left; `cache` is what the
  * caller keeps between calls. Returns the group, for what the caller wants to do to it (dim it).
+ * @internal
  */
 export function paintSample(
   surface: Surface,

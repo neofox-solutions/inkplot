@@ -2,6 +2,10 @@
 
 The element classes (with every attribute) are in the [attribute reference](api.md). This page lists everything else the package exports, grouped by what it is for. Names come from `import { … } from 'inkplot'`; the adapters are separate entry points (`inkplot/react`, `inkplot/web-components`, `inkplot/jsx-runtime`).
 
+## Stability
+
+Everything the package exports follows [semver](https://semver.org): a name, a signature, an attribute or a behaviour documented here, in the [attribute reference](api.md) or in the guides changes incompatibly only in a new major version. The one exception is an export whose declaration has the JSDoc tag `@internal`: it is exported because the library's own entry points or an advanced extension need it, it is not documented as API, and it may change or go in any release. Your editor shows the tag on hover. The saved-chart format has its own [version](../guide/serialization.md#versions).
+
 ## Drawing
 
 | Export | Is |

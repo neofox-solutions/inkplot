@@ -130,6 +130,8 @@ export {
   LttbKernel,
   M4Kernel,
   MinMaxKernel,
+  type KeyedResult,
+  type KeyedRows,
   type ReduceResult,
   StrideKernel,
 } from './decimation.ts';
@@ -174,7 +176,7 @@ export { StepCurve, type StepCurveAttributes, type StepMode, type Stepped, stepL
 export { BoxPath, type BoxPathAttributes } from './boxplot.ts';
 export { BoxStats, type BoxStatsAttributes } from './stats.ts';
 export { quantile } from './quantile.ts';
-export { Density, type DensityAttributes } from './density.ts';
+export { Density, type DensityAttributes, type Stat } from './density.ts';
 export { ErrorBand, type ErrorBandAttributes, ErrorBars, type ErrorBarsAttributes } from './errors.ts';
 export { barShift } from './bars.ts';
 export {
@@ -249,6 +251,7 @@ export {
 export {
   type Binding,
   type Bindings,
+  type BoundDimension,
   ColorAxis,
   type ColorAxisAttributes,
   type ColorRampName,

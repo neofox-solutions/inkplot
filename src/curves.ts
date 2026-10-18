@@ -36,13 +36,17 @@ import type { Series } from './series.ts';
 
 const pt = (x: number, y: number) => f2(x) + ' ' + f2(y);
 
-/** Receives the vertices of a sampled piece: where, and how far along the piece (0 to 1), which says which end owns it. */
+/**
+ * Receives the vertices of a sampled piece: where, and how far along the piece (0 to 1), which says which end owns it.
+ * @internal
+ */
 export type Push = (x: number, y: number, t: number) => void;
 
 /**
  * One segment of a curve: where it ends (`x`, `y`), the (run-local) indices of the two points it runs between (`a`, `b`), so
  * that a vertex on it can be given an owner, its path text beginning with the command letter, and a way to cut it into
  * vertices for tracing from where the pen was.
+ * @internal
  */
 export interface Piece {
   readonly cmd: string;
@@ -57,12 +61,18 @@ export interface Piece {
 /** Vertices a Bézier or an arc is cut into, for tracing: enough that a chord is within a fraction of a pixel on a plot. */
 const SAMPLES = 16;
 
-/** A straight line to (x, y). */
+/**
+ * A straight line to (x, y).
+ * @internal
+ */
 export function lineTo(x: number, y: number, a: number, b: number): Piece {
   return { cmd: 'L', d: 'L' + pt(x, y), x, y, a, b, sample: (_x0, _y0, push) => push(x, y, 1) };
 }
 
-/** A cubic Bézier with control points (x1, y1) and (x2, y2), ending at (x, y). */
+/**
+ * A cubic Bézier with control points (x1, y1) and (x2, y2), ending at (x, y).
+ * @internal
+ */
 export function cubicTo(x1: number, y1: number, x2: number, y2: number, x: number, y: number, a: number, b: number): Piece {
   return {
     cmd: 'C',
@@ -88,6 +98,7 @@ export function cubicTo(x1: number, y1: number, x2: number, y2: number, x: numbe
 /**
  * One Hermite segment of a run as a cubic: from point `k` to `k + 1` of `p`, with the given tangents (derivatives with
  * respect to a parameter that spans `h` over the segment) at its two ends.
+ * @internal
  */
 export function hermiteTo(p: ArrayLike<number>, k: number, lx: number, ly: number, rx: number, ry: number, h: number): Piece {
   return cubicTo(
@@ -112,17 +123,26 @@ function quadSample(qx: number, qy: number, x: number, y: number): Piece['sample
   };
 }
 
-/** A quadratic Bézier with control point (x1, y1), ending at (x, y). */
+/**
+ * A quadratic Bézier with control point (x1, y1), ending at (x, y).
+ * @internal
+ */
 export function quadTo(x1: number, y1: number, x: number, y: number, a: number, b: number): Piece {
   return { cmd: 'Q', d: 'Q' + pt(x1, y1) + ' ' + pt(x, y), x, y, a, b, sample: quadSample(x1, y1, x, y) };
 }
 
-/** A smooth quadratic ending at (x, y), whose control point SVG reflects from the last piece; (cx, cy) is that reflected point, which tracing needs. */
+/**
+ * A smooth quadratic ending at (x, y), whose control point SVG reflects from the last piece; (cx, cy) is that reflected point, which tracing needs.
+ * @internal
+ */
 export function smoothTo(cx: number, cy: number, x: number, y: number, a: number, b: number): Piece {
   return { cmd: 'T', d: 'T' + pt(x, y), x, y, a, b, sample: quadSample(cx, cy, x, y) };
 }
 
-/** A circular arc of radius `r` to (x, y), on the side and of the size the flags pick (as the SVG `A` command with equal radii). */
+/**
+ * A circular arc of radius `r` to (x, y), on the side and of the size the flags pick (as the SVG `A` command with equal radii).
+ * @internal
+ */
 export function arcTo(r: number, large: 0 | 1, sweep: 0 | 1, x: number, y: number, a: number, b: number): Piece {
   return {
     cmd: 'A',

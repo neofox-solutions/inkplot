@@ -74,7 +74,10 @@ export function nearestPoint(points: PointBuffer, x: number, y: number): Nearest
   return best < 0 ? null : { index: best, distance: bestD };
 }
 
-/** The distance to the nearest point of the polyline through the points (a gap breaks it), and the nearer end of that segment. */
+/**
+ * The distance to the nearest point of the polyline through the points (a gap breaks it), and the nearer end of that segment.
+ * @internal
+ */
 export function nearestSegment(points: PointBuffer, x: number, y: number): Nearest | null {
   if (x !== x || y !== y) return nearestPoint(points, x, y);
   const { data, count, stride } = points;
@@ -111,6 +114,7 @@ export function nearestSegment(points: PointBuffer, x: number, y: number): Neare
  * Whether (x, y) is inside the shape that a run of points makes with its baseline (the same points, placed against the
  * baseline value, which `base` holds one row each for). Runs are the stretches between gaps, each its own shape. The
  * nearest point of that run is returned when it is, else null.
+ * @internal
  */
 export function insideArea(points: PointBuffer, base: PointBuffer, x: number, y: number): number | null {
   if (x !== x || y !== y) return null;
@@ -159,6 +163,7 @@ export function insideArea(points: PointBuffer, base: PointBuffer, x: number, y:
  * The shape the pointer is inside (distance 0), else the one whose outline is nearest, by the shape's index. Shapes
  * made of NaN are left out. A NaN coordinate of the pointer means "ignore this direction", and the shapes' own points
  * then stand for them, as for any other mode.
+ * @internal
  */
 export function nearestShape(shapes: PolygonSet, points: PointBuffer, x: number, y: number): Nearest | null {
   if (x !== x || y !== y) return nearestPoint(points, x, y);
@@ -225,6 +230,7 @@ function runsIn(path: PointBuffer): [number, number][] {
 /**
  * Whether (x, y) is inside a shape a trace draws: each run of its line closed back along the same run of its baseline.
  * The point it belongs to is the one owning the nearest vertex of the line in that run, else null.
+ * @internal
  */
 export function insideTrace(trace: Trace, x: number, y: number): number | null {
   const base = trace.base;
@@ -266,7 +272,10 @@ export function insideTrace(trace: Trace, x: number, y: number): number | null {
   return null;
 }
 
-/** The nearest point under `mode` ('line' or 'area') to a path a renderer traces, by the point each vertex belongs to. */
+/**
+ * The nearest point under `mode` ('line' or 'area') to a path a renderer traces, by the point each vertex belongs to.
+ * @internal
+ */
 export function nearestTraced(trace: Trace, mode: HitMode, x: number, y: number): Nearest | null {
   if (mode === 'area') {
     const inside = insideTrace(trace, x, y);
@@ -288,7 +297,10 @@ export function nearest(points: PointBuffer, mode: HitMode, base: (() => PointBu
 
 // ─── Series and planes ───
 
-/** The hit for drawn point `index` of a series, with the pointer `distance` away. */
+/**
+ * The hit for drawn point `index` of a series, with the pointer `distance` away.
+ * @internal
+ */
 export function pointHit(series: Series, index: number, distance = 0): Hit | null {
   return hitAt(series, index, distance);
 }
@@ -523,7 +535,10 @@ function interpolateTraced(series: Series, first: number, trace: Trace): Hit | n
   return null;
 }
 
-/** Every series' line read at the pointer, topmost first: `interpolate` at the pointer's place along each series' first axis. */
+/**
+ * Every series' line read at the pointer, topmost first: `interpolate` at the pointer's place along each series' first axis.
+ * @internal
+ */
 export function interpolateAll(plane: Plane, x: number, y: number): Hit[] {
   const out: Hit[] = [];
   const series = plane.series;

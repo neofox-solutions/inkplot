@@ -22,10 +22,16 @@ export function applyText(surface: Surface, node: PlatformNode, t: TextProps, an
   surface.set(node, 'stroke-linejoin', 'round');
 }
 
-/** Line height as a multiple of the font size. */
+/**
+ * Line height as a multiple of the font size.
+ * @internal
+ */
 export const LINE_HEIGHT = 1.25;
 
-/** The size of text that may span several lines (split at '\n'), and how many it has. */
+/**
+ * The size of text that may span several lines (split at '\n'), and how many it has.
+ * @internal
+ */
 export function measureBlock(measure: TextMeasurer, text: string, t: TextProps): Size & { lines: number } {
   const lines = text.split('\n');
   let width = 0;
@@ -41,6 +47,7 @@ export function measureBlock(measure: TextMeasurer, text: string, t: TextProps):
  * Draw text that may span lines, one node per line since the platform has no tspans. `x` is where each line is anchored
  * (its own `text-anchor` says which end of it), `top` the top of the block. Lines left over from a longer text are
  * removed; `previous` is how many there were, and the new count is returned for the next call.
+ * @internal
  */
 export function paintLines(
   surface: Surface,

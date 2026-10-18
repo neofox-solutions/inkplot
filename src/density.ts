@@ -44,7 +44,7 @@ import { quantile } from './quantile.ts';
 
 /* oxlint-disable typescript/consistent-type-assertions -- stat and size channel names are checked against the `STATS` and `SIZES` lists at runtime and then narrowed to the literal union */
 
-type Stat = 'count' | 'sum' | 'mean' | 'fraction' | 'density';
+export type Stat = 'count' | 'sum' | 'mean' | 'fraction' | 'density';
 const STATS: readonly Stat[] = ['count', 'sum', 'mean', 'fraction', 'density'];
 /** Channels beside the statistics: the bin's size along the first two dimensions. */
 const SIZES = ['width', 'height'] as const;

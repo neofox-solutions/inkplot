@@ -55,6 +55,7 @@ const sameDomain = (a: Rows, b: Rows) => {
 /**
  * Tables of rows made to share one domain: the union of all of theirs, each with a row at every position, `gaps` or
  * `interpolate` where it had none. The made-up rows have no source row (`rowOf` negative).
+ * @internal
  */
 export function alignRows(tables: readonly Rows[], how: 'gaps' | 'interpolate'): Rows[] {
   let total = 0;
@@ -89,14 +90,20 @@ export function alignRows(tables: readonly Rows[], how: 'gaps' | 'interpolate'):
   });
 }
 
-/** Where every row of every member starts and is plotted, and the extent of it all. */
+/**
+ * Where every row of every member starts and is plotted, and the extent of it all.
+ * @internal
+ */
 export interface Layout {
   readonly base: Float64Array[];
   readonly top: Float64Array[];
   readonly extent: Extent | null;
 }
 
-/** Lay the values of the (already lined-up) tables out by `mode`. */
+/**
+ * Lay the values of the (already lined-up) tables out by `mode`.
+ * @internal
+ */
 export function layOut(tables: readonly Rows[], mode: StackMode): Layout {
   const members = tables.length,
     n = tables[0]?.count ?? 0;
