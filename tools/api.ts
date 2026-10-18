@@ -3,7 +3,7 @@
 //   node tools/api.ts            prints docs/reference/api.md
 //   node tools/api.ts --compact  prints the one-line-per-element form SKILL.md carries
 // tools/docs.test.ts checks that the files in docs/ match what this prints.
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 
 const SRC = new URL('../src/', import.meta.url);
 
@@ -445,5 +445,14 @@ export function compact(): string {
   return lines.join('\n');
 }
 
-if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1])
-  console.log(process.argv.includes('--compact') ? compact() : reference());
+if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
+  // `--out <file>` writes the file only once the text is made, so a failure leaves the old one (`> file` empties it first).
+  const text = process.argv.includes('--compact') ? compact() : reference();
+  const at = process.argv.indexOf('--out');
+  if (at < 0) console.log(text);
+  else {
+    const file = process.argv[at + 1];
+    if (!file) throw new Error('--out needs a file');
+    writeFileSync(file, text + '\n');
+  }
+}

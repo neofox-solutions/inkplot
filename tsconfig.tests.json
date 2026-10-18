@@ -1,0 +1,7 @@
+{
+  // The unit tests are run on the oldest Node, Deno and Bun as well as Vitest (tools/runtime-tests.ts), so they are held to the same
+  // built-ins as the library: a test that calls `.at()` or `Object.hasOwn` fails here instead of on Node 16.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "lib": ["es2021", "es2022.error", "dom", "dom.iterable"], "noEmit": true },
+  "include": ["src/*.ts", "src/*.tsx", "*.ts"]
+}

@@ -4,16 +4,17 @@
 //   --stamp: mark SKILL.md as written for that version of inkplot, see stamp-skill.mjs)
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseArgs } from 'node:util';
 import { jsxFlavour, typeScriptFlavour } from './jsx-to-new.mjs';
 import { stampSkill } from './stamp-skill.mjs';
 
-const args = process.argv.slice(2),
-  ts = args.includes('--ts'),
-  stampAt = args.indexOf('--stamp'),
-  version = stampAt < 0 ? null : args[stampAt + 1];
-if (stampAt >= 0 && !version) throw new Error('--stamp needs a version');
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { ts: { type: 'boolean' }, stamp: { type: 'string' } } });
+if (positionals.length > 1) throw new Error(`one output folder at most (got ${positionals.join(', ')})`);
+if (values.stamp === '') throw new Error('--stamp needs a version');
+const ts = values.ts === true,
+  version = values.stamp ?? null;
 const root = new URL('../docs/', import.meta.url).pathname;
-const out = args.find((a, i) => !a.startsWith('--') && i !== stampAt + 1) ?? new URL('../out/skill/', import.meta.url).pathname;
+const out = positionals[0] ?? new URL('../out/skill/', import.meta.url).pathname;
 const strip = (text) => text.replace(/\[([^\]]+)\]\((?:\.\.\/|\.\/)?(?:guide|extending|start|authoring|README|api\.md)[^)]*\)/g, '$1');
 
 rmSync(out, { recursive: true, force: true });

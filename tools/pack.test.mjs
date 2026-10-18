@@ -1,5 +1,5 @@
 // The tarballs a release publishes: every file an `exports` entry points at is in it, the metadata npm shows is present, and the two
-// packages agree on a version. Run on its own: node tools/pack.test.mjs
+// packages agree on a version. Run on its own: pnpm vp test run tools/pack.test.mjs
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -45,16 +45,28 @@ test('pack', () => {
       './worker',
     ]);
     assert.equal(lib.license, 'MIT');
-    assert.equal(lib.engines, undefined, "inkplot: the repository's Node requirement is for its tooling, not the library");
+    assert.deepEqual(lib.engines, { node: '>=16.7' }, 'inkplot: engines names what the CLI (fs.cpSync) needs, not the repository tooling');
     assert.match(lib.repository.url, /neofox-solutions\/inkplot\.git$/);
     assert.equal(lib.peerDependencies.react, '>=18');
     assert.ok(![...have].some((f) => /\.test\.|fake-platform/.test(f)), 'inkplot: test files are in the tarball');
     // The JavaScript is the source with its types blanked out, so a line of a stack trace is the line in src/.
-    for (const f of ['index', 'data', 'series', 'decimation']) {
-      const built = execFileSync('tar', ['-xzOf', inkplotTgz, `package/dist/${f}.js`]).toString(),
-        source = readFileSync(join(root, `src/${f}.ts`), 'utf8');
-      assert.equal(built.split('\n').length, source.split('\n').length, `dist/${f}.js has the lines of src/${f}.ts`);
-      assert.ok(!/from '\.\/[\w-]+\.ts'/.test(built), `dist/${f}.js imports .js files`);
+    const read = (path) => execFileSync('tar', ['-xzOf', inkplotTgz, `package/${path}`]).toString();
+    const built = [...have].filter((f) => /^dist\/[\w-]+\.js$/.test(f));
+    assert.ok(built.length > 20, 'inkplot: dist holds the modules');
+    for (const file of built) {
+      const text = read(file),
+        source = readFileSync(join(root, 'src', file.slice(5).replace(/\.js$/, '.ts')), 'utf8');
+      assert.equal(text.split('\n').length, source.split('\n').length, `${file} has the lines of its source`);
+      assert.ok(!/from '\.\/[\w-]+\.ts'/.test(text), `${file} imports .js files`);
+    }
+    // Every relative specifier in the JavaScript and the declarations names a file that is in the tarball.
+    for (const file of [...have].filter((f) => /^dist\/.*\.(js|d\.ts)$/.test(f))) {
+      for (const m of read(file).matchAll(/(?:from|import)\s*\(?\s*'(\.\/[^']+)'/g))
+        // A declaration names its neighbour as `./x.ts`, which TypeScript reads as `x.d.ts`.
+        assert.ok(
+          have.has(join('dist', file.endsWith('.d.ts') ? m[1].replace(/\.ts$/, '.d.ts') : m[1])),
+          `${file}: ${m[1]} is not in the tarball`,
+        );
     }
 
     const tool = manifest(scratchTgz),
@@ -116,6 +128,15 @@ test('pack', () => {
       assert.match(cli(['install-skill', 'claude-code', '--all']).stdout, /already installed/);
     } finally {
       rmSync(ws, { recursive: true, force: true });
+    }
+    // The folder may come before or after the flags, and a flag's value is not taken for the folder.
+    for (const args of [
+      ['--stamp', '9.9.9', 'dest'],
+      ['dest', '--stamp', '9.9.9'],
+    ]) {
+      const dest = join(out, 'skill-args-' + args[0].replace(/\W/g, ''));
+      execFileSync(process.execPath, [join(root, 'tools/pack-skill.mjs'), ...args.map((x) => (x === 'dest' ? dest : x))]);
+      assert.match(readFileSync(join(dest, 'SKILL.md'), 'utf8'), /9\.9\.9/, `pack-skill ${args.join(' ')}`);
     }
     // The skill uploads: a zip per skill, each holding one folder named as the skill is, marked with the version.
     // Given a relative folder, as CI does, from the repository root.

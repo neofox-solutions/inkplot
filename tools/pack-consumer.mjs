@@ -24,7 +24,8 @@ const shipped = (f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && f !== 'fa
 for (const f of readdirSync(root + 'src').filter(shipped)) {
   writeFileSync(pkg + 'dist/' + f.replace(/\.ts$/, '.js'), stripToJs(readFileSync(root + 'src/' + f, 'utf8')));
 }
-// `engines` is not copied: the Node version in the root package.json is what the repository's own tooling needs, not what the built library needs.
+// `engines` is not copied from the root package.json (that is what the repository's own tooling needs). The published one is for the CLI:
+// `inkplot install-skill` uses fs.cpSync, added in Node 16.7. The library itself runs on Node 16.0.
 const dev = JSON.parse(readFileSync(root + 'package.json', 'utf8'));
 const bin = await bundle({ entry: root + 'cli/bin.ts', format: 'esm', platform: 'node' });
 writeFileSync(pkg + 'bin.mjs', bin.code);
@@ -42,6 +43,7 @@ writeFileSync(
       bugs: dev.bugs,
       keywords: dev.keywords,
       type: 'module',
+      engines: { node: '>=16.7' },
       bin: { inkplot: './bin.mjs' },
       sideEffects: false,
       exports: {

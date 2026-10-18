@@ -33,12 +33,12 @@ The toolchain is [Vite+](https://viteplus.dev) (`vp`): one command for tests, li
 |---|---|
 | `pnpm vp run all` | Everything CI runs. Run it with `--concurrency-limit 2`: a few tests run against the clock, and more tasks at once make them flaky. |
 | `pnpm vp test run src/series.test.ts` | One test file. Without a path: all of them. |
-| `npx tsc -p .` | The type check of everything (the same as the `check` task, which also checks the library against the platform floor). |
+| `npx tsc -p .` | The type check of everything. The `check` task runs it and also `tsc -p tsconfig.lib.json` and `tsc -p tsconfig.tests.json` (the library and the tests against the platform floor). |
 | `pnpm vp lint src` | Lint. `pnpm vp run lint` adds the strict audit (see [non-null assertions and casts](#typescript)). |
 | `pnpm vp fmt` | Format. It rewrites files, so run it *before* a scripted find-and-replace and re-read the text you meant to match. |
 | `pnpm vp run size` | The bundle cost of each feature. |
 | `node build-playground.ts` | Rebuild `playground.html`, the page with a demo of each feature. |
-| `node tools/api.ts > docs/reference/api.md`, `node tools/skill-topics.ts` | Regenerate the generated docs (see [Documentation](#documentation)). |
+| `node tools/api.ts --out docs/reference/api.md`, `node tools/skill-topics.ts` | Regenerate the generated docs (see [Documentation](#documentation)). |
 
 `pnpm vp run all` is the definition of green. A change is not finished until it passes, with no warnings in the lint output.
 
@@ -46,7 +46,7 @@ The toolchain is [Vite+](https://viteplus.dev) (`vp`): one command for tests, li
 
 These are the reasons behind the rules. When a rule does not cover a case, decide by these.
 
-- **Small, and pay for what you use.** A minimal chart is about 15 KB gzipped; each feature adds only its own code. Features are opt-in by import, and the import graph is held to that (see [layers](#architecture-rules-the-checks-hold)). A feature that makes every chart bigger is a bug. Measure with `pnpm vp run size`.
+- **Small, and pay for what you use.** A minimal chart is about 17 KB gzipped; each feature adds only its own code. Features are opt-in by import, and the import graph is held to that (see [layers](#architecture-rules-the-checks-hold)). A feature that makes every chart bigger is a bug. Measure with `pnpm vp run size`.
 - **Zero dependencies.** The library imports nothing but itself. A new runtime dependency is not a trade-off to weigh case by case: the answer is no.
 - **A tree you keep.** A chart is a tree of elements configured by attributes, changed in place and redrawn. A new capability is an element (or an attribute on one), not a global, a plugin registry or a hidden mode.
 - **Everything language-shaped is the user's.** The core has no English strings, no translation tables and no locale data. Numbers and dates come from `Intl`; words (titles, labels, error messages for users' mistakes aside) come from attributes. Nothing in core code may assume English, a left-to-right script, a calendar, or a decimal mark.
@@ -103,7 +103,7 @@ The library ships as written (ES2022 syntax, no transpiling, no polyfills) and m
 - `tsconfig.lib.json` compiles `src` against the ES2021 built-ins with no Node types, so `Array.prototype.at`, `Object.hasOwn`, `findLast`, `toSorted`, `structuredClone` and the like are type errors;
 - the `baseline-js/use-baseline` lint rule (2021) in the library's sources.
 
-**The tests are held to the floor too**, because the old runtimes run them: do not use `.at()`, `Object.hasOwn`, `Array.prototype.findLast` and friends in a `*.test.ts` either, or Node 16 fails when your machine does not. A newer feature behind a real feature check gets a lint comment that says so (see `OffscreenCanvas` in `png.ts`). Move the floor only by the [runbook](RUNBOOKS.md#move-the-platform-floor).
+**The tests are held to the floor too**, because the old runtimes run them: do not use `.at()`, `Object.hasOwn`, `Array.prototype.findLast` and friends in a `*.test.ts` either, or Node 16 fails when your machine does not. `tsconfig.tests.json` checks that statically, as `tsconfig.lib.json` does for the library. A newer feature behind a real feature check gets a lint comment that says so (see `OffscreenCanvas` in `png.ts`). Move the floor only by the [runbook](RUNBOOKS.md#move-the-platform-floor).
 
 ### Performance
 
@@ -162,7 +162,7 @@ Every behaviour change comes with a test that fails without it. Bug fixes start 
 ## Documentation
 
 - The docs are Markdown in `docs/`. **Live examples** are fenced `tsx live` blocks that a docs site runs and CI compiles and draws; the format and the rules are in [docs/authoring.md](docs/authoring.md). Example ids (from the `title`, or `id=`) must be unique across the docs.
-- **Generated parts must be regenerated, not edited:** `docs/reference/api.md` (`node tools/api.ts > docs/reference/api.md`), the attribute tables in `docs/skill-topics/*.md` and `docs/SKILL.md` (`node tools/skill-topics.ts`). `tools/docs.test.ts` fails if they are stale. The prose around the generated parts, in the guide *and* in the matching skill topic, is hand-written, and a change usually touches both.
+- **Generated parts must be regenerated, not edited:** `docs/reference/api.md` (`node tools/api.ts --out docs/reference/api.md`), the attribute tables in `docs/skill-topics/*.md` and `docs/SKILL.md` (`node tools/skill-topics.ts`). `tools/docs.test.ts` fails if they are stale. The prose around the generated parts, in the guide *and* in the matching skill topic, is hand-written, and a change usually touches both.
 - Guide pages: one `#` per page, a paragraph saying what the page is for, a short live example near the top of each section, then tables, then details. Say what is *not* supported when a reader would expect it.
 - Troubleshooting: a new `fail(...)` message the user can hit gets a row in `docs/reference/troubleshooting.md` (and the skill's copy), saying what causes it and what to do.
 

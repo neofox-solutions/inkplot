@@ -1,4 +1,4 @@
-// One configuration for the toolchain (Vite+): `lint` is Oxlint's, as it stood in .oxlintrc.json.
+// One configuration for the toolchain (Vite+): `lint` is Oxlint's.
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
@@ -29,7 +29,7 @@ export default defineConfig({
   run: {
     // `vp run all` is everything CI runs. Tasks that write files, need a browser, or reach the network are not cached.
     tasks: {
-      check: { command: ['tsc -p .', 'tsc -p tsconfig.lib.json'] },
+      check: { command: ['tsc -p .', 'tsc -p tsconfig.lib.json', 'tsc -p tsconfig.tests.json'] },
       lint: {
         command: [
           'vp lint --deny-warnings --report-unused-disable-directives src scratch/src cli tools playground *.mjs *.ts',
@@ -111,7 +111,7 @@ export default defineConfig({
   },
   lint: {
     options: { typeAware: true },
-    // The platform the library may assume (see docs/extending/platforms.md): nothing newer than Baseline 2021 in what ships.
+    // The platform the library may assume (see docs/guide/compatibility.md): nothing newer than Baseline 2021 in what ships.
     jsPlugins: ['eslint-plugin-baseline-js'],
     plugins: ['typescript', 'unicorn', 'oxc'],
     categories: {

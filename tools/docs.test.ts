@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { expected as expectedSkillFiles, coverage as skillCoverage, TOPICS as SKILL_TOPICS } from './skill-topics.ts';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { bundle } from './bundle.ts';
@@ -186,7 +186,7 @@ test('docs', async () => {
     );
     const fresh = (path: string, text: string) => {
       const file = join(root, path);
-      assert.ok(existsSync(file) && readFileSync(file, 'utf8') === text, `${path} is out of date: run  node tools/api.ts > ${path}`);
+      assert.ok(existsSync(file) && readFileSync(file, 'utf8') === text, `${path} is out of date: run  node tools/api.ts --out ${path}`);
     };
     fresh('docs/reference/api.md', reference() + '\n');
     // A code fence is on a line of its own: one glued to a sentence is not a fence, and the example inside it would be neither checked nor shown as code.
@@ -213,4 +213,49 @@ test('docs', async () => {
     for (const t of Object.values(SKILL_TOPICS))
       assert.ok(existsSync(join(root, 'docs/skill-topics', t.file)), `skill topic file ${t.file} is missing`);
   }
+});
+
+// Every value the package exports is either written about in docs/ or tagged `@internal`, and nothing tagged `@internal` is
+// written about in the reference of what is public (docs/reference/exports.md). Types go with the values they describe.
+test('exports are documented or internal', () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const index = readFileSync(join(root, 'src/index.ts'), 'utf8');
+  const values = new Set<string>();
+  for (const m of index.matchAll(/export\s+(type\s+)?\{([^}]*)\}\s*from/g)) {
+    if (m[1]) continue;
+    for (const raw of m[2]!.split(',')) {
+      const part = raw.replace(/\/\/.*$/gm, '').trim();
+      if (!part || /^type\s/.test(part)) continue;
+      values.add(
+        part
+          .split(/\s+as\s+/)
+          .pop()!
+          .trim(),
+      );
+    }
+  }
+  assert.ok(values.size > 150, `found ${values.size} exported values: the reader of src/index.ts has drifted`);
+  const internal = new Set<string>();
+  for (const file of readdirSync(join(root, 'src')).filter((f) => f.endsWith('.ts') && !/\.(test|check)\./.test(f))) {
+    const text = readFileSync(join(root, 'src', file), 'utf8');
+    for (const m of text.matchAll(
+      /\/\*\*(?:(?!\*\/)[\s\S])*?@internal(?:(?!\*\/)[\s\S])*?\*\/\s*export\s+(?:declare\s+)?(?:abstract\s+)?(?:async\s+)?(?:const|function|class|interface|type|let)\s+(\w+)/g,
+    ))
+      internal.add(m[1]!);
+  }
+  const docs: string[] = [];
+  const walk = (dir: string) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(join(dir, e.name));
+      else if (e.name.endsWith('.md')) docs.push(readFileSync(join(dir, e.name), 'utf8'));
+    }
+  };
+  walk(join(root, 'docs'));
+  const all = docs.join('\n');
+  const word = (name: string, text: string) => new RegExp(`(?<![\\w])${name}(?![\\w])`).test(text);
+  const missing = [...values].filter((n) => !internal.has(n) && !word(n, all));
+  assert.deepEqual(missing, [], `exported but neither documented in docs/ nor tagged @internal: ${missing.join(', ')}`);
+  const exportsPage = readFileSync(join(root, 'docs/reference/exports.md'), 'utf8');
+  const leaked = [...internal].filter((n) => word(n, exportsPage));
+  assert.deepEqual(leaked, [], `tagged @internal but listed in exports.md: ${leaked.join(', ')}`);
 });

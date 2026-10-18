@@ -30,6 +30,22 @@ import {
 import { FakePlatform } from './fake-platform.ts';
 import { test } from 'vite-plus/test';
 
+/** Records what the plane's children see. */
+class Probe extends InteractiveElement<CartesianPlane, [], BaseAttributes & { claim?: boolean }> {
+  seen: { kind: string; x: number; y: number }[] = [];
+  override onEvent(ev: ChartEvent): void {
+    if (ev.type === EVENT_POINTER) {
+      this.seen.push({ kind: ev.kind, x: ev.x, y: ev.y });
+      if (this.attrs.claim) ev.handled = true;
+    }
+  }
+}
+declare module './plane.ts' {
+  interface PlaneChildMap {
+    chartTestProbe: Probe;
+  }
+}
+
 test('chart', () => {
   // ── Build a chart the way the API sketch does: plain variables for references.
   type Row = { t: number; v: number };
@@ -203,17 +219,6 @@ test('chart', () => {
 
   // ═══ Scheduling, resize and pointer routing (no browser needed) ═══
   {
-    /** Records what the plane's children see. */
-    class Probe extends InteractiveElement<CartesianPlane, [], BaseAttributes & { claim?: boolean }> {
-      seen: { kind: string; x: number; y: number }[] = [];
-      override onEvent(ev: ChartEvent): void {
-        if (ev.type === EVENT_POINTER) {
-          this.seen.push({ kind: ev.kind, x: ev.x, y: ev.y });
-          if (this.attrs.claim) ev.handled = true;
-        }
-      }
-    }
-
     const axes = () =>
       [new Axis({ orientation: 'bottom' }, new LinearScale()), new Axis({ orientation: 'left' }, new LinearScale())] as const;
     const [bottom, left] = axes();
