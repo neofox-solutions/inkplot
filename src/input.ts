@@ -179,7 +179,9 @@ export class InputHost {
       const away = !contains(at.rect, p.x, p.y);
       this.#announce(at, away ? NaN : p.x - at.rect.x, away ? NaN : p.y - at.rect.y, away ? 0 : p.buttons);
     }
-    if (p.kind === 'up') this.#pressed = null;
+    if (p.kind === 'up' || p.kind === 'cancel') this.#pressed = null;
+    // The pointer has been taken away: what follows it (a tooltip) is told it has gone.
+    if (p.kind === 'cancel') this.#announce(at, NaN, NaN, 0);
     return handled;
   }
 

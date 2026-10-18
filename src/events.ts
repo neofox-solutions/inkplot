@@ -55,7 +55,8 @@ export interface ArrangeEvent extends EventBase<typeof EVENT_ARRANGE> {
 /** An element draws through its own surface, so the event carries nothing. */
 export interface PaintEvent extends EventBase<typeof EVENT_PAINT> {}
 export interface ChartPointerEvent extends EventBase<typeof EVENT_POINTER> {
-  readonly kind: 'move' | 'down' | 'up' | 'leave' | 'wheel' | 'pinch';
+  /** `cancel`: the pointer was taken back by the platform, so a gesture under way is abandoned and not committed. */
+  readonly kind: 'move' | 'down' | 'up' | 'cancel' | 'leave' | 'wheel' | 'pinch';
   /** Coordinates in the receiving element's own space (a plane receives plot-area pixels). */
   readonly x: number;
   readonly y: number;

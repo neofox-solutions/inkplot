@@ -245,6 +245,10 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
           ev.handled = true;
         }
         break;
+      case 'cancel':
+        this.#drag = null;
+        platform?.setCursor?.('grab');
+        break;
       case 'leave':
         platform?.setCursor?.('');
         break;
@@ -358,6 +362,13 @@ export class PanZoom extends InteractiveElement<Plane, [], PanZoomAttributes> {
           if (drag.samples && drag.samples.length > 8) drag.samples.shift();
           ev.handled = true;
         }
+        break;
+      }
+      case 'cancel': {
+        // The browser took the finger (it scrolls the page): nothing is carried on, no flick.
+        touches.delete(ev.id);
+        if (this.#drag?.id === ev.id) this.#drag = null;
+        if (this.#pinch) this.#pinch = null;
         break;
       }
       case 'up': {

@@ -104,6 +104,8 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
   #pointer: { plane: Plane; x: number; y: number; buttons: number } | null = null;
   #by: 'pointer' | 'keyboard' = 'pointer';
   #focused = false;
+  // Put there by `select` from code: shown without the plot having focus, and kept when focus goes, until the pointer or `clear` takes it.
+  #pinned = false;
   #ring = false;
   #node: PlatformNode | null = null;
   /** The point the keyboard is on. */
@@ -140,10 +142,21 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
     return this.requireParent().planes[0] ?? null;
   }
 
-  /** Put the keyboard cursor on a point of a series, as if stepped to, and show it. */
+  /**
+   * Put the cursor on a point of a series, as if stepped to, and show it: from a table row, a linked chart, a test. It is shown
+   * whether or not the plot has keyboard focus, and stays when focus goes, until the pointer moves over the plot or `clear` is called.
+   */
   select(series: Series, index: number): void {
     this.#at = { series, index };
     this.#by = 'keyboard';
+    this.#pinned = true;
+    this.#changed(true);
+  }
+  /** Takes the cursor off a point put there by `select` or the keyboard. */
+  clear(): void {
+    this.#at = null;
+    this.#pinned = false;
+    if (this.#by === 'keyboard') this.#by = 'pointer';
     this.#changed(true);
   }
 
@@ -158,7 +171,10 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
         if ((pinned && ev.plane !== pinned) || !this.requireParent().planes.includes(ev.plane)) break;
         this.#pointer = ev.x === ev.x ? { plane: ev.plane, x: ev.x, y: ev.y, buttons: ev.buttons } : null;
         // The pointer leaving ends only what the pointer was doing: a cursor the keyboard put there stays.
-        if (this.#pointer) this.#by = 'pointer';
+        if (this.#pointer) {
+          this.#by = 'pointer';
+          this.#pinned = false;
+        }
         this.#changed(false);
         break;
       }
@@ -172,7 +188,7 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
         if (ev.focused) {
           this.#by = 'keyboard';
           this.#begin();
-        } else if (this.#by === 'keyboard') this.#by = 'pointer';
+        } else if (this.#by === 'keyboard' && !this.#pinned) this.#by = 'pointer';
         this.#changed(true);
         break;
       case EVENT_PAINT:
@@ -236,6 +252,7 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
       if (this.state) {
         ev.handled = true;
         this.#at = null;
+        this.#pinned = false;
         this.#by = 'keyboard';
         this.#changed(true);
       }
@@ -323,7 +340,7 @@ export class Cursor extends InteractiveElement<Container, CursorChildren, Cursor
       shared = a.mode === 'shared';
     if (this.#by === 'keyboard') {
       const at = this.#at;
-      if (!at || !this.#focused || !this.#valid(at)) return null;
+      if (!at || !(this.#focused || this.#pinned) || !this.#valid(at)) return null;
       const hit = pointHit(at.series, at.index);
       if (!hit) return null;
       const plane = at.series.plane;

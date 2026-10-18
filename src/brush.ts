@@ -59,6 +59,8 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
   #from: { x: number; y: number } | null = null;
   #to = { x: 0, y: 0 };
   #ranges: BrushRange[] = [];
+  // `live` has told the app about a box that is not the committed selection yet.
+  #liveSent = false;
 
   /** True while a box is being dragged. */
   get selecting(): boolean {
@@ -69,17 +71,30 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
     return this.#ranges.length ? this.#describe(this.#ranges) : null;
   }
 
-  /** Brushes these ranges (as if dragged), or clears with an empty list. */
-  select(ranges: readonly BrushRange[]): void {
-    this.#ranges = ranges.map((r) => ({ axis: r.axis, min: Math.min(r.min, r.max), max: Math.max(r.min, r.max) }));
+  /**
+   * Brushes these ranges (as if dragged), or clears with an empty list. `onBrush` is told unless the selection is the one it
+   * already is, or `silent` is true: the way to follow another chart's brush without answering it (two charts that set each
+   * other's brush would otherwise never stop).
+   */
+  select(ranges: readonly BrushRange[], options: { silent?: boolean } = {}): void {
+    if (ranges.length === 0) return this.#clear(options.silent === true);
+    const next = ranges.map((r) => ({ axis: r.axis, min: Math.min(r.min, r.max), max: Math.max(r.min, r.max) }));
+    const same =
+      next.length === this.#ranges.length &&
+      next.every((r, i) => r.axis === this.#ranges[i]?.axis && r.min === this.#ranges[i]?.min && r.max === this.#ranges[i]?.max);
+    this.#ranges = next;
     this.invalidate();
-    this.attrs.onBrush?.(this.selection);
+    if (!same && !options.silent) this.attrs.onBrush?.(this.selection);
   }
-  clear(): void {
+  /** Removes the selection, telling `onBrush` (with null) if there was one. */
+  clear(options: { silent?: boolean } = {}): void {
+    this.#clear(options.silent === true);
+  }
+  #clear(silent: boolean): void {
     if (!this.#ranges.length) return;
     this.#ranges = [];
     this.invalidate();
-    this.attrs.onBrush?.(null);
+    if (!silent) this.attrs.onBrush?.(null);
   }
 
   override onEvent(ev: ChartEvent): void {
@@ -160,7 +175,10 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
         }
         this.#to = { x: clampX(ev.x), y: clampY(ev.y) };
         this.invalidate();
-        if (a.live && !small(this.#from, this.#to)) a.onBrush?.(this.#describe(this.#cover(this.#from, this.#to)));
+        if (a.live && !small(this.#from, this.#to)) {
+          this.#liveSent = true;
+          a.onBrush?.(this.#describe(this.#cover(this.#from, this.#to)));
+        }
         ev.handled = true;
         return;
       }
@@ -168,19 +186,33 @@ export class Brush extends InteractiveElement<Plane, [], BrushAttributes> {
         const from = this.#from;
         if (!from) return;
         const to = { x: clampX(ev.x), y: clampY(ev.y) };
-        this.#abandon();
-        if (small(from, to)) this.clear();
-        else this.select(this.#cover(from, to));
+        const told = this.#liveSent;
+        this.#end();
+        if (small(from, to)) {
+          // A box too small is a click: the selection goes. If `live` had shown the app a box, it is told there is none.
+          if (this.#ranges.length) this.clear();
+          else if (told) a.onBrush?.(null);
+        } else this.select(this.#cover(from, to));
         ev.handled = true;
         return;
       }
+      case 'cancel':
+        this.#abandon();
+        return;
       case 'leave':
         return;
     }
   }
 
+  /** The box is dropped without being committed; an app that was shown it by `live` is told what the selection is after all. */
   #abandon(): void {
+    const told = this.#liveSent;
+    this.#end();
+    if (told) this.attrs.onBrush?.(this.selection);
+  }
+  #end(): void {
     this.#from = null;
+    this.#liveSent = false;
     this.chart?.platform?.setCursor?.('');
     this.invalidate();
   }

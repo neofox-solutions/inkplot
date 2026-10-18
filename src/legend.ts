@@ -116,6 +116,8 @@ export class Legend extends InteractiveElement<Container, [], LegendAttributes> 
         if (ev.kind === 'down' && ev.buttons & 1 && item) {
           this.#pressed = item.series;
           ev.handled = true;
+        } else if (ev.kind === 'cancel') {
+          this.#pressed = null; // the pointer was taken back (a scroll began): nothing was clicked
         } else if (ev.kind === 'up' && this.#pressed) {
           const press = this.#pressed;
           this.#pressed = null;

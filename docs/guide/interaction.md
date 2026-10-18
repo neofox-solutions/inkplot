@@ -81,7 +81,7 @@ export default () => (
 
 An empty list turns an action off. Whichever moved last, the pointer or the keys, has the cursor. Name the plot with `meta-title`: it is what a screen reader says on arriving.
 
-Reading the cursor from code: `cursor.state` is `{ plane, x, y, source, hits }` (or `null`), refreshed after each flush; `cursor.select(series, index)` puts the keyboard cursor on a point.
+Reading the cursor from code: `cursor.state` is `{ plane, x, y, source, hits }` (or `null`), refreshed after each flush; `cursor.select(series, index)` puts the cursor on a point and shows it even when the plot has no focus; it stays through a blur until the pointer moves over the plot or `cursor.clear()` is called.
 
 ### Crosshair
 
@@ -201,7 +201,7 @@ export default () => (
 
 ## Brush
 
-`Brush` is the other half of box zoom: the same drag, but it **zooms nothing**. The rectangle stays drawn, and the range it covers is reported to `onBrush`, in the axes' own values, for you to filter a table, total a selection, or move another chart's view. It is held in data terms, so it follows the axes as they pan and zoom. A click, or `brush.clear()`, takes it away and calls `onBrush(null)`; `brush.select([{ axis, min, max }])` sets it from code, which is how two charts follow one another.
+`Brush` is the other half of box zoom: the same drag, but it **zooms nothing**. The rectangle stays drawn, and the range it covers is reported to `onBrush`, in the axes' own values, for you to filter a table, total a selection, or move another chart's view. It is held in data terms, so it follows the axes as they pan and zoom. A click, or `brush.clear()`, takes it away and calls `onBrush(null)`; `brush.select([{ axis, min, max }])` sets it from code, which is how two charts follow one another. Pass `{ silent: true }` to `select` or `clear` to follow another chart without calling `onBrush` (two charts that answer each other would never stop). A drag the system takes back (a touch that becomes a scroll) is abandoned: with `live`, `onBrush` is told the committed selection again.
 
 | Attribute | Default | Meaning |
 |---|---|---|
@@ -244,7 +244,7 @@ A `PointerListener` calls your functions when the pointer hovers, clicks or drag
 | `onDrag` | A drag that began on a point. The listener claims such presses, so they do not pan. |
 | `dragThreshold` | How far, in pixels, the pointer must travel before a press is a drag and no longer a click. Default 3. |
 
-Each callback gets a `PointerInfo`: `plane`, `x` and `y` (the pointer in plot pixels), `first` and `second` (where that is in data terms, on the axes of the hit's series, else the plane's first and second axes), `hit`, and `shift` and `ctrl`. A drag gets a `DragInfo`: the same, with a `hit` that is always the point being dragged and a `phase` of `'start'`, `'move'` or `'end'`. While dragging, `first` and `second` are where the grabbed point is *to go*: the pointer's position carrying the grab's offset, so the point does not jump to be under the pointer's tip.
+Each callback gets a `PointerInfo`: `plane`, `x` and `y` (the pointer in plot pixels), `first` and `second` (where that is in data terms, on the axes of the hit's series, else the plane's first and second axes), `hit`, and `shift` and `ctrl`. A drag gets a `DragInfo`: the same, with a `hit` that is always the point being dragged and a `phase` of `'start'`, `'move'`, `'end'` or `'cancel'` (the system took the pointer back; put the point where it was). While dragging, `first` and `second` are where the grabbed point is *to go*: the pointer's position carrying the grab's offset, so the point does not jump to be under the pointer's tip.
 
 **Editing data by dragging.** `hit.row` is the point's row in the source's own storage, and it stays the same when edits re-sort the points, so edit by that. Write the new value and tell the source:
 
@@ -290,3 +290,7 @@ The listener can also be used with no visible change at all, to feed a sidebar o
 ## Writing your own
 
 An element inside a `Cursor` that draws what it reads (`CursorChild`), or a plane child that takes pointer events, is a few lines: see [Custom elements](../extending/custom-elements.md#interaction).
+
+## Hidden elements
+
+An element with `visible: false`, or inside a `Stack` or `Group` that has it, takes no pointer or keyboard input: a hidden `Legend` cannot be clicked, a hidden `Brush` cannot be dragged.

@@ -42,10 +42,10 @@ export interface PointerInfo {
   readonly shift: boolean;
   readonly ctrl: boolean;
 }
-/** A drag always has a point. `phase` is 'start' on the first movement past the threshold, 'end' on release. */
+/** A drag always has a point. `phase` is 'start' on the first movement past the threshold, 'end' on release, 'cancel' when the platform took the pointer back (nothing was dropped). */
 export interface DragInfo extends PointerInfo {
   readonly hit: Hit;
-  readonly phase: 'start' | 'move' | 'end';
+  readonly phase: 'start' | 'move' | 'end' | 'cancel';
 }
 
 export interface PointerListenerAttributes extends BaseAttributes {
@@ -153,6 +153,15 @@ export class PointerListener extends InteractiveElement<Plane, [], PointerListen
           ev.handled = true;
         } else if (!press.dragging) {
           a.onClick?.(info(press.hit, ev.x, ev.y));
+        }
+        break;
+      }
+      case 'cancel': {
+        const press = this.#press;
+        this.#press = null;
+        if (press?.dragging && press.claimed && press.hit && a.onDrag) {
+          a.onDrag({ ...info(press.hit, ev.x, ev.y, press.dx, press.dy), hit: press.hit, phase: 'cancel' });
+          ev.handled = true;
         }
         break;
       }

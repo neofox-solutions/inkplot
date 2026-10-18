@@ -17,7 +17,7 @@
 import { type AttrTypesFor, AUTO, BOOLEAN, NUMBER, STRING } from './attrs.ts';
 import { Axis } from './axis.ts';
 import { Container, isBody } from './container.ts';
-import { type BaseAttributes, ChartElement, fail, resolveRef } from './element.ts';
+import { type BaseAttributes, ChartElement, descendantsOfType, fail, resolveRef } from './element.ts';
 import { type ChartEvent, EVENT_ARRANGE, EVENT_HOVER } from './events.ts';
 import type { Extent, Insets, Rect } from './geometry.ts';
 import type { Scale } from './scale.ts';
@@ -90,6 +90,15 @@ export class SharedRange extends Dimension<ChartGroup> {
  * of labels along the bottom), and takes no room elsewhere; it is for Cartesian planes, and a polar axis ignores it. Works on any plane.
  */
 export class SharedAxis extends Axis {
+  protected override get sharing(): readonly Axis[] {
+    const shared = this.shared;
+    const group = shared.parent;
+    const found = group ? descendantsOfType(group, SharedAxis).filter((a) => a.shared === shared) : [];
+    return found.length ? found : [this];
+  }
+  protected override fitNatural(lo: number, hi: number): Extent {
+    return this.shared.fit(lo, hi);
+  }
   /** The range it draws. */
   get shared(): SharedRange {
     const ref = this.attrs.sharedRef;

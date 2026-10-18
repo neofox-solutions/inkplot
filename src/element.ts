@@ -27,7 +27,9 @@ import {
   EVENT_ARRANGE,
   EVENT_ATTACH,
   EVENT_MEASURE,
+  EVENT_KEY,
   EVENT_PAINT,
+  EVENT_POINTER,
   type MeasureEvent,
   makeEvent,
 } from './events.ts';
@@ -56,7 +58,7 @@ export interface BaseAttributes {
   /** Lets other elements (and JSON/adapter configs) refer to this one by name; see `resolveRef`. */
   id?: string;
   meta?: Meta;
-  /** False hides the element and everything inside it without removing it, so toggling is cheap and keeps state. On a `Stack` or `SeriesGroup` it hides every series in it, and they take no part in the axes' ranges. */
+  /** False hides the element and everything inside it without removing it, so toggling is cheap and keeps state. A hidden element takes no pointer or key input either. On a `Stack` or `SeriesGroup` it hides every series in it, and they take no part in the axes' ranges. */
   visible?: boolean;
   /**
    * Looks for this element and everything below it, by selector (see theme.ts). Nearer blocks beat farther ones, and every
@@ -442,6 +444,11 @@ export abstract class ChartElement<
   /** The one entry point for events: the base class handles what every element shares, then the subclass sees it. */
   private receive(ev: ChartEvent): void {
     switch (ev.type) {
+      // An element that is hidden, or inside one that is, takes no input: a legend that is not shown cannot be clicked where it was.
+      case EVENT_POINTER:
+      case EVENT_KEY:
+        if (this.inert()) return;
+        break;
       case EVENT_PAINT: {
         // Visibility is the one thing every element draws, so the base class owns it.
         const hidden = this.isHidden();
@@ -504,6 +511,12 @@ export abstract class ChartElement<
       if (wrapper) return wrapper;
     }
     return (this.#ctx ?? fail('element is not attached')).platform.root;
+  }
+  /** Hidden by `visible: false` on it or on any element above it, which takes no input. */
+  private inert(): boolean {
+    // oxlint-disable-next-line typescript/no-this-alias -- a walk up the parent chain that starts at this element
+    for (let e: AnyElement | null = this; e; e = e.#parent) if (e.#attrs.visible === false) return true;
+    return false;
   }
   /** Hidden if it, or an ancestor without a wrapper to hide for it, says `visible: false`. */
   private isHidden(): boolean {

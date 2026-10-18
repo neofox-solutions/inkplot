@@ -41,16 +41,7 @@ export function parseEasing(spec: string): (t: number) => number {
 
 /** The range all the data on `axis` asks for, whatever view is set: what 'put it back' goes to, and what a zoom is limited by. */
 export function naturalRange(axis: Axis): Extent {
-  let lo = Infinity,
-    hi = -Infinity;
-  for (const series of axis.requireParent().series) {
-    const extent = series.extentFor(axis);
-    if (extent) {
-      if (extent.min < lo) lo = extent.min;
-      if (extent.max > hi) hi = extent.max;
-    }
-  }
-  return axis.fit(lo, hi);
+  return axis.naturalRange();
 }
 
 export interface MoveViewOptions {

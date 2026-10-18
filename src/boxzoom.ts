@@ -100,6 +100,9 @@ export class BoxZoom extends InteractiveElement<Plane, [], BoxZoomAttributes> {
         ev.handled = true;
         return;
       }
+      case 'cancel':
+        this.#cancel();
+        return;
       case 'leave':
         return;
     }

@@ -28,7 +28,7 @@ Only the first group is required. A platform with nothing to observe leaves the 
 | `schedule(callback)` | Present: the chart flushes itself after a change, when you call the callback. Returns an `Unsubscribe`. Absent: the caller calls `chart.flush()`. |
 | `measureText(text, font)` | Returns `{ width, height }` for text. Absent: a built-in estimate that errs wide. |
 | `onResize(callback)` | Calls back with the new `Size`; returns an `Unsubscribe`. |
-| `onPointer(callback)` | Feeds `RawPointer`s (`kind`: `move`, `down`, `up`, `leave`, `wheel`; `x`, `y` relative to `root`; `buttons`, `deltaY`, modifiers). The callback returns `true` when the chart used the input, and then the platform withholds the browser's own handling (page scroll on a wheel turn). |
+| `onPointer(callback)` | Feeds `RawPointer`s (`kind`: `move`, `down`, `up`, `cancel`, `leave`, `wheel`; `x`, `y` relative to `root`; `buttons`, `deltaY`, modifiers). The callback returns `true` when the chart used the input, and then the platform withholds the browser's own handling (page scroll on a wheel turn). |
 | `onKey(callback)` | Feeds `RawKey`s for keys pressed while one of the chart's nodes has focus: `callback(key, node)`. `true` means the chart used the key. |
 | `onFocus(callback)` | Feeds `RawFocus` (`node`, `focused`, `visible`: whether a ring is wanted, the browser's `:focus-visible`). |
 | `focus(node)` | Moves focus to a node that has a `tabindex`. |
@@ -113,3 +113,5 @@ Two things to know about what the SVG contains:
 
 - **Presentation attributes only.** The output uses attributes (`stroke`, `fill`, `font-size`), never classes or a stylesheet, so a platform need not understand CSS.
 - **Accessibility attributes** (`role`, `aria-*`, `tabindex`) are ordinary attributes on nodes. A platform that has an accessibility tree can map them; one that does not can ignore them, but then should provide `announce`.
+
+**A pointer taken back.** Send `kind: 'cancel'` when the system abandons a pointer (DOM `pointercancel`, a touch that became a page scroll). Elements drop the press or drag in progress without committing it.

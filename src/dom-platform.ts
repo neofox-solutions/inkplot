@@ -240,7 +240,7 @@ export class DOMPlatform implements Platform {
         },
       ],
       ['pointerup', (e: PointerEvent) => send(e, 'up')],
-      ['pointercancel', (e: PointerEvent) => send(e, 'up')],
+      ['pointercancel', (e: PointerEvent) => send(e, 'cancel')],
       ['pointerleave', (e: PointerEvent) => send(e, 'leave')],
       [
         'wheel',

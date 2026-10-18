@@ -11,7 +11,7 @@ import { Dimension, type DimensionAttributes } from './dimension.ts';
 import { type ElementRef, fail } from './element.ts';
 import { hideFromAssistive, writeAria } from './aria.ts';
 import { type ChartEvent, EVENT_ATTACH, EVENT_MEASURE, EVENT_PAINT, type MeasureEvent } from './events.ts';
-import { type Side, f2 } from './geometry.ts';
+import { type Extent, type Side, f2 } from './geometry.ts';
 import type { Scale } from './scale.ts';
 import type { SharedRange } from './chartgroup.ts';
 import type { Plane } from './plane.ts';
@@ -118,6 +118,31 @@ export interface AxisAttributes extends DimensionAttributes {
 
 /** A spatial dimension, drawn along a ruler its plane gives it. Needs one scale child: `new Axis({}, new LinearScale())`. */
 export class Axis extends Dimension<Plane, AxisAttributes, [scale: Scale] | []> {
+  /** Every axis that draws this one's range: itself, or, for a shared range, the axis of every chart that shows it. */
+  protected get sharing(): readonly Axis[] {
+    return [this];
+  }
+  /**
+   * The range all the data drawn against this axis asks for, whatever view is set: what 'put it back' goes to, and what a zoom is
+   * limited by. For a shared range that is the data of every chart that shares it, not only this one's.
+   */
+  naturalRange(): Extent {
+    let lo = Infinity,
+      hi = -Infinity;
+    for (const axis of this.sharing)
+      for (const series of axis.requireParent().series) {
+        const extent = series.extentFor(axis);
+        if (extent) {
+          if (extent.min < lo) lo = extent.min;
+          if (extent.max > hi) hi = extent.max;
+        }
+      }
+    return this.fitNatural(lo, hi);
+  }
+  protected fitNatural(lo: number, hi: number): Extent {
+    return this.fit(lo, hi);
+  }
+
   static override attrTypes = {
     ...Dimension.attrTypes,
     titlePosition: STRING,

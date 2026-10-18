@@ -39,7 +39,8 @@ export type TextMeasurer = (text: string, font: FontSpec) => Size;
 /** Pointer input boiled down to what charts use, so every platform feeds the same events whatever its native ones look like. */
 export interface RawPointer {
   /** `pinch` is a zoom gesture the platform recognised itself (a trackpad pinch in Safari): `scale` is its factor since the last one. */
-  kind: 'move' | 'down' | 'up' | 'leave' | 'wheel' | 'pinch';
+  /** `cancel`: the platform took the pointer back (a browser starts scrolling on a touch, an interruption): whatever it was doing is abandoned, not finished. */
+  kind: 'move' | 'down' | 'up' | 'cancel' | 'leave' | 'wheel' | 'pinch';
   x: number;
   y: number;
   buttons: number;
