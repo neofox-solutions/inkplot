@@ -139,7 +139,7 @@ A new element, renderer, scale, data stage or option is complete when all of thi
 2. **Registered:** exported from `src/index.ts`; in `src/registry.ts` (so it serializes); in `src/react.ts` if it is an element (the React wrapper); in `tools/deps.ts` (`FEATURE_USES` for `react`, and any other declared use); in `tools/api.ts` (`STRUCTURE`: parent, children, one line) and, if it belongs in a skill topic, `tools/skill-topics.ts`. The tests in `tools/` fail with a message naming what is missing.
 3. **Tests** beside it (`src/<feature>.test.ts`): see [Tests](#tests).
 4. **Docs:** the relevant guide page (with a live example if it is something a reader will use), the skill topic if an agent should know it, and the regenerated reference. See [Documentation](#documentation).
-5. **A playground demo** in `playground/app.js` for anything a person looks at, and its name in the coverage list there, so the page shows every feature; `node build-playground.ts` and the playground test confirm it draws.
+5. **A playground demo** in `playground/app.ts` for anything a person looks at, and its name in the coverage list there, so the page shows every feature; `node build-playground.ts` and the playground test confirm it draws.
 6. **Cost:** `pnpm vp run size`. A feature that makes the minimal chart bigger is a layering mistake.
 7. **Accessibility, i18n and platforms:** it works from the keyboard and has a text alternative where it draws; no English in the core; no API newer than the floor.
 8. **`pnpm vp run --concurrency-limit 2 all`** passes.

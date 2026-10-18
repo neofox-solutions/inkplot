@@ -324,9 +324,12 @@ if (process.argv.includes('--check')) {
     const was = gzip[s.name];
     if (was === undefined) failures.push(`"${s.name}" is not in the baseline: run \`node tools/size.mjs --update\``);
     else if (m.gzip > was * (1 + tolerance) + slackBytes)
-      failures.push(`"${s.name}" grew from ${kb(was)} to ${kb(m.gzip)} KB gzip (${sign(m.gzip - was)}): if that is meant, \`node tools/size.mjs --update\` and say why in the commit`);
+      failures.push(
+        `"${s.name}" grew from ${kb(was)} to ${kb(m.gzip)} KB gzip (${sign(m.gzip - was)}): if that is meant, \`node tools/size.mjs --update\` and say why in the commit`,
+      );
   }
-  for (const name of Object.keys(gzip)) if (!rows.some(({ s }) => s.name === name)) failures.push(`"${name}" is in the baseline but is no longer a scenario: --update`);
+  for (const name of Object.keys(gzip))
+    if (!rows.some(({ s }) => s.name === name)) failures.push(`"${name}" is in the baseline but is no longer a scenario: --update`);
   if (failures.length) {
     console.error(failures.join('\n'));
     process.exit(1);

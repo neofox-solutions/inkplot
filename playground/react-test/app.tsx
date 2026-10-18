@@ -14,6 +14,12 @@ const Linear = reactWrapper(inkplot.LinearScale),
 const Flat = reactWrapper(inkplot.FlatDataSource),
   Line = reactWrapper(inkplot.LinePath),
   Curve = reactWrapper(inkplot.LinearCurve);
+/** `vanilla.tsx` is JSX, which types as any element; this says which one it is. */
+const chartOf = (element: unknown): inkplot.Chart => {
+  if (!(element instanceof inkplot.Chart)) throw new Error('vanilla.tsx should make a Chart');
+  return element;
+};
+const vanilla = chartOf(vanillaChart);
 const COLORS = ['#2a6fdb', '#d9534f', '#2e9e6b', '#e0a030'];
 
 function App() {
@@ -53,9 +59,11 @@ function App() {
         narrow
       </button>
       <div style={{ width: 400, height: 200 }}>
-        <ChartView chart={vanillaChart} hostProps={{ id: 'vanilla' }} />
+        <ChartView chart={vanilla} hostProps={{ id: 'vanilla' }} />
       </div>
     </div>
   );
 }
-createRoot(document.getElementById('app')!).render(<App />);
+const app = document.getElementById('app');
+if (!app) throw new Error('the page has no #app');
+createRoot(app).render(<App />);

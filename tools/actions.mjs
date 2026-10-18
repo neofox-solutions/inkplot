@@ -42,7 +42,8 @@ export function usesIn(dir = workflows) {
 export function problems(dir = workflows) {
   const bad = [];
   for (const u of usesIn(dir)) {
-    if (!SHA.test(u.ref)) bad.push(`${u.file}:${u.line + 1}: ${u.action}@${u.ref} is a tag or branch, which can move: run \`node tools/actions.mjs pin\``);
+    if (!SHA.test(u.ref))
+      bad.push(`${u.file}:${u.line + 1}: ${u.action}@${u.ref} is a tag or branch, which can move: run \`node tools/actions.mjs pin\``);
     else if (!/^v\d+\.\d+\.\d+/.test(u.comment))
       bad.push(`${u.file}:${u.line + 1}: ${u.action}@${u.ref.slice(0, 7)} has no \`# vX.Y.Z\` comment naming the release it is`);
   }
@@ -55,7 +56,10 @@ const cache = new Map();
 function tagsOf(repo) {
   let tags = cache.get(repo);
   if (!tags) {
-    const text = execFileSync('git', ['ls-remote', '--tags', '--heads', `https://github.com/${repo}`], { encoding: 'utf8', timeout: 60000 });
+    const text = execFileSync('git', ['ls-remote', '--tags', '--heads', `https://github.com/${repo}`], {
+      encoding: 'utf8',
+      timeout: 60000,
+    });
     tags = new Map();
     for (const line of text.split('\n')) {
       const [sha, ref] = line.split('\t');
@@ -136,7 +140,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const have = /^v\d+\.\d+\.\d+/.exec(u.comment)?.[0];
       if (!have) return null;
       const tags = [...tagsOf(repoOf(u.action)).keys()].filter((t) => RELEASE.test(t) && t.split('.').length === 3);
-      const best = tags.filter((t) => any || version(t)[0] === version(have)[0]).sort(newer).pop();
+      const best = tags
+        .filter((t) => any || version(t)[0] === version(have)[0])
+        .sort(newer)
+        .pop();
       if (!best || newer(best, have) <= 0) return null;
       return { ref: tagsOf(repoOf(u.action)).get(best), comment: best };
     });

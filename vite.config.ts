@@ -32,7 +32,7 @@ export default defineConfig({
       check: { command: ['tsc -p .', 'tsc -p tsconfig.lib.json'] },
       lint: {
         command: [
-          'vp lint --deny-warnings --report-unused-disable-directives src scratch/src cli tools *.mjs *.ts',
+          'vp lint --deny-warnings --report-unused-disable-directives src scratch/src cli tools playground *.mjs *.ts',
           'node tools/lint-audit.mjs',
         ],
       },

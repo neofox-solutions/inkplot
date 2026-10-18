@@ -1,46 +1,108 @@
+/* oxlint-disable typescript/consistent-type-assertions -- a demo page: it looks up elements the template defines by id, and reads values back from the form controls it made, which the DOM types as their base classes */
+/* oxlint-disable typescript/no-non-null-assertion -- a demo page: indexed reads into arrays and tables the demos fill themselves */
 import * as L from 'inkplot';
 import { Wave, jsxChart } from 'playground/jsx-demo';
 import { gistemp } from 'playground/gistemp';
 
-document.getElementById('build-info').textContent = '__BUILD_INFO__';
+/** Not in every browser yet; the page asks `typeof Temporal` before using it. */
+declare const Temporal: object | undefined;
+declare global {
+  interface Window {
+    /** The library, for poking at from the console. */
+    inkplot: typeof L;
+    /** What the page test drives. */
+    playground: {
+      readonly current: Stage | null;
+      select: (id: string) => void;
+      demos: Demo[];
+      roundTrip: () => Promise<{ live: string; copy: string; json: number; refs: number }>;
+    };
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-const $ = (id) => document.getElementById(id);
-const h = (tag, props = {}, ...kids) => {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(props)) {
-    if (k === 'class') e.className = v;
-    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
-    else if (v === true) e.setAttribute(k, '');
-    else if (v !== false && v != null) e.setAttribute(k, v);
-  }
-  e.append(...kids.flat().filter((x) => x != null && x !== false));
+type Child = Node | string | number | false | null | undefined | readonly Child[];
+const $ = (id: string): HTMLElement => {
+  const e = document.getElementById(id);
+  if (!e) throw new Error(`the page template has no #${id}`);
   return e;
 };
-const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v));
-const ms = (v) => (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
-const bytes = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : n >= 1e3 ? (n / 1e3).toFixed(1) + ' kB' : n + ' B');
+$('build-info').textContent = '__BUILD_INFO__';
+
+/** An element made from a tag, properties (`on…` are listeners, `true` is a bare attribute) and children. */
+function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, unknown> = {}, ...kids: Child[]): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') e.className = String(v);
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v as EventListener);
+    else if (v === true) e.setAttribute(k, '');
+    else if (v !== false && v != null) e.setAttribute(k, typeof v === 'string' ? v : JSON.stringify(v));
+  }
+  e.append(
+    ...kids
+      .flat(Infinity as 1)
+      .filter((x): x is Node | string | number => x != null && x !== false)
+      .map((x) => (typeof x === 'number' ? String(x) : x)),
+  );
+  return e;
+}
+const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v));
+const ms = (v: number) => (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
+const bytes = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : n >= 1e3 ? (n / 1e3).toFixed(1) + ' kB' : n + ' B');
+
+interface SliderOptions {
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+  value: number;
+  log?: boolean;
+  format?: (v: number) => string;
+  onChange: (v: number) => void;
+}
+interface SegOptions<T extends string | number | boolean> {
+  label?: string;
+  options: readonly (readonly [T, string])[];
+  value: T;
+  onChange: (v: T) => void;
+  columns?: number;
+}
+interface ToggleOptions {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}
+interface TextOptions {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}
 
 /** Controls. Each takes an `onChange` and returns the element; `set` updates it from code. */
+let controlId = 0;
 const ui = {
-  slider({ label, min, max, step = 1, value, log = false, format = fmt, onChange }) {
-    const toPos = (v) => (log ? Math.log10(v) : v),
-      fromPos = (p) => (log ? 10 ** p : p);
-    const out = h('output', {}, format(value));
-    const input = h('input', { type: 'range', min: toPos(min), max: toPos(max), step: log ? 'any' : step, value: toPos(value) });
+  slider({ label, min, max, step = 1, value, log = false, format = fmt, onChange }: SliderOptions) {
+    const toPos = (v: number) => (log ? Math.log10(v) : v),
+      fromPos = (p: number) => (log ? 10 ** p : p);
+    const id = `ctl-${++controlId}`;
+    const out = h('output', { for: id }, format(value));
+    const input = h('input', { id, type: 'range', min: toPos(min), max: toPos(max), step: log ? 'any' : step, value: toPos(value) });
+    // A log slider's position is the logarithm; what a screen reader should say is the value.
+    input.setAttribute('aria-valuetext', format(value));
     input.addEventListener('input', () => {
       let v = fromPos(+input.value);
       if (log) v = Math.round(v);
       else v = Math.round(v / step) * step;
       out.textContent = format(v);
+      input.setAttribute('aria-valuetext', format(v));
       onChange(v);
     });
-    return h('div', { class: 'field' }, h('label', {}, h('span', {}, label), out), input);
+    return h('div', { class: 'field' }, h('label', { for: id }, h('span', {}, label), out), input);
   },
-  seg({ label, options, value, onChange, columns }) {
+  seg<T extends string | number | boolean>({ label, options, value, onChange, columns }: SegOptions<T>) {
     const buttons = options.map(([v, text]) =>
       h(
         'button',
@@ -48,7 +110,7 @@ const ui = {
           type: 'button',
           'aria-pressed': String(v === value),
           onclick: () => {
-            buttons.forEach((b, i) => b.setAttribute('aria-pressed', String(options[i][0] === v)));
+            buttons.forEach((b, i) => b.setAttribute('aria-pressed', String(options[i]![0] === v)));
             onChange(v);
           },
         },
@@ -57,8 +119,8 @@ const ui = {
     );
     return h(
       'div',
-      { class: 'field' },
-      label && h('div', { class: 'lab' }, label),
+      { class: 'field', ...(label ? { role: 'group', 'aria-label': label } : {}) },
+      label && h('div', { class: 'lab', 'aria-hidden': 'true' }, label),
       h(
         'div',
         { class: 'seg' + (columns ? ' wrap' : ''), style: columns ? `grid-template-columns: repeat(${columns}, 1fr)` : undefined },
@@ -66,29 +128,30 @@ const ui = {
       ),
     );
   },
-  toggle({ label, value, onChange }) {
+  toggle({ label, value, onChange }: ToggleOptions) {
     const input = h('input', { type: 'checkbox', checked: value });
     input.addEventListener('change', () => onChange(input.checked));
     return h('label', { class: 'switch' }, input, h('span', {}, label));
   },
-  text({ label, value, onChange }) {
-    const input = h('input', { type: 'text', value });
+  text({ label, value, onChange }: TextOptions) {
+    const id = `ctl-${++controlId}`;
+    const input = h('input', { id, type: 'text', value });
     input.addEventListener('input', () => onChange(input.value));
-    return h('div', { class: 'field' }, h('label', {}, h('span', {}, label)), input);
+    return h('div', { class: 'field' }, h('label', { for: id }, h('span', {}, label)), input);
   },
-  buttons(...list) {
+  buttons(...list: readonly (readonly [string, () => void])[]) {
     return h(
       'div',
       { class: 'btns' },
       list.map(([text, fn]) => h('button', { class: 'btn', type: 'button', onclick: fn }, text)),
     );
   },
-  note: (text, warn = false) => h('p', { class: 'note' + (warn ? ' warn' : '') }, text),
+  note: (text: string, warn = false) => h('p', { class: 'note' + (warn ? ' warn' : '') }, text),
   readout: () => h('pre', { class: 'readout' }),
 };
 
 // Seeded random numbers, so a given seed always draws the same chart.
-function rng(seed) {
+function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -98,10 +161,10 @@ function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const gauss = (r) => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
+const gauss = (r: () => number) => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
 
 /** n values of a named shape, over t in [0, 10]. */
-function shape(kind, n, seed) {
+function shape(kind: string, n: number, seed: number) {
   const r = rng(seed),
     y = new Float64Array(n);
   let walk = 0;
@@ -136,16 +199,16 @@ const chartTheme = () => (isAccessible() ? (isDark() ? L.accessibleDarkTheme : L
  * point with the box beside it, 'follow' the same with the box at the pointer, 'shared' every series at the cursor (with a
  * crosshair and a dot on each). The mode changes the cursor and the tooltip's `follow`, nothing else, so it can be switched live.
  */
-function tipKit(mode = 'snap', tip = {}) {
+function tipKit(mode = 'snap', tip: L.ChartTooltipAttributes = {}) {
   const tooltip = new L.ChartTooltip(tip);
   const crosshair = new L.Crosshair({ lines: 'first', dots: true });
   const cursor = new L.Cursor({}, crosshair, tooltip);
-  const kit = {
+  const kit: TipKit = {
     cursor,
     tooltip,
     crosshair,
     mode,
-    setMode(m) {
+    setMode(m: string) {
       kit.mode = m;
       cursor.setAttribute('mode', m === 'shared' ? 'shared' : 'nearest');
       tooltip.setAttribute('follow', m === 'follow' ? true : undefined);
@@ -155,16 +218,37 @@ function tipKit(mode = 'snap', tip = {}) {
   kit.setMode(mode);
   return kit;
 }
+interface TipKit {
+  cursor: L.Cursor;
+  tooltip: L.ChartTooltip;
+  crosshair: L.Crosshair;
+  mode: string;
+  setMode(m: string): void;
+}
 /** The colour behind the chart, which a halo has to match. */
 const pageBackground = () => (isDark() ? '#141c21' : '#ffffff');
-let themeHooks = [];
+let themeHooks: (() => void)[] = [];
 
 const host = $('host');
-let current = null; // { demo, chart, platform, dispose? }
-const history = [];
+/** What is on the stage: the demo, its chart and platform, and the names the JSON panel keeps. */
+interface Stage {
+  demo: Demo;
+  platform: L.DOMPlatform;
+  chart: L.Chart;
+  dispose?: () => void;
+  root: L.Chart;
+  refs: L.Refs;
+  kept: Set<string>;
+}
+let mounted: Stage | null = null;
+const stage = (): Stage => {
+  if (!mounted) throw new Error('no demo is on the stage');
+  return mounted;
+};
+const history: number[] = [];
 
 /** A flush that did nothing (a resize that changed nothing, say) leaves the readouts as the last real one left them. */
-function onFlush(stats) {
+function onFlush(stats: L.FlushStats) {
   if (stats.filled === 0 && stats.attributeWrites === 0) return;
   history.push(stats.total);
   if (history.length > 60) history.shift();
@@ -180,7 +264,7 @@ const svgPanel = {
   timer: 0,
   soon() {
     if (this.timer) return;
-    this.timer = setTimeout(() => {
+    this.timer = window.setTimeout(() => {
       this.timer = 0;
       if (tab === 'svg') renderPanel();
     }, 150);
@@ -196,9 +280,19 @@ const svgPanel = {
 //    takes that work out of the frame, so the render estimate falls by about as much; read one or the other.
 //  · timer: the smallest step `performance.now()` is seen to make. A page that is not cross-origin isolated gets it coarsened by the browser.
 //  · user timing: every flush is a `measure` named "inkplot flush", which the Chrome and Firefox profilers draw as a marker on the timeline.
+interface ProbeState {
+  render: number[];
+  layout: number[];
+  interval: number[];
+  busy: number[];
+  forceLayout: boolean;
+  last: number;
+  timer: number | null;
+  pending: number;
+}
 const probe = (() => {
-  const keep = (a, v) => (a.push(v), a.length > 60 && a.shift());
-  const state = {
+  const keep = (a: number[], v: number) => (a.push(v), a.length > 60 && a.shift());
+  const state: ProbeState = {
     render: [],
     layout: [],
     interval: [],
@@ -209,12 +303,13 @@ const probe = (() => {
     pending: 0,
   };
   const channel = typeof MessageChannel === 'function' ? new MessageChannel() : null;
-  const waiting = [];
+  const waiting: { end: number; flush: number; at: number }[] = [];
   if (channel) {
     channel.port1.onmessage = () => {
       const t = performance.now(),
-        { end, flush, at } = waiting.shift() ?? {};
-      if (end === undefined) return;
+        w = waiting.shift();
+      if (!w) return;
+      const { end, flush, at } = w;
       const render = t - end;
       keep(state.render, render);
       if (at > 0) keep(state.busy, ((flush + render) / at) * 100);
@@ -237,7 +332,7 @@ const probe = (() => {
   state.timer = measureTimer();
   return {
     state,
-    afterFlush(stats) {
+    afterFlush(stats: L.FlushStats) {
       const end = performance.now();
       const at = state.last ? end - state.last : 0;
       state.last = end;
@@ -268,7 +363,7 @@ const probe = (() => {
       }
     },
     reset() {
-      for (const k of ['render', 'layout', 'interval', 'busy']) state[k].length = 0;
+      for (const k of ['render', 'layout', 'interval', 'busy'] as const) state[k].length = 0;
       state.last = 0;
     },
   };
@@ -276,21 +371,21 @@ const probe = (() => {
 
 /** The readouts are redrawn at most four times a second: rewriting them on every flush of an animation would be page layout of their own, in what is being measured. */
 const readouts = (() => {
-  let latest = null,
+  let latest: L.FlushStats | null = null,
     timer = 0,
     shownAt = 0;
   const draw = () => {
     timer = 0;
     shownAt = performance.now();
-    if (latest && current && history.length > 0) renderStats(latest);
+    if (latest && mounted && history.length > 0) renderStats(latest);
   };
   return {
-    show(stats) {
+    show(stats: L.FlushStats) {
       latest = stats;
       if (timer) return;
       const wait = 250 - (performance.now() - shownAt);
       if (wait <= 0) draw();
-      else timer = setTimeout(draw, wait);
+      else timer = window.setTimeout(draw, wait);
     },
     /** A new demo: what is waiting to be shown belongs to the old one. */
     reset() {
@@ -304,20 +399,21 @@ const readouts = (() => {
   };
 })();
 
-const stat = (a) => {
+const stat = (a: readonly number[]) => {
   if (a.length === 0) return null;
   const sorted = [...a].sort((x, y) => x - y);
-  const at = (q) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
-  return { median: at(0.5), p95: at(0.95), max: sorted[sorted.length - 1], n: a.length };
+  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]!;
+  return { median: at(0.5), p95: at(0.95), max: sorted[sorted.length - 1]!, n: a.length };
 };
 /** Milliseconds: a third decimal when the timer can tell. */
-const msf = (v) => (v < 1 && (probe.state.timer ?? 1) <= 0.011 ? v.toFixed(3) : ms(v));
-const micro = (v) => (v === null ? 'n/a' : v < 0.001 ? '< 1 µs' : v < 1 ? `${+(v * 1000).toPrecision(2)} µs` : `${+v.toPrecision(2)} ms`);
+const msf = (v: number) => (v < 1 && (probe.state.timer ?? 1) <= 0.011 ? v.toFixed(3) : ms(v));
+const micro = (v: number | null) =>
+  v === null ? 'n/a' : v < 0.001 ? '< 1 µs' : v < 1 ? `${+(v * 1000).toPrecision(2)} µs` : `${+v.toPrecision(2)} ms`;
 const layoutToggle = h('input', {
   type: 'checkbox',
   id: 'probe-layout',
-  onchange: (e) => {
-    probe.state.forceLayout = e.target.checked;
+  onchange: (e: Event) => {
+    probe.state.forceLayout = (e.target as HTMLInputElement).checked;
     probe.state.layout.length = 0;
     probe.state.render.length = 0;
   },
@@ -334,18 +430,18 @@ const layoutToggleLabel = h(
   ' measure layout (forces it)',
 );
 
-function renderStats(s) {
+function renderStats(s: L.FlushStats) {
   const sorted = [...history].sort((a, b) => a - b);
-  const stages = ['generate', 'decimate', 'normalize', 'place', 'path'];
+  const stages = ['generate', 'decimate', 'normalize', 'place', 'path'] as const;
   const peak = Math.max(0.001, ...stages.map((k) => s.stages[k]));
   const svg = host.querySelector('svg');
-  const size = current.platform.size();
+  const size = stage().platform.size();
   $('stats').replaceChildren(
     h(
       'div',
       {},
       h('div', { class: 'big' }, ms(s.total), h('small', {}, ' ms')),
-      h('div', { class: 'sub' }, `median ${ms(sorted[sorted.length >> 1])} of ${history.length}`),
+      h('div', { class: 'sub' }, `median ${ms(sorted[sorted.length >> 1]!)} of ${history.length}`),
       h('div', { class: 'sub' }, `${size.width} × ${size.height}`),
     ),
     h(
@@ -384,7 +480,7 @@ function renderStats(s) {
 /** What the page spent round the flush: see the profiling aids above. */
 function frameRows() {
   const p = probe.state;
-  const row = (name, a, unit = 'ms') => {
+  const row = (name: string, a: readonly number[], unit = 'ms') => {
     const st = stat(a);
     return st
       ? kv(
@@ -411,13 +507,37 @@ function frameRows() {
     kv('timer', `${micro(p.timer)}${typeof crossOriginIsolated === 'boolean' && crossOriginIsolated ? ' · isolated' : ''}`),
   ].filter(Boolean);
 }
-const kv = (k, v) => h('div', {}, h('span', {}, k), h('b', {}, String(v)));
+const kv = (k: string, v: unknown) => h('div', {}, h('span', {}, k), h('b', {}, String(v)));
 
-function mount(demo) {
-  if (current) {
-    current.chart.detach();
-    current.platform.dispose();
-    current.dispose?.();
+const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** What a demo is given to build itself with: the control panel, the page's flush hook, and a way to name data for the JSON panel. */
+interface Ctx {
+  controls: HTMLElement;
+  onFlush: (stats: L.FlushStats) => void;
+  /** Called when the page switches between light and dark, for what depends on the background (a halo). */
+  onTheme: (fn: () => void) => void;
+  add: (...els: Node[]) => void;
+  host: HTMLElement;
+  name: (name: string, value: unknown) => string;
+}
+/** What a demo hands back: the chart to show, and what to do when it goes. */
+interface Built {
+  chart: L.Chart;
+  dispose?: () => void;
+}
+interface Demo {
+  id: string;
+  title: string;
+  blurb: string;
+  setup: (ctx: Ctx) => Built;
+}
+
+function mount(demo: Demo) {
+  if (mounted) {
+    mounted.chart.detach();
+    mounted.platform.dispose();
+    mounted.dispose?.();
   }
   history.length = 0;
   probe.reset();
@@ -426,13 +546,14 @@ function mount(demo) {
   themeHooks = [];
   host.querySelectorAll('svg').forEach((n) => n.remove());
   const platform = new L.DOMPlatform(host);
-  const ctx = {
+  let given: (name: string, value: unknown) => string = () => '';
+  const ctx: Ctx = {
     controls: $('controls'),
     onFlush,
-    /** Called when the page switches between light and dark, for what depends on the background (a halo). */
-    onTheme: (fn) => themeHooks.push(fn),
+    onTheme: (fn) => void themeHooks.push(fn),
     add: (...els) => $('controls').append(...els),
     host,
+    name: (name, value) => given(name, value),
   };
   /** The names that stay: the page's own and the ones a demo gave. The rest were made up while writing JSON, and go when the data they named is replaced. */
   const kept = new Set(['lightTheme', 'darkTheme', 'accessibleTheme', 'accessibleDarkTheme']);
@@ -441,13 +562,13 @@ function mount(demo) {
     { auto: true },
   );
   /** A demo names the data it keeps editing, so that JSON refers to it and editing the JSON cannot swap it for a copy. */
-  ctx.name = (name, value) => {
-    const given = refs.adopt(value, name);
-    kept.add(given);
-    return given;
+  given = (name, value) => {
+    const adopted = refs.adopt(value, name);
+    kept.add(adopted);
+    return adopted;
   };
   const built = demo.setup(ctx);
-  current = { demo, platform, chart: built.chart, dispose: built.dispose, root: built.chart, refs, kept };
+  mounted = { demo, platform, chart: built.chart, dispose: built.dispose, root: built.chart, refs, kept };
   jsonPanel.reset();
   built.chart.attach(platform);
   renderPanel();
@@ -466,10 +587,10 @@ const pageRegistry = () => ({ ...L.registry, Watermark, SignedPowerScale, EventP
 const JSON_LIMIT = 24; // longer arrays are data (rows, samples), and go by reference, so that the text stays readable
 
 const jsonPanel = {
-  area: null,
-  status: null,
-  copyHost: null,
-  copy: null,
+  area: null as HTMLTextAreaElement | null,
+  status: null as HTMLElement | null,
+  copyHost: null as HTMLElement | null,
+  copy: null as { chart: L.Chart; platform: L.DOMPlatform } | null,
   dirty: false,
   timer: 0,
   good: '',
@@ -490,45 +611,48 @@ const jsonPanel = {
     this.copyHost = null;
   },
   options() {
-    return { refs: current.refs, inlineLimit: JSON_LIMIT };
+    return { refs: stage().refs, inlineLimit: JSON_LIMIT };
   },
   /** The live chart as indented JSON, or the reason it cannot be. */
   text() {
     try {
-      const text = JSON.stringify(L.toJSON(current.chart, pageRegistry(), this.options()), null, 2);
+      const { chart, refs, kept } = stage();
+      const text = JSON.stringify(L.toJSON(chart, pageRegistry(), this.options()), null, 2);
       // Data a demo replaces (new samples for a transform) would be named afresh each time: drop the names this text no longer uses.
       const used = new Set([...text.matchAll(/"\$ref": "([^"]*)"/g)].map((m) => m[1]));
-      for (const n of current.refs.names) if (!current.kept.has(n) && !used.has(n)) current.refs.forget(n);
+      for (const n of refs.names) if (!kept.has(n) && !used.has(n)) refs.forget(n);
       return { text };
     } catch (e) {
-      return { error: e.message };
+      return { error: messageOf(e) };
     }
   },
-  say(text, bad = false) {
+  say(text: string, bad = false) {
+    if (!this.status) return;
     this.status.className = bad ? 'bad' : 'ok';
     this.status.textContent = text;
   },
   byRef() {
-    const names = current.refs.names.filter((n) => !['lightTheme', 'darkTheme', 'accessibleTheme', 'accessibleDarkTheme'].includes(n));
+    const names = stage().refs.names.filter((n) => !['lightTheme', 'darkTheme', 'accessibleTheme', 'accessibleDarkTheme'].includes(n));
     return names.length ? `by reference, from the page: ${names.join(', ')}` : 'everything is in the JSON';
   },
-  render(panel) {
-    this.area = h('textarea', { class: 'json', spellcheck: 'false', 'aria-label': 'Chart as JSON; edits apply live' });
-    this.area.addEventListener('input', () => {
+  render(panel: HTMLElement) {
+    const area = h('textarea', { class: 'json', spellcheck: 'false', 'aria-label': 'Chart as JSON; edits apply live' });
+    this.area = area;
+    area.addEventListener('input', () => {
       this.dirty = true;
       clearTimeout(this.timer);
       this.say('editing…');
-      this.timer = setTimeout(() => this.apply(), 350);
+      this.timer = window.setTimeout(() => this.apply(), 350);
     });
-    this.area.addEventListener('blur', () => {
+    area.addEventListener('blur', () => {
       if (!this.dirty) this.refresh();
     });
-    this.area.addEventListener('keydown', (e) => {
+    area.addEventListener('keydown', (e) => {
       if (e.key !== 'Tab') return;
       e.preventDefault();
       document.execCommand('insertText', false, '  ');
     });
-    this.status = h('span', {});
+    this.status = h('span', {}, '');
     this.copyHost = null;
     panel.replaceChildren(
       h(
@@ -538,71 +662,78 @@ const jsonPanel = {
         h('code', {}, '{ "$ref": … }'),
         ': names for objects the page holds, found again when the JSON is read.',
       ),
-      this.area,
+      area,
       h(
         'div',
         { class: 'jsonbar' },
         this.status,
         h('button', { class: 'btn', type: 'button', onclick: () => this.preview() }, 'Draw a copy with fromJSON'),
-        h('button', { class: 'btn', type: 'button', onclick: () => navigator.clipboard?.writeText(this.area.value) }, 'Copy'),
+        h('button', { class: 'btn', type: 'button', onclick: () => navigator.clipboard?.writeText(area.value) }, 'Copy'),
       ),
     );
     this.refresh(true);
   },
   /** Bring the text up to date with the chart, unless someone is in the middle of editing it. */
   refresh(force = false) {
-    if (!this.area || !this.area.isConnected) return;
-    if (!force && (this.dirty || document.activeElement === this.area)) return;
+    const area = this.area;
+    if (!area || !area.isConnected) return;
+    if (!force && (this.dirty || document.activeElement === area)) return;
     const r = this.text();
-    if (r.error) {
-      this.area.value = '';
+    if (r.error !== undefined) {
+      area.value = '';
       this.say(r.error, true);
       return;
     }
-    if (this.area.value !== r.text) this.area.value = r.text;
-    this.good = r.text;
+    if (area.value !== r.text) area.value = r.text ?? '';
+    this.good = r.text ?? '';
     this.say(this.byRef());
   },
   apply() {
+    const area = this.area;
+    if (!area) return;
     let json;
     try {
-      json = JSON.parse(this.area.value);
+      json = JSON.parse(area.value);
     } catch (e) {
-      this.say('not JSON yet: ' + e.message, true);
+      this.say('not JSON yet: ' + messageOf(e), true);
       return;
     }
+    const { chart } = stage();
     try {
-      L.applyJSON(current.chart, json, pageRegistry(), this.options());
-      current.chart.flush();
+      L.applyJSON(chart, json, pageRegistry(), this.options());
+      chart.flush();
     } catch (e) {
-      this.say(e.message, true);
+      this.say(messageOf(e), true);
       // Reading failures change nothing; a layout that cannot draw this does, so go back to what last worked.
       try {
-        L.applyJSON(current.chart, JSON.parse(this.good), pageRegistry(), this.options());
-        current.chart.flush();
+        L.applyJSON(chart, JSON.parse(this.good), pageRegistry(), this.options());
+        chart.flush();
       } catch {
         /* nothing more to do */
       }
       return;
     }
-    this.good = this.area.value;
+    this.good = area.value;
     this.dirty = false;
     this.say('applied · ' + this.byRef());
   },
   /** Build a second chart from the text with fromJSON, to show what a reader of this JSON would get. */
   preview() {
     this.disposeCopy();
+    const area = this.area;
+    if (!area) return;
     try {
-      const chart = L.fromJSON(JSON.parse(this.area.value), pageRegistry(), this.options());
-      this.copyHost = h('div', { class: 'copyhost' });
-      this.area.parentElement.append(this.copyHost);
-      const platform = new L.DOMPlatform(this.copyHost);
+      const chart = L.fromJSON<L.Chart>(JSON.parse(area.value), pageRegistry(), this.options());
+      const copyHost = h('div', { class: 'copyhost' });
+      this.copyHost = copyHost;
+      area.parentElement?.append(copyHost);
+      const platform = new L.DOMPlatform(copyHost);
       chart.attach(platform);
       chart.flush();
       this.copy = { chart, platform };
       this.say('drawn from the text with fromJSON, below');
     } catch (e) {
-      this.say(e.message, true);
+      this.say(messageOf(e), true);
     }
   },
 };
@@ -628,7 +759,7 @@ function renderTabs() {
     ),
   );
 }
-function describe(el) {
+function describe(el: L.AnyElement) {
   const a = Object.entries(el.attrs)
     .filter(([, v]) => typeof v !== 'object' && typeof v !== 'function')
     .map(([k, v]) => `${k}=${typeof v === 'string' ? JSON.stringify(v) : v}`)
@@ -636,12 +767,12 @@ function describe(el) {
   return el.constructor.name + (a ? '  ' + a : '');
 }
 function renderPanel() {
-  if (!current) return;
+  if (!mounted) return;
   const panel = $('panel');
   switch (tab) {
     case 'tree': {
-      const lines = [];
-      L.walk(current.chart, (el, depth) => {
+      const lines: string[] = [];
+      L.walk(mounted.chart, (el, depth) => {
         lines.push('  '.repeat(depth) + describe(el));
       });
       panel.replaceChildren(h('pre', { class: 'view' }, lines.join('\n')));
@@ -661,7 +792,7 @@ function renderPanel() {
             {
               class: 'btn',
               type: 'button',
-              onclick: () => download('chart.svg', L.toSvgString(current.chart, { width: host.clientWidth, height: host.clientHeight })),
+              onclick: () => download('chart.svg', L.toSvgString(stage().chart, { width: host.clientWidth, height: host.clientHeight })),
             },
             'Download via StringPlatform',
           ),
@@ -678,7 +809,7 @@ function renderPanel() {
       break;
   }
 }
-function download(name, text) {
+function download(name: string, text: string) {
   const a = h('a', { href: URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' })), download: name });
   a.click();
 }
@@ -757,12 +888,13 @@ function coverage() {
     LineAnnotation: () => new L.LineAnnotation({ value: 0 }),
     CalloutAnnotation: () => new L.CalloutAnnotation({ domain: 0, value: 0, text: 'x' }),
   };
-  const state = (name) => {
+  const byName = L as unknown as Record<string, new () => unknown>;
+  const state = (name: string) => {
     try {
-      (make[name] ?? (() => new L[name]()))();
+      (make[name as keyof typeof make] ?? (() => new byName[name]!()))();
       return true;
     } catch (e) {
-      return /not implemented/.test(String(e.message)) ? false : true;
+      return !/not implemented/.test(messageOf(e));
     }
   };
   const platform = (() => {
@@ -773,7 +905,7 @@ function coverage() {
       return false;
     }
   })();
-  const extra = {
+  const extra: Record<string, [string, boolean][]> = {
     Platforms: [
       ['StringPlatform', true],
       ['DOMPlatform', platform],
@@ -789,7 +921,7 @@ function coverage() {
   const wrap = h('div', {});
   let done = 0,
     total = 0;
-  const group = (title, items) => {
+  const group = (title: string, items: readonly (readonly [string, boolean])[]) => {
     wrap.append(
       h(
         'div',
@@ -810,7 +942,7 @@ function coverage() {
   for (const [title, names] of Object.entries(groups))
     group(
       title,
-      names.map((n) => [n, state(n)]),
+      names.map((n): [string, boolean] => [n, state(n)]),
     );
   for (const [title, items] of Object.entries(extra)) group(title, items);
   wrap.prepend(
@@ -825,7 +957,7 @@ function coverage() {
 
 const PALETTE = ['#2a6fdb', '#d9534f', '#2e9e6b', '#e0a030', '#8a5cd0', '#17a2b8'];
 
-const demos = [];
+const demos: Demo[] = [];
 
 // ── 0. Headline: the warming spiral ──────────────────────────────────────────
 // One chart, two polar planes laid over each other (a one-cell ChartGroup). Inside, each year is a ring of twelve months, coloured by the year's anomaly.
@@ -850,7 +982,7 @@ demos.push({
     const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const S = { year: LAST, pinned: LAST, trail: 0, speed: 14, playing: false };
     const fg = () => (isDark() ? '#eef3f6' : '#1b2a33');
-    const signed = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + ' °C';
+    const signed = (v: number) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + ' °C';
     const hottest = annual.indexOf(Math.max(...annual)) + FIRST;
     const coldest = annual.indexOf(Math.min(...annual)) + FIRST;
 
@@ -909,11 +1041,11 @@ demos.push({
     for (let m = 0, k = 0; m <= 12; m++)
       for (let i = 0; i < N; i++, k += 3) {
         ringRows[k] = m;
-        ringRows[k + 1] = m < 12 ? months[i][m] : (months[i + 1]?.[0] ?? months[i][11]);
+        ringRows[k + 1] = m < 12 ? months[i]![m]! : (months[i + 1]?.[0] ?? months[i]![11]!);
         ringRows[k + 2] = FIRST + i;
       }
     // What the bindings read from outside is the year being played: invalidating the group says it has moved.
-    const ringOpacity = (y) => {
+    const ringOpacity = (y: number) => {
       const age = Math.round(S.year) - y;
       if (age < 0 || (S.trail && age >= S.trail)) return 0;
       return S.trail ? Math.max(0.12, 1 - age / S.trail) : 0.2 + 0.55 * ((y - FIRST) / (N - 1));
@@ -925,22 +1057,22 @@ demos.push({
         valueAxis: 'anomaly',
         maxGroups: N,
         bind: {
-          stroke: { axis: heat, value: (y) => annual[y - FIRST] },
-          strokeWidth: { map: (y) => 0.6 + ((y - FIRST) / (N - 1)) * 0.9 },
+          stroke: { axis: heat, value: (y: number) => annual[y - FIRST]! },
+          strokeWidth: { map: (y: number) => 0.6 + ((y - FIRST) / (N - 1)) * 0.9 },
           opacity: { map: ringOpacity },
         },
       },
       new L.FlatDataSource({ data: ringRows, stride: 3, channels: { year: 2 }, isSorted: true }),
       new L.LinePath({}, new L.CatmullRomCurve()),
     );
-    const nowSource = new L.FlatDataSource({ data: [...months[N - 1], months[N - 1][0]], regularDomain: { start: 0, step: 1 } });
+    const nowSource = new L.FlatDataSource({ data: [...months[N - 1]!, months[N - 1]![0]!], regularDomain: { start: 0, step: 1 } });
     const nowLine = new L.LinePath({ id: 'now', strokeWidth: 2.6, stroke: fg() }, new L.CatmullRomCurve());
     const nowDots = new L.CircleMarker({ size: 3, fill: fg(), stroke: 'none' });
     const nowSeries = new L.DomainSeries({ domainAxis: 'month', valueAxis: 'anomaly' }, nowSource, nowLine, nowDots);
     // The month names ride on a series of twelve invisible points, so they are notes like any other.
     const names = new L.DomainSeries(
       { domainAxis: 'month', valueAxis: 'anomaly' },
-      new L.FlatDataSource({ data: new Array(12).fill(2.55), regularDomain: { start: 0.5, step: 1 } }),
+      new L.FlatDataSource({ data: new Float64Array(12).fill(2.55), regularDomain: { start: 0.5, step: 1 } }),
       new L.DotMarker({ id: 'names', size: 0, opacity: 0 }),
     );
     const monthNotes = new L.PointAnnotations({
@@ -959,8 +1091,8 @@ demos.push({
       style: { annotationLine: { dash: '3 4' } },
     });
     const yearNote = new L.CalloutAnnotation({ domain: 0, value: R_MIN, text: String(LAST), dx: 0, dy: -4 });
-    const anomalyNote = new L.CalloutAnnotation({ domain: 0, value: R_MIN, text: signed(annual[N - 1]), dx: 0, dy: 30 });
-    const bare = { callout: { outline: 'none' }, calloutBox: { fill: 'none', stroke: 'none' }, calloutArm: { stroke: 'none' } };
+    const anomalyNote = new L.CalloutAnnotation({ domain: 0, value: R_MIN, text: signed(annual[N - 1]!), dx: 0, dy: 30 });
+    const bare = { callout: { outline: 'none' as const }, calloutBox: { fill: 'none', stroke: 'none' }, calloutArm: { opacity: 0 } };
     const restyle = () => {
       yearNote.setAttribute('style', { ...bare, calloutText: { size: 46, weight: 700, color: fg() } });
       anomalyNote.setAttribute('style', { ...bare, calloutText: { size: 17, weight: 500, color: fg() } });
@@ -1012,13 +1144,13 @@ demos.push({
       const yr = Math.round(S.year),
         i = yr - FIRST;
       rings.invalidate();
-      nowSource.setAttributes({ data: [...months[i], months[i][0]], regularDomain: { start: 0, step: 1 } });
+      nowSource.setAttributes({ data: [...months[i]!, months[i]![0]!], regularDomain: { start: 0, step: 1 } });
       yearNote.setAttribute('text', String(yr));
-      anomalyNote.setAttribute('text', signed(annual[i]));
+      anomalyNote.setAttribute('text', signed(annual[i]!));
       // The years to come are faint: a function of the year makes it, and a new one each time says the answer has changed.
       stripes.setAttribute('bind', {
         fill: { axis: heat, channel: 'a' },
-        opacity: { channel: 'year', map: (y) => (y <= yr ? 1 : 0.14) },
+        opacity: { channel: 'year', map: (y: number) => (y <= yr ? 1 : 0.14) },
       });
       ringNotes.setAttribute('text', (hit) => {
         const y = Math.floor(hit.first);
@@ -1037,10 +1169,11 @@ demos.push({
 
     // ── Playing it.
     let raf = 0,
-      last = 0,
-      playButton = null,
-      yearSlider = null;
-    const frame = (now) => {
+      last = 0;
+    // Set below, once the controls exist; `show` and `refreshButton` run only after that.
+    let playButton: HTMLButtonElement | null = null,
+      yearSlider: { el: HTMLElement; set: (v: number) => void } | null = null;
+    const frame = (now: number): void => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const before = Math.round(S.year);
@@ -1089,9 +1222,9 @@ demos.push({
         out = f.querySelector('output');
       return {
         el: f,
-        set: (v) => {
-          input.value = v;
-          out.textContent = String(v);
+        set: (v: number) => {
+          if (input) input.value = String(v);
+          if (out) out.textContent = String(v);
         },
       };
     })();
@@ -1127,7 +1260,7 @@ demos.push({
     );
     // Hover the stripes (when nothing is playing) and the spiral follows the pointer; off them it goes back to the pinned year. A click pins it.
     // The two planes share one box, so the pointer is read here, against the ring's own circle.
-    const yearAt = (ev) => {
+    const yearAt = (ev: { clientX: number; clientY: number }) => {
       const box = ctx.host.getBoundingClientRect(),
         r = ring.rect;
       const dx = ev.clientX - box.left - (r.x + r.width / 2),
@@ -1138,7 +1271,7 @@ demos.push({
       const turn = (((Math.atan2(dx, -dy) / (2 * Math.PI)) % 1) + 1) % 1;
       return FIRST + Math.min(N - 1, Math.floor(turn * N));
     };
-    const onMove = (ev) => {
+    const onMove = (ev: { clientX: number; clientY: number }) => {
       if (S.playing) return;
       const y = yearAt(ev);
       ctx.host.style.cursor = y === null ? '' : 'pointer';
@@ -1149,7 +1282,7 @@ demos.push({
       }
     };
     const onLeave = () => onMove({ clientX: -1e6, clientY: -1e6 });
-    const onClick = (ev) => {
+    const onClick = (ev: MouseEvent) => {
       const y = yearAt(ev);
       if (y === null) return;
       stop();
@@ -1170,7 +1303,7 @@ demos.push({
       S.year = S.pinned = LAST;
       show();
     }
-    const starter = still ? 0 : setTimeout(play, 500);
+    const starter = still ? 0 : window.setTimeout(play, 500);
     return {
       chart,
       dispose: () => {
@@ -1203,13 +1336,13 @@ const clusterData = (() => {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   // Noise that remembers where it was, so a series wanders and does not fizz.
-  const walk = (n, keep, size) => {
+  const walk = (n: number, keep: number, size: number) => {
     const out = new Float64Array(n);
     let v = 0;
     for (let i = 0; i < n; i++) out[i] = v = v * keep + (rand() - 0.5) * size;
     return out;
   };
-  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
   const DEAD = 18,
     DEAD_AT = 1000,
     SPIKE = 6,
@@ -1219,15 +1352,15 @@ const clusterData = (() => {
     SPIKE_TO = 790,
     LEAK_FROM = 1300,
     LEAK_TO = 1900;
-  const day = (t) => Math.sin(t / 380) * 9;
-  const cpu = [];
+  const day = (t: number) => Math.sin(t / 380) * 9;
+  const cpu: Float64Array[] = [];
   for (let n = 0; n < NODES; n++) {
     const base = 26 + ((n * 7) % 19),
       phase = n * 0.7,
       noise = walk(T, 0.9, 7),
       a = new Float64Array(T);
     for (let t = 0; t < T; t++) {
-      let v = base + day(t) + Math.sin(t / 55 + phase) * 4 + noise[t];
+      let v = base + day(t) + Math.sin(t / 55 + phase) * 4 + noise[t]!;
       if (t >= DEAD_AT && n !== DEAD) v += 5; // the dead node's work goes elsewhere
       if (n === SPIKE && t >= SPIKE_FROM && t < SPIKE_TO) v = 91 + Math.min(8, (t - SPIKE_FROM) / 6) + (rand() - 0.5) * 4;
       if (n === LEAK && t >= LEAK_FROM) v += Math.min(55, ((t - LEAK_FROM) / (LEAK_TO - LEAK_FROM)) * 60);
@@ -1246,22 +1379,25 @@ const clusterData = (() => {
     errNoise = walk(T, 0.5, 0.06);
   for (let t = 0; t < T; t++) {
     let hottest = 0;
-    for (let n = 0; n < NODES; n++) hottest = Math.max(hottest, cpu[n][t]);
+    for (let n = 0; n < NODES; n++) hottest = Math.max(hottest, cpu[n]![t]!);
     const sinceDeath = t - DEAD_AT;
-    rps[t] = 4200 * (1 + 0.3 * Math.sin(t / 380 - 0.6) + traffic[t]) * (t >= SPIKE_FROM && t < SPIKE_TO ? 0.92 : 1);
-    p99[t] = 98 + jitter[t] + 6.5 * Math.max(0, hottest - 66) + (sinceDeath >= 0 ? 60 * Math.exp(-sinceDeath / 45) : 0);
+    rps[t] = 4200 * (1 + 0.3 * Math.sin(t / 380 - 0.6) + traffic[t]!) * (t >= SPIKE_FROM && t < SPIKE_TO ? 0.92 : 1);
+    p99[t] = 98 + jitter[t]! + 6.5 * Math.max(0, hottest - 66) + (sinceDeath >= 0 ? 60 * Math.exp(-sinceDeath / 45) : 0);
     errors[t] =
-      0.12 + Math.abs(errNoise[t]) + (t >= SPIKE_FROM && t < SPIKE_TO ? 2.4 : 0) + (sinceDeath >= 0 ? 1.6 * Math.exp(-sinceDeath / 30) : 0);
+      0.12 +
+      Math.abs(errNoise[t]!) +
+      (t >= SPIKE_FROM && t < SPIKE_TO ? 2.4 : 0) +
+      (sinceDeath >= 0 ? 1.6 * Math.exp(-sinceDeath / 30) : 0);
     up[t] = t >= DEAD_AT ? NODES - 1 : NODES;
     restarts[t] = (t >= SPIKE_FROM + 20 && t < SPIKE_TO + 40 && rand() < 0.35 ? 1 + Math.floor(rand() * 3) : 0) + (rand() < 0.01 ? 1 : 0);
-    if (t >= LEAK_TO - 30 && t < LEAK_TO && rand() < 0.4) restarts[t] += 2;
+    if (t >= LEAK_TO - 30 && t < LEAK_TO && rand() < 0.4) restarts[t]! += 2;
   }
   // The services, as slower or faster cousins of the cluster's p99.
-  const svc = (k, off, noise) => Float64Array.from(p99, (v, t) => v * k + off + noise[t]);
+  const svc = (k: number, off: number, noise: Float64Array) => Float64Array.from(p99, (v, t) => v * k + off + noise[t]!);
   const services = {
     api: p99,
     auth: svc(0.5, 8, walk(T, 0.8, 5)),
-    db: Float64Array.from(cpu[LEAK], (c, t) => 34 + c * 0.9 + jitter[t] * 0.5 + (t >= LEAK_FROM ? (c - 50) * 2.2 : 0)),
+    db: Float64Array.from(cpu[LEAK]!, (c, t) => 34 + c * 0.9 + jitter[t]! * 0.5 + (t >= LEAK_FROM ? (c - 50) * 2.2 : 0)),
     cache: svc(0.12, 4, walk(T, 0.7, 1.2)),
   };
   return { T, NODES, cpu, rps, p99, errors, up, restarts, services, DEAD, DEAD_AT, SPIKE_FROM, SPIKE_TO, LEAK_FROM, LEAK_TO };
@@ -1276,7 +1412,7 @@ demos.push({
     const D = clusterData;
     const S = { end: 360, rate: 10, playing: false, held: false };
     const TICK = 2; // seconds of the made-up clock to a sample
-    const clock = (i) => {
+    const clock = (i: number) => {
       const s = 9 * 3600 + Math.round(i) * TICK;
       return String(Math.floor(s / 3600) % 24).padStart(2, '0') + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0');
     };
@@ -1289,8 +1425,8 @@ demos.push({
     });
 
     // ── Every series reads its own history through a Slice, which the clock moves.
-    const slices = [];
-    const feed = (data, last) => {
+    const slices: InstanceType<typeof L.Slice>[] = [];
+    const feed = (data: Float64Array, last: number) => {
       const slice = new L.Slice({ last, end: S.end }, new L.FlatDataSource({ data, regularDomain: { start: 0, step: 1 }, isSorted: true }));
       slices.push(slice);
       return slice;
@@ -1299,22 +1435,60 @@ demos.push({
     const hidden = () => new L.SharedAxis({ orientation: 'bottom', sharedRef: 'time', visible: false });
     const WINDOW = 240;
     const crosshair = () => new L.Cursor({ mode: 'shared', keys: false }, new L.Crosshair({ lines: 'first', dots: true }));
-    const fixed = (min, max) => new L.Axis({ orientation: 'left', visible: false, min, max }, new L.LinearScale());
+    const fixed = (min: number, max: number) => new L.Axis({ orientation: 'left', visible: false, min, max }, new L.LinearScale());
     const tight = { gridlines: false, insets: { left: 2, right: 2, top: 4, bottom: 4 } };
-    const smallText = { chartTitle: { size: 11, weight: 600, align: 'start' } };
+    const smallText = { chartTitle: { size: 11, weight: 600, align: 'start' as const } };
 
     // ── The headline numbers: the value is the item's title and the name its subtitle, and the line behind them is the last few minutes.
-    const kpis = [
-      { name: 'Requests / s', data: D.rps, last: WINDOW, min: 0, max: 8000, format: (v) => Math.round(v).toLocaleString(), kind: 'area' },
-      { name: 'p99 latency', data: D.p99, last: WINDOW, min: 0, max: 400, format: (v) => Math.round(v) + ' ms', kind: 'line', limit: 250 },
-      { name: 'Error rate', data: D.errors, last: WINDOW, min: 0, max: 4, format: (v) => v.toFixed(2) + ' %', kind: 'area', limit: 1 },
-      { name: 'Nodes up', data: D.up, last: WINDOW, min: 0, max: D.NODES + 1, format: (v) => `${v} / ${D.NODES}`, kind: 'step' },
-    ].map((k) => {
+    interface Kpi {
+      name: string;
+      data: Float64Array;
+      last: number;
+      min: number;
+      max: number;
+      format: (v: number) => string;
+      kind: 'area' | 'line' | 'step';
+      limit?: number;
+    }
+    const kpis = (
+      [
+        {
+          name: 'Requests / s',
+          data: D.rps,
+          last: WINDOW,
+          min: 0,
+          max: 8000,
+          format: (v: number) => Math.round(v).toLocaleString(),
+          kind: 'area',
+        },
+        {
+          name: 'p99 latency',
+          data: D.p99,
+          last: WINDOW,
+          min: 0,
+          max: 400,
+          format: (v: number) => Math.round(v) + ' ms',
+          kind: 'line',
+          limit: 250,
+        },
+        {
+          name: 'Error rate',
+          data: D.errors,
+          last: WINDOW,
+          min: 0,
+          max: 4,
+          format: (v: number) => v.toFixed(2) + ' %',
+          kind: 'area',
+          limit: 1,
+        },
+        { name: 'Nodes up', data: D.up, last: WINDOW, min: 0, max: D.NODES + 1, format: (v: number) => `${v} / ${D.NODES}`, kind: 'step' },
+      ] satisfies Kpi[]
+    ).map((k: Kpi) => {
       const title = new L.ChartTitle({ text: '', role: 'title' });
       const sub = new L.ChartTitle({ text: k.name, role: 'subtitle' });
       const line = new L.LinePath({ strokeWidth: 1.5 }, k.kind === 'step' ? new L.LinearCurve() : new L.MonotoneCurve());
       const area = k.kind === 'line' ? null : new L.AreaPath({ opacity: 0.18 }, new L.LinearCurve());
-      const series = new L.DomainSeries({ name: k.name }, feed(k.data, k.last), ...[area, line].filter(Boolean));
+      const series = new L.DomainSeries({ name: k.name }, feed(k.data, k.last), ...(area ? [area, line] : [line]));
       const plane = new L.CartesianPlane(
         {
           ...tight,
@@ -1328,7 +1502,10 @@ demos.push({
           : [new L.LineAnnotation({ value: k.limit, stroke: '#e5483d', strokeWidth: 1, style: { annotationLine: { dash: '2 3' } } })]),
       );
       const item = new L.ChartGroupItem(
-        { span: [3, 1], style: { chartTitle: { size: 22, weight: 700, align: 'start' }, chartSubtitle: { size: 11, align: 'start' } } },
+        {
+          span: [3, 1] as [number, number],
+          style: { chartTitle: { size: 22, weight: 700, align: 'start' as const }, chartSubtitle: { size: 11, align: 'start' as const } },
+        },
         plane,
         title,
         sub,
@@ -1341,7 +1518,7 @@ demos.push({
     const svcNames = Object.keys(D.services);
     const svcColors = ['#2a6fdb', '#8a5cd0', '#e0a030', '#2e9e6b'];
     const latency = new L.ChartGroupItem(
-      { span: [8, 2], style: { chartTitle: { size: 12, weight: 600, align: 'start' } } },
+      { span: [8, 2] as [number, number], style: { chartTitle: { size: 12, weight: 600, align: 'start' as const } } },
       new L.CartesianPlane(
         {
           gridlines: true,
@@ -1359,8 +1536,8 @@ demos.push({
           (name, i) =>
             new L.DomainSeries(
               { name },
-              feed(D.services[name], WINDOW),
-              new L.LinePath({ stroke: svcColors[i], strokeWidth: 1.4 }, new L.LinearCurve()),
+              feed(D.services[name as keyof typeof D.services], WINDOW),
+              new L.LinePath({ stroke: svcColors[i]!, strokeWidth: 1.4 }, new L.LinearCurve()),
             ),
         ),
         new L.LineAnnotation({
@@ -1383,7 +1560,7 @@ demos.push({
     // ── Restarts: a bar for every sample that had any.
     const restartBars = new L.BarPath({ fill: '#e0a030', stroke: 'none', width: 0.8 });
     const restarts = new L.ChartGroupItem(
-      { span: [4, 2], style: { chartTitle: { size: 12, weight: 600, align: 'start' } } },
+      { span: [4, 2] as [number, number], style: { chartTitle: { size: 12, weight: 600, align: 'start' as const } } },
       new L.CartesianPlane(
         { gridlines: true, meta: { title: 'Pod restarts', description: 'Pod restarts in each interval, the last four minutes' } },
         new L.SharedAxis({ orientation: 'bottom', sharedRef: 'time', format: clock, tickStep: 60 }),
@@ -1396,13 +1573,22 @@ demos.push({
 
     // ── A sparkline for every node. They share a scale and nothing is drawn but the line and its area, so a node that is
     // working hard is a tall one, and one that has stopped is a flat one. The title carries the name and the figure.
-    const nodes = D.cpu.map((cpu, n) => {
+    interface NodeCard {
+      name: string;
+      cpu: Float64Array;
+      title: InstanceType<typeof L.ChartTitle>;
+      line: InstanceType<typeof L.LinePath>;
+      area: InstanceType<typeof L.AreaPath>;
+      item: InstanceType<typeof L.ChartGroupItem>;
+      state: '' | 'ok' | 'hot' | 'down';
+    }
+    const nodes = D.cpu.map((cpu, n): NodeCard => {
       const name = 'node-' + String(n + 1).padStart(2, '0');
       const title = new L.ChartTitle({ text: name, role: 'title' });
       const line = new L.LinePath({ strokeWidth: 1.2 }, new L.LinearCurve());
       const area = new L.AreaPath({ opacity: 0.2 }, new L.LinearCurve());
       const item = new L.ChartGroupItem(
-        { span: [2, 1], style: smallText },
+        { span: [2, 1] as [number, number], style: smallText },
         new L.CartesianPlane(
           {
             ...tight,
@@ -1446,7 +1632,7 @@ demos.push({
 
     // ── What a tick changes: the window, the figures, and which nodes look wrong.
     const HOT = 85;
-    const apply = (n, state) => {
+    const apply = (n: NodeCard, state: 'ok' | 'hot' | 'down') => {
       const c = tone();
       const color = state === 'hot' ? c.hot : state === 'down' ? c.down : c.ok;
       n.line.setAttribute('stroke', color);
@@ -1457,14 +1643,14 @@ demos.push({
       const e = Math.min(D.T, Math.max(1, Math.round(S.end))),
         i = e - 1;
       for (const s of slices) s.setAttribute('end', e);
-      for (const k of kpis) k.title.setAttribute('text', k.format(k.data[i]));
+      for (const k of kpis) k.title.setAttribute('text', k.format(k.data[i]!));
       let alerts = 0;
       for (const n of nodes) {
         let peak = 0;
-        for (let j = Math.max(0, i - 30); j <= i; j++) peak = Math.max(peak, n.cpu[j]);
-        const state = n.cpu[i] < 1 ? 'down' : peak > HOT ? 'hot' : 'ok';
+        for (let j = Math.max(0, i - 30); j <= i; j++) peak = Math.max(peak, n.cpu[j]!);
+        const state = n.cpu[i]! < 1 ? 'down' : peak > HOT ? 'hot' : 'ok';
         if (state !== 'ok') alerts++;
-        const value = state === 'down' ? 'down' : Math.round(n.cpu[i]) + '%';
+        const value = state === 'down' ? 'down' : Math.round(n.cpu[i]!) + '%';
         n.title.setAttribute('text', `${n.name}   ${value}`);
         if (state !== n.state) {
           n.state = state;
@@ -1473,7 +1659,7 @@ demos.push({
       }
       headSub.setAttribute(
         'text',
-        `${clock(i)} · ${D.up[i]} of ${D.NODES} nodes up · ${alerts === 0 ? 'all quiet' : alerts + (alerts === 1 ? ' node needs attention' : ' nodes need attention')}`,
+        `${clock(i)} · ${D.up[i]!} of ${D.NODES} nodes up · ${alerts === 0 ? 'all quiet' : alerts + (alerts === 1 ? ' node needs attention' : ' nodes need attention')}`,
       );
       if (slider) slider.set(e);
     };
@@ -1484,10 +1670,10 @@ demos.push({
     // ── Playing it.
     let raf = 0,
       last = 0,
-      owed = 0,
-      playButton = null,
-      slider = null;
-    const frame = (now) => {
+      owed = 0;
+    let playButton: HTMLButtonElement | null = null,
+      slider: { el: HTMLElement; set: (v: number) => void } | null = null;
+    const frame = (now: number): void => {
       // Under the pointer the clock stands still, so there is something to read; it goes on when the pointer leaves.
       owed += S.held ? 0 : Math.min(0.25, (now - last) / 1000) * S.rate;
       last = now;
@@ -1525,7 +1711,7 @@ demos.push({
         max: D.T,
         value: S.end,
         format: clock,
-        onChange: (v) => {
+        onChange: (v: number) => {
           stop();
           S.end = v;
           show();
@@ -1536,14 +1722,14 @@ demos.push({
       return {
         el: f,
         // The page lays out again for any text it changes, so the readout is written only when it says something new.
-        set: (v) => {
-          input.value = v;
+        set: (v: number) => {
+          if (input) input.value = String(v);
           const text = clock(v);
-          if (out.textContent !== text) out.textContent = text;
+          if (out && out.textContent !== text) out.textContent = text;
         },
       };
     })();
-    const jumps = [
+    const jumps: [string, number][] = [
       ['runaway process', D.SPIKE_FROM + 60],
       ['node lost', D.DEAD_AT + 30],
       ['memory leak', D.LEAK_TO - 20],
@@ -1559,13 +1745,13 @@ demos.push({
           [30, 'fast'],
         ],
         value: S.rate,
-        onChange: (v) => (S.rate = v),
+        onChange: (v: number) => (S.rate = v),
       }),
       ui.seg({
         label: 'jump to',
-        options: jumps.map(([text, at]) => [at, text]),
+        options: jumps.map(([text, at]): [number, string] => [at, text]),
         value: -1,
-        onChange: (v) => {
+        onChange: (v: number) => {
           stop();
           S.end = v;
           show();
@@ -1575,7 +1761,7 @@ demos.push({
         "Everything here is invented. Three things go wrong: a runaway process on node-07 (CPU pinned, latency and errors up, pods restarting), node-19 dropping out (a flat line, and its work lands on the rest), and a leak on node-13 that climbs for ten minutes. One ChartGroup of twelve columns holds a chart in every cell; the sparklines share a 0–100 scale. The clock is a `Slice` on every series, moved by one row a tick (`setAttribute('end', n)`): the series refill their window and nothing else is rebuilt. The line and area of a node that is hot or down are restyled, and the title says so.",
       ),
     );
-    const hold = (v) => () => (S.held = v);
+    const hold = (v: boolean) => () => (S.held = v);
     const onEnter = hold(true),
       onLeave = hold(false);
     ctx.host.addEventListener('pointerenter', onEnter);
@@ -1584,7 +1770,7 @@ demos.push({
     show();
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (still) stop();
-    const starter = still ? 0 : setTimeout(play, 400);
+    const starter = still ? 0 : window.setTimeout(play, 400);
     refresh();
     return {
       chart,
@@ -1627,7 +1813,8 @@ demos.push({
       F0 = 40, // the picture is drawn forty times a second
       EDGE = 1.25;
     const S = { playing: true, speed: 1, window: 1200, halfLife: 300, gain: 1, noise: 0.04, bandwidth: 0.4, scene: -1, t: 0 };
-    const SCENES = [
+    type Beam = [number, number, number];
+    const SCENES: [string, (u: number) => Beam][] = [
       [
         'Lissajous 3:2',
         (u) => [
@@ -1638,7 +1825,7 @@ demos.push({
       ],
       [
         'Two circles',
-        (u) => {
+        (u): Beam => {
           const a = 4 * Math.PI * u;
           // Dark while the beam jumps from one circle to the other.
           const jump = Math.abs(u - 0.5) < 0.02 || u < 0.02 || u > 0.98;
@@ -1647,7 +1834,7 @@ demos.push({
       ],
       [
         'Rose',
-        (u) => {
+        (u): Beam => {
           const th = Math.PI * u,
             r = 0.92 * Math.cos(3 * th);
           return [r * Math.cos(th), r * Math.sin(th), Math.sin(18 * Math.PI * u) > -0.2 ? 1 : 0.1];
@@ -1655,7 +1842,7 @@ demos.push({
       ],
       [
         'Square and circle',
-        (u) => {
+        (u): Beam => {
           if (u >= 0.7) {
             const a = (2 * Math.PI * (u - 0.7)) / 0.3;
             return [0.32 * Math.cos(a), 0.32 * Math.sin(a), 0.6];
@@ -1670,11 +1857,11 @@ demos.push({
             [c, -c + 2 * c * f, blank],
             [c - 2 * c * f, c, blank],
             [-c, c - 2 * c * f, blank],
-          ][k];
+          ][k] as Beam;
         },
       ],
     ];
-    const smooth = (a, b, v) => {
+    const smooth = (a: number, b: number, v: number) => {
       const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
       return t * t * (3 - 2 * t);
     };
@@ -1689,8 +1876,8 @@ demos.push({
           next = S.scene >= 0 ? S.scene : (scene + 1) % SCENES.length;
         const mix = S.scene >= 0 ? 0 : smooth(0.85, 1, (i % SCENE) / SCENE);
         const u = ((((i * F0 * 1.003) / RATE) % 1) + 1) % 1;
-        const [ax, ay, az] = SCENES[scene][1](u),
-          [bx, by, bz] = mix > 0 ? SCENES[next][1](u) : [0, 0, 0];
+        const [ax, ay, az] = SCENES[scene]![1](u),
+          [bx, by, bz] = mix > 0 ? SCENES[next]![1](u) : [0, 0, 0];
         const breathe = 1 + 0.04 * Math.sin((2 * Math.PI * i) / (RATE * 1.7));
         x[i] = ((1 - mix) * ax + mix * bx) * breathe + gauss(r) * S.noise;
         y[i] = ((1 - mix) * ay + mix * by) * breathe + gauss(r) * S.noise;
@@ -1699,15 +1886,15 @@ demos.push({
       // Two passes, so that the end meets the start when the screen goes round again.
       const a = S.bandwidth;
       for (const v of [x, y, z])
-        for (let pass = 0, last = v[N - 1]; pass < 2; pass++) for (let i = 0; i < N; i++) v[i] = last += a * (v[i] - last);
-      for (let i = 0; i < N; i++) z[i] = Math.max(0, z[i]);
+        for (let pass = 0, last = v[N - 1]!; pass < 2; pass++) for (let i = 0; i < N; i++) v[i] = last += a * (v[i]! - last);
+      for (let i = 0; i < N; i++) z[i] = Math.max(0, z[i]!);
       return { x, y, z };
     };
     let sig = signal();
     const source = new L.CompositeDataSource({
       id: 'signal',
       count: N,
-      domain: (i) => i,
+      domain: (i: number) => i,
       isSorted: true,
       channels: { x: sig.x, y: sig.y, z: sig.z },
     });
@@ -1718,7 +1905,7 @@ demos.push({
     const PHOSPHOR = ['#010603', '#04301a', '#0c8a45', '#46ff8c', '#e6fff0'];
     const fine = new L.ColorAxis({ id: 'beam', ramp: PHOSPHOR, min: 0, max: 1.2 }, new L.LinearScale());
     const halo = new L.ColorAxis({ id: 'glow', ramp: PHOSPHOR, min: 0, max: 4.5 }, new L.LinearScale());
-    const bins = (n) => ({
+    const bins = (n: number) => ({
       by: ['x', 'y'],
       weight: 'z',
       halfLife: S.halfLife,
@@ -1728,15 +1915,19 @@ demos.push({
       ],
       width: (2 * EDGE) / n,
     });
-    const layer = (n, axis, opacity) =>
-      new L.XYSeries(
+    const densities: InstanceType<typeof L.Density>[] = [];
+    const layer = (n: number, axis: InstanceType<typeof L.ColorAxis>, opacity: number) => {
+      const density = new L.Density(bins(n), new L.LinkedData({ source: 'window' }));
+      densities.push(density);
+      return new L.XYSeries(
         { x: 'domain', y: 'value', hit: false },
-        new L.Density(bins(n), new L.LinkedData({ source: 'window' })),
+        density,
         new L.HeatMap({ opacity, bind: { fill: { axis, channel: 'sum' } } }),
       );
+    };
     const haloLayer = layer(40, halo, 0.5),
       beamLayer = layer(96, fine, 1);
-    const fixed = (orientation, min, max, step) =>
+    const fixed = (orientation: 'bottom' | 'left', min: number, max: number, step: number) =>
       new L.Axis({ orientation, visible: false, min, max, tickStep: step, rangePadding: 0 }, new L.LinearScale());
     const screen = new L.CartesianPlane(
       {
@@ -1750,15 +1941,16 @@ demos.push({
     );
 
     // ── The channels: each is a trace against time over the same slice.
-    const traces = [
+    const channels: [string, 'x' | 'y' | 'z', number, number, number][] = [
       ['CH1  X', 'x', -EDGE, EDGE, 0.5],
       ['CH2  Y', 'y', -EDGE, EDGE, 0.5],
       ['CH3  Z', 'z', -0.1, 1.2, 0.25],
-    ].map(([name, channel, min, max, step], k) => {
+    ];
+    const traces = channels.map(([name, channel, min, max, step], k) => {
       const series = new L.XYSeries(
         { x: 'domain', y: channel, name, hit: false },
         new L.LinkedData({ source: 'window' }),
-        new L.LinePath({ stroke: SCOPE_THEME.palette[k + 1] }, new L.LinearCurve()),
+        new L.LinePath({ stroke: SCOPE_THEME.palette[k + 1]! }, new L.LinearCurve()),
       );
       const plane = new L.CartesianPlane(
         {
@@ -1798,18 +1990,18 @@ demos.push({
 
     // ── Time: the slice moves, and nothing else is rebuilt.
     let raf = 0,
-      last = 0,
-      playButton = null;
+      last = 0;
+    let playButton: HTMLButtonElement | null = null;
     const read = ui.readout();
     const report = () => {
       const scene = S.scene >= 0 ? S.scene : Math.floor((endAt() % PERIOD) / SCENE) % SCENES.length;
-      read.textContent = `${SCENES[scene][0]}\n${(((endAt() - MAX_WINDOW) / RATE) % (PERIOD / RATE)).toFixed(2)} s   ${S.window} samples on screen`;
+      read.textContent = `${SCENES[scene]![0]}\n${(((endAt() - MAX_WINDOW) / RATE) % (PERIOD / RATE)).toFixed(2)} s   ${S.window} samples on screen`;
     };
     const show = () => {
       win.setAttribute('end', endAt());
       report();
     };
-    const frame = (now) => {
+    const frame = (now: number): void => {
       if (S.playing) {
         S.t += (Math.min(100, now - last) / 1000) * S.speed;
         show();
@@ -1825,7 +2017,7 @@ demos.push({
       source.setAttribute('channels', { x: sig.x, y: sig.y, z: sig.z });
     };
     const decay = () => {
-      for (const l of [haloLayer, beamLayer]) l.child(0, L.Density).setAttribute('halfLife', S.halfLife);
+      for (const d of densities) d.setAttribute('halfLife', S.halfLife);
     };
     ctx.add(
       h('div', { class: 'field' }, h('div', { class: 'seg' }, playButton)),
@@ -1841,7 +2033,7 @@ demos.push({
       }),
       ui.seg({
         label: 'picture',
-        options: [[-1, 'cycle'], ...SCENES.map(([name], k) => [k, name.split(' ')[0].toLowerCase()])],
+        options: [[-1, 'cycle'], ...SCENES.map(([name], k): [number, string] => [k, name.split(' ')[0]!.toLowerCase()])],
         value: S.scene,
         onChange: (v) => {
           S.scene = v;
@@ -1976,8 +2168,8 @@ demos.push({
       ui.slider({ label: 'stroke width', min: 0.5, max: 8, step: 0.5, value: 1.5, onChange: (v) => line.setAttribute('strokeWidth', v) }),
       ui.seg({
         label: 'colour',
-        options: PALETTE.map((c, i) => [c, ['blue', 'red', 'green', 'amber', 'violet', 'teal'][i]]),
-        value: PALETTE[0],
+        options: PALETTE.map((c, i): [string, string] => [c, ['blue', 'red', 'green', 'amber', 'violet', 'teal'][i]!]),
+        value: PALETTE[0]!,
         onChange: (v) => line.setAttribute('stroke', v),
       }),
       ui.seg({
@@ -2092,17 +2284,32 @@ demos.push({
 // ── 1c. Themes ───────────────────────────────────────────────────────────────
 
 /** An element written in this page, to show that a new kind of thing joins the theme with a selector of its own. */
-class Watermark extends L.ChartElement {
-  onEvent(ev) {
+interface WatermarkAttributes extends L.BaseAttributes {
+  text?: string;
+}
+class Watermark extends L.ChartElement<L.Chart, [], WatermarkAttributes> {
+  override onEvent(ev: L.ChartEvent): void {
     if (ev.type !== L.EVENT_PAINT) return;
     const look = this.styleFor(['watermark', 'text']);
     const s = this.surface,
       n = s.node('mark', 'text');
     L.applyText(s, n, look);
-    s.set(n, 'x', this.chart.platform.size().width - 14);
+    s.set(n, 'x', (this.chart?.platform?.size().width ?? 0) - 14);
     s.set(n, 'y', 12 + look.size);
     s.set(n, 'text-anchor', 'end');
-    s.text(n, this.attrs.text);
+    s.text(n, this.attrs.text ?? '');
+  }
+}
+// The new selector and the new kind of chart child are joined to the library's types here.
+declare module 'inkplot' {
+  interface Selectors {
+    watermark: L.TextProps;
+  }
+  interface ChartChildMap {
+    watermark: Watermark;
+  }
+  interface PlaneChildMap {
+    probe: EventProbe;
   }
 }
 
@@ -2113,16 +2320,18 @@ demos.push({
   setup(ctx) {
     const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'Time (s)' }, new L.LinearScale());
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'Level', nice: true }, new L.LinearScale());
-    const lines = [0, 1, 2].map(
-      (k) =>
-        new L.DomainSeries(
-          new L.FlatDataSource({
-            data: shape('sine', 120, k + 3).map((v, i) => v * (1 - k * 0.25) + k * 1.5),
-            regularDomain: { start: 0, step: 10 / 119 },
-          }),
-          new L.LinePath(new L.LinearCurve()),
-        ),
-    );
+    const strokes: InstanceType<typeof L.LinePath>[] = [];
+    const lines = [0, 1, 2].map((k) => {
+      const path = new L.LinePath(new L.LinearCurve());
+      strokes.push(path);
+      return new L.DomainSeries(
+        new L.FlatDataSource({
+          data: shape('sine', 120, k + 3).map((v) => v * (1 - k * 0.25) + k * 1.5),
+          regularDomain: { start: 0, step: 10 / 119 },
+        }),
+        path,
+      );
+    });
     const plane = new L.CartesianPlane({ frame: true }, x, y, ...lines);
     // The watermark's look is a selector of its own, kept on the element so it survives the page's theme switch.
     const mark = new Watermark({ text: 'DRAFT', style: { watermark: { size: 30, weight: 700, color: '#8884' } } });
@@ -2135,7 +2344,8 @@ demos.push({
         ...(fonts && { text: { family: 'Georgia, serif' }, tickLabel: { size: 14 } }),
         ...(grid && { gridline: { color: '#e8a0a0' } }),
       });
-    const block = (target, selectors) => (on) => target.setAttribute('style', on ? selectors : undefined);
+    const block = (target: { setAttribute(name: 'style', value: L.Theme | undefined): unknown }, selectors: L.Theme) => (on: boolean) =>
+      target.setAttribute('style', on ? selectors : undefined);
     ctx.add(
       ui.note(
         "The chart's base theme comes from the page's light/dark switch. Everything below is a `style` block on one element: it applies to that element and what is inside it, and the nearest block wins.",
@@ -2161,7 +2371,7 @@ demos.push({
       ui.toggle({
         label: 'first series: its own stroke',
         value: false,
-        onChange: (on) => lines[0].firstChild.nextSibling.setAttribute('stroke', on ? '#111' : undefined),
+        onChange: (on) => strokes[0]!.setAttribute('stroke', on ? '#111' : undefined),
       }),
       ui.toggle({ label: 'watermark', value: true, onChange: (on) => mark.setAttribute('visible', on) }),
       ui.note("Series colours are the theme's palette in turn; a colour you set on a renderer beats them."),
@@ -2177,7 +2387,7 @@ demos.push({
   blurb: 'Titles, reference lines in data space on any plane, and callouts that find room',
   setup(ctx) {
     const rows = Array.from({ length: 48 }, (_, i) => ({ t: i / 4, v: 40 + 25 * Math.sin(i / 5) + 12 * Math.sin(i / 1.7) + i * 0.6 }));
-    let peak = rows[0];
+    let peak = rows[0]!;
     for (const r of rows) if (r.v > peak.v) peak = r;
     const x = new L.Axis({ orientation: 'bottom', title: 'Week' }, new L.LinearScale());
     const y = new L.Axis({ orientation: 'left', title: 'Signups', nice: true, min: 0 }, new L.LinearScale());
@@ -2271,10 +2481,10 @@ demos.push({
   blurb: 'The same line on a polar plane is a circle; on a radar, a polygon',
   setup(ctx) {
     const traits = ['Speed', 'Power', 'Range', 'Cost', 'Comfort', 'Safety'];
-    const rows = traits.map((name, i) => ({ i, name, v: [7, 5, 8, 4, 6, 9][i] }));
-    const mk = (Plane) => {
+    const rows = traits.map((name, i) => ({ i, name, v: [7, 5, 8, 4, 6, 9][i]! }));
+    const mk = (Plane: typeof L.PolarPlane | typeof L.RadarPlane) => {
       const angle = new L.Axis(
-        { orientation: 'angle', min: 0, max: 6, tickCount: 6, nice: false, format: (v) => traits[Math.round(v) % 6] ?? '' },
+        { orientation: 'angle', min: 0, max: 6, tickCount: 6, nice: false, format: (v: number) => traits[Math.round(v) % 6] ?? '' },
         new L.LinearScale(),
       );
       const radius = new L.Axis({ orientation: 'radius', min: 0, max: 10, nice: false, tickCount: 5 }, new L.LinearScale());
@@ -2334,40 +2544,44 @@ demos.push({
   setup(ctx) {
     const r = rng(11);
     const names = ['North', 'South', 'East'];
-    const clamp = (v) => Math.min(10, Math.max(0, v));
-    const fresh = () =>
+    interface Row {
+      x: number;
+      y: number;
+    }
+    const clamp = (v: number) => Math.min(10, Math.max(0, v));
+    const fresh = (): Row[][] =>
       names.map((_, k) =>
         Array.from({ length: 8 }, (_, i) => ({
           x: 0.8 + i * 1.2 + r() * 0.5,
-          y: clamp([3 + i * 0.5, 7 - i * 0.4, 5 + Math.sin(i) * 2.5][k] + (r() - 0.5) * 1.5),
+          y: clamp([3 + i * 0.5, 7 - i * 0.4, 5 + Math.sin(i) * 2.5][k]! + (r() - 0.5) * 1.5),
         })),
       );
     const initial = fresh();
-    initial.forEach((rows, k) => ctx.name('rows' + names[k], rows));
+    initial.forEach((rows, k) => ctx.name('rows' + names[k]!, rows));
     const groups = names.map((name, k) => {
-      const rows = initial[k];
+      const rows = initial[k]!;
       const source = new L.ObjectDataSource({ source: rows, domain: 'x', value: 'y' });
       const series = new L.DomainSeries(
         { name, hit: { mode: 'point', radius: 10 } },
         source,
-        new L.LinePath({ stroke: PALETTE[k], strokeWidth: 2 }, new L.LinearCurve()),
-        new L.CircleMarker({ fill: PALETTE[k], size: 5 }),
+        new L.LinePath({ stroke: PALETTE[k]!, strokeWidth: 2 }, new L.LinearCurve()),
+        new L.CircleMarker({ fill: PALETTE[k]!, size: 5 }),
       );
-      return { name, rows, source, series, colour: PALETTE[k] };
+      return { name, rows, source, series, colour: PALETTE[k]! };
     });
     // The selection is not a feature of the library: it is one more series, over the rest, that draws a ring round each
     // selected row and takes no hits. The rows are the very objects the other series read, so it follows a drag by itself.
-    const selected = new Set(),
-      selRows = [];
+    const selected = new Set<Row>(),
+      selRows: Row[] = [];
     ctx.name('selection', selRows);
     const selSource = new L.ObjectDataSource({ source: selRows, domain: 'x', value: 'y' });
     const ring = new L.CircleMarker({ fill: 'none', stroke: isDark() ? '#fff' : '#111', strokeWidth: 2, size: 10 });
     const selSeries = new L.DomainSeries({ hit: false }, selSource, ring);
     ctx.onTheme(() => ring.setAttribute('stroke', isDark() ? '#fff' : '#111'));
 
-    const S = { tool: 'select', dest: groups[0], snap: false };
+    const S = { tool: 'select', dest: groups[0]!, snap: false };
     const readout = ui.readout();
-    const ownerOf = (row) => groups.find((g) => g.rows.includes(row));
+    const ownerOf = (row: Row) => groups.find((g) => g.rows.includes(row));
     const refresh = () => {
       selRows.length = 0;
       for (const row of selected)
@@ -2378,15 +2592,19 @@ demos.push({
       readout.textContent = `selected ${selRows.length}\n` + groups.map((g) => `${g.name.padEnd(6)} ${g.rows.length} points`).join('\n');
       drawChips();
     };
-    const grid = (v) => (S.snap ? Math.round(v * 4) / 4 : v);
+    const grid = (v: number) => (S.snap ? Math.round(v * 4) / 4 : v);
 
     // All of the wiring: three callbacks over what the listener reports.
-    let drag = null;
-    const groupOf = (hit) => groups.find((g) => g.series === hit.series);
-    const onDrag = ({ phase, hit, first, second }) => {
-      const grabbed = groupOf(hit).rows[hit.row];
+    let drag: { from: [number, number]; moving: [Row, number, number][] } | null = null;
+    const groupOf = (hit: L.Hit) => groups.find((g) => g.series === hit.series);
+    const onDrag = ({ phase, hit, first, second }: L.DragInfo) => {
+      const grabbed = groupOf(hit)?.rows[hit.row ?? -1];
+      if (!grabbed) return;
       if (phase === 'start')
-        drag = { from: [grabbed.x, grabbed.y], moving: (selected.has(grabbed) ? [...selected] : [grabbed]).map((o) => [o, o.x, o.y]) };
+        drag = {
+          from: [grabbed.x, grabbed.y],
+          moving: (selected.has(grabbed) ? [...selected] : [grabbed]).map((o): [Row, number, number] => [o, o.x, o.y]),
+        };
       if (!drag) return;
       const dx = grid(first) - drag.from[0],
         dy = grid(second) - drag.from[1];
@@ -2397,15 +2615,15 @@ demos.push({
       if (phase === 'end') drag = null;
       refresh();
     };
-    const onClick = ({ hit, first, second, shift }) => {
-      const owner = hit && groupOf(hit),
-        row = owner && owner.rows[hit.row];
+    const onClick = ({ hit, first, second, shift }: L.PointerInfo) => {
+      const owner = hit ? groupOf(hit) : undefined,
+        row = hit && owner ? owner.rows[hit.row ?? -1] : undefined;
       switch (S.tool) {
         case 'select':
           if (!row) {
             if (!shift) selected.clear();
           } else if (shift) {
-            selected.has(row) ? selected.delete(row) : selected.add(row);
+            if (!selected.delete(row)) selected.add(row);
           } else {
             selected.clear();
             selected.add(row);
@@ -2430,7 +2648,7 @@ demos.push({
           }
           break;
         case 'delete':
-          if (row) {
+          if (row && owner && hit?.row !== undefined) {
             owner.rows.splice(hit.row, 1);
             selected.delete(row);
           }
@@ -2471,7 +2689,7 @@ demos.push({
       );
     refresh();
 
-    const setTool = (t) => {
+    const setTool = (t: string) => {
       S.tool = t;
       listener.setAttribute('onDrag', t === 'drag' ? onDrag : undefined);
     };
@@ -2500,7 +2718,7 @@ demos.push({
         [
           'Delete selected',
           () => {
-            for (const o of [...selected]) {
+            for (const o of selected) {
               const g = ownerOf(o);
               if (g) g.rows.splice(g.rows.indexOf(o), 1);
             }
@@ -2514,7 +2732,7 @@ demos.push({
             const f = fresh();
             groups.forEach((g, k) => {
               g.rows.length = 0;
-              g.rows.push(...f[k]);
+              g.rows.push(...f[k]!);
             });
             selected.clear();
             refresh();
@@ -2606,38 +2824,42 @@ demos.push({
     const x = new L.Axis({ orientation: 'bottom', title: 't' }, new L.LinearScale());
     const y = new L.Axis({ orientation: 'left', title: 'value', nice: true }, new L.LinearScale());
     const KERNELS = { minmax: L.MinMaxKernel, m4: L.M4Kernel, lttb: L.LttbKernel, stride: L.StrideKernel };
+    type KernelName = keyof typeof KERNELS;
     const gen = h('pre', { class: 'readout' });
     const warn = h('p', { class: 'note warn' });
     const status = h('pre', { class: 'readout' });
-    let source, worker, boundary, sharedData;
+    let worker: InstanceType<typeof L.WebWorker> | undefined,
+      boundary: InstanceType<typeof L.WorkerBoundary> | null = null,
+      sharedData: Float64Array<SharedArrayBuffer> | null = null;
     const makeSource = () => {
       const t0 = performance.now();
       const ys = shape(S.shape, S.n, S.seed),
         step = 10 / (S.n - 1);
-      let s;
+      let s: ConstructorParameters<typeof L.FlatDataSource>[0];
       switch (S.storage) {
         case 'pairs': {
           const d = new Float64Array(2 * S.n);
           for (let i = 0; i < S.n; i++) {
             d[2 * i] = i * step;
-            d[2 * i + 1] = ys[i];
+            d[2 * i + 1] = ys[i]!;
           }
           s = { data: d, isSorted: S.sorted };
           break;
         }
         case 'objects': {
-          const rows = Array.from({ length: S.n }, (_, i) => ({ t: i * step, v: ys[i] }));
+          const rows = Array.from({ length: S.n }, (_, i) => ({ t: i * step, v: ys[i]! }));
           const o = new L.ObjectDataSource({ source: rows, domain: 't', value: 'v', isSorted: S.sorted });
           gen.textContent = `generated in ${ms(performance.now() - t0)} ms`;
           return o;
         }
         default: {
-          let data = ys;
+          let data: Float64Array = ys;
           sharedData = null;
           // On shared memory the worker reads the array where it is, and the page can change it in place.
           if (S.worker && S.shared) {
-            data = sharedData = new Float64Array(new SharedArrayBuffer(8 * S.n));
-            data.set(ys);
+            const shared = new Float64Array(new SharedArrayBuffer(8 * S.n));
+            data = sharedData = shared;
+            shared.set(ys);
           }
           s = { data, regularDomain: { start: 0, step } };
         }
@@ -2645,9 +2867,8 @@ demos.push({
       gen.textContent = `generated in ${ms(performance.now() - t0)} ms`;
       return new L.FlatDataSource(s);
     };
-    source = makeSource();
-    let decimator = new L.Decimator({}, new KERNELS.minmax(), source);
-    const line = new L.LinePath({ stroke: PALETTE[0], strokeWidth: 1 }, new L.LinearCurve());
+    let decimator = new L.Decimator({}, new KERNELS.minmax(), makeSource());
+    const line = new L.LinePath({ stroke: PALETTE[0]!, strokeWidth: 1 }, new L.LinearCurve());
     const series = new L.DomainSeries(decimator, line);
     const workerCode = document.getElementById('ink-worker')?.textContent ?? '';
     const registry = {
@@ -2662,7 +2883,6 @@ demos.push({
     const getWorker = () =>
       (worker ??= new L.WebWorker(URL.createObjectURL(new Blob([workerCode], { type: 'text/javascript' })), { worker: {} }));
     const useWorker = () => S.worker && S.storage !== 'objects';
-    let answers = 0;
     const updateStatus = () => {
       status.textContent = !useWorker()
         ? 'decimating on this thread'
@@ -2678,16 +2898,15 @@ demos.push({
     };
     // New data, and the stages round it as the settings say: on this thread, or inside a boundary to a worker.
     const rebuild = () => {
-      series.remove(boundary ?? decimator);
       decimator = new L.Decimator(
         { enabled: S.kernel !== 'off', resolution: S.resolution },
-        new KERNELS[S.kernel === 'off' ? 'minmax' : S.kernel](),
+        new KERNELS[S.kernel === 'off' ? 'minmax' : (S.kernel as KernelName)](),
         makeSource(),
       );
       boundary = useWorker()
         ? new L.WorkerBoundary({ worker: getWorker(), registry, transfer: S.transfer && !S.shared, shared: S.shared }, decimator)
         : null;
-      series.insertBefore(boundary ?? decimator, line);
+      series.setChild(0, boundary ?? decimator);
       checkWarning();
       updateStatus();
     };
@@ -2760,7 +2979,7 @@ demos.push({
           if (v === 'off') decimator.setAttribute('enabled', false);
           else {
             decimator.setAttribute('enabled', true);
-            decimator.setChild(0, new KERNELS[v]());
+            decimator.setChild(0, new KERNELS[v as KernelName]());
           }
           checkWarning();
         },
@@ -2808,8 +3027,8 @@ demos.push({
                       if (!sharedData || !boundary) return;
                       const from = Math.floor(Math.random() * 0.8 * S.n),
                         to = from + Math.floor(0.1 * S.n);
-                      const lift = 4 * (Math.random() - 0.5) * (y.view?.max ?? 10);
-                      for (let i = from; i < to; i++) sharedData[i] += lift;
+                      const lift = 4 * (Math.random() - 0.5) * (y.viewRange?.max ?? 10);
+                      for (let i = from; i < to; i++) sharedData[i]! += lift;
                       boundary.refresh();
                     },
                   ]),
@@ -2825,7 +3044,7 @@ demos.push({
               onChange: (v) => {
                 S.pan = v;
                 const t0 = performance.now();
-                const step = (now) => {
+                const step = (now: number): void => {
                   if (!S.pan) return;
                   const t = ((now - t0) / 8000) % 2,
                     at = t < 1 ? t : 2 - t;
@@ -2896,7 +3115,7 @@ demos.push({
         pairs = new Float64Array(2 * S.n);
       for (let i = 0; i < S.n; i++) {
         pairs[2 * i] = (i / (S.n - 1)) * 10;
-        pairs[2 * i + 1] = ys[i];
+        pairs[2 * i + 1] = ys[i]!;
       }
       for (let g = 0; g < S.gaps; g++) {
         const at = Math.floor(r() * (S.n - S.gapLength));
@@ -2908,8 +3127,8 @@ demos.push({
           for (let i = S.n - 1; i > 0; i--) {
             const j = Math.floor(r() * (i + 1));
             for (let k = 0; k < 2; k++) {
-              const t = pairs[2 * i + k];
-              pairs[2 * i + k] = pairs[2 * j + k];
+              const t = pairs[2 * i + k]!;
+              pairs[2 * i + k] = pairs[2 * j + k]!;
               pairs[2 * j + k] = t;
             }
           }
@@ -2917,8 +3136,8 @@ demos.push({
         case 'reversed':
           for (let i = 0, j = S.n - 1; i < j; i++, j--)
             for (let k = 0; k < 2; k++) {
-              const t = pairs[2 * i + k];
-              pairs[2 * i + k] = pairs[2 * j + k];
+              const t = pairs[2 * i + k]!;
+              pairs[2 * i + k] = pairs[2 * j + k]!;
               pairs[2 * j + k] = t;
             }
           break;
@@ -3018,10 +3237,11 @@ demos.push({
   setup(ctx) {
     const S = { fn: 'chirp', fixed: false, count: 200 };
     const fns = {
-      chirp: (x) => Math.sin((x * x) / 8) * Math.exp(-x / 40),
-      sinc: (x) => (x === 0 ? 1 : Math.sin(x * 3) / (x * 3)),
-      steps: (x) => (Math.floor(x) % 3 === 0 ? NaN : Math.floor(x) % 5),
+      chirp: (x: number) => Math.sin((x * x) / 8) * Math.exp(-x / 40),
+      sinc: (x: number) => (x === 0 ? 1 : Math.sin(x * 3) / (x * 3)),
+      steps: (x: number) => (Math.floor(x) % 3 === 0 ? NaN : Math.floor(x) % 5),
     };
+    const fnAt = () => fns[S.fn as keyof typeof fns];
     const x = new L.Axis({ orientation: 'bottom' }, new L.LinearScale());
     const y = new L.Axis({ orientation: 'left', nice: true }, new L.LinearScale());
     const read = ui.readout();
@@ -3040,7 +3260,7 @@ demos.push({
       }
       xs.sort();
       for (let i = 0; i < N; i++) {
-        const v = fns[S.fn](xs[i]);
+        const v = fnAt()(xs[i]!);
         ys[i] = v + (r() - 0.5) * 0.4;
       }
       composite.invalidate();
@@ -3078,7 +3298,7 @@ demos.push({
       ].join('\n');
     }
     const apply = () => {
-      synthetic.setAttributes({ fn: fns[S.fn], count: S.fixed ? S.count : undefined });
+      synthetic.setAttributes({ fn: fnAt(), count: S.fixed ? S.count : undefined });
       measure();
     };
     ctx.add(
@@ -3136,9 +3356,9 @@ demos.push({
       auto: {},
       list: { ticks: [0, 2.5, 3, 9] },
       step: { tickStep: 2 },
-      function: { ticks: (r) => [r.min, (r.min + r.max) / 2, r.max] },
+      function: { ticks: (r: { min: number; max: number }) => [r.min, (r.min + r.max) / 2, r.max] },
     };
-    let plane = null;
+    let plane: InstanceType<typeof L.CartesianPlane> | null = null;
     const read = ui.readout();
     const kit = tipKit('snap'),
       tooltip = kit.cursor;
@@ -3149,22 +3369,35 @@ demos.push({
         report();
       },
     });
-    let x, y, series;
+    let x: InstanceType<typeof L.Axis> | undefined,
+      y: InstanceType<typeof L.Axis> | undefined,
+      series: InstanceType<typeof L.DomainSeries> | undefined;
     function build() {
       x = new L.Axis({ id: 'x', orientation: 'bottom', ...(S.fixed ? { min: 0, max: 11 } : {}) }, new L.LinearScale());
       y = new L.Axis(
-        { id: 'y', orientation: 'left', inverted: S.reversed, ...tickModes[S.ticks], ...(S.ticks === 'auto' ? { nice: true } : {}) },
+        {
+          id: 'y',
+          orientation: 'left',
+          inverted: S.reversed,
+          ...tickModes[S.ticks as keyof typeof tickModes],
+          ...(S.ticks === 'auto' ? { nice: true } : {}),
+        },
         new L.LinearScale(),
       );
-      const r = {
+      const r: (
+        | InstanceType<typeof L.LinePath>
+        | InstanceType<typeof L.CircleMarker>
+        | InstanceType<typeof L.AreaPath>
+        | InstanceType<typeof L.BarPath>
+      )[] = {
         line: [new L.LinePath({}, new L.LinearCurve())],
         'line+markers': [new L.LinePath({}, new L.LinearCurve()), new L.CircleMarker({ size: S.size })],
         markers: [new L.CircleMarker({ size: S.size })],
         area: [new L.AreaPath({}, new L.LinearCurve()), new L.LinePath({}, new L.LinearCurve())],
         bars: [new L.BarPath({})],
-      }[S.shape];
+      }[S.shape as 'line' | 'line+markers' | 'markers' | 'area' | 'bars'];
       series = new L.DomainSeries(
-        { name: 'readings', missing: S.gaps, hit: S.shape === 'bars' ? undefined : 'point' },
+        { name: 'readings', missing: S.gaps as 'break' | 'connect' | 'zero', hit: S.shape === 'bars' ? undefined : 'point' },
         new L.FlatDataSource({ data: Float64Array.from(ys), regularDomain: { start: 0, step: 1 } }),
         ...r,
       );
@@ -3178,7 +3411,8 @@ demos.push({
     chart.append(tooltip);
     mount();
     function report() {
-      const px = (v) => fmt(v, 1);
+      if (!x || !y || !series || !plane) return;
+      const px = (v: number | undefined) => fmt(v ?? NaN, 1);
       read.textContent = [
         `x range     ${fmt(x.range.min, 2)} … ${fmt(x.range.max, 2)}   (data 0 … 11)`,
         `y range     ${fmt(y.range.min, 2)} … ${fmt(y.range.max, 2)}`,
@@ -3219,7 +3453,7 @@ demos.push({
         value: S.gaps,
         onChange: (v) => {
           S.gaps = v;
-          series.setAttribute('missing', v);
+          series?.setAttribute('missing', v as 'break' | 'connect' | 'zero');
         },
       }),
       ui.seg({
@@ -3241,7 +3475,7 @@ demos.push({
         value: S.reversed,
         onChange: (v) => {
           S.reversed = v;
-          y.setAttribute('inverted', v);
+          y?.setAttribute('inverted', v);
         },
       }),
       ui.slider({
@@ -3292,7 +3526,7 @@ demos.push({
       read: 'points',
       seed: 1,
     };
-    const curves = [
+    const curves: [string, string][] = [
       ['after', 'step after'],
       ['before', 'step before'],
       ['center', 'step centred'],
@@ -3306,9 +3540,9 @@ demos.push({
       ['quadratic', 'quadratic'],
       ['arc', 'arc'],
     ];
-    const isStep = (c) => ['after', 'before', 'center'].includes(c);
+    const isStep = (c: string): c is 'after' | 'before' | 'center' => ['after', 'before', 'center'].includes(c);
     const read = ui.readout();
-    let plane = null;
+    let plane: L.Plane | null = null;
     const kit = tipKit('snap'),
       tooltip = kit.cursor;
     const chart = new L.Chart({
@@ -3322,13 +3556,13 @@ demos.push({
       kit.setMode(S.read === 'line' ? 'shared' : 'snap');
       kit.cursor.setAttribute('interpolate', S.read === 'line');
     };
-    function values(k) {
+    function values(k: number) {
       const r = rng(S.seed + k * 17);
       const base = S.data === 'plateaus' ? [1, 1, 1, 4, 4, 4, 2, 2, 5, 5, 5, 3, 3, 1, 1, 4] : null;
       return Array.from({ length: S.n }, (_, i) => {
         if (S.gaps === 'one' && i === Math.floor(S.n / 2)) return NaN;
         if (S.gaps === 'two' && (i === Math.floor(S.n / 3) || i === Math.floor((2 * S.n) / 3))) return NaN;
-        return base ? base[i % base.length] + k : Math.round((2 + 2 * Math.sin(i / 1.6 + k) + r() * 2 + k) * 10) / 10;
+        return base ? base[i % base.length]! + k : Math.round((2 + 2 * Math.sin(i / 1.6 + k) + r() * 2 + k) * 10) / 10;
       });
     }
     /** The curve for the current choice, a new one each time (a curve is an element, and an element has one parent). */
@@ -3356,11 +3590,12 @@ demos.push({
           return new L.LinearCurve();
       }
     };
-    let paths = [];
+    type Pathy = InstanceType<typeof L.LinePath | typeof L.AreaPath>;
+    let paths: Pathy[] = [];
     const renderers = () => {
       const area = S.shape === 'area',
-        out = [];
-      const path = (A) => {
+        out: (Pathy | InstanceType<typeof L.CircleMarker>)[] = [];
+      const path = <P extends Pathy>(A: new (attrs: object, curve: ReturnType<typeof curveFor>) => P): P => {
         const p = new A({}, curveFor());
         paths.push(p);
         return p;
@@ -3379,7 +3614,10 @@ demos.push({
     function build() {
       const polar = S.view === 'polar' || S.view === 'radar',
         horizontal = S.view === 'horizontal';
-      const orient = polar ? ['angle', 'radius'] : horizontal ? ['left', 'bottom'] : ['bottom', 'left'];
+      const orient = (polar ? ['angle', 'radius'] : horizontal ? ['left', 'bottom'] : ['bottom', 'left']) as [
+        'angle' | 'left' | 'bottom',
+        'radius' | 'left' | 'bottom',
+      ];
       const d = new L.Axis(
         {
           id: 'd',
@@ -3392,9 +3630,9 @@ demos.push({
         { id: 'v', orientation: orient[1], min: 0, ...(S.stack ? { nice: true } : { max: S.data === 'plateaus' ? 6 : 8 }) },
         new L.LinearScale(),
       );
-      const mk = (k) =>
+      const mk = (k: number) =>
         new L.DomainSeries(
-          { name: 'series ' + (k + 1), domainAxis: 'd', valueAxis: 'v', hit: S.read === 'line' ? 'line' : 'point' },
+          { name: 'series ' + (k + 1), domainAxis: 'd', valueAxis: 'v', hit: S.read === 'line' ? ('line' as const) : ('point' as const) },
           new L.FlatDataSource({ data: Float64Array.from(values(k)), regularDomain: { start: 0, step: 1 } }),
           ...renderers(),
         );
@@ -3582,7 +3820,7 @@ demos.push({
   setup(ctx) {
     const hasTemporal = typeof Temporal !== 'undefined';
     const S = { adapter: 'intl', zone: 'UTC', locale: 'en-US', span: 'days', weekStart: 1, seed: 1 };
-    const zones = [
+    const zones: [string, string][] = [
       ['UTC', 'UTC'],
       ['America/New_York', 'New York'],
       ['Europe/London', 'London'],
@@ -3611,15 +3849,15 @@ demos.push({
         report();
       },
     });
-    let plane = null,
-      x = null;
+    let plane: L.Plane | null = null,
+      x: InstanceType<typeof L.Axis> | null = null;
     const scale = () => {
       const attrs = { timeZone: S.zone, locale: S.locale, weekStart: S.weekStart };
       return S.adapter === 'temporal' ? new L.TemporalTimeScale(attrs) : new L.IntlTimeScale(attrs);
     };
     /** The sample data is ISO strings, as an API sends them; the library takes timestamps, so the domain is a function that parses each. */
     function rows() {
-      const sp = spans[S.span],
+      const sp = spans[S.span as keyof typeof spans],
         r = rng(S.seed);
       let v = 50;
       return Array.from({ length: sp.n }, (_, i) => {
@@ -3630,7 +3868,11 @@ demos.push({
     function build() {
       x = new L.Axis({ id: 'x', orientation: 'bottom' }, scale());
       const y = new L.Axis({ id: 'y', orientation: 'left', nice: true }, new L.LinearScale());
-      const source = new L.ObjectDataSource({ source: rows(), domain: (row) => Date.parse(row.at), value: 'value' });
+      const source = new L.ObjectDataSource({
+        source: rows(),
+        domain: (row: { at: string; value: number }) => Date.parse(row.at),
+        value: 'value',
+      });
       return new L.CartesianPlane(
         { frame: true },
         x,
@@ -3652,9 +3894,9 @@ demos.push({
     chart.append(tooltip);
     mount();
     function report() {
-      if (!x) return;
+      if (!x || !plane) return;
       const t = x.getTicks(plane.rect.width),
-        iso = (v) => new Date(v).toISOString().replace('.000Z', 'Z');
+        iso = (v: number) => new Date(v).toISOString().replace('.000Z', 'Z');
       read.textContent = [
         `range  ${iso(x.range.min)}`,
         `    to ${iso(x.range.max)}`,
@@ -3668,13 +3910,13 @@ demos.push({
     };
     /** The zone, locale, week and adapter are all the scale's, so they swap in place; the axis and the data stay. */
     const swap = () => {
-      x.setChild(0, scale());
+      x?.setChild(0, scale());
       chart.flush();
     };
     ctx.add(
       ui.seg({
         label: 'spanning',
-        options: Object.entries(spans).map(([k, v]) => [k, v.label]),
+        options: Object.entries(spans).map(([k, v]): [string, string] => [k, v.label]),
         columns: 2,
         value: S.span,
         onChange: (v) => {
@@ -3694,7 +3936,7 @@ demos.push({
       }),
       ui.seg({
         label: 'built on',
-        options: [['intl', 'Date + Intl'], ...(hasTemporal ? [['temporal', 'Temporal']] : [])],
+        options: [['intl', 'Date + Intl'], ...(hasTemporal ? [['temporal', 'Temporal'] as [string, string]] : [])] as [string, string][],
         value: S.adapter,
         onChange: (v) => {
           S.adapter = v;
@@ -3751,9 +3993,15 @@ demos.push({
   title: 'Legend',
   blurb: 'Each series as it is drawn (dashes, boxes, markers over lines); click an entry (or Tab to it and press Space) to hide its series',
   setup(ctx) {
-    const S = { side: 'right', toggle: true, title: true, swatch: true };
+    const S: { side: L.Side; toggle: boolean; title: boolean; swatch: boolean } = {
+      side: 'right',
+      toggle: true,
+      title: true,
+      swatch: true,
+    };
     const months = Array.from({ length: 12 }, (_, i) => i);
-    const data = (f) => new L.FlatDataSource({ data: Float64Array.from(months, f), regularDomain: { start: 0, step: 1 } });
+    const data = (f: (i: number) => number) =>
+      new L.FlatDataSource({ data: Float64Array.from(months, f), regularDomain: { start: 0, step: 1 } });
     const r = rng(5);
     const noise = months.map(() => r());
     const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'month', tickStep: 1 }, new L.LinearScale());
@@ -3763,7 +4011,7 @@ demos.push({
     const series = [
       new L.DomainSeries(
         { name: 'Revenue', hit: 'shape' },
-        data((i) => 40 + 18 * Math.sin(i / 2) + noise[i] * 10),
+        data((i) => 40 + 18 * Math.sin(i / 2) + noise[i]! * 10),
         new L.BarPath({}),
       ),
       new L.DomainSeries(
@@ -3773,13 +4021,13 @@ demos.push({
       ),
       new L.DomainSeries(
         { name: 'Range', hit: 'point' },
-        data((i) => 20 + 6 * Math.cos(i / 3) + noise[i] * 4),
+        data((i) => 20 + 6 * Math.cos(i / 3) + noise[i]! * 4),
         new L.AreaPath({}, linear()),
         new L.LinePath({}, linear()),
       ),
       new L.DomainSeries(
         { name: 'Samples (crosses)', hit: 'point' },
-        data((i) => 30 + noise[i] * 40),
+        data((i) => 30 + noise[i]! * 40),
         new L.CrossMarker({ size: 4 }),
       ),
       new L.DomainSeries(
@@ -3883,7 +4131,8 @@ demos.push({
     const S = { summary: true, keys: 'default' };
     const days = Array.from({ length: 30 }, (_, i) => i);
     const r = rng(11);
-    const data = (f) => new L.FlatDataSource({ data: Float64Array.from(days, f), regularDomain: { start: 0, step: 1 } });
+    const data = (f: (i: number) => number) =>
+      new L.FlatDataSource({ data: Float64Array.from(days, f), regularDomain: { start: 0, step: 1 } });
     const x = new L.Axis({ orientation: 'bottom', title: 'day', tickStep: 5 }, new L.LinearScale());
     const y = new L.Axis({ orientation: 'left', title: 'visits', min: 0, nice: true }, new L.LinearScale());
     const series = [
@@ -3949,7 +4198,7 @@ demos.push({
           pan.setAttribute('keys', v === 'off' ? false : v === 'custom' ? { zoomIn: ['i'], zoomOut: ['o'], reset: ['r'] } : undefined);
         },
       }),
-      ui.buttons(['Focus the plot', () => document.querySelector('#host svg [role=application]')?.focus()]),
+      ui.buttons(['Focus the plot', () => document.querySelector<SVGElement>('#host svg [role=application]')?.focus()]),
       read,
       ui.note(
         'Tab reaches the plot for panning (role=application, so a screen reader passes the arrow keys through), then the plot for reading values, then each legend entry; at the reading cursor, Left and Right step through the days, Up and Down change series, Home and End go to the ends, and what the tooltip says is announced; a ring shows keyboard focus and not mouse focus. Arrows pan a tenth of the view (Shift or PageUp/PageDown a page), + and - zoom about the middle, 0 or Home reset. Legend entries are buttons: Enter presses on the way down, Space on the way up. The wording of the summary is in one opt-in component, so the core has no language in it.',
@@ -3978,7 +4227,11 @@ demos.push({
     };
     const names = ['Apples', 'Pears', 'Plums', 'Figs'],
       cats = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
-    let rows = [];
+    interface Point {
+      x: number;
+      y: number;
+    }
+    let rows: Point[][] = [];
     const read = ui.readout();
     const message = ui.note('', true);
     function generate() {
@@ -3995,16 +4248,16 @@ demos.push({
     }
     const listener = () =>
       new L.PointerListener({
-        onDrag: ({ hit, second, phase }) => {
+        onDrag: ({ hit, second }) => {
           if (!S.edit || hit.row === undefined) return;
-          const source = sources[names.indexOf(hit.series.attrs.name)],
+          const source = sources[names.indexOf(hit.series.attrs.name ?? '')],
             row = source?.attrs.source[hit.row];
           if (!row) return;
           row.y = Math.round(second * 10) / 10;
           source.invalidate();
         },
       });
-    let sources = [];
+    let sources: InstanceType<typeof L.ObjectDataSource<Point>>[] = [];
     function build() {
       generate();
       const cat = S.domain === 'categories',
@@ -4020,7 +4273,7 @@ demos.push({
           id: 'v',
           orientation: horizontal ? 'bottom' : polar ? 'radius' : 'left',
           nice: true,
-          ...(percent ? { format: (n) => Math.round(n * 100) + '%' } : {}),
+          ...(percent ? { format: (n: number) => Math.round(n * 100) + '%' } : {}),
         },
         new L.LinearScale(),
       );
@@ -4035,11 +4288,13 @@ demos.push({
               : S.shape === 'areas'
                 ? [new L.AreaPath({}, new L.LinearCurve())]
                 : [new L.LinePath({}, new L.LinearCurve())];
-      const members = sources.map((src, k) => new L.DomainSeries({ name: names[k], domainAxis: 'd', valueAxis: 'v' }, src, ...renderers()));
-      const stack = new L.Stack({ mode: S.mode, align: S.align }, ...members);
+      const members = sources.map(
+        (src, k) => new L.DomainSeries({ name: names[k]!, domainAxis: 'd', valueAxis: 'v' }, src, ...renderers()),
+      );
+      const stack = new L.Stack({ mode: S.mode as L.StackMode, align: S.align as L.StackAlign }, ...members);
       return polar ? new L.PolarPlane({}, d, v, stack, listener()) : new L.CartesianPlane({ frame: true }, d, v, stack, listener());
     }
-    let plane = null;
+    let plane: L.Plane | null = null;
     const kit = tipKit('shared'),
       tooltip = kit.cursor;
     const chart = new L.Chart({
@@ -4068,8 +4323,8 @@ demos.push({
         message.textContent = '';
         chart.flush();
       } catch (e) {
-        message.textContent = String(e.message);
-        chart.remove(plane);
+        message.textContent = messageOf(e);
+        if (plane) chart.remove(plane);
         plane = null; // nothing to draw until the options make sense again
       }
     };
@@ -4182,31 +4437,36 @@ demos.push({
 });
 
 /** A scale defined in this page, to show that a new transform is just a class: sign(v) * |v| ** exponent. */
-class SignedPowerScale extends L.Scale {
+interface SignedPowerAttributes extends L.ScaleAttributes {
+  /** Default 0.5. */
+  exponent?: number;
+}
+class SignedPowerScale extends L.Scale<SignedPowerAttributes> {
+  static override attrTypes = { ...L.ChartElement.attrTypes, exponent: L.NUMBER } satisfies L.AttrTypesFor<SignedPowerAttributes>;
   #linear = new L.LinearScale(); // ticks and tidy ends are still chosen in data space
-  #f(v) {
+  #f(v: number): number {
     return Math.sign(v) * Math.abs(v) ** (this.attrs.exponent ?? 0.5);
   }
-  #g(u) {
+  #g(u: number): number {
     return Math.sign(u) * Math.abs(u) ** (1 / (this.attrs.exponent ?? 0.5));
   }
-  normalize(buffer, count, stride, offset, range) {
+  normalize(buffer: Float64Array, count: number, stride: number, offset: number, range: L.Extent): void {
     const lo = this.#f(range.min),
       span = this.#f(range.max) - lo,
       inv = span > 0 ? 1 / span : 0;
-    for (let k = 0, i = offset; k < count; k++, i += stride) buffer[i] = (this.#f(buffer[i]) - lo) * inv;
+    for (let k = 0, i = offset; k < count; k++, i += stride) buffer[i] = (this.#f(buffer[i]!) - lo) * inv;
   }
-  denormalize(fraction, range) {
+  denormalize(fraction: number, range: L.Extent): number {
     const lo = this.#f(range.min);
     return this.#g(lo + fraction * (this.#f(range.max) - lo));
   }
-  constrain(range) {
+  constrain(range: L.Extent): L.Extent {
     return range;
   }
-  nice(range) {
+  nice(range: L.Extent): L.Extent {
     return this.#linear.nice(range);
   }
-  ticks(range, count) {
+  ticks(range: L.Extent, count: number): readonly number[] {
     return this.#linear.ticks(range, count);
   }
 }
@@ -4217,21 +4477,26 @@ demos.push({
   title: 'JSX',
   blurb: "The same library written as JSX: compiled against the library's own runtime, tags build elements at once",
   setup(ctx) {
-    const wave = (k) => Float64Array.from({ length: 100 }, (_, i) => Math.sin(i / 8 + k) * (1 + k / 3) + k);
+    const wave = (k: number) => Float64Array.from({ length: 100 }, (_, i) => Math.sin(i / 8 + k) * (1 + k / 3) + k);
     const waves = [
-      { name: 'first', color: PALETTE[0], data: wave(0) },
-      { name: 'second', color: PALETTE[1], data: wave(1) },
+      { name: 'first', color: PALETTE[0]!, data: wave(0) },
+      { name: 'second', color: PALETTE[1]!, data: wave(1) },
     ];
-    const refs = { plane: { current: null }, series: { first: { current: null }, second: { current: null } } };
+    const refs: {
+      plane: { current: InstanceType<typeof L.CartesianPlane> | null };
+      series: Record<string, { current: InstanceType<typeof L.DomainSeries> | null }>;
+    } = { plane: { current: null }, series: { first: { current: null }, second: { current: null } } };
     const chart = jsxChart({ theme: chartTheme(), onFlush: ctx.onFlush, waves, refs });
+    if (!(chart instanceof L.Chart)) throw new Error('jsxChart should return a Chart');
     let extra = 0;
     ctx.add(
-      ui.toggle({ label: 'show the second series', value: true, onChange: (v) => refs.series.second.current.setAttribute('visible', v) }),
+      ui.toggle({ label: 'show the second series', value: true, onChange: (v) => refs.series.second?.current?.setAttribute('visible', v) }),
       ui.buttons([
         'Add a series (a function used as a tag)',
         () => {
           const k = 2 + extra++;
-          refs.plane.current.append(Wave({ name: 'wave ' + k, color: PALETTE[k % PALETTE.length], data: wave(k) }));
+          const added = Wave({ name: 'wave ' + k, color: PALETTE[k % PALETTE.length]!, data: wave(k) });
+          if (added instanceof L.DomainSeries) refs.plane.current?.append(added);
         },
       ]),
     );
@@ -4255,9 +4520,9 @@ demos.push({
     const plane = new L.CartesianPlane({ frame: true }, x, y);
     const chart = new L.Chart({ theme: chartTheme(), onFlush: ctx.onFlush }, plane);
     let count = 0,
-      y2 = null,
+      y2: InstanceType<typeof L.Axis> | null = null,
       exponent = 0.5;
-    const names = new Map();
+    const names = new Map<unknown, string>();
     const list = h('div', { class: 'chips' });
     const mk = () => {
       const i = count++,
@@ -4268,12 +4533,12 @@ demos.push({
       const rows = Array.from({ length: 120 }, (_, k) => ({ t: k / 12, v: amp * Math.sin(ph + (f * k) / 12) }));
       const s = new L.DomainSeries(
         new L.ObjectDataSource({ source: rows, domain: 't', value: 'v', isSorted: true }),
-        new L.LinePath({ stroke: PALETTE[i % PALETTE.length], strokeWidth: 2 }, new L.LinearCurve()),
+        new L.LinePath({ stroke: PALETTE[i % PALETTE.length]!, strokeWidth: 2 }, new L.LinearCurve()),
       );
       names.set(s, 'series ' + (i + 1));
       return s;
     };
-    const series = () => plane.series;
+    const series = () => plane.series.filter((s): s is InstanceType<typeof L.DomainSeries> => s instanceof L.DomainSeries);
     const refresh = () => {
       list.replaceChildren(
         ...series().map((s) =>
@@ -4331,7 +4596,7 @@ demos.push({
             const l = series().at(-1);
             if (l) {
               plane.remove(l);
-              plane.insertBefore(l, plane.firstChild);
+              plane.insertBefore(l, series()[0] ?? null);
             }
             refresh();
           },
@@ -4372,7 +4637,8 @@ demos.push({
         value: exponent,
         onChange: (v) => {
           exponent = v;
-          if (y.child(0) instanceof SignedPowerScale) y.child(0).setAttribute('exponent', v);
+          const scale = y.firstChild;
+          if (scale instanceof SignedPowerScale) scale.setAttribute('exponent', v);
         },
       }),
       h('div', { class: 'field' }, h('div', { class: 'lab' }, 'series (click to delete)'), list),
@@ -4386,8 +4652,19 @@ demos.push({
 
 // ── 5. Pointer and events ────────────────────────────────────────────────────
 /** A custom element: it only listens, to show what a plane's children are sent. Drawing is the library's `Crosshair`. */
-class EventProbe extends L.ChartElement {
-  onEvent(ev) {
+interface EventProbeAttributes extends L.BaseAttributes {
+  /** Mark wheel events handled, so the page does not scroll. */
+  claimWheel?: boolean;
+  onPointer?: (ev: PointerEvent, pos: { x: number; y: number } | null) => void;
+}
+type PointerEvent = Extract<L.ChartEvent, { type: typeof L.EVENT_POINTER }>;
+class EventProbe extends L.ChartElement<L.Plane, [], EventProbeAttributes> {
+  static override attrTypes = {
+    ...L.ChartElement.attrTypes,
+    claimWheel: L.BOOLEAN,
+    onPointer: L.AUTO,
+  } satisfies L.AttrTypesFor<EventProbeAttributes>;
+  override onEvent(ev: L.ChartEvent): void {
     if (ev.type !== L.EVENT_POINTER) return;
     if (ev.kind === 'wheel' && this.attrs.claimWheel) ev.handled = true;
     this.attrs.onPointer?.(ev, ev.kind === 'leave' ? null : { x: ev.x, y: ev.y });
@@ -4403,8 +4680,8 @@ demos.push({
     const ys = shape('noisy', 300, 3);
     const read = ui.readout(),
       log = ui.readout();
-    const lines = [];
-    let plane;
+    const lines: string[] = [];
+    let plane: InstanceType<typeof L.CartesianPlane> | undefined;
     const crosshair = new EventProbe({
       claimWheel: true,
       onPointer: (ev, pos) => {
@@ -4413,9 +4690,11 @@ demos.push({
         );
         lines.length = Math.min(lines.length, 10);
         log.textContent = lines.join('\n');
+        if (!plane) return;
         const r = plane.rect,
-          dx = plane.defaultAxis('domain'),
-          dy = plane.defaultAxis('value');
+          dx = plane.defaultAxis('first'),
+          dy = plane.defaultAxis('second');
+        if (!dx || !dy) return;
         read.textContent = pos
           ? `plane  ${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}   (plot ${r.width.toFixed(0)} × ${r.height.toFixed(0)})\ndata   ${dx.denormalize(pos.x / r.width).toFixed(3)}, ${dy.denormalize(1 - pos.y / r.height).toFixed(3)}`
           : 'pointer is outside the plane';
@@ -4427,7 +4706,7 @@ demos.push({
       y,
       new L.DomainSeries(
         new L.FlatDataSource({ data: ys, regularDomain: { start: 0, step: 10 / 299 } }),
-        new L.LinePath({ stroke: PALETTE[0], strokeWidth: 1.5 }, new L.LinearCurve()),
+        new L.LinePath({ stroke: PALETTE[0]!, strokeWidth: 1.5 }, new L.LinearCurve()),
       ),
       crosshair,
     );
@@ -4461,9 +4740,9 @@ demos.push({
     const S = { n: 2e6, shape: 'walk', seed: 1, second: false };
     const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 't' }, new L.LinearScale());
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'value', nice: true }, new L.LinearScale());
-    const dataFor = (n, shapeName, seed, scale = 1) => {
+    const dataFor = (n: number, shapeName: string, seed: number, scale = 1) => {
       const v = shape(shapeName, n, seed);
-      if (scale !== 1) for (let i = 0; i < n; i++) v[i] *= scale;
+      if (scale !== 1) for (let i = 0; i < n; i++) v[i]! *= scale;
       return new L.FlatDataSource({ data: v, regularDomain: { start: 0, step: 10 / (n - 1) } });
     };
     const mainSource = dataFor(S.n, S.shape, S.seed);
@@ -4478,9 +4757,9 @@ demos.push({
     );
     const read = ui.readout(),
       axesBox = h('div', { class: 'btns' });
-    let y2 = null,
-      second = null;
-    const enabled = { x: true, y: true, y2: true };
+    let y2: InstanceType<typeof L.Axis> | null = null,
+      second: InstanceType<typeof L.DomainSeries> | null = null;
+    const enabled: Record<string, boolean> = { x: true, y: true, y2: true };
     const syncAxes = () => {
       const ids = ['x', 'y', ...(y2 ? ['y2'] : [])].filter((id) => enabled[id]);
       pz.setAttribute('axes', ids);
@@ -4508,7 +4787,7 @@ demos.push({
       mainDecimator.setChild(1, dataFor(S.n, S.shape, S.seed));
       if (second) second.setChild(0, dataFor((S.n / 4) | 0, 'noisy', S.seed + 1, 100));
     };
-    const toggleAxis = (id) =>
+    const toggleAxis = (id: string) =>
       ui.toggle({
         label: `move ${id}`,
         value: true,
@@ -4546,14 +4825,14 @@ demos.push({
         },
       }),
       ui.seg({
-        label: 'direction',
+        label: 'axes moved',
         options: [
-          ['both', 'both'],
-          ['horizontal', 'horizontal'],
-          ['vertical', 'vertical'],
+          ['xy', 'both'],
+          ['x', 'horizontal'],
+          ['y', 'vertical'],
         ],
-        value: 'horizontal',
-        onChange: (v) => pz.setAttribute('direction', v),
+        value: 'x',
+        onChange: (v) => pz.setAttribute('along', v),
       }),
       ui.toggle({ label: 'pan (drag)', value: true, onChange: (v) => pz.setAttribute('pan', v) }),
       ui.toggle({ label: 'zoom (wheel)', value: true, onChange: (v) => pz.setAttribute('zoom', v) }),
@@ -4577,12 +4856,12 @@ demos.push({
             second = new L.DomainSeries(
               { domainAxis: 'x', valueAxis: 'y2' },
               new L.Decimator({}, new L.MinMaxKernel(), dataFor((S.n / 4) | 0, 'noisy', S.seed + 1, 100)),
-              new L.LinePath({ stroke: PALETTE[1], strokeWidth: 1 }, new L.LinearCurve()),
+              new L.LinePath({ stroke: PALETTE[1]!, strokeWidth: 1 }, new L.LinearCurve()),
             );
             plane.append(y2, second);
           } else {
-            plane.remove(second);
-            plane.remove(y2);
+            if (second) plane.remove(second);
+            if (y2) plane.remove(y2);
             second = y2 = null;
           }
           axesBox.replaceChildren(...['x', 'y', ...(y2 ? ['y2'] : [])].map((id) => toggleAxis(id)));
@@ -4605,7 +4884,18 @@ demos.push({
   title: 'Markers & scatter',
   blurb: 'Dots, crosses and shapes, with colour and size bound to data',
   setup(ctx) {
-    const S = { n: 5000, kind: 'circle', colour: true, size: false, cap: 'round', merge: true, px: 3, opacity: 1, maxNodes: 100, seed: 1 };
+    const S = {
+      n: 5000,
+      kind: 'circle',
+      colour: true,
+      size: false,
+      cap: 'round' as 'round' | 'square',
+      merge: true,
+      px: 3,
+      opacity: 1,
+      maxNodes: 100,
+      seed: 1,
+    };
     const x = new L.Axis({ id: 'x', orientation: 'bottom', title: 'x', rangePadding: 0.04 }, new L.LinearScale());
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', rangePadding: 0.04 }, new L.LinearScale());
     const heat = new L.ColorAxis({ id: 'heat', title: 'Pressure' }, new L.LinearScale());
@@ -4622,7 +4912,7 @@ demos.push({
         ];
       for (let i = 0; i < S.n; i++) {
         const k = i % 4,
-          [cx, cy] = centres[k];
+          [cx, cy] = centres[k] as [number, number];
         v[4 * i] = cx + gauss(r);
         v[4 * i + 1] = cy + gauss(r) * 1.2;
         v[4 * i + 2] = k * 25 + gauss(r) * 10;
@@ -4632,11 +4922,15 @@ demos.push({
     };
     const filled = () => S.kind === 'circle' || S.kind === 'square';
     const build = () => {
-      const bind = {};
+      const bind: {
+        fill?: { axis: typeof heat; channel: string };
+        stroke?: { axis: typeof heat; channel: string };
+        size?: { axis: typeof mass; channel: string };
+      } = {};
       if (S.colour) bind[filled() ? 'fill' : 'stroke'] = { axis: heat, channel: 'pressure' };
       if (S.size) bind.size = { axis: mass, channel: 'mass' };
       const common = { size: S.px, opacity: S.opacity, merge: S.merge, maxNodes: S.maxNodes, bind };
-      const colour = filled() ? { fill: PALETTE[0] } : { stroke: PALETTE[0] };
+      const colour = filled() ? { fill: PALETTE[0]! } : { stroke: PALETTE[0]! };
       switch (S.kind) {
         case 'dot':
           return new L.DotMarker({ ...common, ...colour, cap: S.cap });
@@ -4650,12 +4944,12 @@ demos.push({
           return new L.CircleMarker({ ...common, ...colour });
       }
     };
-    let renderer = build();
+    let renderer: L.Marker<L.MarkerAttributes<object>> = build();
     const series = new L.DomainSeries(makeData(), renderer);
     const plane = new L.CartesianPlane({ frame: true }, x, y, series, new L.PanZoom({ along: 'xy' }));
     const heatKey = new L.ColorKey({ dimension: heat }),
       massKey = new L.SizeKey({ dimension: mass, visible: S.size });
-    const keys = { show: true, side: 'right' };
+    const keys: { show: boolean; side: L.Side } = { show: true, side: 'right' };
     const syncKeys = () => {
       heatKey.setAttribute('visible', keys.show && S.colour);
       heatKey.setAttribute('side', keys.side);
@@ -4709,7 +5003,7 @@ demos.push({
         value: S.cap,
         onChange: (v) => {
           S.cap = v;
-          renderer.setAttribute('cap', v);
+          if (renderer instanceof L.DotMarker) renderer.setAttribute('cap', v);
         },
       }),
       ui.slider({
@@ -4872,7 +5166,9 @@ demos.push({
       bind: { fill: { axis: group, channel: 'region' }, size: { axis: area, channel: 'root' } },
     });
     const plane = new L.CartesianPlane({ frame: true }, x, y, new L.DomainSeries(source, marker));
-    const keys = [new L.ColorKey({ dimension: group, length: 100 }), new L.SizeKey({ dimension: area, length: 200 })];
+    const colorKey = new L.ColorKey({ dimension: group, length: 100 }),
+      sizeKey = new L.SizeKey({ dimension: area, length: 200 });
+    const keys = [colorKey, sizeKey];
     const chart = new L.Chart({ theme: chartTheme(), onFlush: ctx.onFlush }, plane, group, area, ...keys);
     ctx.add(
       ui.slider({ label: 'largest bubble (px)', min: 8, max: 50, value: 26, onChange: (v) => area.setAttribute('output', [3, v]) }),
@@ -4887,7 +5183,10 @@ demos.push({
           ['bottom', 'bottom'],
         ],
         value: 'right',
-        onChange: (v) => keys.forEach((k) => k.setAttribute('side', v)),
+        onChange: (v: L.Side) => {
+          colorKey.setAttribute('side', v);
+          sizeKey.setAttribute('side', v);
+        },
       }),
       ui.note(
         "No bubble series exists: this is a CircleMarker with `size` bound to a channel through a ScalarAxis, and `fill` bound to the region through a stepped ColorAxis. The channel is the square root of the population, so a bubble's area, not its radius, follows the population. With merge on, bubbles of one region share a path (one node per colour in use) and do not blend where they overlap.",
@@ -4903,11 +5202,11 @@ demos.push({
   blurb: 'Angle round, value out; an area closes without being told how',
   setup(ctx) {
     // Made up: a daily cycle in degrees of the clock face, and a second, smaller one a different shape.
-    const rows = (f) => Array.from({ length: 361 }, (_, a) => ({ a, r: f((a * Math.PI) / 180) }));
+    const rows = (f: (t: number) => number) => Array.from({ length: 361 }, (_, a) => ({ a, r: f((a * Math.PI) / 180) }));
     const main = rows((t) => 6 + 3 * Math.sin(2 * t) + 1.5 * Math.cos(5 * t));
     const second = rows((t) => 4 + 2 * Math.cos(3 * t));
     const angle = new L.Axis(
-      { id: 'angle', orientation: 'angle', min: 0, max: 360, tickCount: 12, format: (v) => Math.round(v * 10) / 10 + '°' },
+      { id: 'angle', orientation: 'angle', min: 0, max: 360, tickCount: 12, format: (v: number) => Math.round(v * 10) / 10 + '°' },
       new L.LinearScale(),
     );
     const radius = new L.Axis({ id: 'radius', orientation: 'radius', min: 0, max: 10, tickCount: 5 }, new L.LinearScale());
@@ -4915,7 +5214,7 @@ demos.push({
     const edge = new L.LinePath({ stroke: '#2a6fdb', strokeWidth: 1.5 }, new L.LinearCurve());
     const inner = new L.AreaPath({ fill: '#e8590c', opacity: 0.3, baseline: 2 }, new L.LinearCurve());
     const innerEdge = new L.LinePath({ stroke: '#e8590c', strokeWidth: 1.5 }, new L.LinearCurve());
-    const src = (r) => new L.ObjectDataSource({ source: r, domain: 'a', value: 'r', isSorted: true });
+    const src = (r: { a: number; r: number }[]) => new L.ObjectDataSource({ source: r, domain: 'a', value: 'r', isSorted: true });
     const plane = new L.PolarPlane(
       {},
       angle,
@@ -4997,10 +5296,11 @@ demos.push({
     const skills = ['Speed', 'Power', 'Range', 'Armour', 'Stealth', 'Control'];
     const n = skills.length;
     // Made up: two profiles scored 0 to 10. `wrap` repeats the first row at the end of the domain, which closes the turn.
-    const profile = (scores) => scores.map((r, a) => ({ a, r }));
-    const src = (rows) => new L.ObjectDataSource({ source: rows, domain: 'a', value: 'r', isSorted: true, wrap: n });
+    const profile = (scores: number[]) => scores.map((r, a) => ({ a, r }));
+    const src = (rows: { a: number; r: number }[]) =>
+      new L.ObjectDataSource({ source: rows, domain: 'a', value: 'r', isSorted: true, wrap: n });
     const angle = new L.Axis(
-      { id: 'angle', orientation: 'angle', min: 0, max: n, tickCount: n + 1, format: (v) => skills[v] ?? '' },
+      { id: 'angle', orientation: 'angle', min: 0, max: n, tickCount: n + 1, format: (v: number) => skills[v] ?? '' },
       new L.LinearScale(),
     );
     const radius = new L.Axis({ id: 'radius', orientation: 'radius', min: 0, max: 10, tickCount: 6 }, new L.LinearScale());
@@ -5084,7 +5384,7 @@ demos.push({
   title: 'XY plot',
   blurb: 'A path in the order given, with axes floating through the origin',
   setup(ctx) {
-    const lissajous = (n, a, b, phase) =>
+    const lissajous = (n: number, a: number, b: number, phase: number) =>
       Array.from({ length: n }, (_, i) => {
         const t = (i / n) * 2 * Math.PI;
         return { x: Math.sin(a * t + phase), y: Math.sin(b * t) };
@@ -5223,7 +5523,7 @@ demos.push({
     ];
     const rows = Array.from({ length: 1500 }, (_, i) => {
       const g = i % 4,
-        [cx, cy] = centres[g];
+        [cx, cy] = centres[g] as [number, number];
       return { x: cx + gauss() * 0.8, y: cy + gauss() * 0.8, g };
     });
     const x = new L.Axis(
@@ -5279,9 +5579,9 @@ demos.push({
 
 // ── Statistics: histograms, heat maps and trendlines ─────────────────────────
 /** A table as CSV text, and as a download. `readTable` needs no chart: this is all the export there is. */
-const csv = (table) =>
+const csv = (table: L.Table) =>
   [table.columns.join(','), ...Array.from({ length: table.count }, (_, i) => table.data.map((c) => c[i]).join(','))].join('\n');
-const saveCsv = (name, table) =>
+const saveCsv = (name: string, table: L.Table) =>
   h('a', { href: URL.createObjectURL(new Blob([csv(table)], { type: 'text/csv' })), download: name }).click();
 
 demos.push({
@@ -5289,7 +5589,7 @@ demos.push({
   title: 'Histogram (Density)',
   blurb: 'A Density transform in front of BarPath: bin by width, count or rule; count, fraction or density',
   setup(ctx) {
-    const S = { n: 2000, mode: 'width', width: 0.5, bins: 20, stat: 'auto', weighted: false, bar: 0.95, seed: 1 };
+    const S = { n: 2000, mode: 'width', width: 0.5, bins: 20, stat: 'auto' as 'auto' | L.Stat, weighted: false, bar: 0.95, seed: 1 };
     const rows = () => {
       const r = rng(S.seed);
       return Array.from({ length: S.n }, () => {
@@ -5317,7 +5617,7 @@ demos.push({
         onFlush: (st) => {
           ctx.onFlush(st);
           const t = L.readTable(density),
-            width = t.count ? t.column('width')[0] : NaN;
+            width = t.count ? (t.column('width')[0] ?? NaN) : NaN;
           read.textContent = `${t.count} bins, each ${fmt(width, 3)} wide\n${fmt(
             t.column('count').reduce((p, q) => p + q, 0),
             0,
@@ -5441,22 +5741,25 @@ demos.push({
     const S = { n: 20000, cw: 0.5, ch: 0.5, channel: 'count', maxNodes: 64, seed: 1, ramp: 'viridis', plane: 'cartesian' };
     const rows = () => {
       const r = rng(S.seed),
-        centres = [
+        centres: [number, number, number][] = [
           [-3, -2, 1.2],
           [2, 2.5, 0.9],
           [3.5, -2.5, 0.6],
         ];
       return Array.from({ length: S.n }, (_, i) => {
-        const [cx, cy, s] = centres[i % 3];
+        const [cx, cy, s] = centres[i % 3]!;
         return { x: cx + gauss(r) * s * 1.4, y: cy + gauss(r) * s, t: (i % 3) * 10 + gauss(r) * 3 };
       });
     };
-    const heat = new L.ColorAxis({ id: 'heat', title: 'count', ramp: S.ramp }, new L.LinearScale());
+    const heat = new L.ColorAxis({ id: 'heat', title: 'count', ramp: S.ramp as L.ColorRampName }, new L.LinearScale());
     const source = () => new L.ObjectDataSource({ source: rows(), domain: 'x', value: 'y', channels: { t: 't' } });
     const attrs = () => ({ by: ['domain', 'value'], width: [S.cw, S.ch], ...(S.channel === 'mean t' ? { weight: 't' } : {}) });
     const channel = () => (S.channel === 'mean t' ? 'mean' : S.channel);
     const makeCells = () => new L.HeatMap({ maxNodes: S.maxNodes, bind: { fill: { axis: heat, channel: channel() } } });
-    let density, cells, series, plane;
+    let density: InstanceType<typeof L.Density>,
+      cells: InstanceType<typeof L.HeatMap>,
+      series: InstanceType<typeof L.XYSeries>,
+      plane: L.Plane | undefined;
     /** The same data and the same cells on either kind of plane: only the plane and its two axes are new. */
     function build() {
       const polar = S.plane === 'polar';
@@ -5578,7 +5881,7 @@ demos.push({
         value: S.ramp,
         onChange: (v) => {
           S.ramp = v;
-          heat.setAttribute('ramp', v);
+          heat.setAttribute('ramp', v as L.ColorRampName);
         },
       }),
       ui.slider({
@@ -5621,9 +5924,18 @@ demos.push({
   title: 'Gradient paths',
   blurb: 'GradientLinePath and GradientAreaPath: a colour that runs along a line or an area with a channel of the data',
   setup(ctx) {
-    const S = { n: 400, by: 'slope', ramp: 'diverging', banded: false, show: 'both', width: 3, maxStops: 500, seed: 3 };
+    const S = {
+      n: 400,
+      by: 'slope' as 'slope' | 'speed' | 'height',
+      ramp: 'diverging' as L.ColorRampName,
+      banded: false,
+      show: 'both',
+      width: 3,
+      maxStops: 500,
+      seed: 3,
+    };
     const KM = 42;
-    const BY = {
+    const BY: Record<'slope' | 'speed' | 'height', { ramp: L.ColorRampName; title: string }> = {
       slope: { ramp: 'diverging', title: 'Slope (%)' },
       speed: { ramp: 'turbo', title: 'Speed (km/h)' },
       height: { ramp: 'viridis', title: 'Altitude (m)' },
@@ -5635,22 +5947,23 @@ demos.push({
       const d = Float64Array.from({ length: n }, (_, i) => (KM * i) / (n - 1));
       const alt = Float64Array.from(
         d,
-        (v) => 320 + 170 * Math.sin(v / 5.5 + phase[0]) + 85 * Math.sin(v / 1.9 + phase[1]) + 35 * Math.sin(v / 0.55 + phase[2]),
+        (v) => 320 + 170 * Math.sin(v / 5.5 + phase[0]!) + 85 * Math.sin(v / 1.9 + phase[1]!) + 35 * Math.sin(v / 0.55 + phase[2]!),
       );
       const slope = Float64Array.from(alt, (_, i) => {
         const a = Math.max(0, i - 2),
           b = Math.min(n - 1, i + 2);
-        return (100 * (alt[b] - alt[a])) / ((d[b] - d[a]) * 1000);
+        return (100 * (alt[b]! - alt[a]!)) / ((d[b]! - d[a]!) * 1000);
       });
       // Speed falls with the slope and lags behind it, as a rider does.
       let v = 24;
       const speed = Float64Array.from(slope, (s) => (v += 0.25 * (Math.max(6, 27 - 2.1 * s + gauss(r) * 1.5) - v)));
       return { d, alt, slope, speed };
     };
-    const extent = (a) => a.reduce(([lo, hi], v) => [Math.min(lo, v), Math.max(hi, v)], [Infinity, -Infinity]);
+    const extent = (a: Float64Array): [number, number] =>
+      a.reduce<[number, number]>(([lo, hi], v) => [Math.min(lo, v), Math.max(hi, v)], [Infinity, -Infinity]);
     let data = ride();
     const channels = () => ({ slope: data.slope, speed: data.speed, height: data.alt });
-    const range = () => {
+    const range = (): [number, number] => {
       if (S.by !== 'slope') return extent(data[S.by === 'height' ? 'alt' : S.by]);
       const m = Math.ceil(Math.max(...extent(data.slope).map(Math.abs)));
       return [-m, m];
@@ -5661,7 +5974,8 @@ demos.push({
       { id: 'tone', title: BY[S.by].title, ramp: S.ramp, min: range()[0], max: range()[1] },
       new L.LinearScale(),
     );
-    const binding = (property) => ({ [property]: { axis: tone, channel: S.by } });
+    const binding = <P extends 'fill' | 'stroke'>(property: P) =>
+      ({ [property]: { axis: tone, channel: S.by } }) as Record<P, { axis: typeof tone; channel: string }>;
     const area = new L.GradientAreaPath({ opacity: 0.55, maxStops: S.maxStops, bind: binding('fill') }, new L.LinearCurve());
     const line = new L.GradientLinePath({ strokeWidth: S.width, maxStops: S.maxStops, bind: binding('stroke') }, new L.LinearCurve());
     const kit = tipKit('snap', { swatch: false });
@@ -5728,7 +6042,7 @@ demos.push({
         value: S.by,
         onChange: (v) => {
           S.by = v;
-          S.ramp = BY[v].ramp;
+          S.ramp = BY[S.by].ramp;
           tone.setAttribute('ramp', S.ramp);
           rebind();
           drawRamp();
@@ -5827,8 +6141,8 @@ demos.push({
       dot: 3,
       gap: 4,
       offset: 3.5,
-      cap: 'round',
-      mode: 'group',
+      cap: 'round' as 'round' | 'square',
+      mode: 'group' as L.StackMode,
       outline: true,
       background: 'tint',
     };
@@ -5847,13 +6161,13 @@ demos.push({
       checks: new L.DotPattern({ id: 'checks', ...L.checkerboard(4) }),
     };
     const fills = ['url(#lines)', 'url(#hatch)', 'url(#dots)', 'url(#checks)'];
-    const bars = names.map((name, i) => new L.BarPath({ fill: fills[i] }));
+    const bars = names.map((_, i) => new L.BarPath({ fill: fills[i]! }));
     const series = names.map(
       (name, i) =>
         new L.DomainSeries(
           { name },
-          new L.FlatDataSource({ data: Float64Array.from(values[i]), regularDomain: { start: 0, step: 1 } }),
-          bars[i],
+          new L.FlatDataSource({ data: Float64Array.from(values[i]!), regularDomain: { start: 0, step: 1 } }),
+          bars[i]!,
         ),
     );
     const stack = new L.Stack({ mode: S.mode }, ...series);
@@ -5873,14 +6187,17 @@ demos.push({
     const looks = () => {
       const palette = chartTheme().palette;
       bars.forEach((bar, i) =>
-        bar.setAttributes({ stroke: S.outline ? palette[i % palette.length] : undefined, strokeWidth: S.outline ? 2 : undefined }),
+        bar.setAttributes({ stroke: S.outline ? palette[i % palette.length]! : undefined, strokeWidth: S.outline ? 2 : undefined }),
       );
-      for (const p of Object.values(patterns)) {
+      const all: L.Pattern[] = Object.values(patterns);
+      for (const p of all) {
         p.setAttribute('fill', S.background === 'page' ? pageBackground() : undefined);
         p.setAttribute('tint', S.background === 'tint' ? 0.2 : undefined);
       }
     };
     ctx.onTheme(looks);
+    // Two crosshatch angles that are the same are one set of lines, which the pattern refuses; say so here and leave the rest as it was.
+    const problem = ui.note('', true);
     const set = () => {
       looks();
       patterns.lines.setAttributes({
@@ -5889,20 +6206,24 @@ demos.push({
         strokeWidth: S.width,
         dash: S.dash === 'none' ? undefined : S.dash,
       });
-      patterns.hatch.setAttributes({
-        angle: S.angle,
-        crossAngle: S.crossAngle,
-        spacing: S.spacing,
-        strokeWidth: S.width,
-        dash: S.dash === 'none' ? undefined : S.dash,
-      });
       patterns.dots.setAttributes({ strokeWidth: S.dot, gapX: S.gap, offset: S.offset, cap: S.cap });
       patterns.checks.setAttributes({ ...L.checkerboard(S.dot), cap: 'square' });
+      const same = S.angle === S.crossAngle;
+      problem.textContent = same ? 'The crosshatch needs two different angles: it keeps its last look until they differ.' : '';
+      if (!same)
+        patterns.hatch.setAttributes({
+          angle: S.angle,
+          crossAngle: S.crossAngle,
+          spacing: S.spacing,
+          strokeWidth: S.width,
+          dash: S.dash === 'none' ? undefined : S.dash,
+        });
     };
     ctx.add(
       ui.note(
         'Each series fills with a pattern named in its fill as url(#id). The pattern takes the colour of the series, so it follows the palette and the theme: try Accessible, and Theme.',
       ),
+      problem,
       ui.seg({
         label: 'layout',
         options: [
@@ -5991,7 +6312,7 @@ demos.push({
       degree: 3,
       period: 0,
       smoothness: 0.4,
-      kernel: 'tricube',
+      kernel: 'tricube' as 'tricube' | 'gaussian',
       extend: 0.2,
       seed: 1,
       n: 150,
@@ -5999,10 +6320,10 @@ demos.push({
     const rows = () => {
       const r = rng(S.seed);
       const f = {
-        bend: (t) => 4 + 0.6 * t + 3 * Math.sin(t / 2.5),
-        wave: (t) => 6 + 4 * Math.sin((2 * Math.PI * t) / 7.3),
-        steps: (t) => Math.floor(t / 5) * 3,
-      }[S.shape];
+        bend: (t: number) => 4 + 0.6 * t + 3 * Math.sin(t / 2.5),
+        wave: (t: number) => 6 + 4 * Math.sin((2 * Math.PI * t) / 7.3),
+        steps: (t: number) => Math.floor(t / 5) * 3,
+      }[S.shape as 'bend' | 'wave' | 'steps'];
       // Unevenly spaced on purpose: the sinusoid's periodogram and the loess window both cope with that.
       return Array.from({ length: S.n }, () => {
         const t = r() * 20;
@@ -6029,6 +6350,9 @@ demos.push({
       }
     };
     let trend = make();
+    /** Which attributes exist depends on the kind of fit; the controls below only set the ones the kind has. */
+    const setTrend = (name: string, value: unknown) =>
+      (trend as unknown as { setAttribute(n: string, v: unknown): void }).setAttribute(name, value);
     const dots = new L.DomainSeries({ name: 'Data' }, source(), new L.CircleMarker({ size: 2.5, opacity: 0.55 }));
     const line = new L.DomainSeries({ name: 'Trend' }, trend, new L.LinePath(new L.LinearCurve()));
     const plane = new L.CartesianPlane({}, x, y, dots, line, new L.PanZoom({ along: 'x' }));
@@ -6043,7 +6367,7 @@ demos.push({
             ? 'no fit'
             : [
                 `${f.n} points   r² ${f.r2.toFixed(4)}   rmse ${f.rmse.toFixed(3)}`,
-                f.period !== undefined ? `period ${f.period.toFixed(3)}   amplitude ${f.amplitude.toFixed(3)}` : '',
+                f.period !== undefined ? `period ${f.period.toFixed(3)}   amplitude ${(f.amplitude ?? NaN).toFixed(3)}` : '',
                 f.bandwidth !== undefined ? `reach ${f.bandwidth.toFixed(3)}` : '',
                 f.coefficients && !f.period ? `coefficients ${f.coefficients.map((c) => c.toFixed(3)).join(', ')}` : '',
               ]
@@ -6111,7 +6435,7 @@ demos.push({
         value: S.degree,
         onChange: (v) => {
           S.degree = v;
-          if (S.kind === 'poly') trend.setAttribute('degree', v);
+          if (S.kind === 'poly') setTrend('degree', v);
         },
       }),
       ui.slider({
@@ -6123,7 +6447,7 @@ demos.push({
         format: (v) => (v === 0 ? 'auto' : fmt(v, 1)),
         onChange: (v) => {
           S.period = v;
-          if (S.kind === 'sine') trend.setAttribute('period', v > 0 ? v : undefined);
+          if (S.kind === 'sine') setTrend('period', v > 0 ? v : undefined);
         },
       }),
       ui.slider({
@@ -6134,7 +6458,7 @@ demos.push({
         value: S.smoothness,
         onChange: (v) => {
           S.smoothness = v;
-          if (S.kind === 'loess' || S.kind === 'mean') trend.setAttribute('smoothness', v);
+          if (S.kind === 'loess' || S.kind === 'mean') setTrend('smoothness', v);
         },
       }),
       ui.seg({
@@ -6146,7 +6470,7 @@ demos.push({
         value: S.kernel,
         onChange: (v) => {
           S.kernel = v;
-          if (S.kind === 'loess' || S.kind === 'mean') trend.setAttribute('kernel', v);
+          if (S.kind === 'loess' || S.kind === 'mean') setTrend('kernel', v);
         },
       }),
       ui.slider({
@@ -6157,7 +6481,7 @@ demos.push({
         value: S.extend,
         onChange: (v) => {
           S.extend = v;
-          trend.setAttribute('extend', v);
+          setTrend('extend', v);
         },
       }),
       read,
@@ -6186,7 +6510,16 @@ demos.push({
   blurb:
     'A channel of how far each value may be out, drawn as whiskers or a band; symmetric, asymmetric, absolute or relative; on lines and bars',
   setup(ctx) {
-    const S = { n: 24, draw: 'bars', style: 'both', symmetric: true, mode: 'absolute', cap: 8, seed: 1, gap: false };
+    const S = {
+      n: 24,
+      draw: 'bars',
+      style: 'both',
+      symmetric: true,
+      mode: 'absolute' as 'absolute' | 'relative',
+      cap: 8,
+      seed: 1,
+      gap: false,
+    };
     const rows = () => {
       const r = rng(S.seed);
       return Array.from({ length: S.n }, (_, t) => {
@@ -6207,7 +6540,12 @@ demos.push({
       new L.ObjectDataSource({ source: rows(), domain: 't', value: 'v', isSorted: true, channels: { up: 'up', down: 'down' } });
     const err = () => ({ error: 'up', mode: S.mode, ...(S.symmetric ? {} : { negativeError: 'down' }) });
     const renderers = () => {
-      const out = [];
+      const out: (
+        | InstanceType<typeof L.ErrorBand>
+        | InstanceType<typeof L.ErrorBars>
+        | InstanceType<typeof L.BarPath>
+        | InstanceType<typeof L.LinePath>
+      )[] = [];
       if (S.style !== 'bars') out.push(new L.ErrorBand(err()));
       out.push(S.draw === 'bars' ? new L.BarPath({ width: 0.6, opacity: 0.6 }) : new L.LinePath(new L.LinearCurve()));
       if (S.style !== 'band') out.push(new L.ErrorBars({ ...err(), capWidth: S.cap }));
@@ -6331,19 +6669,21 @@ demos.push({
     };
     const x = new L.Axis(
       { id: 'x', orientation: 'bottom', title: 'group' },
-      new L.BandScale({ categories: Array.from({ length: S.groups }, (_, i) => 'ABCDEFGH'[i]) }),
+      new L.BandScale({ categories: Array.from({ length: S.groups }, (_, i) => 'ABCDEFGH'[i]!) }),
     );
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'measurement', nice: true }, new L.LinearScale());
     const source = () => new L.ObjectDataSource({ source: samples(), domain: 'g', value: 'x', isSorted: true });
-    const stats = (output) => ({
+    const stats = (output?: 'summary' | 'outliers') => ({
       ...(output ? { output } : {}),
-      fence: S.fence === 'minmax' ? 'minmax' : +S.fence,
-      method: S.method,
-      value: S.value,
+      fence: S.fence === 'minmax' ? ('minmax' as const) : +S.fence,
+      method: S.method as 'inclusive' | 'exclusive',
+      value: S.value as 'median' | 'mean',
     });
     const box = new L.BoxPath({ width: S.width, capFraction: S.cap });
-    const spread = new L.DomainSeries({ name: 'Spread' }, new L.BoxStats(stats(), source()), box);
-    const dots = new L.DomainSeries({ name: 'Outliers' }, new L.BoxStats(stats('outliers'), source()), new L.DotMarker({ size: 3 }));
+    const spreadStats = new L.BoxStats(stats(), source()),
+      outlierStats = new L.BoxStats(stats('outliers'), source());
+    const spread = new L.DomainSeries({ name: 'Spread' }, spreadStats, box);
+    const dots = new L.DomainSeries({ name: 'Outliers' }, outlierStats, new L.DotMarker({ size: 3 }));
     const plane = new L.CartesianPlane({}, x, y, spread, dots);
     const read = ui.readout();
     const chart = new L.Chart(
@@ -6356,7 +6696,7 @@ demos.push({
             .rows()
             .map(
               (r, i) =>
-                `${'ABCDEFGH'[i]}  min ${fmt(r.min, 1)}  q1 ${fmt(r.q1, 1)}  med ${fmt(r.median, 1)}  q3 ${fmt(r.q3, 1)}  max ${fmt(r.max, 1)}  n ${r.n}`,
+                `${'ABCDEFGH'[i]}  min ${fmt(r.min!, 1)}  q1 ${fmt(r.q1!, 1)}  med ${fmt(r.median!, 1)}  q3 ${fmt(r.q3!, 1)}  max ${fmt(r.max!, 1)}  n ${r.n}`,
             )
             .join('\n');
         },
@@ -6365,18 +6705,13 @@ demos.push({
       new L.Legend({ side: 'top' }),
     );
     const redo = () => {
-      x.setChild(0, new L.BandScale({ categories: Array.from({ length: S.groups }, (_, i) => 'ABCDEFGH'[i]) }));
+      x.setChild(0, new L.BandScale({ categories: Array.from({ length: S.groups }, (_, i) => 'ABCDEFGH'[i]!) }));
       spread.setChild(0, new L.BoxStats(stats(), source()));
       dots.setChild(0, new L.BoxStats(stats('outliers'), source()));
     };
     const restat = () => {
-      for (const [s, o] of [
-        [spread, undefined],
-        [dots, 'outliers'],
-      ]) {
-        const a = stats(o);
-        for (const k in a) s.child(0, L.BoxStats).setAttribute(k, a[k]);
-      }
+      spreadStats.setAttributes(stats());
+      outlierStats.setAttributes(stats('outliers'));
     };
     ctx.add(
       ui.slider({
@@ -6502,16 +6837,16 @@ demos.push({
   title: 'Box zoom & brush',
   blurb: 'Drag a rectangle to zoom to it (BoxZoom), or to select what is in it and read it back (Brush)',
   setup(ctx) {
-    const S = { n: 4000, tool: 'brush', mode: 'xy', live: true, seed: 1 };
+    const S = { n: 4000, tool: 'brush', mode: 'xy' as 'xy' | 'x' | 'y', live: true, seed: 1 };
     const r0 = () => {
       const r = rng(S.seed),
-        centres = [
+        centres: [number, number][] = [
           [-3, -1],
           [2, 2],
           [3, -3],
         ];
       return Array.from({ length: S.n }, (_, i) => {
-        const [cx, cy] = centres[i % 3];
+        const [cx, cy] = centres[i % 3]!;
         return { x: cx + gauss(r) * 1.3, y: cy + gauss(r) * 1.3 };
       });
     };
@@ -6520,13 +6855,13 @@ demos.push({
     const y = new L.Axis({ id: 'y', orientation: 'left', title: 'y', rangePadding: 0.04 }, new L.LinearScale());
     const source = () => new L.ObjectDataSource({ source: rows, channels: { x: 'x', y: 'y' } });
     const read = ui.readout();
-    const report = (b) => {
+    const report = (b: L.BrushSelection | null) => {
       if (!b) {
         read.textContent = 'nothing selected';
         return;
       }
       const inside = rows.filter((p) => (!b.x || (p.x >= b.x.min && p.x <= b.x.max)) && (!b.y || (p.y >= b.y.min && p.y <= b.y.max)));
-      const mean = (k) => inside.reduce((s, p) => s + p[k], 0) / (inside.length || 1);
+      const mean = (k: 'x' | 'y') => inside.reduce((s, p) => s + p[k], 0) / (inside.length || 1);
       read.textContent = [
         `${inside.length} of ${rows.length} points selected`,
         b.x ? `x ${fmt(b.x.min)} to ${fmt(b.x.max)}` : '',
@@ -6543,10 +6878,10 @@ demos.push({
     const series = new L.XYSeries({ x: 'x' }, source(), dots);
     const plane = new L.CartesianPlane({ frame: true }, x, y, series, pan);
     // The tool in use sits before PanZoom, which is how a press reaches it first.
-    let tool = null;
-    const use = (name) => {
+    let tool: InstanceType<typeof L.Brush | typeof L.BoxZoom> | null = null;
+    const use = (name: string) => {
       if (tool) plane.remove(tool);
-      brush.clear?.();
+      brush.clear();
       tool = name === 'brush' ? brush : name === 'zoom' ? zoom : null;
       if (tool) plane.insertBefore(tool, pan);
       pan.setAttribute('pan', name === 'pan');
@@ -6581,7 +6916,7 @@ demos.push({
         onChange: (v) => {
           S.mode = v;
           brush.setAttribute('along', v);
-          brush.clear?.();
+          brush.clear();
         },
       }),
       ui.toggle({
@@ -6633,7 +6968,7 @@ demos.push({
   blurb: 'Ease to new data with CSS transitions: off by default, data changes only, not for pan or zoom',
   setup(ctx) {
     const S = transitionState;
-    const EASINGS = [
+    const EASINGS: [string, string][] = [
       ['ease-out', 'ease-out'],
       ['linear', 'linear'],
       ['ease-in-out', 'ease-in-out'],
@@ -6650,7 +6985,7 @@ demos.push({
     const x = new L.Axis({ id: 'x', orientation: 'bottom' }, band);
     const y = new L.Axis({ id: 'y', orientation: 'left', min: 0, max: 14, nice: false, title: 'Level' }, new L.LinearScale());
     // A source belongs to one series, so each series gets a new one made from the current data.
-    let source = null;
+    let source: InstanceType<typeof L.FlatDataSource> | null = null;
     const renderers = () =>
       S.shape === 'bars'
         ? [new L.BarPath({})]
@@ -6685,7 +7020,7 @@ demos.push({
     };
     const reload = () => {
       band.setAttribute('categories', months.slice(0, S.n));
-      source.setAttributes({ data, regularDomain: { start: 0, step: 1 } });
+      source?.setAttributes({ data, regularDomain: { start: 0, step: 1 } });
     };
     apply();
     ctx.add(
@@ -6789,14 +7124,14 @@ demos.push({
 });
 
 // ── Right to left, and the bar chart shortcut ───────────────────────────────
-const rtlState = { rtl: true, horizontal: false, stack: 'group', legend: true };
+const rtlState = { rtl: true, horizontal: false, stack: 'group' as L.StackMode | 'group', legend: true };
 demos.push({
   id: 'rtl',
   title: 'Right to left',
   blurb: 'direction="rtl" mirrors the layout: the axes, the legend and the title; built with the barChart shortcut',
   setup(ctx) {
     const S = rtlState;
-    const rows = (d) => new L.FlatDataSource({ data: d, regularDomain: { start: 0, step: 1 } });
+    const rows = (d: number[]) => new L.FlatDataSource({ data: d, regularDomain: { start: 0, step: 1 } });
     const chart = L.barChart(
       [
         { name: 'المبيعات', source: rows([4, 7, 5, 9]) },
@@ -6861,10 +7196,10 @@ demos.push({
   setup(ctx) {
     const S = {
       view: 'bars',
-      shape: 'callout',
-      placement: 'outside',
+      shape: 'callout' as 'box' | 'callout' | 'text',
+      placement: 'outside' as 'auto' | 'center' | 'inside' | 'outside',
       contain: true,
-      aria: 'hidden',
+      aria: 'hidden' as 'hidden' | 'text',
       limit: 0,
       hole: 0.5,
       start: 0,
@@ -6884,8 +7219,8 @@ demos.push({
       return SHARES.map((name, i) => ({ name, value: Math.round((60 / (1 + i * 1.6)) * (0.6 + r() * 0.8)) + 1 }));
     };
     let slices = shares();
-    const PADDING = { bars: 16, pie: 60 };
-    let source, notes;
+    const PADDING: Record<string, number> = { bars: 16, pie: 60 };
+    let source: InstanceType<typeof L.FlatDataSource> | undefined, notes: InstanceType<typeof L.PointAnnotations> | undefined;
     const barsPlane = () => {
       source = new L.FlatDataSource({ data: values, regularDomain: { start: 0, step: 1 } });
       notes = new L.PointAnnotations({
@@ -6912,17 +7247,18 @@ demos.push({
         startAngle: S.start,
         label: (slice, fraction) => `${slice.name} ${share.format(fraction)}`,
       });
-      const plane = [...made][0];
+      const plane = made.firstChild;
+      if (!(plane instanceof L.Plane)) throw new Error('pieChart should make a plane');
       made.remove(plane);
       return plane;
     };
-    let shown = barsPlane();
+    let shown: L.Plane = barsPlane();
     const chart = new L.Chart({ theme: chartTheme(), padding: PADDING.bars, onFlush: ctx.onFlush }, shown);
     const read = ui.readout();
     const report = () => {
       read.textContent =
         S.view === 'bars'
-          ? `notes drawn for ${values.filter((v) => v < S.limit).length} of 12 bars; omitted: ${notes.omitted}`
+          ? `notes drawn for ${values.filter((v) => v < S.limit).length} of 12 bars; omitted: ${notes?.omitted ?? 0}`
           : slices.map((s) => `${s.name} ${s.value}`).join('   ');
     };
     const show = () => {
@@ -7030,7 +7366,7 @@ demos.push({
           S.seed++;
           values = profit();
           slices = shares();
-          if (S.view === 'bars') source.setAttributes({ data: values, regularDomain: { start: 0, step: 1 } });
+          if (S.view === 'bars') source?.setAttributes({ data: values, regularDomain: { start: 0, step: 1 } });
           else show();
           report();
         },
@@ -7049,8 +7385,8 @@ demos.push({
 // Navigation, theme
 // ─────────────────────────────────────────────────────────────────────────────
 
-function select(id) {
-  const demo = demos.find((d) => d.id === id) ?? demos[0];
+function select(id: string) {
+  const demo = demos.find((d) => d.id === id) ?? demos[0]!;
   location.hash = demo.id;
   $('demos')
     .querySelectorAll('button')
@@ -7065,11 +7401,11 @@ $('accessible').addEventListener('click', () => {
   const root = document.documentElement;
   root.dataset.accessible = String(root.dataset.accessible !== 'true');
   $('accessible').setAttribute('aria-pressed', root.dataset.accessible);
-  current?.chart.setAttribute('theme', chartTheme());
+  mounted?.chart.setAttribute('theme', chartTheme());
   // The font arrives after the first draw; text was measured in the fallback, so draw again when it is in.
   if (root.dataset.accessible === 'true')
     document.fonts?.load('14px OpenDyslexic').then(
-      () => current?.chart.invalidate(),
+      () => mounted?.chart.invalidate(),
       () => {},
     );
   for (const fn of themeHooks) fn();
@@ -7077,7 +7413,7 @@ $('accessible').addEventListener('click', () => {
 $('theme').addEventListener('click', () => {
   const root = document.documentElement;
   root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-  current?.chart.setAttribute('theme', chartTheme());
+  mounted?.chart.setAttribute('theme', chartTheme());
   for (const fn of themeHooks) fn();
 });
 if (matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark';
@@ -7086,22 +7422,24 @@ select(location.hash.slice(1));
 window.inkplot = L; // for poking at from the console
 /** For the page test: the live chart written as JSON and read back into a second chart on the same size of box. */
 async function roundTrip() {
-  const json = L.toJSON(current.chart, pageRegistry(), { refs: current.refs, inlineLimit: JSON_LIMIT });
+  const live = stage();
+  const json = L.toJSON(live.chart, pageRegistry(), { refs: live.refs, inlineLimit: JSON_LIMIT });
   const wire = JSON.parse(JSON.stringify(json));
   const box = h('div', { style: `position:absolute;left:-9999px;top:0;width:${host.clientWidth}px;height:${host.clientHeight}px` });
   document.body.append(box);
   const platform = new L.DOMPlatform(box);
-  const chart = L.fromJSON(wire, pageRegistry(), { refs: current.refs, inlineLimit: JSON_LIMIT });
+  const chart = L.fromJSON(wire, pageRegistry(), { refs: live.refs, inlineLimit: JSON_LIMIT });
+  if (!(chart instanceof L.Chart)) throw new Error('the JSON should read back as a Chart');
   chart.attach(platform);
   chart.flush();
   // Stages that run elsewhere (a worker) answer later: both charts are drawn once they have.
-  await Promise.all([chart.idle(), current.chart.idle()]);
-  const norm = (n) => n.outerHTML.replace(/clip\d+/g, 'clip').replace(/grad\d+/g, 'grad');
+  await Promise.all([chart.idle(), live.chart.idle()]);
+  const norm = (n: Element) => n.outerHTML.replace(/clip\d+/g, 'clip').replace(/grad\d+/g, 'grad');
   const result = {
-    live: norm(host.querySelector('svg')),
-    copy: norm(box.querySelector('svg')),
+    live: norm($('host').querySelector('svg')!),
+    copy: norm(box.querySelector('svg')!),
     json: JSON.stringify(json).length,
-    refs: current.refs.names.length,
+    refs: live.refs.names.length,
   };
   chart.detach();
   platform.dispose();
@@ -7111,7 +7449,7 @@ async function roundTrip() {
 
 window.playground = {
   get current() {
-    return current;
+    return mounted;
   },
   select,
   demos,

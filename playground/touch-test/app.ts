@@ -26,6 +26,7 @@ const chart = new Chart(
     ...(location.hash === '#static' ? [] : [new PanZoom({ touch: location.hash === '#always' ? 'always' : 'two-finger' })]),
   ),
 );
-const host = document.getElementById('host')!;
+const host = document.getElementById('host');
+if (!host) throw new Error('the page has no #host');
 chart.attach(new DOMPlatform(host, { schedule: 'microtask' }));
 Object.assign(window, { chart, xAxis: x, yAxis: y });

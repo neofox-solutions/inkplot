@@ -226,7 +226,7 @@ test('chart', () => {
         new FlatDataSource({ data: new Float64Array([1, 3, 2]), regularDomain: { start: 0, step: 1 } }),
         new LinePath(new LinearCurve()),
       ),
-      probe as never,
+      probe,
     );
     const chart = new Chart({ theme: lightTheme }, plane); // no explicit size: follows the platform
     const platform = new FakePlatform({ width: 400, height: 300 });

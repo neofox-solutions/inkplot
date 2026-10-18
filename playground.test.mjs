@@ -92,9 +92,23 @@ test('playground', async () => {
   await settle();
   const power = await pathOf();
   assert.notEqual(power, linear, 'a different scale draws different paths');
+  await page.getByLabel('power exponent').fill('0.9');
+  await settle();
+  assert.notEqual(await pathOf(), power, 'the exponent of the custom scale reaches the drawing');
   await page.getByRole('button', { name: 'linear', exact: true }).click();
   await settle();
   assert.equal(await pathOf(), linear, 'swapping back restores the original drawing');
+
+  // ── Two equal crosshatch angles are refused by the pattern; the demo says so and goes on.
+  await page.evaluate(() => window.playground.select('patterns'));
+  await settle();
+  await page.getByLabel('line angle (degrees)').fill('30');
+  await page.getByLabel('crosshatch: second angle').fill('30');
+  await settle();
+  assert.match(await page.locator('.note.warn').first().textContent(), /two different angles/);
+  await page.getByLabel('crosshatch: second angle').fill('-30');
+  await settle();
+  assert.equal(await page.locator('.note.warn').first().textContent(), '');
 
   // ── Resize: dragging the box follows through ResizeObserver to a new flush with new dimensions.
   await page.evaluate(() => window.playground.select('basic'));
@@ -439,7 +453,7 @@ test('playground', async () => {
     });
   assert.equal(await runs(), 3, 'a line broken by two stretches of NaN is three runs');
   const edgesJson = JSON.parse(await area.inputValue());
-  walkType(edgesJson, 'DomainSeries').attrs.gaps = 'connect';
+  walkType(edgesJson, 'DomainSeries').attrs.missing = 'connect';
   await area.fill(JSON.stringify(edgesJson, null, 2));
   await page.waitForFunction(() => document.querySelector('.jsonbar span')?.textContent.startsWith('applied'));
   assert.equal(await runs(), 1, 'connected, it is one');

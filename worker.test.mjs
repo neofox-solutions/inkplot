@@ -124,7 +124,6 @@ test('worker boundary on a real Web Worker', async () => {
           let last = performance.now(),
             n = 0,
             answers = 0;
-          const stop = window.chart.attrs.onFlush;
           const step = (now) => {
             frames.push(now - last);
             last = now;

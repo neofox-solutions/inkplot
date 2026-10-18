@@ -31,8 +31,8 @@ for (const file of files) {
 }
 
 // The page's JSX demo: compiled here against the library's JSX runtime, and loaded like a library module.
-const jsxDemo = transformSync('jsx-demo.jsx', read('./playground/jsx-demo.jsx'), {
-  lang: 'jsx',
+const jsxDemo = transformSync('jsx-demo.tsx', read('./playground/jsx-demo.tsx'), {
+  lang: 'tsx',
   jsx: { runtime: 'automatic', importSource: 'inkplot' },
   target: 'es2022',
 }).code;
@@ -40,7 +40,7 @@ if (/<\/script|<!--/i.test(jsxDemo)) throw new Error('the JSX demo contains a se
 scripts += `<script type="text/plain" data-module="playground/jsx-demo">${jsxDemo}</script>\n`;
 
 // The record behind the headline chart: plain data, loaded like a library module.
-const gistemp = read('./playground/gistemp.js');
+const gistemp = stripTypeScriptTypes(read('./playground/gistemp.ts'), { mode: 'strip' });
 if (/<\/script|<!--/i.test(gistemp)) throw new Error('the temperature record contains a sequence that would end its script element');
 scripts += `<script type="text/plain" data-module="playground/gistemp">${gistemp}</script>\n`;
 
@@ -60,7 +60,7 @@ serveWorker({ FlatDataSource, Decimator, MinMaxKernel, M4Kernel, LttbKernel, Str
 if (/<\/script|<!--/i.test(workerBundle.code)) throw new Error('the worker contains a sequence that would end its script element');
 scripts += `<script type="text/plain" id="ink-worker">${workerBundle.code}</script>\n`;
 
-const app = read('./playground/app.js');
+const app = stripTypeScriptTypes(read('./playground/app.ts'), { mode: 'strip' });
 if (/<\/script/i.test(app)) throw new Error('the app contains </script');
 
 const info = `${files.length} modules · ${(bytes / 1024).toFixed(0)} KB inlined · built ${new Date().toISOString().slice(0, 16).replace('T', ' ')}Z`;
