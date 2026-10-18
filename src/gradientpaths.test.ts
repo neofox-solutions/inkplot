@@ -126,7 +126,7 @@ test('gradient line: more points than stops are averaged, and a step ramp gives 
   const [g] = gradients(many.svg());
   assert.ok(g!.stops.length <= 10, `${g!.stops.length} stops`);
   assert.equal(g!.stops[0]!.offset, 0);
-  assert.equal(g!.stops.at(-1)!.offset, 1);
+  assert.equal(g!.stops[g!.stops.length - 1]!.offset, 1);
   assert.ok(
     g!.stops.every((s, i) => i === 0 || s.offset >= g!.stops[i - 1]!.offset),
     'in order',
@@ -232,6 +232,6 @@ test('gradient paths: a legend sample shows the ramp', () => {
     const gs = gradients(build(renderer, (i) => i, 3, { legend: true }).svg());
     assert.equal(gs.length, 2, "the series' own and the legend's");
     const sample = gs.find((g) => /s"/.test(g.attrs.split(' ')[0]!))!;
-    assert.deepEqual([sample.stops[0]!.color, sample.stops.at(-1)!.color], ['#000000', '#ff0000'], 'low to high');
+    assert.deepEqual([sample.stops[0]!.color, sample.stops[sample.stops.length - 1]!.color], ['#000000', '#ff0000'], 'low to high');
   }
 });
