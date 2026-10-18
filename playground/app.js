@@ -711,6 +711,8 @@ function coverage() {
     Renderers: [
       'LinePath',
       'AreaPath',
+      'GradientLinePath',
+      'GradientAreaPath',
       'DotMarker',
       'CrossMarker',
       'PlusMarker',
@@ -5604,6 +5606,207 @@ demos.push({
       ),
       ui.note(
         'Each bin is a point at its centre with width and height channels, and HeatMap draws it as the rectangle it is. Cells with the same colour step share a path, so lowering maxNodes shows the bands without changing how many cells there are. On a polar plane x is the angle and y the radius, and each cell becomes a wedge with straight edges.',
+      ),
+    );
+    return { chart };
+  },
+});
+
+// ── Gradient paths ───────────────────────────────────────────────────────────
+// A made-up ride, 42 km of it: the area under the altitude takes its colour from one channel and the line along its top from the
+// same one, as a smooth gradient laid along the distance axis. Each is a single path with a few hundred colour stops, however
+// many points it has.
+demos.push({
+  id: 'gradients',
+  title: 'Gradient paths',
+  blurb: 'GradientLinePath and GradientAreaPath: a colour that runs along a line or an area with a channel of the data',
+  setup(ctx) {
+    const S = { n: 400, by: 'slope', ramp: 'diverging', banded: false, show: 'both', width: 3, maxStops: 500, seed: 3 };
+    const KM = 42;
+    const BY = {
+      slope: { ramp: 'diverging', title: 'Slope (%)' },
+      speed: { ramp: 'turbo', title: 'Speed (km/h)' },
+      height: { ramp: 'viridis', title: 'Altitude (m)' },
+    };
+    const ride = () => {
+      const r = rng(S.seed),
+        n = S.n;
+      const phase = [r() * 6, r() * 6, r() * 6];
+      const d = Float64Array.from({ length: n }, (_, i) => (KM * i) / (n - 1));
+      const alt = Float64Array.from(
+        d,
+        (v) => 320 + 170 * Math.sin(v / 5.5 + phase[0]) + 85 * Math.sin(v / 1.9 + phase[1]) + 35 * Math.sin(v / 0.55 + phase[2]),
+      );
+      const slope = Float64Array.from(alt, (_, i) => {
+        const a = Math.max(0, i - 2),
+          b = Math.min(n - 1, i + 2);
+        return (100 * (alt[b] - alt[a])) / ((d[b] - d[a]) * 1000);
+      });
+      // Speed falls with the slope and lags behind it, as a rider does.
+      let v = 24;
+      const speed = Float64Array.from(slope, (s) => (v += 0.25 * (Math.max(6, 27 - 2.1 * s + gauss(r) * 1.5) - v)));
+      return { d, alt, slope, speed };
+    };
+    const extent = (a) => a.reduce(([lo, hi], v) => [Math.min(lo, v), Math.max(hi, v)], [Infinity, -Infinity]);
+    let data = ride();
+    const channels = () => ({ slope: data.slope, speed: data.speed, height: data.alt });
+    const range = () => {
+      if (S.by !== 'slope') return extent(data[S.by === 'height' ? 'alt' : S.by]);
+      const m = Math.ceil(Math.max(...extent(data.slope).map(Math.abs)));
+      return [-m, m];
+    };
+    const source = new L.CompositeDataSource({ count: S.n, domain: data.d, value: data.alt, channels: channels(), isSorted: true });
+
+    const tone = new L.ColorAxis(
+      { id: 'tone', title: BY[S.by].title, ramp: S.ramp, min: range()[0], max: range()[1] },
+      new L.LinearScale(),
+    );
+    const binding = (property) => ({ [property]: { axis: tone, channel: S.by } });
+    const area = new L.GradientAreaPath({ opacity: 0.55, maxStops: S.maxStops, bind: binding('fill') }, new L.LinearCurve());
+    const line = new L.GradientLinePath({ strokeWidth: S.width, maxStops: S.maxStops, bind: binding('stroke') }, new L.LinearCurve());
+    const kit = tipKit('snap', { swatch: false });
+    const plane = new L.CartesianPlane(
+      { frame: true },
+      new L.Axis({ id: 'x', orientation: 'bottom', title: 'Distance (km)', padding: 0 }, new L.LinearScale()),
+      new L.Axis({ id: 'y', orientation: 'left', title: 'Altitude (m)' }, new L.LinearScale()),
+      new L.DomainSeries({ name: 'Ride' }, source, area, line),
+    );
+    const read = ui.readout();
+    const chart = new L.Chart(
+      {
+        theme: chartTheme(),
+        onFlush: (st) => {
+          ctx.onFlush(st);
+          const stops = host.querySelectorAll('linearGradient[id^="inkgrad"] stop').length;
+          read.textContent = `${S.n} points, ${stops} colour stops in ${host.querySelectorAll('svg path[stroke^="url"], svg path[fill^="url"]').length} gradient paths`;
+        },
+      },
+      plane,
+      tone,
+      new L.ColorKey({ dimension: tone, side: 'right' }),
+      kit.cursor,
+    );
+    const rebind = () => {
+      area.setAttribute('bind', binding('fill'));
+      line.setAttribute('bind', binding('stroke'));
+      const [min, max] = range();
+      tone.setAttributes({ title: BY[S.by].title, min, max });
+    };
+    const regen = () => {
+      data = ride();
+      source.setAttributes({ count: S.n, domain: data.d, value: data.alt, channels: channels() });
+      const [min, max] = range();
+      tone.setAttributes({ min, max });
+    };
+    const rampBox = h('div', {});
+    const drawRamp = () =>
+      rampBox.replaceChildren(
+        ui.seg({
+          label: 'colour ramp',
+          options: [
+            ['diverging', 'diverging'],
+            ['viridis', 'viridis'],
+            ['turbo', 'turbo'],
+            ['magma', 'magma'],
+          ],
+          value: S.ramp,
+          onChange: (v) => {
+            S.ramp = v;
+            tone.setAttribute('ramp', v);
+          },
+        }),
+      );
+    drawRamp();
+    ctx.add(
+      ui.seg({
+        label: 'colour by',
+        options: [
+          ['slope', 'slope'],
+          ['speed', 'speed'],
+          ['height', 'altitude'],
+        ],
+        value: S.by,
+        onChange: (v) => {
+          S.by = v;
+          S.ramp = BY[v].ramp;
+          tone.setAttribute('ramp', S.ramp);
+          rebind();
+          drawRamp();
+        },
+      }),
+      rampBox,
+      ui.seg({
+        label: 'colours',
+        options: [
+          ['smooth', 'smooth'],
+          ['banded', 'banded'],
+        ],
+        value: 'smooth',
+        onChange: (v) => {
+          S.banded = v === 'banded';
+          tone.setAttribute('interpolation', S.banded ? 'step' : 'linear');
+        },
+      }),
+      ui.seg({
+        label: 'draw',
+        options: [
+          ['both', 'area and line'],
+          ['line', 'line'],
+          ['area', 'area'],
+        ],
+        value: S.show,
+        onChange: (v) => {
+          S.show = v;
+          area.setAttribute('visible', v !== 'line');
+          line.setAttribute('visible', v !== 'area');
+        },
+      }),
+      ui.slider({
+        label: 'line width',
+        min: 1,
+        max: 10,
+        step: 0.5,
+        value: S.width,
+        onChange: (v) => {
+          S.width = v;
+          line.setAttribute('strokeWidth', v);
+        },
+      }),
+      ui.slider({
+        label: 'points',
+        min: 8,
+        max: 20000,
+        value: S.n,
+        log: true,
+        format: (v) => fmt(v, 0),
+        onChange: (v) => {
+          S.n = Math.round(v);
+          regen();
+        },
+      }),
+      ui.slider({
+        label: 'maxStops',
+        min: 2,
+        max: 500,
+        value: S.maxStops,
+        log: true,
+        format: (v) => fmt(v, 0),
+        onChange: (v) => {
+          S.maxStops = Math.round(v);
+          area.setAttribute('maxStops', S.maxStops);
+          line.setAttribute('maxStops', S.maxStops);
+        },
+      }),
+      read,
+      ui.buttons([
+        'New ride',
+        () => {
+          S.seed++;
+          regen();
+        },
+      ]),
+      ui.note(
+        "The colour is bound to a channel exactly as a marker's is, but where a marker takes the colour of its own point, a gradient path runs it smoothly from one point to the next: one SVG path painted with a linearGradient laid along the distance axis, with a colour stop at each point. With more points than maxStops, each stop is the average of the points it stands for (try 2 to 8 stops). Banded colours make the stops hard. Because the colour belongs to a place along an axis, these paths need a rectangular plane.",
       ),
     );
     return { chart };

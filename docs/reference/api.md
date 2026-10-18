@@ -8,7 +8,7 @@ Every element class the library ships, in the order of the registry: where it go
 
 ## Contents
 
-[Chart](#chart) · [ChartGroup](#chartgroup) · [ChartGroupItem](#chartgroupitem) · [SharedRange](#sharedrange) · [SharedAxis](#sharedaxis) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [LinePattern](#linepattern) · [HatchPattern](#hatchpattern) · [DotPattern](#dotpattern) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [WorkerBoundary](#workerboundary) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [Slice](#slice) · [LinkedData](#linkeddata) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [MeanTrend](#meantrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
+[Chart](#chart) · [ChartGroup](#chartgroup) · [ChartGroupItem](#chartgroupitem) · [SharedRange](#sharedrange) · [SharedAxis](#sharedaxis) · [ChartTitle](#charttitle) · [ChartTooltip](#charttooltip) · [ChartSummary](#chartsummary) · [Entrance](#entrance) · [LinePattern](#linepattern) · [HatchPattern](#hatchpattern) · [DotPattern](#dotpattern) · [Cursor](#cursor) · [Crosshair](#crosshair) · [Legend](#legend) · [CartesianPlane](#cartesianplane) · [PolarPlane](#polarplane) · [RadarPlane](#radarplane) · [Axis](#axis) · [ColorAxis](#coloraxis) · [ScalarAxis](#scalaraxis) · [ColorKey](#colorkey) · [SizeKey](#sizekey) · [LinearScale](#linearscale) · [LogScale](#logscale) · [SqrtScale](#sqrtscale) · [BandScale](#bandscale) · [IntlTimeScale](#intltimescale) · [TemporalTimeScale](#temporaltimescale) · [DomainSeries](#domainseries) · [XYSeries](#xyseries) · [Stack](#stack) · [SeriesGroup](#seriesgroup) · [WorkerBoundary](#workerboundary) · [FlatDataSource](#flatdatasource) · [ObjectDataSource](#objectdatasource) · [CompositeDataSource](#compositedatasource) · [SyntheticDataSource](#syntheticdatasource) · [Decimator](#decimator) · [Slice](#slice) · [LinkedData](#linkeddata) · [MinMaxKernel](#minmaxkernel) · [M4Kernel](#m4kernel) · [LttbKernel](#lttbkernel) · [StrideKernel](#stridekernel) · [LinePath](#linepath) · [AreaPath](#areapath) · [LinearCurve](#linearcurve) · [MonotoneCurve](#monotonecurve) · [NaturalCurve](#naturalcurve) · [CardinalCurve](#cardinalcurve) · [CatmullRomCurve](#catmullromcurve) · [BasisCurve](#basiscurve) · [BumpCurve](#bumpcurve) · [QuadraticCurve](#quadraticcurve) · [ArcCurve](#arccurve) · [StepCurve](#stepcurve) · [BarPath](#barpath) · [StemPath](#stempath) · [BoxPath](#boxpath) · [BoxStats](#boxstats) · [Density](#density) · [HeatMap](#heatmap) · [GradientLinePath](#gradientlinepath) · [GradientAreaPath](#gradientareapath) · [LinearTrend](#lineartrend) · [PolynomialTrend](#polynomialtrend) · [SinusoidalTrend](#sinusoidaltrend) · [LoessTrend](#loesstrend) · [MeanTrend](#meantrend) · [ErrorBars](#errorbars) · [ErrorBand](#errorband) · [DotMarker](#dotmarker) · [CrossMarker](#crossmarker) · [PlusMarker](#plusmarker) · [CircleMarker](#circlemarker) · [SquareMarker](#squaremarker) · [LineAnnotation](#lineannotation) · [CalloutAnnotation](#calloutannotation) · [PointAnnotations](#pointannotations) · [PanZoom](#panzoom) · [BoxZoom](#boxzoom) · [Brush](#brush) · [PointerListener](#pointerlistener)
 
 ## Chart
 
@@ -882,6 +882,39 @@ A rectangle at each point, coloured by a channel; with `Density`, a heat map.
 | `cellHeight` | `number` | The size along the second axis. Default: the `heightChannel`, or `cellWidth` when only that is given (square cells). |
 | `widthChannel` | `string` | The channel with each cell's width. Default 'width'. |
 | `heightChannel` | `string` | The channel with each cell's height. Default 'height'. |
+| `stroke` | `string` | Outline colour (a CSS colour). Default: from the theme. |
+| `strokeWidth` | `number` | Outline width in pixels. Default: from the theme. |
+| `fill` | `string` | Fill colour (a CSS colour; 'none' for no fill). Default: from the theme. |
+| `opacity` | `number` | Opacity from 0 to 1. Default 1. |
+| `bind` | `Bindings<Bindable>` | Attributes fed from data instead of fixed. |
+| `maxNodes` | `number` | Most paths this renderer may create. Default 1000. |
+
+## GradientLinePath
+
+A line whose colour runs along it with a channel of the data.
+
+**In** a series · **Holds** 1 curve (required)
+
+| Attribute | Type | |
+|---|---|---|
+| `maxStops` | `number` | The most colour stops the gradient has: more points than this are averaged into stops. Default 500. |
+| `stroke` | `string` | Outline colour (a CSS colour). Default: from the theme. |
+| `strokeWidth` | `number` | Outline width in pixels. Default: from the theme. |
+| `fill` | `string` | Fill colour (a CSS colour; 'none' for no fill). Default: from the theme. |
+| `opacity` | `number` | Opacity from 0 to 1. Default 1. |
+| `bind` | `Bindings<Bindable>` | Attributes fed from data instead of fixed. |
+| `maxNodes` | `number` | Most paths this renderer may create. Default 1000. |
+
+## GradientAreaPath
+
+An area whose fill (and outline) runs in colour along it with a channel of the data.
+
+**In** a series · **Holds** 1 curve (required)
+
+| Attribute | Type | |
+|---|---|---|
+| `baseline` | `number` | The value the area is filled from, kept inside the value axis' range. Default 0. |
+| `maxStops` | `number` | The most colour stops each gradient has: more points than this are averaged into stops. Default 500. |
 | `stroke` | `string` | Outline colour (a CSS colour). Default: from the theme. |
 | `strokeWidth` | `number` | Outline width in pixels. Default: from the theme. |
 | `fill` | `string` | Fill colour (a CSS colour; 'none' for no fill). Default: from the theme. |

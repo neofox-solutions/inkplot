@@ -25,6 +25,7 @@ import { ColorKey, SizeKey } from './key.ts';
 import { Legend } from './legend.ts';
 import { ColorAxis, ScalarAxis } from './mapped.ts';
 import { LinearTrend, LoessTrend, MeanTrend, PolynomialTrend, SinusoidalTrend } from './trend.ts';
+import { GradientAreaPath, GradientLinePath } from './gradientpaths.ts';
 import { HeatMap } from './heatmap.ts';
 import { CircleMarker, CrossMarker, DotMarker, PlusMarker, SquareMarker } from './marker.ts';
 import { BoxZoom } from './boxzoom.ts';
@@ -112,6 +113,8 @@ export const registry: ElementRegistry = {
   BoxStats,
   Density,
   HeatMap,
+  GradientLinePath,
+  GradientAreaPath,
   LinearTrend,
   PolynomialTrend,
   SinusoidalTrend,

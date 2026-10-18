@@ -57,6 +57,8 @@ export const TOPICS: Record<string, Topic> = {
     use: 'scatter and bubble charts, dots and crosses, colour or size taken from the data, colour and size keys',
     elements: [
       'XYSeries',
+      'GradientLinePath',
+      'GradientAreaPath',
       'DotMarker',
       'CrossMarker',
       'PlusMarker',

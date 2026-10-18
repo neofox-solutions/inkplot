@@ -7,7 +7,6 @@
  *    each other (a plane driving its series, a series driving its axes) the methods are public, named
  *    without an underscore, and documented as protocol under an "Engine protocol" comment.
  *  - A parent declares its children as a tuple type, so order and arity are checked by the compiler.
- *  - Options that are declared and not yet supported (`bind` on a line, area or bar) throw when used, via stub.ts.
  */
 
 export { type Extent, type Insets, type LayoutRequest, type Rect, type Side, type Size } from './geometry.ts';
@@ -277,6 +276,14 @@ export {
   type TrendlineAttributes,
 } from './trend.ts';
 export { HeatMap, type HeatMapAttributes, type HeatMapBindable } from './heatmap.ts';
+export {
+  GradientAreaPath,
+  type GradientAreaPathAttributes,
+  type GradientAreaPathBindable,
+  GradientLinePath,
+  type GradientLinePathAttributes,
+  type GradientLinePathBindable,
+} from './gradientpaths.ts';
 export {
   CircleMarker,
   CrossMarker,

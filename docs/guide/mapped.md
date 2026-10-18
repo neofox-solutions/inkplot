@@ -41,7 +41,7 @@ export default () => (
 - `channel` is a channel of the series' data ([Data](data.md#the-model-domain-value-channels)).
 - The plain attribute (`fill`, `strokeWidth`…) stays as the **fallback**, so `{ strokeWidth: 0.5, bind: { stroke: … } }` mixes fixed and bound freely.
 - A renderer lists what it lets you bind: a `CircleMarker` takes `stroke`, `strokeWidth`, `fill`, `opacity` and `size`; a `DotMarker` takes `stroke`, `size` and `opacity`. In TypeScript, binding something the renderer cannot vary, or a dimension of the wrong kind (a colour axis for `size`), is a compile error.
-- **Where it works.** Markers, `BarPath` (`stroke`, `strokeWidth`, `fill`, `opacity`), `StemPath` (`stroke`, `strokeWidth`, `opacity`) and `HeatMap`. `LinePath` and `AreaPath` accept `bind` in their types, but throw `… bindings is not implemented yet` when drawn, so that a half-supported option cannot be relied on by accident: a line is one stroke, so to colour parts of it by data, use several series.
+- **Where it works.** Markers, `BarPath` (`stroke`, `strokeWidth`, `fill`, `opacity`), `StemPath` (`stroke`, `strokeWidth`, `opacity`), `HeatMap`, and the two gradient paths ([below](#gradient-lines-and-areas)). A plain `LinePath` or `AreaPath` is one colour, and throws if given a `bind`: use `GradientLinePath` or `GradientAreaPath`.
 - Several renderers on a series can each bind.
 
 **Geometric versus stylistic.** A bound property is either *geometric*, going into the path data (a marker's `size` on a `CircleMarker`, which costs the same however much it varies), or *stylistic*, which has to vary per path (a colour, a stroke width, an opacity). A stylistic binding is **quantized** into steps so that points with the same look share one path: with `maxNodes` of 1000 (the default) and one stylistic binding there are 1000 colours at most; with two, 31 steps each. That bound on path count is what keeps a scatter of a hundred thousand coloured points fast. The cost is that a colour is the nearest step. Marker `merge={false}` gives every point its own node, exact value and blending, and is for small data.
@@ -102,6 +102,42 @@ export default () => (
 | `missing` | The output for data with no value or outside the range. Default the low end of `output`. |
 
 **Area, not radius.** A bubble reads best when its *area* follows the value. Size maps linearly, so bind a channel holding the square root of the value (or give the axis a `SqrtScale`, and a `format` that squares it back for the key).
+
+## Gradient lines and areas
+
+A marker takes the colour of its own point. A line or an area is one shape, so a colour bound to data has to *run along it*: `GradientLinePath` (bind `stroke`) and `GradientAreaPath` (bind `fill`, and `stroke` for an outline) draw what `LinePath` and `AreaPath` draw, painted with a gradient that has a colour stop at each point.
+
+```tsx live title="A line and the area under it, coloured by a second channel" height=320
+import { Axis, CartesianPlane, Chart, ColorAxis, ColorKey, DomainSeries, GradientAreaPath, GradientLinePath, LinearCurve, LinearScale, ObjectDataSource, lightTheme } from 'inkplot';
+
+const rows = Array.from({ length: 120 }, (_, i) => ({ km: i / 3, altitude: 200 + 90 * Math.sin(i / 14) + 30 * Math.sin(i / 4), speed: 24 - 8 * Math.cos(i / 14) }));
+
+export default () => (
+  <Chart theme={lightTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom" title="Distance (km)"><LinearScale /></Axis>
+      <Axis orientation="left" title="Altitude (m)"><LinearScale /></Axis>
+      <DomainSeries>
+        <ObjectDataSource source={rows} domain="km" value="altitude" channels={{ speed: 'speed' }} />
+        <GradientAreaPath opacity={0.35} bind={{ fill: { axis: 'speed', channel: 'speed' } }}><LinearCurve /></GradientAreaPath>
+        <GradientLinePath strokeWidth={3} bind={{ stroke: { axis: 'speed', channel: 'speed' } }}><LinearCurve /></GradientLinePath>
+      </DomainSeries>
+    </CartesianPlane>
+    <ColorAxis id="speed" title="Speed (km/h)" ramp="turbo"><LinearScale /></ColorAxis>
+    <ColorKey dimension="speed" side="right" />
+  </Chart>
+);
+```
+
+It is one SVG path whatever the number of points, painted with a `linearGradient` laid along the series' first axis (the horizontal one, or the vertical one when the domain runs up the plot). That is why it is cheap, and it sets the limits:
+
+- **A rectangular plane.** The colour runs along a straight axis; on a polar plane the path throws and says so.
+- **A place along the axis has one colour.** An `XYSeries` that doubles back takes the colour of its last pass, so use these for a value along a domain.
+- **At most `maxStops` colour stops** (default 500). More points than that are averaged into stops, so a long line stays a few hundred nodes and a spike in the channel is smoothed, not lost: raise `maxStops` if one matters. Neighbouring stops of one colour are merged.
+- **Banded colours.** A `ColorAxis` with `interpolation="step"` gives hard bands: each colour holds halfway to its neighbours.
+- **Gaps** in the data leave the line broken, and the colours either side carry on from where they were.
+
+To colour a line by its own value, give the source a channel with the same numbers (`channels={{ temp: 'temp' }}` beside `value="temp"`).
 
 ## Keys
 

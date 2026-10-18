@@ -17,13 +17,12 @@ import type { PointBuffer } from './data.ts';
 import type { Extent } from './geometry.ts';
 import type { HitMode } from './hit.ts';
 import { Curve } from './curve.ts';
-import { type AnyElement, type BaseAttributes, ChartElement } from './element.ts';
+import { type AnyElement, type BaseAttributes, ChartElement, fail } from './element.ts';
 import { type ChartEvent, EVENT_PAINT } from './events.ts';
 import type { BoundDimension, Bindings } from './mapped.ts';
 import type { PlatformNode } from './platform.ts';
 import type { Series } from './series.ts';
 import type { Surface } from './surface.ts';
-import { notImplemented } from './stub.ts';
 
 /** The attributes any renderer can bind. Colours are CSS colour strings; widths and opacity are numbers. */
 export interface StyleBindable {
@@ -289,7 +288,7 @@ export class LinePath extends SeriesRenderer<LinePathAttributes, [curve: Curve]>
     const counters = this.counters,
       s = this.surface,
       a = this.attrs;
-    if (a.bind) notImplemented('LinePath bindings');
+    if (a.bind) fail('a LinePath has one colour: to colour it by a channel of the data, use a GradientLinePath');
     const look = this.look();
     const t0 = performance.now();
     const d = this.curve.line(this.requireParent());
@@ -347,7 +346,7 @@ export class AreaPath extends SeriesRenderer<AreaPathAttributes, [curve: Curve]>
     const counters = this.counters,
       s = this.surface,
       a = this.attrs;
-    if (a.bind) notImplemented('AreaPath bindings');
+    if (a.bind) fail('an AreaPath has one colour: to colour it by a channel of the data, use a GradientAreaPath');
     const look = this.look();
     const t0 = performance.now();
     const d = this.curve.area(this.requireParent(), a.baseline ?? 0);

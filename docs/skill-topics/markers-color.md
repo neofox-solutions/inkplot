@@ -31,7 +31,7 @@ export const chart = (
 ) as Chart;
 ```
 
-Only **markers** (and `HeatMap`) can `bind` for now. A `bind`'s `channel` is the name on the left of the source's `channels` map, not the field name in the rows. Sizes work the same way:
+**Markers**, `BarPath`, `StemPath`, `HeatMap` and the gradient paths can `bind`; a plain `LinePath` or `AreaPath` cannot. A `bind`'s `channel` is the name on the left of the source's `channels` map, not the field name in the rows. Sizes work the same way:
 
 ```tsx check title="Bubble chart with a size key"
 /** @jsxImportSource inkplot */
@@ -57,11 +57,38 @@ export const chart = (
 
 `ScalarAxis` `output` is the marker size range in pixels (default `[2, 12]`). A bound `size` replaces the marker's own `size`. Both keys can share a side.
 
+## A line or an area coloured along its length
+
+`GradientLinePath` (bind `stroke`) and `GradientAreaPath` (bind `fill`, and `stroke` for an outline) colour a line or an area by a channel, smoothly from point to point: one path painted with a gradient laid along the first axis, with a colour stop at each point. A plain `LinePath` or `AreaPath` takes no `bind`. They need a rectangular plane (a polar one throws), a series that runs along its first axis (a `DomainSeries`; a looping `XYSeries` takes the colour of its last pass), and a channel of the data for the colour (to colour by the line's own value, give the source a second channel with the same numbers). `maxStops` (default 500) caps the colour stops: more points are averaged into stops. A `ColorAxis` with `interpolation="step"` gives hard bands.
+
+```tsx check title="Altitude profile coloured by speed"
+/** @jsxImportSource inkplot */
+import { Axis, CartesianPlane, Chart, ColorAxis, ColorKey, DomainSeries, GradientAreaPath, GradientLinePath, LinearCurve, LinearScale, ObjectDataSource, lightTheme } from 'inkplot';
+
+const rows = Array.from({ length: 120 }, (_, i) => ({ km: i / 3, altitude: 200 + 90 * Math.sin(i / 14), speed: 24 - 8 * Math.cos(i / 14) }));
+
+export const chart = (
+  <Chart theme={lightTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom" title="Distance (km)"><LinearScale /></Axis>
+      <Axis orientation="left" title="Altitude (m)"><LinearScale /></Axis>
+      <DomainSeries>
+        <ObjectDataSource source={rows} domain="km" value="altitude" channels={{ speed: 'speed' }} />
+        <GradientAreaPath opacity={0.35} bind={{ fill: { axis: 'tone', channel: 'speed' } }}><LinearCurve /></GradientAreaPath>
+        <GradientLinePath strokeWidth={3} bind={{ stroke: { axis: 'tone', channel: 'speed' } }}><LinearCurve /></GradientLinePath>
+      </DomainSeries>
+    </CartesianPlane>
+    <ColorAxis id="tone" title="Speed (km/h)" ramp="turbo"><LinearScale /></ColorAxis>
+    <ColorKey dimension="tone" side="right" />
+  </Chart>
+) as Chart;
+```
+
 ## Notes
 
 - A `bind` can carry several properties at once: `bind={{ fill: { axis: 'heat', channel: 'temp' }, size: { axis: 'size', channel: 'mass' } }}`. Markers come out as merged `<path>` elements (a dot is a zero-length stroke with a round cap), not `<circle>`s.
 - Markers: `CircleMarker`, `SquareMarker`, `DotMarker`, `CrossMarker`, `PlusMarker`. A series may have a marker *and* a line.
-- `bind` (markers and `HeatMap` only) takes `fill`, `stroke`, `opacity`, and for markers `size`. A `ColorAxis` `ramp` is `'viridis'`, `'magma'`, `'turbo'`, `'blues'`, `'greys'` or `'diverging'`. A `ColorKey` shows its `title`, else the axis's `title`.
+- `bind` (markers, bars, `HeatMap` and the gradient paths) takes `fill`, `stroke`, `opacity`, and for markers `size`. A `ColorAxis` `ramp` is `'viridis'`, `'magma'`, `'turbo'`, `'blues'`, `'greys'` or `'diverging'`. A `ColorKey` shows its `title`, else the axis's `title`.
 - `Legend` and the keys: `side` is `'top'`, `'right'`, `'bottom'` or `'left'`; `orientation` is `'horizontal'` or `'vertical'`.
 
 ## Attributes of this topic's elements
@@ -84,6 +111,39 @@ Points with x and y both from the data.
 | `name` | `string` | What the series is called where it is named: a tooltip's heading. |
 | `hit` | `false \| HitMode \| HitOptions` | How pointer hits find this series: a mode name, options, or `false` for a series that should never be hit (a selection overlay, a reference line). |
 | `gaps` | `'break' \| 'connect' \| 'zero'` | What a missing value (NaN, or infinite) means. 'break' (default): nothing is there, so a line stops and starts again and an area splits. 'connect': the line goes straight across to the next value there is. 'zero': the value is 0 (and the axis reaches it). |
+
+### GradientLinePath
+
+A line whose colour runs along it with a channel of the data.
+
+**In** a series · **Holds** 1 curve (required)
+
+| Attribute | Type | |
+|---|---|---|
+| `maxStops` | `number` | The most colour stops the gradient has: more points than this are averaged into stops. Default 500. |
+| `stroke` | `string` | Outline colour (a CSS colour). Default: from the theme. |
+| `strokeWidth` | `number` | Outline width in pixels. Default: from the theme. |
+| `fill` | `string` | Fill colour (a CSS colour; 'none' for no fill). Default: from the theme. |
+| `opacity` | `number` | Opacity from 0 to 1. Default 1. |
+| `bind` | `Bindings<Bindable>` | Attributes fed from data instead of fixed. |
+| `maxNodes` | `number` | Most paths this renderer may create. Default 1000. |
+
+### GradientAreaPath
+
+An area whose fill (and outline) runs in colour along it with a channel of the data.
+
+**In** a series · **Holds** 1 curve (required)
+
+| Attribute | Type | |
+|---|---|---|
+| `baseline` | `number` | The value the area is filled from, kept inside the value axis' range. Default 0. |
+| `maxStops` | `number` | The most colour stops each gradient has: more points than this are averaged into stops. Default 500. |
+| `stroke` | `string` | Outline colour (a CSS colour). Default: from the theme. |
+| `strokeWidth` | `number` | Outline width in pixels. Default: from the theme. |
+| `fill` | `string` | Fill colour (a CSS colour; 'none' for no fill). Default: from the theme. |
+| `opacity` | `number` | Opacity from 0 to 1. Default 1. |
+| `bind` | `Bindings<Bindable>` | Attributes fed from data instead of fixed. |
+| `maxNodes` | `number` | Most paths this renderer may create. Default 1000. |
 
 ### DotMarker
 

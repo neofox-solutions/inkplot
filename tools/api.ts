@@ -123,6 +123,16 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   StrideKernel: { parent: 'Decimator', children: 'none', about: 'Every nth point.' },
   LinePath: { parent: 'a series', children: '1 curve (required)', about: 'A line through the points.' },
   AreaPath: { parent: 'a series', children: '1 curve (required)', about: 'The region between a line and a baseline.' },
+  GradientLinePath: {
+    parent: 'a series',
+    children: '1 curve (required)',
+    about: 'A line whose colour runs along it with a channel of the data.',
+  },
+  GradientAreaPath: {
+    parent: 'a series',
+    children: '1 curve (required)',
+    about: 'An area whose fill (and outline) runs in colour along it with a channel of the data.',
+  },
   BarPath: { parent: 'a series', children: 'none', about: 'Bars, in one path.' },
   StemPath: { parent: 'a series', children: 'none', about: 'Bars drawn as stems.' },
   BoxPath: { parent: 'a series', children: 'none', about: 'Box and whisker from min, q1, median, q3, max channels.' },

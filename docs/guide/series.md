@@ -109,13 +109,14 @@ Every renderer shares these attributes:
 | Attribute | Meaning |
 |---|---|
 | `stroke`, `strokeWidth`, `fill`, `opacity` | The look. Each is a [style](styling.md) property set directly; it beats the theme and any `style` block. Default: the theme's look, with the series' palette colour. |
-| `bind` | Attributes fed from data instead of fixed (markers, bars and the heat map; see [Mapped dimensions](mapped.md)). |
+| `bind` | Attributes fed from data instead of fixed (markers, bars, the heat map and the gradient paths; see [Mapped dimensions](mapped.md)). |
 | `maxNodes` | Most paths this renderer may create when styles are bound (default 1000). |
 
 | Renderer | Draws | Children | Notes |
 |---|---|---|---|
 | `LinePath` | One path through the points. | a curve | A gap lifts the pen. |
 | `AreaPath` | The region between the line and a baseline. | a curve | `baseline` (default 0). No outline unless you give `stroke`. |
+| `GradientLinePath`, `GradientAreaPath` | A line, or an area, coloured along its length by a channel. | a curve | `bind` a `stroke` (line) or `fill` and `stroke` (area); `maxStops`. See [Gradient lines and areas](mapped.md#gradient-lines-and-areas). |
 | `BarPath` | One path holding every bar. | | `width`, `baseline`, `from`. The cost of a bar chart is its path text, not a node per bar. |
 | `StemPath` | Bars as stems: a stroked line from the foot to the value. | | `cap` (`butt`, `round`, `square`), `width`, `baseline`, `from`. The stem's width is the stroke's, so it stays the same however many bars there are: the answer for dense data. With a marker, a lollipop. |
 | Markers | One small shape per point. | | See [Markers](#markers). |

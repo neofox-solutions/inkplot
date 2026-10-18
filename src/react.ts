@@ -74,6 +74,7 @@ import * as curve_ from './curve.ts';
 import * as curves_ from './curves.ts';
 import * as decimation_ from './decimation.ts';
 import * as slice_ from './slice.ts';
+import * as gradientpaths_ from './gradientpaths.ts';
 import * as linkeddata_ from './linkeddata.ts';
 import * as pattern_ from './pattern.ts';
 import * as workerboundary_ from './workerboundary.ts';
@@ -395,6 +396,8 @@ export const SinusoidalTrend = /* @__PURE__ */ reactWrapper(trend_.SinusoidalTre
 export const LoessTrend = /* @__PURE__ */ reactWrapper(trend_.LoessTrend);
 export const MeanTrend = /* @__PURE__ */ reactWrapper(trend_.MeanTrend);
 export const HeatMap = /* @__PURE__ */ reactWrapper(heatmap_.HeatMap);
+export const GradientLinePath = /* @__PURE__ */ reactWrapper(gradientpaths_.GradientLinePath);
+export const GradientAreaPath = /* @__PURE__ */ reactWrapper(gradientpaths_.GradientAreaPath);
 export const DotMarker = /* @__PURE__ */ reactWrapper(marker_.DotMarker);
 export const CrossMarker = /* @__PURE__ */ reactWrapper(marker_.CrossMarker);
 export const PlusMarker = /* @__PURE__ */ reactWrapper(marker_.PlusMarker);
