@@ -45,14 +45,17 @@ export interface SeriesGroupAttributes extends BaseAttributes {
   channel: string;
   /** What a series is called, from its key. Default: the key as text. */
   name?: (key: number) => string;
-  /** The axes of every series (as a `DomainSeries` names them). */
+  /** The axes of every series, as a `DomainSeries` names them. Used when `x` and `y` are left out; with either of them, `xAxis` and `yAxis` are used instead. */
   domainAxis?: ElementRef<Axis>;
+  /** The value axis of every series (as a `DomainSeries` names it). */
   valueAxis?: ElementRef<Axis>;
   /** The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave `x` and `y` out for `DomainSeries`. Default 'x'. */
   x?: string;
   /** The channel that is y, for `XYSeries`. Default 'y'. */
   y?: string;
+  /** The x axis of every series, for `XYSeries` (when `x` or `y` is given). */
   xAxis?: ElementRef<Axis>;
+  /** The y axis of every series, for `XYSeries`. */
   yAxis?: ElementRef<Axis>;
   /** What a missing value means in every series (see `Series`). */
   missing?: 'break' | 'connect' | 'zero';

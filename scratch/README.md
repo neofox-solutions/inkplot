@@ -3,7 +3,7 @@
 Turns a TypeScript module that exports [inkplot](https://www.npmjs.com/package/inkplot) charts into SVG files, PNG files, JSON facts, or one self-contained interactive HTML page. It type-checks the module first and prints what every chart holds (series, point counts, axis ranges, warnings), so a chart that draws nothing is caught before anyone looks at it.
 
 ```sh
-npm i inkplot inkplot-scratch
+npm i inkplot@beta inkplot-scratch@beta
 npx inkplot-scratch charts.ts --html report.html --svg figures --png figures
 ```
 

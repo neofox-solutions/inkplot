@@ -57,7 +57,7 @@ Attach your spreadsheet and ask in plain words, for example: *"Make an interacti
 
 ## For coding tools: one command
 
-If you work in one of these tools, one command puts the skill where the tool looks for it. It needs Node.js 18 or later and nothing else: it is part of the `inkplot` package, which has no dependencies, so it starts fast.
+If you work in one of these tools, one command puts the skill where the tool looks for it. It needs Node.js and nothing else: it is part of the `inkplot` package, which has no dependencies, so it starts fast. CI runs it on the current Node.js (26); older versions are not tested.
 
 ```sh
 npx inkplot install-skill claude-code

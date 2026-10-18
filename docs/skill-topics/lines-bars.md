@@ -67,12 +67,12 @@ One series for each value of a channel of the data, each drawn with a copy of th
 |---|---|---|
 | `channel` (required) | `string` | The channel of the data that says which series a point is in. |
 | `name` | `(key: number) => string` | What a series is called, from its key. Default: the key as text. |
-| `domainAxis` | `ElementRef<Axis>` | The axes of every series (as a `DomainSeries` names them). |
-| `valueAxis` | `ElementRef<Axis>` |  |
+| `domainAxis` | `ElementRef<Axis>` | The axes of every series, as a `DomainSeries` names them. |
+| `valueAxis` | `ElementRef<Axis>` | The value axis of every series (as a `DomainSeries` names it). |
 | `x` | `string` | The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave `x` and `y` out for `DomainSeries`. Default 'x'. |
 | `y` | `string` | The channel that is y, for `XYSeries`. Default 'y'. |
-| `xAxis` | `ElementRef<Axis>` |  |
-| `yAxis` | `ElementRef<Axis>` |  |
+| `xAxis` | `ElementRef<Axis>` | The x axis of every series, for `XYSeries` (when `x` or `y` is given). |
+| `yAxis` | `ElementRef<Axis>` | The y axis of every series, for `XYSeries`. |
 | `missing` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
 | `bind` | `Readonly<Record<string, GroupBinding>>` | An attribute of the renderers of every series, from the key: `{ stroke: { axis: 'heat' }, opacity: { map: (key) => key > year ? 0.2 : 1 } }`. |
 | `order` | `'first' \| 'sorted' \| ((a: number, b: number) => number)` | The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. |

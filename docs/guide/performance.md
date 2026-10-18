@@ -8,25 +8,25 @@ Everything is an element in its own module, and nothing imports an element it do
 
 | What | gzip KB | On top of a minimal chart |
 |---|---:|---:|
-| Minimal line chart, drawn to an SVG string | 15.0 |  |
-| …drawn in a browser (`DOMPlatform`, instead of the string) | 16.0 | +0.9 |
-| Pan and zoom | 19.1 | +4.1 |
-| Legend | 17.4 | +2.4 |
-| Circle markers | 16.3 | +1.3 |
-| Entrance animation (on top of the browser chart, +0.4) | 16.4 | +1.3 |
-| Point annotations | 17.3 | +2.3 |
-| Cursor with a crosshair | 20.6 | +5.6 |
-| Cursor with a tooltip | 22.2 | +7.1 |
-| A time axis (`Date` and `Intl`) | 16.8 | +1.8 |
-| A log scale | 15.3 | +0.3 |
-| A dark theme as well as the light one | 15.2 | +0.2 |
-| Colour axis, key and markers | 18.5 | +3.5 |
-| The `pie` shortcut (the whole chart) | 21.1 | +6.1 |
-| Vanilla JSX (runtime and attribute expansion) | 15.7 | +0.7 |
-| React wrappers (React itself not counted) | 17.5 | +2.5 |
-| Web Components (the tags defined) | 17.7 | +2.7 |
-| Every feature above, in one chart | 36.3 | +21.3 |
-| `import * as inkplot` (the whole barrel, as a worst case) | 65.4 |  |
+| Minimal line chart, drawn to an SVG string | 17.3 |  |
+| …drawn in a browser (`DOMPlatform`, instead of the string) | 18.2 | +0.9 |
+| Pan and zoom | 21.5 | +4.2 |
+| Legend | 19.6 | +2.4 |
+| Circle markers | 18.9 | +1.6 |
+| Entrance animation (on top of the browser chart, +0.4) | 18.6 | +1.3 |
+| Point annotations | 19.8 | +2.5 |
+| Cursor with a crosshair | 22.9 | +5.6 |
+| Cursor with a tooltip | 24.5 | +7.2 |
+| A time axis (`Date` and `Intl`) | 19.1 | +1.8 |
+| A log scale | 17.6 | +0.4 |
+| A dark theme as well as the light one | 17.5 | +0.2 |
+| Colour axis, key and markers | 21.1 | +3.8 |
+| The `pieChart` shortcut (the whole chart) | 24.9 | +7.6 |
+| Vanilla JSX (runtime and attribute expansion) | 17.9 | +0.7 |
+| React wrappers (React itself not counted) | 19.7 | +2.4 |
+| Web Components (the tags defined) | 19.8 | +2.5 |
+| Every feature above, in one chart | 43.4 | +26.1 |
+| `import * as inkplot` (the whole barrel, as a worst case) | 87.4 |  |
 
 `tools/size.mjs` regenerates the table, with many more rows.
 
@@ -35,7 +35,7 @@ Input costs only where it is used: the code that routes the pointer, keys and fo
 To keep it small:
 
 - **Import by name** (`import { Chart, LinePath } from 'inkplot'`) and never `import * as`. The React components are the same: `import { Chart, Axis } from 'inkplot/react'` bundles only those two and what they need.
-- **Avoid `registry`** unless you need JSON. It names every class, so it pulls in the whole library (about 61 KB gzipped to read and write JSON with it). For configuration-driven charts, build a registry of just the classes you allow: `{ Chart, CartesianPlane, Axis, … }`. That version costs about 17 KB.
+- **Avoid `registry`** unless you need JSON. It names every class, so it pulls in the whole library (about 80 KB gzipped to read and write JSON with it). For configuration-driven charts, build a registry of just the classes you allow: `{ Chart, CartesianPlane, Axis, … }`. That version costs about 19 KB.
 - **Name one theme.** A `Chart` requires its `theme`, so the bundle holds exactly the ones you import.
 - **The core has no words.** Nothing in the core is English or any other language; text lives in opt-in components (`ChartSummary`, tooltip formats) and your own `format` functions.
 - **Time axes are two classes.** `IntlTimeScale` uses `Date` and `Intl`; `TemporalTimeScale` uses `Temporal`. Import the one you want.

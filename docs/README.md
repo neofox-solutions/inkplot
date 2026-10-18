@@ -1,6 +1,6 @@
 # inkplot
 
-A small chart library for the web and for servers. A chart is a **tree of elements you keep** (`Chart` → plane → axes and series → data and renderers) that draws SVG through a platform. It is tree-shakeable, has no dependencies, and a minimal chart is about 15 KB gzipped, growing only with the features you import.
+A small chart library for the web and for servers. A chart is a **tree of elements you keep** (`Chart` → plane → axes and series → data and renderers) that draws SVG through a platform. It is tree-shakeable, has no dependencies, and a minimal chart is about 17 KB gzipped, growing only with the features you import.
 
 ```tsx
 import { Axis, CartesianPlane, Chart, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, lightTheme } from 'inkplot';
@@ -39,7 +39,7 @@ Code blocks marked `live` are real examples that a docs site can run inline; to 
 1. [**Why inkplot**](start/why-inkplot.md): what it is for, how small and fast it is, and how well it works with people and with AI agents.
 2. [**Quick start**](start/quick-start.md): install, your first chart, and the three ways to write one (`new`, vanilla JSX, framework adapters).
 3. [**Concepts**](start/concepts.md): the six ideas: a chart is a tree you keep; attributes; children; finding elements; platforms and frames; themes.
-4. [**Recipes**](start/recipes.md): 25 "how do I…" answers, each a complete example: data from arrays and objects, bars, areas, stacks, time axes, tooltips, pan and zoom, a million points, polar charts, dark themes, live updates, accessibility, SVG export, React and plain HTML.
+4. [**Recipes**](start/recipes.md): 37 "how do I…" answers, each a complete example: data from arrays and objects, bars, areas, stacks, time axes, tooltips, pan and zoom, a million points, polar charts, dark themes, live updates, accessibility, SVG export, React and plain HTML.
 
 ## Guide
 

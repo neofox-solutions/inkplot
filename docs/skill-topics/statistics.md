@@ -194,7 +194,7 @@ Bins points over any number of dimensions: count, sum, mean, fraction, density p
 | `by` | `readonly string[]` | The dimensions to bin: 'domain', 'value' or channel names. Default ['domain']. |
 | `weight` | `string` | What each point counts for: a channel name or 'value'. Default: 1 for each point. |
 | `halfLife` | `number` | Points count for less the further they are before the last one the source delivers (in the domain's order): one `halfLife` points back counts half. Default: all alike. |
-| `stat` | `Stat` | The value of a one-dimensional output: 'count', 'sum', 'mean', 'fraction' (the share of the total, 0 to 1) or 'density'. Default 'count', or 'sum' with a `weight`. |
+| `stat` | `Stat` | The value of a one-dimensional output: 'count', 'sum', 'mean', 'fraction' (the share of the total, 0 to 1) or 'density'. Default 'count', or 'sum' when a `weight` or a `halfLife` is given. |
 | `width` | `number \| readonly number[]` | Bin size in each dimension's units: one number for all, or one for each dimension. |
 | `bins` | `number \| readonly number[]` | Number of bins in each dimension, spread evenly over its extent (by default the data's own range). |
 | `origin` | `number \| readonly number[]` | Where a bin edge falls when `width` is used, in each dimension: edges are at `origin` plus whole widths. Default 0. |

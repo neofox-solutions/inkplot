@@ -1,5 +1,6 @@
 /** The scales: linear, logarithmic, square-root and category. The base class is in scale.ts. */
 import type { Extent } from './geometry.ts';
+import { fail } from './element.ts';
 import { Scale, type ScaleAttributes, clean, niceStep } from './scale.ts';
 
 /** Evenly spaced values: the default, and the only scale implemented so far. */
@@ -42,12 +43,14 @@ export class LinearScale<A extends ScaleAttributes = ScaleAttributes> extends Sc
  * Values that are not positive have no place on it and come out NaN (a gap), and the range is kept positive.
  */
 export interface LogScaleAttributes extends ScaleAttributes {
-  /** Default 10. */
+  /** The logarithm's base: each power of it is one step along the axis. Above 0 and not 1. Default 10. */
   base?: number;
 }
 export class LogScale extends Scale<LogScaleAttributes> {
   private get base(): number {
-    return this.attrs.base ?? 10;
+    const b = this.attrs.base ?? 10;
+    if (!(b > 0) || b === 1) fail(`LogScale: base is above 0 and not 1 (got ${b})`);
+    return b;
   }
 
   normalize(buf: Float64Array, count: number, stride: number, offset: number, range: Extent): void {

@@ -891,11 +891,17 @@ export const chart = (
 // New data: a new array.
 source.setAttribute('data', [1, 2, 3, 5, 8]);
 
-// Appending to a buffer you own: edit it in place, then say so.
-const buffer = new Float64Array(1000);
+// Appending to a buffer you own: edit it in place, then say so. When it is full, start a bigger one.
+let buffer = new Float64Array(1000);
 source.setAttributes({ data: buffer, count: 0, isSorted: true });
 let used = 0;
 export function push(value: number) {
+  if (used === buffer.length) {
+    const bigger = new Float64Array(2 * buffer.length);
+    bigger.set(buffer);
+    buffer = bigger;
+    source.setAttribute('data', buffer);
+  }
   buffer[used++] = value;
   source.setAttribute('count', used);
 }
@@ -1111,11 +1117,10 @@ For plain HTML, define the elements you use as custom elements and write the cha
 
 ```html
 <script type="module">
-  import * as inkplot from 'inkplot';
+  import { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, FlatDataSource, LinePath, LinearCurve, lightTheme } from 'inkplot';
   import { defineElements } from 'inkplot/web-components';
-  const { Chart, CartesianPlane, Axis, LinearScale, DomainSeries, FlatDataSource, LinePath, LinearCurve } = inkplot;
   defineElements({ Chart, CartesianPlane, Axis, LinearScale, DomainSeries, FlatDataSource, LinePath, LinearCurve }, { prefix: 'ink' });
-  document.querySelector('ink-chart').props = { theme: inkplot.lightTheme };
+  document.querySelector('ink-chart').props = { theme: lightTheme };
 </script>
 
 <ink-chart style="height: 300px">

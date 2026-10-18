@@ -24,6 +24,7 @@ import type { Extent } from './geometry.ts';
 export type Field<Row> = (keyof Row & (string | number)) | ((row: Row, index: number) => number);
 
 export interface ObjectDataSourceAttributes<Row, Channel extends string = string> extends DataSourceAttributes {
+  /** The rows: any objects. Read again when `invalidate()` is called, so change them in place and call it. */
   source: readonly Row[];
   /** Where each row is along the domain. Leave it out and it is the row's index: 0, 1, 2 ... in order. */
   domain?: Field<Row>;
@@ -139,7 +140,7 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
   get pointCount(): number {
     return this.attrs.count ?? Math.floor(this.attrs.data.length / this.stride);
   }
-  /** The channels by offset: those given, or for plain x,y pairs the two numbers, x first. */
+  /** The channels by offset: those given, or for plain x,y pairs the two numbers, x first. With a regular domain the pairs are still read as x then y, so an `XYSeries` plots them; a domain series' value is then the first number. */
   private get channelOffsets(): Readonly<Record<string, number>> | undefined {
     const a = this.attrs;
     if (a.channels || this.stride !== 2) return a.channels;
@@ -296,6 +297,7 @@ export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttribute
 /** A named column in a composite source: an array (typed or plain), or a function of the row index. */
 export type Column = ArrayLike<number> | ((index: number) => number);
 export interface CompositeDataSourceAttributes<Channel extends string = string> extends DataSourceAttributes {
+  /** How many rows: the length every column is read to. */
   count: number;
   /** Where each row is along the domain: for a made-up domain, `(i) => start + step * i`. */
   domain: Column;

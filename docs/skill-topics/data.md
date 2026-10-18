@@ -38,7 +38,7 @@ export function bump(i: number, v: number) { values[i] = v; source.invalidate();
 
 ### In a worker
 
-For data too big to reduce on the page, put a `WorkerBoundary` between the series and the `Decimator`, and serve the same classes from the worker file with `serveWorker(registry)` (from `'inkplot/worker'`). The chart draws what it has and updates when the worker answers; `await chart.idle()` waits for that. `transfer` moves the arrays instead of copying them; `shared` (opt-in, needs cross-origin isolation) shares `SharedArrayBuffer` arrays and `refresh()` tells the worker they changed. Use `WebWorker(new URL('./x.worker.ts', import.meta.url))` in a browser and `NodeWorker` from `'inkplot/node-worker'` on Node. Only worth it above a few hundred thousand points.
+For data too big to reduce on the page, put a `WorkerBoundary` between the series and the `Decimator`, and serve the same classes from the worker file with `serveWorker(registry)` (from `'inkplot/worker'`). The chart draws what it has and updates when the worker answers; `await chart.idle()` waits for that. `transfer` moves the arrays instead of copying them; `shared` (opt-in, needs cross-origin isolation) shares `SharedArrayBuffer` arrays and `refresh()` tells the worker they changed. Use `WebWorker(new URL('./x.worker.ts', import.meta.url))` in a browser and `NodeWorker` from `'inkplot/node-worker'` on Node, whose worker file calls `serveWorker(registry, { port: parentPort })` (`parentPort` from `node:worker_threads`). Only worth it above a few hundred thousand points.
 
 ### One source in several places
 
@@ -63,7 +63,7 @@ Separate columns.
 
 | Attribute | Type | |
 |---|---|---|
-| `count` (required) | `number` |  |
+| `count` (required) | `number` | How many rows: the length every column is read to. |
 | `domain` (required) | `Column` | Where each row is along the domain: for a made-up domain, `(i) => start + step * i`. |
 | `value` | `Column` | The number a domain series plots. |
 | `channels` | `Readonly<Record<Channel, Column>>` | Extra columns that bindings and tooltips can address by name. |
@@ -92,7 +92,7 @@ Reduces large data to what the plot can show.
 
 | Attribute | Type | |
 |---|---|---|
-| `resolution` | `number` | Pixel columns reduced to per pixel of plot width. Default 1; raise it for high-DPI output. |
+| `resolution` | `number` | Reduction columns for each pixel of plot width: the decimator keeps `plot width × resolution` columns, and never fewer than 3. Default 1; raise it for high-DPI output. |
 | `enabled` | `boolean` | Turn it off without removing it. Default true. |
 
 ### Slice

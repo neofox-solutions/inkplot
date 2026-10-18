@@ -6,14 +6,14 @@ Six ideas explain nearly everything in inkplot. Read this page once and the rest
 
 ```
 Chart                              the root: theme, size, drawing
-├─ ChartTitle                      furniture beside the plot
+├─ ChartTitle                      a title, one of the notes around the plot
 ├─ CartesianPlane                  a coordinate space
 │  ├─ Axis ── LinearScale          an axis has exactly one scale
 │  ├─ Axis ── LinearScale
 │  ├─ DomainSeries                 a series has one data source…
 │  │  ├─ FlatDataSource
 │  │  └─ LinePath ── LinearCurve   …then any number of renderers
-│  └─ LineAnnotation               a reference line, a pan/zoom handler, …
+│  └─ LineAnnotation               a reference line (and, in a plane, PanZoom and other handlers)
 ├─ Legend
 └─ Cursor
    ├─ Crosshair
@@ -22,7 +22,7 @@ Chart                              the root: theme, size, drawing
 
 Every box is an **element**: an instance of a class that extends `ChartElement`. The tree is built once and then *kept*: you hold on to elements and change them, rather than building a new description for every change.
 
-Each kind of parent takes particular children. A `Chart` takes planes and furniture; a plane takes axes, series and things that belong to the plane; an `Axis` takes exactly one scale; a series takes one data source and then renderers. The class documentation, and the compiler for `new` code, say which.
+Each kind of parent takes particular children. A `Chart` takes planes and the things around them (titles, a legend, keys, a cursor); a plane takes axes, series and things that belong to the plane; an `Axis` takes exactly one scale; a series takes one data source and then renderers. The class documentation, and the compiler for `new` code, say which.
 
 ## 2. Elements are configured with attributes
 

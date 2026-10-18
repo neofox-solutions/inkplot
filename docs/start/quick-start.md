@@ -2,13 +2,13 @@
 
 This page takes you from nothing to a chart on a page, and shows the three ways of writing one. It assumes you know TypeScript or JavaScript and have used a bundler.
 
-> **Note.** inkplot is pre-release. It is not on npm yet: until it is, the `src/` folder of the repository is the package, and the import name `inkplot` maps to `src/index.ts`.
+> **Note.** inkplot is in beta: install it with `npm install inkplot@beta` (`inkplot` alone is the latest stable release, once there is one).
 
 ## What it is
 
 inkplot draws charts as SVG. A chart is a **tree of elements** you build and keep: a `Chart` holds a plane, the plane holds axes and series, a series holds its data and the renderers that draw it. Changing an element's attributes changes what is on the screen; the library works out the least that has to be redone.
 
-It is small: a line chart is about 15 KB gzipped, and you pay only for what you import (see [Performance and size](../guide/performance.md)). It has no dependencies, and the core runs anywhere JavaScript does: a browser, Node, an edge worker.
+It is small: a line chart is about 17 KB gzipped, and you pay only for what you import (see [Performance and size](../guide/performance.md)). It has no dependencies, and the core runs anywhere JavaScript does: a browser, Node, an edge worker.
 
 ## A first chart
 

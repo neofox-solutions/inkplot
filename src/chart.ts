@@ -35,16 +35,27 @@ import { type Counters, type StageName, newCounters } from './surface.ts';
 
 /** What one flush did and cost: the numbers the playground shows, and what tests assert caching against. */
 export interface FlushStats {
+  /** The whole flush, in milliseconds. */
   readonly total: number;
+  /** Milliseconds spent in each stage of the flush. */
   readonly stages: Readonly<Record<StageName, number>>;
+  /** Series whose rows were read from their data afresh, a count. */
   readonly filled: number;
+  /** Series whose rows from the last flush were still good and read again for nothing, a count. */
   readonly fillsCached: number;
+  /** Series projected to plot positions afresh, a count. */
   readonly projected: number;
+  /** Attributes written to the platform's nodes. */
   readonly attributeWrites: number;
+  /** Attribute writes skipped because the node already had that value. */
   readonly attributeWritesSkipped: number;
+  /** The names of the attributes written (`d`, `fill`, ...), one entry for each write. */
   readonly attributesWritten: readonly string[];
+  /** Points in the data of the series that were read afresh (the source's own count, before any decimation). */
   readonly pointsIn: number;
+  /** Points in the series that were projected afresh (after any decimation). */
   readonly pointsDrawn: number;
+  /** Characters in the path data written, a measure of the weight of the drawing. */
   readonly pathBytes: number;
 }
 
@@ -93,9 +104,7 @@ export interface ChartAttributes extends BaseAttributes {
    * It also eases the changes of view that jump on purpose (a box zoom, a double-click that puts an axis back, `PanZoom.reset()`, and
    * `moveView`), over the same time and easing, unless `views` is false. A drag, wheel turn or pinch follows the hand and never eases.
    *
-   * With `enter: true` each series plays an entrance when the chart is first drawn: bars grow from their baseline, lines, areas and
-   * markers are drawn on from the left, a round chart fades in. Default false. Don't combine it with a server-rendered chart, whose
-   * first drawing is already on the page.
+   * What plays when the chart is first drawn is not this option but the `Entrance` element: add one as a child of the chart.
    */
   transition?: { duration?: number; easing?: string; views?: boolean };
   /** Called after every flush with its statistics. */

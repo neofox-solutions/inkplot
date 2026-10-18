@@ -232,7 +232,7 @@ import { serveWorker, Decimator, FlatDataSource, MinMaxKernel } from 'inkplot/wo
 serveWorker({ Decimator, FlatDataSource, MinMaxKernel });
 ```
 
-`registry` on the page is the same map of names to classes. `new URL('./x.worker.ts', import.meta.url)` is the form Vite, webpack 5 and esbuild all bundle; `WebWorker` also takes a `Worker` you made yourself, and starts module workers by default (`{ worker: {} }` for a classic one). On Node use `NodeWorker` from `inkplot/node-worker`, and give the worker file `serveWorker(registry)`, which listens on `parentPort`.
+`registry` on the page is the same map of names to classes. `new URL('./x.worker.ts', import.meta.url)` is the form Vite, webpack 5 and esbuild all bundle; `WebWorker` also takes a `Worker` you made yourself, and starts module workers by default (`{ worker: {} }` for a classic one). On Node use `NodeWorker` from `inkplot/node-worker`, and give the worker file `serveWorker(registry, { port: parentPort })`, with `parentPort` from `node:worker_threads` (a Node worker has no global scope to listen on, so `serveWorker` needs the port).
 
 Things to know:
 
@@ -243,6 +243,7 @@ Things to know:
 - **Axis width.** The value axis keeps the width it measured until the labels need clearly more or less. The first answer from the worker can therefore shift the plot a pixel or two from the same chart without a boundary.
 - **Other traffic.** If the worker carries other messages, give both ends the same `envelope` (a name, or `{ wrap, unwrap }`) so the two do not mix.
 - **Errors.** A failure in the worker (a thrown error, a bad message, a crash) is raised on the chart that asked.
+- **No worker (server rendering, tests).** `new NullWorker(createHost(registry))` runs the stages in this thread and answers inside the call, so a boundary behaves as if its stages were in the tree. `new LoopbackWorker(createHost(registry))` answers later and copies every message the way a real worker does, so a message that could not be sent (a function in it) and an answer that arrives late show up in a test with no browser. Both take the `worker` attribute of a `WorkerBoundary`; `createHost` is also what `serveWorker` builds on.
 
 ## Writing a source
 

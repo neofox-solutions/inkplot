@@ -37,6 +37,14 @@ Everything the package exports follows [semver](https://semver.org): a name, a s
 | `PointBuffer`, `PlanContext`, `FillPlan`, `FillResult` | Types of the data contract. |
 | `rowRange(n, from?, to?)` | The rows `from` to `to` of `n`, as `[start, end]`, clamped: what a source's ranged `fill` loops over. |
 
+## Workers
+
+| Export | Is |
+|---|---|
+| `WebWorker(worker, options?)`, `WorkerBoundary`, `serveWorker(registry, options?)` (from `inkplot/worker`), `NodeWorker` (from `inkplot/node-worker`) | Moving a data stage to a worker, and answering in it. [Working in a worker](../guide/data.md#working-in-a-worker) |
+| `createHost(registry, options?)` | The function that answers a boundary's messages: what `serveWorker` listens with. |
+| `NullWorker(handler)`, `LoopbackWorker(handler, options?)` | A worker that runs in this thread, answering at once or later with copied messages: for server rendering and tests. |
+
 ## Serialization
 
 | Export | Is |
@@ -64,21 +72,17 @@ Used by `Cursor`, `PointerListener` and your own interaction ([Custom elements](
 |---|---|
 | `hitTest(series, x, y, maxDistance?)` | The series' point near (x, y) in plot pixels, as its `hit` mode measures it. A `NaN` coordinate leaves that direction out. |
 | `hitPlane(plane, x, y)`, `hitAll(plane, x, y, radius?)` | The nearest hit over a plane's series; the nearest of each series, topmost first. |
-| `hitAcross(plane, x, y)`, `interpolate(series, first)`, `interpolateAll(plane, x, y)` | Every series at a place along the first axis; a line read between its points, for one series or all. |
-| `nearest`, `nearestPoint`, `nearestSegment`, `nearestShape`, `nearestTraced`, `insideArea`, `insideTrace`, `pointHit` | The measurements underneath. |
+| `hitAcross(plane, x, y)`, `interpolate(series, first)` | Every series at a place along the first axis; a line read between its points. |
+| `nearest`, `nearestPoint` | The measurement underneath: the nearest of a series' points to a place, by a hit mode. |
 
 ## Paths and text, for renderers
 
 | Export | Is |
 |---|---|
 | `polyline(points, connect)`, `areaOutline(top, base, connect)` | Straight-line path text through placed points, and the closed shapes between a line and its baseline. |
-| `lineTo`, `quadTo`, `cubicTo`, `arcTo`, `hermiteTo`, `smoothTo`, `StrokeCurve`, `Piece` | The pieces a curve is made of. |
 | `stepLines`, `stemLines`, `barShapes` | The geometry of steps, stems and bars. |
 | `applyText(surface, node, textProps, anchor?)` | Sets a text node's font attributes from a look. |
-| `measureBlock`, `paintLines`, `LINE_HEIGHT` | Multi-line text. |
-| `calloutSize`, `paintCallout`, `clearCallout` | The callout box, used by annotations and tooltips. |
-| `paintSample` | A small picture of a series (for a legend). |
-| `alignRows`, `layOut` | Stack arithmetic. |
+| `barShift(series, options?)` | How far along the domain (as a fraction of the axis) a series' own bars sit from the point's place when it shares a band with others, so something drawn on the bars (error bars) can stay on them. 0 for a series alone. |
 
 ## Accessibility and focus
 

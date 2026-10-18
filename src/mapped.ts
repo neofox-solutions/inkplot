@@ -133,7 +133,7 @@ export class ColorAxis extends MappedDimension<string, ColorAxisAttributes> {
 // ─── Size ───
 
 export interface ScalarAxisAttributes extends MappedDimensionAttributes {
-  /** The output range. Pixels for a size, so [2, 12] by default; it is also how to map to opacity ([0.2, 1]) or a width. */
+  /** The output range. Pixels for a size. Default [2, 12]. It is also how to map to opacity ([0.2, 1]) or a width. */
   output?: readonly [min: number, max: number];
   /** Output for data with no value or outside the range. Default: the low end of `output`. */
   missing?: number;

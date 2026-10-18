@@ -1,6 +1,6 @@
 # inkplot
 
-A small chart library for the web and for servers. A chart is a **tree of elements you keep** (`Chart` → plane → axes and series → data and renderers) that draws SVG through a platform. It is tree-shakeable, has no dependencies, and a minimal chart is about 15 KB gzipped, growing only with the features you import.
+A small chart library for the web and for servers. A chart is a **tree of elements you keep** (`Chart` → plane → axes and series → data and renderers) that draws SVG through a platform. It is tree-shakeable, has no dependencies, and a minimal chart is about 17 KB gzipped, growing only with the features you import.
 
 > **Beta.** inkplot is feature-complete and out for user testing. Install the latest beta with the `beta` tag.
 
@@ -29,10 +29,10 @@ The same chart can be written without JSX (`new Chart(attrs, ...children)`), and
 
 ## Why inkplot
 
-- **Small when you want it, big when you need it.** One idea (a tree of parts that fit together) runs from a simple line chart at about 15 KB gzipped, with no dependencies, to composite charts, saved and shared as JSON.
+- **Small when you want it, big when you need it.** One idea (a tree of parts that fit together) runs from a simple line chart at about 17 KB gzipped, with no dependencies, to composite charts, saved and shared as JSON.
 - **Data and drawing compose.** A histogram is a data step plus a bar drawer; a heat map is the same step in two dimensions plus a cell drawer. Mix and match instead of waiting for a chart type.
-- **Fast.** A million points zooms and pans in about 3 ms, and big scatters stay a bounded number of shapes.
-- **Designed for humans, works with agents.** JSX, plain calls, React or Web Components; and in our tests Claude Haiku, given only the skill file, drew a correct chart in all 95 runs.
+- **Fast.** A line of a million points is reduced to about a point per pixel column before it is drawn, so zooming and panning cost what the plot's width costs, not what the data's length does; big scatters stay a bounded number of shapes. The playground's Pan & zoom demo shows what each redraw cost.
+- **Designed for humans, works with agents.** JSX, plain calls, React or Web Components; and in our own tests (a small number of tasks; read it as "an agent can do this") Claude Haiku, given only the skill file, drew a correct chart in all 95 runs.
 
 [The longer version, with the numbers](https://github.com/neofox-solutions/inkplot/blob/main/docs/start/why-inkplot.md).
 

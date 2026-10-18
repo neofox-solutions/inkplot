@@ -87,4 +87,10 @@ test('scale', () => {
     assert.deepEqual([y.range.min, y.range.max], [1, 10000], 'the log axis rounds out to whole decades');
     assert(svg.includes('>1000</text>'), 'and labels its decades');
   }
+
+  // A base of 1, or one not above zero, has no logarithm to count in.
+  for (const base of [1, 0, -2]) {
+    assert.throws(() => new LogScale({ base }).ticks({ min: 1, max: 100 }, 5), /LogScale: base is above 0 and not 1/);
+  }
+  assert.deepEqual([...new LogScale({ base: 2 }).ticks({ min: 1, max: 8 }, 5)].slice(0, 4), [1, 2, 4, 8].slice(0, 4));
 });

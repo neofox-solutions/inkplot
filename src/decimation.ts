@@ -27,7 +27,7 @@ import type { Extent } from './geometry.ts';
 
 /** Tuning for the reduction. */
 export interface DecimatorAttributes extends BaseAttributes {
-  /** Pixel columns reduced to per pixel of plot width. Default 1; raise it for high-DPI output. */
+  /** Reduction columns for each pixel of plot width: the decimator keeps `plot width × resolution` columns, and never fewer than 3. Default 1; raise it for high-DPI output. */
   resolution?: number;
   /** Turn it off without removing it. Default true. */
   enabled?: boolean;

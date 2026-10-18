@@ -61,7 +61,7 @@ export interface DensityAttributes extends BaseAttributes {
    * `halfLife` points back counts half. Multiplies the `weight`, and, like it, is what `sum` adds up. Default: all alike.
    */
   halfLife?: number;
-  /** The value of a one-dimensional output: 'count', 'sum', 'mean', 'fraction' (the share of the total, 0 to 1) or 'density'. Default 'count', or 'sum' with a `weight`. */
+  /** The value of a one-dimensional output: 'count', 'sum', 'mean', 'fraction' (the share of the total, 0 to 1) or 'density'. Default 'count', or 'sum' when a `weight` or a `halfLife` is given. */
   stat?: Stat;
   /** Bin size in each dimension's units: one number for all, or one for each dimension. */
   width?: number | readonly number[];

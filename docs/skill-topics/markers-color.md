@@ -264,7 +264,7 @@ Maps data to sizes or other numbers.
 
 | Attribute | Type | |
 |---|---|---|
-| `output` | `readonly [min: number, max: number]` | The output range. |
+| `output` | `readonly [min: number, max: number]` | The output range. Default [2, 12]. |
 | `missing` | `number` | Output for data with no value or outside the range. Default: the low end of `output`. |
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |

@@ -10,7 +10,7 @@ For: an error message, or a chart that draws nothing or draws wrongly. Find the 
 | Error `a series needs one horizontal and one vertical axis` | Missing or mismatched axes. `bottom` + `left` for `CartesianPlane`; `angle` + `radius` for polar and radar. |
 | Error `the data has no channel "x"` | Add it: `channels={{ x: 'x' }}` on an `ObjectDataSource`. |
 | Error `no element with id "x"` | The `id` is missing or misspelt on the axis or series that is referred to. |
-| Error `LinePath bindings is not implemented yet` | Only markers can `bind`. |
+| Error `a LinePath has one colour: to colour it by a channel of the data, use a GradientLinePath` (also `AreaPath`) | A line or area cannot `bind`: use `GradientLinePath` / `GradientAreaPath`, or bind on a marker, a bar renderer or a heat map. |
 | Error `add a PointerListener before PanZoom` / `add a BoxZoom before PanZoom` / `add a Brush before PanZoom` | Put the `PointerListener`, `BoxZoom` or `Brush` first. |
 | Error `a Decimator cannot carry channels with …` | A custom kernel that does not report which rows it kept (`tracksRows`). |
 | Type error: `JSX element type … construct or call signatures` | The file is using another JSX runtime. Add `/** @jsxImportSource inkplot */`. | <!-- jsx-only -->

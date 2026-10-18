@@ -80,7 +80,7 @@ export function linePattern(s: Surface, pattern: PlatformNode, key: string, o: L
   let matrix: number[], length: number; // the lines' length across the tile, in pixels
   if (angles.length > 1) {
     const sin = Math.sin(b - a);
-    if (Math.abs(sin) < 1e-3) throw new Error('linePattern: the two angles must differ');
+    if (Math.abs(sin) < 1e-3) throw new Error(`linePattern: the two angles must differ (got ${angles[0]} and ${angles[1]} degrees)`);
     length = spacing / Math.abs(sin);
     matrix = [Math.cos(a), Math.sin(a), Math.cos(b), Math.sin(b)].map((v) => v * length);
   } else {
@@ -271,8 +271,13 @@ export class HatchPattern extends Pattern<HatchPatternAttributes> {
   static override attrTypes = { ...Pattern.attrTypes, ...lineTypes, crossAngle: NUMBER } satisfies AttrTypesFor<HatchPatternAttributes>;
   protected drawTile(s: Surface, pattern: PlatformNode, key: string, color: string): void {
     const a = this.attrs;
+    const angle = a.angle ?? 45,
+      crossAngle = a.crossAngle ?? -45;
+    // Said here, in this element's own words: `linePattern` would name parameters the caller never wrote.
+    if (Math.abs(Math.sin(((crossAngle - angle) * Math.PI) / 180)) < 1e-3)
+      throw new Error(`HatchPattern: angle and crossAngle must differ, and not by a half turn (got ${angle} and ${crossAngle} degrees)`);
     linePattern(s, pattern, key, {
-      angles: [a.angle ?? 45, a.crossAngle ?? -45],
+      angles: [angle, crossAngle],
       spacing: a.spacing,
       dash: a.dash,
       stroke: color,
@@ -283,9 +288,13 @@ export class HatchPattern extends Pattern<HatchPatternAttributes> {
 }
 
 export interface DotPatternAttributes extends PatternAttributes {
+  /** The shape of a dot. Default 'round'. */
   cap?: 'round' | 'square';
+  /** The room between neighbouring dots in a row, edge to edge, in pixels. Default 4. */
   gapX?: number;
+  /** The room between rows, in pixels. Default: `gapX`. */
   gapY?: number;
+  /** How far every other row is shifted along, in pixels. Default: half a dot and its gap, which staggers the rows. */
   offset?: number;
 }
 

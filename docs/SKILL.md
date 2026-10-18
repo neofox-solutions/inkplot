@@ -136,7 +136,7 @@ The root: a theme, a size, and what is drawn on it.
 | `padding` | `number \| Partial<Insets>` | Margin around everything, in pixels: one number for all sides, or any subset of the four. Default 10. |
 | `measureText` | `TextMeasurer` | Replaces the platform's text measurement, e.g. to match a font the platform cannot see. |
 | `locale` | `string` | A BCP 47 tag (`'de'`, `'fr-CA'`) for how numbers and dates are written: digit grouping, the decimal mark, month names. Default: numbers as plain digits with a point, and the runtime's own locale for dates. |
-| `transition` | `{ duration?: number; easing?: string; views?: boolean }` | Ease the chart to a new drawing when its **data** changes, in the browser: colours, sizes and (in browsers that can morph a path, Chrome and Firefox) the shapes of lines, areas and bars move over `duration` milliseconds (default 250) with a CSS `easing` (default `'ease-out'`). Default false. |
+| `transition` | `{ duration?: number; easing?: string; views?: boolean }` | Ease the chart to a new drawing when its **data** changes, in the browser: colours, sizes and (in browsers that can morph a path, Chrome and Firefox) the shapes of lines, areas and bars move over `duration` milliseconds (default 250) with a CSS `easing` (default `'ease-out'`). |
 | `onFlush` | `(stats: FlushStats) => void` | Called after every flush with its statistics. |
 
 ### CartesianPlane
@@ -229,7 +229,7 @@ Rows as objects, read by property name.
 
 | Attribute | Type | |
 |---|---|---|
-| `source` (required) | `readonly Row[]` |  |
+| `source` (required) | `readonly Row[]` | The rows: any objects. |
 | `domain` | `Field<Row>` | Where each row is along the domain. |
 | `value` | `Field<Row>` | The number a domain series plots. |
 | `channels` | `Readonly<Record<Channel, Field<Row>>>` | Extra columns that bindings can address by name: a size, a colour, a category, the x and y of an XY plot. |

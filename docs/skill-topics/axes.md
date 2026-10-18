@@ -64,7 +64,7 @@ Logarithmic.
 
 | Attribute | Type | |
 |---|---|---|
-| `base` | `number` | Default 10. |
+| `base` | `number` | The logarithm's base: each power of it is one step along the axis. Default 10. |
 
 ### SqrtScale
 

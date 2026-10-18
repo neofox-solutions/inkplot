@@ -8,10 +8,10 @@ inkplot is written in ES2022 syntax and ships as it is written: no transpiling, 
 | Firefox | 90 | Jul 2021 |
 | Safari (macOS, iOS) | 15 | Sep 2021 |
 | Node.js | 16 | Apr 2021 |
-| Deno | 1.6 | Jan 2021 |
+| Deno | 1.31 | Feb 2023 |
 | Bun | 1.0 | Sep 2023 |
 
-That is **Baseline 2021**: everything the library uses was available in all the major browsers by the end of 2021. Firefox 90 and Safari 15 set the floor (private class members, which the elements use throughout); Chrome 86 is `replaceChildren` in the DOM platform. Node 16 is the first with a global `performance`, which the flush uses to time itself.
+That is **Baseline 2021**: everything the library uses was available in all the major browsers by the end of 2021. Firefox 90 and Safari 15 set the floor (private class members, which the elements use throughout); Chrome 86 is `replaceChildren` in the Web Components adapter. Node 16 is the first with a global `performance`, which the flush uses to time itself.
 
 A few things are optional and need more, and the library checks for them rather than assuming:
 

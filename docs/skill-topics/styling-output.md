@@ -144,10 +144,10 @@ A fill of rows of round or square dots (a checkerboard is square dots), named in
 
 | Attribute | Type | |
 |---|---|---|
-| `cap` | `'round' \| 'square'` |  |
-| `gapX` | `number` |  |
-| `gapY` | `number` |  |
-| `offset` | `number` |  |
+| `cap` | `'round' \| 'square'` | The shape of a dot. Default 'round'. |
+| `gapX` | `number` | The room between neighbouring dots in a row, edge to edge, in pixels. Default 4. |
+| `gapY` | `number` | The room between rows, in pixels. Default: `gapX`. |
+| `offset` | `number` | How far every other row is shifted along, in pixels. Default: half a dot and its gap, which staggers the rows. |
 | `stroke` | `string` | The colour of the lines or dots. |
 | `fill` | `string` | The tile's background. Default none. |
 | `tint` | `number` | Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. |

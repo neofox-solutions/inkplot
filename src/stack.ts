@@ -11,7 +11,9 @@
  * Modes (`mode`):
  *  - `stack` (default): each row's values are laid one on another in the order of the members, the first at the bottom.
  *    Positive values stack up from zero and negative ones down from it, so mixed signs do not cancel.
- *  - `normalize`: like `stack`, with each row scaled to total 1 (the value axis then runs 0 to 1: give it a format).
+ *  - `normalize`: like `stack`, with each row scaled so that its values, taken without their signs, total 1. With positive values only,
+ *    the value axis then runs 0 to 1 (give it a format); with mixed signs the positives reach up to their share and the negatives
+ *    down to theirs, which together make 1.
  *  - `center`: a streamgraph, the stack of each row centred on zero.
  *  - `group`: nothing is laid on anything; every series is drawn from the baseline, and a bar renderer places the series
  *    side by side, in the order they are listed.

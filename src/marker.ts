@@ -241,7 +241,7 @@ export interface DotMarkerAttributes extends MarkerAttributes<DotMarkerBindable>
 }
 /**
  * A dot is a stroke with no length, as wide as the dot is: the cheapest marker, and the one a dense scatter wants.
- * Since its size is a stroke width, a bound `size` is one of the quantized styles, unlike on the other markers.
+ * Its stroke is twice `size` wide (`size` is a radius, as on every marker), so a bound `size` is one of the quantized styles, unlike on the other markers.
  */
 export class DotMarker extends Marker<DotMarkerAttributes> {
   protected readonly kind = 'dotMarker';

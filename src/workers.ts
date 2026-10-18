@@ -49,7 +49,11 @@ export class NullWorker implements WorkerLike {
   }
 }
 
-/** Copy a message as `structuredClone` would for what the protocol holds; a buffer in `transfer` moves and is not copied. */
+/**
+ * Copy a message as `structuredClone` would for what the protocol holds; a buffer in `transfer` moves and is not copied.
+ *
+ * @internal
+ */
 export function cloneMessage(value: unknown, transfer: readonly ArrayBuffer[] = []): unknown {
   if (value === null || typeof value !== 'object') {
     if (typeof value === 'function' || typeof value === 'symbol') fail(`DataCloneError: a ${typeof value} cannot be sent to a worker`);

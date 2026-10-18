@@ -25,7 +25,7 @@ The root: a theme, a size, and what is drawn on it.
 | `padding` | `number \| Partial<Insets>` | Margin around everything, in pixels: one number for all sides, or any subset of the four. Default 10. |
 | `measureText` | `TextMeasurer` | Replaces the platform's text measurement, e.g. to match a font the platform cannot see. |
 | `locale` | `string` | A BCP 47 tag (`'de'`, `'fr-CA'`) for how numbers and dates are written: digit grouping, the decimal mark, month names. Default: numbers as plain digits with a point, and the runtime's own locale for dates. |
-| `transition` | `{ duration?: number; easing?: string; views?: boolean }` | Ease the chart to a new drawing when its **data** changes, in the browser: colours, sizes and (in browsers that can morph a path, Chrome and Firefox) the shapes of lines, areas and bars move over `duration` milliseconds (default 250) with a CSS `easing` (default `'ease-out'`). Default false. |
+| `transition` | `{ duration?: number; easing?: string; views?: boolean }` | Ease the chart to a new drawing when its **data** changes, in the browser: colours, sizes and (in browsers that can morph a path, Chrome and Firefox) the shapes of lines, areas and bars move over `duration` milliseconds (default 250) with a CSS `easing` (default `'ease-out'`). |
 | `onFlush` | `(stats: FlushStats) => void` | Called after every flush with its statistics. |
 
 ## ChartGroup
@@ -196,10 +196,10 @@ A fill of rows of round or square dots (a checkerboard is square dots), named in
 
 | Attribute | Type | |
 |---|---|---|
-| `cap` | `'round' \| 'square'` |  |
-| `gapX` | `number` |  |
-| `gapY` | `number` |  |
-| `offset` | `number` |  |
+| `cap` | `'round' \| 'square'` | The shape of a dot. Default 'round'. |
+| `gapX` | `number` | The room between neighbouring dots in a row, edge to edge, in pixels. Default 4. |
+| `gapY` | `number` | The room between rows, in pixels. Default: `gapX`. |
+| `offset` | `number` | How far every other row is shifted along, in pixels. Default: half a dot and its gap, which staggers the rows. |
 | `stroke` | `string` | The colour of the lines or dots. |
 | `fill` | `string` | The tile's background. Default none. |
 | `tint` | `number` | Without a `fill`: a background in the pattern's own colour (the series colour, if the pattern has no `stroke`) at this opacity from 0 to 1. |
@@ -349,7 +349,7 @@ Maps data to sizes or other numbers.
 
 | Attribute | Type | |
 |---|---|---|
-| `output` | `readonly [min: number, max: number]` | The output range. |
+| `output` | `readonly [min: number, max: number]` | The output range. Default [2, 12]. |
 | `missing` | `number` | Output for data with no value or outside the range. Default: the low end of `output`. |
 | `min` | `number` | Fix an end of the range. |
 | `max` | `number` | Fix the top end of the range. |
@@ -412,7 +412,7 @@ Logarithmic.
 
 | Attribute | Type | |
 |---|---|---|
-| `base` | `number` | Default 10. |
+| `base` | `number` | The logarithm's base: each power of it is one step along the axis. Default 10. |
 
 ## SqrtScale
 
@@ -511,12 +511,12 @@ One series for each value of a channel of the data, each drawn with a copy of th
 |---|---|---|
 | `channel` (required) | `string` | The channel of the data that says which series a point is in. |
 | `name` | `(key: number) => string` | What a series is called, from its key. Default: the key as text. |
-| `domainAxis` | `ElementRef<Axis>` | The axes of every series (as a `DomainSeries` names them). |
-| `valueAxis` | `ElementRef<Axis>` |  |
+| `domainAxis` | `ElementRef<Axis>` | The axes of every series, as a `DomainSeries` names them. |
+| `valueAxis` | `ElementRef<Axis>` | The value axis of every series (as a `DomainSeries` names it). |
 | `x` | `string` | The channel that is x, when the series are `XYSeries` (a path or scatter for each key, or a heat map): leave `x` and `y` out for `DomainSeries`. Default 'x'. |
 | `y` | `string` | The channel that is y, for `XYSeries`. Default 'y'. |
-| `xAxis` | `ElementRef<Axis>` |  |
-| `yAxis` | `ElementRef<Axis>` |  |
+| `xAxis` | `ElementRef<Axis>` | The x axis of every series, for `XYSeries` (when `x` or `y` is given). |
+| `yAxis` | `ElementRef<Axis>` | The y axis of every series, for `XYSeries`. |
 | `missing` | `'break' \| 'connect' \| 'zero'` | What a missing value means in every series (see `Series`). |
 | `bind` | `Readonly<Record<string, GroupBinding>>` | An attribute of the renderers of every series, from the key: `{ stroke: { axis: 'heat' }, opacity: { map: (key) => key > year ? 0.2 : 1 } }`. |
 | `order` | `'first' \| 'sorted' \| ((a: number, b: number) => number)` | The order of the series, so their palette colours: 'first' (as the keys first appear in the domain, the default), 'sorted' (by key), or a comparison of keys. |
@@ -562,7 +562,7 @@ Rows as objects, read by property name.
 
 | Attribute | Type | |
 |---|---|---|
-| `source` (required) | `readonly Row[]` |  |
+| `source` (required) | `readonly Row[]` | The rows: any objects. |
 | `domain` | `Field<Row>` | Where each row is along the domain. |
 | `value` | `Field<Row>` | The number a domain series plots. |
 | `channels` | `Readonly<Record<Channel, Field<Row>>>` | Extra columns that bindings can address by name: a size, a colour, a category, the x and y of an XY plot. |
@@ -577,7 +577,7 @@ Separate columns.
 
 | Attribute | Type | |
 |---|---|---|
-| `count` (required) | `number` |  |
+| `count` (required) | `number` | How many rows: the length every column is read to. |
 | `domain` (required) | `Column` | Where each row is along the domain: for a made-up domain, `(i) => start + step * i`. |
 | `value` | `Column` | The number a domain series plots. |
 | `channels` | `Readonly<Record<Channel, Column>>` | Extra columns that bindings and tooltips can address by name. |
@@ -606,7 +606,7 @@ Reduces large data to what the plot can show.
 
 | Attribute | Type | |
 |---|---|---|
-| `resolution` | `number` | Pixel columns reduced to per pixel of plot width. Default 1; raise it for high-DPI output. |
+| `resolution` | `number` | Reduction columns for each pixel of plot width: the decimator keeps `plot width × resolution` columns, and never fewer than 3. Default 1; raise it for high-DPI output. |
 | `enabled` | `boolean` | Turn it off without removing it. Default true. |
 
 ## Slice
@@ -862,7 +862,7 @@ Bins points over any number of dimensions: count, sum, mean, fraction, density p
 | `by` | `readonly string[]` | The dimensions to bin: 'domain', 'value' or channel names. Default ['domain']. |
 | `weight` | `string` | What each point counts for: a channel name or 'value'. Default: 1 for each point. |
 | `halfLife` | `number` | Points count for less the further they are before the last one the source delivers (in the domain's order): one `halfLife` points back counts half. Default: all alike. |
-| `stat` | `Stat` | The value of a one-dimensional output: 'count', 'sum', 'mean', 'fraction' (the share of the total, 0 to 1) or 'density'. Default 'count', or 'sum' with a `weight`. |
+| `stat` | `Stat` | The value of a one-dimensional output: 'count', 'sum', 'mean', 'fraction' (the share of the total, 0 to 1) or 'density'. Default 'count', or 'sum' when a `weight` or a `halfLife` is given. |
 | `width` | `number \| readonly number[]` | Bin size in each dimension's units: one number for all, or one for each dimension. |
 | `bins` | `number \| readonly number[]` | Number of bins in each dimension, spread evenly over its extent (by default the data's own range). |
 | `origin` | `number \| readonly number[]` | Where a bin edge falls when `width` is used, in each dimension: edges are at `origin` plus whole widths. Default 0. |

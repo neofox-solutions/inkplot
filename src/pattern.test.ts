@@ -36,6 +36,17 @@ const svgOf = (...children: ConstructorParameters<typeof Chart>[1][]) => {
   return toSvgString(chart, { idPrefix: 'p' });
 };
 
+test('a crosshatch with equal angles names its own attributes', () => {
+  assert.throws(
+    () => svgOf(plane('url(#h)'), new HatchPattern({ id: 'h', angle: 30, crossAngle: 30 })),
+    /HatchPattern: angle and crossAngle must differ.*30 and 30/,
+  );
+  assert.throws(
+    () => svgOf(plane('url(#h)'), new HatchPattern({ id: 'h', angle: 30, crossAngle: 210 })),
+    /HatchPattern: angle and crossAngle must differ/,
+  );
+});
+
 test('a pattern follows the series colour, or its own', () => {
   const svg = svgOf(plane('url(#hatch)'), new HatchPattern({ id: 'hatch' }));
   const series = lightTheme.palette[0]!;
