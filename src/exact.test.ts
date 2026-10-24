@@ -87,7 +87,7 @@ test('exact paths', () => {
       last = r;
     }
     // A full turn at one radius is more than one arc, and a closed shape comes back.
-    assert(/Z$/.test(plane.exactPath(flat([0, 0.2], [0.5, 0.8], [0.5, 0.2]), 3, angle, radius, true)));
+    assert(plane.exactPath(flat([0, 0.2], [0.5, 0.8], [0.5, 0.2]), 3, angle, radius, true).endsWith('Z'));
     // Swapped axes (the value is the angle) work too.
     assert(parse(plane.exactPath(flat([0.5, 0], [0.5, 0.5]), 2, radius, angle)).some((c) => c[0] === 'A'));
   }
