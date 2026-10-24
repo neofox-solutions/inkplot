@@ -177,9 +177,10 @@ How a `LinePath` or `AreaPath` joins its points is its child, the **curve**.
 | `BumpCurve` | A level start and end to each segment and an S between: the flow of a bump chart. | `along` (`'x'` or `'y'`) |
 | `QuadraticCurve` | Quadratic Béziers with each point as a control point. | |
 | `ArcCurve` | A circular arc between each pair of points. | `bend`, the rise of each arc as a fraction of its chord |
+| `PlaneCurve` | Straight lines in the plane's own terms: the same as `LinearCurve` on a rectangle, a true spiral between two points on a polar plane, a line that bends at each spoke on a radar. Exact, and more work than `LinearCurve` off a rectangle. | |
 | `StepCurve` | A value that holds until it changes. | `mode`: `'after'` (default; holds from its point until the next), `'before'` (jumps at its own point), `'center'` (changes halfway) |
 
-Curves are worked out in the plane's own terms, never in pixels: so a step on a polar plane is an arc round the middle and a jump along a spoke, and on a radar the level parts follow the polygon exactly. The curve also *traces* what it draws, so a hit or a tooltip reading between points follows the line on screen, not a straight line between the points.
+There are three kinds. `LinearCurve` and the smooth curves above join the points *as placed on the page* (with the straight, spline or arc that gives), which is fast and looks right on a rectangle; on a polar or radar plane the line between two points is then a chord or spline in pixels, not the path the plane's own geometry would give. `StepCurve` and `PlaneCurve` work in the plane's own terms and ask the plane to draw them, so they are exact everywhere: a step on a polar plane is an arc round the middle and a jump along a spoke, and `PlaneCurve` is the true line between points. Choose between exactness and speed (and between the shapes) by choosing the curve. `StepCurve` also *traces* what it draws, so a hit or a tooltip reading between points follows the line on screen, not a straight line between the points.
 
 ```tsx live title="Smooth curves through the same points" height=280
 import { type AnyElement, Axis, CardinalCurve, CartesianPlane, CatmullRomCurve, Chart, CircleMarker, DomainSeries, FlatDataSource, Legend, LinePath, LinearScale, NaturalCurve, lightTheme } from 'inkplot';

@@ -17,6 +17,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import type { PointBuffer } from './data.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
+import { areaRuns } from './aligned.ts';
 import { f2 } from './geometry.ts';
 import type { AnySeriesRenderer, Trace } from './renderer.ts';
 import type { Series } from './series.ts';
@@ -164,4 +165,40 @@ export class LinearCurve extends Curve {
   area(series: Series, baseline: number): string {
     return areaOutline(series.points, series.baseline(baseline), series.attrs.missing === 'connect');
   }
+}
+
+/**
+ * Lines that are straight in the plane's own terms, drawn by the plane (`Plane.exactPath`): on a rectangle the same straight lines as `LinearCurve`,
+ * on a polar plane a line between two points is the short spiral it really is, and on a radar it bends at each spoke it crosses. Exact, and more
+ * work than `LinearCurve` on a plane that is not a rectangle, so it is for charts where the shape matters (a radar's outline, a function on a polar
+ * plane) and `LinearCurve` for everything that is only meant to look right. Hits are measured against straight lines through the points.
+ */
+export class PlaneCurve extends Curve {
+  line(series: Series): string {
+    const plane = series.drawn?.plane;
+    if (!plane) return '';
+    const f = series.attrs.missing === 'connect' ? dropGaps(series.fractions()) : series.fractions();
+    return plane.exactPath(f, f.length / 2, series.firstAxis, series.secondAxis);
+  }
+  area(series: Series, baseline: number): string {
+    const plane = series.drawn?.plane;
+    if (!plane) return '';
+    const top = series.fractions(),
+      foot = new Float64Array(top.length);
+    series.baselineFractions(baseline, foot);
+    const runs = areaRuns(top, foot, series.attrs.missing === 'connect');
+    return plane.exactPath(runs, runs.length / 2, series.firstAxis, series.secondAxis, true);
+  }
+}
+
+/** The vertices that are numbers, so a line goes across a gap. */
+function dropGaps(xy: Float64Array): Float64Array {
+  const out = new Float64Array(xy.length);
+  let m = 0;
+  for (let i = 0; i < xy.length; i += 2)
+    if (Number.isFinite(xy[i]!) && Number.isFinite(xy[i + 1]!)) {
+      out[m++] = xy[i]!;
+      out[m++] = xy[i + 1]!;
+    }
+  return out.subarray(0, m);
 }

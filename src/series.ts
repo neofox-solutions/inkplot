@@ -158,6 +158,8 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   #plane: Plane | null = null;
   #projections = 0;
   #base: PointBuffer = { data: new Float64Array(0), stride: 2, count: 0 };
+  #fractions: Float64Array | null = null;
+  #fractionsKey = -1;
   #baseKey = '';
   // A stack's say over this series: the shift of its rows, and a table of rows lined up with the others' (else its own).
   #layer: StackLayer | null = null;
@@ -601,36 +603,67 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
    */
   baseline(value: number): Readonly<PointBuffer> {
     const plane = this.#plane ?? fail(209),
-      { raw, count: n, stride: rs } = this.rows(),
-      layer = this.#layer;
+      n = this.rows().count;
     const key = `${this.#projections}|${value}`;
     if (key === this.#baseKey) return this.#base;
     this.#baseKey = key;
     if (this.#base.data.length < n * 2) this.#base.data = new Float64Array(n * 2);
-    const b = this.#base,
-      c0 = this.firstColumn,
-      c1 = this.secondColumn;
+    const b = this.#base;
     b.count = n;
+    this.baselineFractions(value, b.data);
+    plane.place(b, this.firstAxis, this.secondAxis);
+    return b;
+  }
+
+  /**
+   * The points of the series as fractions of the two axes, `[first, second]` for each, before the plane has placed them: what a plane draws from
+   * when it draws the points itself (`Plane.exactPath`). Gaps are NaN. Worked out when asked, and kept until the series is projected again.
+   */
+  fractions(): Float64Array {
+    if (this.#fractionsKey === this.#projections && this.#fractions) return this.#fractions;
+    const { raw, count: n, stride: rs } = this.rows(),
+      layer = this.#layer;
+    const c0 = this.firstColumn,
+      c1 = this.secondColumn;
+    const out = new Float64Array(n * 2);
     for (let i = 0; i < n; i++) {
-      b.data[2 * i] = raw[i * rs + c0]!;
+      const x = raw[i * rs + c0]!;
+      let v = raw[i * rs + c1]!;
+      // As `project` makes them: a gap in a zero-filled series is a zero, and a stack's layer is where a point is drawn.
+      if (this.#zero && !Number.isFinite(v) && Number.isFinite(x)) v = 0;
+      out[2 * i] = x;
+      out[2 * i + 1] = layer ? (Number.isFinite(v) ? layer.top[i]! : NaN) : v;
+    }
+    this.firstAxis.normalize(out, n, 2, 0);
+    this.secondAxis.normalize(out, n, 2, 1);
+    this.#fractionsKey = this.#projections;
+    return (this.#fractions = out);
+  }
+
+  /** `baseline(value)` as fractions of the two axes (see `fractions`): `[first, second]` for each point, written into `out`, which holds at least two numbers a point. */
+  baselineFractions(value: number, out: Float64Array): void {
+    const { raw, count: n, stride: rs } = this.rows(),
+      layer = this.#layer;
+    const c0 = this.firstColumn,
+      c1 = this.secondColumn;
+    for (let i = 0; i < n; i++) {
+      out[2 * i] = raw[i * rs + c0]!;
       // A gap in the data stays a gap in the baseline.
       // In a stack the baseline is the layer below, row by row, and `value` is not asked.
-      b.data[2 * i + 1] =
+      out[2 * i + 1] =
         Number.isFinite(raw[i * rs + c1]!) || (this.#zero && Number.isFinite(raw[i * rs + c0]!)) ? (layer ? layer.base[i]! : value) : NaN;
     }
-    this.firstAxis.normalize(b.data, n, 2, 0);
-    this.secondAxis.normalize(b.data, n, 2, 1);
+    this.firstAxis.normalize(out, n, 2, 0);
+    this.secondAxis.normalize(out, n, 2, 1);
     // Keep the baseline inside its axis, so a fill to a value outside the range closes along the edge.
     // A baseline the scale cannot place (0 on a log axis) is the edge of the axis; a gap in the data stays a gap.
     const unplaced = !layer && !this.secondAxis.scale.canPlace(value);
     for (let i = 1; i < 2 * n; i += 2) {
-      const v = b.data[i]!;
-      if (v < 0) b.data[i] = 0;
-      else if (v > 1) b.data[i] = 1;
-      else if (unplaced && v !== v && Number.isFinite(raw[(i >> 1) * rs + c1]!)) b.data[i] = 0;
+      const v = out[i]!;
+      if (v < 0) out[i] = 0;
+      else if (v > 1) out[i] = 1;
+      else if (unplaced && v !== v && Number.isFinite(raw[(i >> 1) * rs + c1]!)) out[i] = 0;
     }
-    plane.place(b, this.firstAxis, this.secondAxis);
-    return b;
   }
 }
 

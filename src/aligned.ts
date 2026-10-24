@@ -4,6 +4,8 @@
 // `H` and `V`, a polar one with arcs along the angle and lines along the radius, a radar one with chords through its spokes. This is the walk
 // they share: it reads the vertices, lifts the pen at a gap, merges moves that go on the same way, and tells the plane what it has to draw.
 
+import { f2 } from './geometry.ts';
+
 /** Which coordinate a move changes: the first axis, the second, or (not aligned) both. */
 export type Along = 0 | 1 | 2;
 
@@ -83,4 +85,61 @@ export function walkAligned(coords: ArrayLike<number>, count: number, closed: bo
     qb = b;
   }
   end();
+}
+
+/**
+ * The path data for placed vertices `[x, y]` joined by straight chords, a gap lifting the pen. With `closed` each run is shut with a `Z`. What a
+ * plane that is straight everywhere draws for `exactPath`.
+ */
+export function chordPath(xy: ArrayLike<number>, count: number, closed: boolean): string {
+  let d = '',
+    run = 0;
+  for (let i = 0; i <= count; i++) {
+    const x = i < count ? xy[2 * i]! : NaN,
+      y = i < count ? xy[2 * i + 1]! : NaN;
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      d += (run === 0 ? 'M' : 'L') + f2(x) + ' ' + f2(y);
+      run++;
+    } else {
+      if (closed && run > 0) d += 'Z';
+      run = 0;
+    }
+  }
+  return d;
+}
+
+/**
+ * The outlines of the areas between a line and its baseline as vertices for `alignedPath` or `exactPath`: for each run of the line (a stretch with no gap
+ * in `top`), the line forward and the baseline back, each run ended by a NaN vertex. Both are `[first, second]` a vertex, and vertex `i` of `foot` is
+ * the foot of vertex `i` of `top`. With `connect` the gaps are dropped, so the line goes across them and the area is one shape.
+ */
+export function areaRuns(top: ArrayLike<number>, foot: ArrayLike<number>, connect = false): Float64Array {
+  const rows = top.length / 2,
+    out = new Float64Array(top.length * 2 + 2);
+  const ok = (i: number) =>
+    Number.isFinite(top[2 * i]!) && Number.isFinite(top[2 * i + 1]!) && Number.isFinite(foot[2 * i]!) && Number.isFinite(foot[2 * i + 1]!);
+  let m = 0;
+  const emit = (rowsOfRun: number[]) => {
+    if (rowsOfRun.length === 0) return;
+    for (const j of rowsOfRun) {
+      out[m++] = top[2 * j]!;
+      out[m++] = top[2 * j + 1]!;
+    }
+    for (let k = rowsOfRun.length - 1; k >= 0; k--) {
+      out[m++] = foot[2 * rowsOfRun[k]!]!;
+      out[m++] = foot[2 * rowsOfRun[k]! + 1]!;
+    }
+    out[m++] = NaN;
+    out[m++] = NaN;
+  };
+  let run: number[] = [];
+  for (let i = 0; i < rows; i++) {
+    if (ok(i)) run.push(i);
+    else if (!connect) {
+      emit(run);
+      run = [];
+    }
+  }
+  emit(run);
+  return out.subarray(0, m);
 }

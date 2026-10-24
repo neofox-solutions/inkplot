@@ -15,6 +15,7 @@ import { fail } from './element.ts';
 import { type ChartEvent, EVENT_ARRANGE, EVENT_ATTACH, EVENT_PAINT } from './events.ts';
 import { type Insets, type Rect, type Size, f2 } from './geometry.ts';
 import { walkAligned } from './aligned.ts';
+import { sampleAt, sampleSpan } from './sampling.ts';
 import { MIN_INSET, Plane, type PlaneAttributes, nextClipId } from './plane.ts';
 
 export interface RadialPlaneAttributes extends PlaneAttributes {
@@ -48,6 +49,9 @@ function arcRun(cx: number, cy: number, r: number, start: number, sweep: number)
 function arc(cx: number, cy: number, r: number, start: number, sweep: number): string {
   return `M${f2(cx + r * Math.sin(start))} ${f2(cy - r * Math.cos(start))}` + arcRun(cx, cy, r, start, sweep);
 }
+
+/** About how many pixels long a piece is that a spiral is cut into. */
+const CHORD = 6;
 
 /**
  * The shared machinery of radial planes: layout in a circle, rulers for both axes, clip, gridlines, and `place`.
@@ -122,6 +126,66 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
       },
       finish: (shut) => (d += shut ? 'Z' : ''),
     });
+    return d;
+  }
+
+  /**
+   * Where along a straight move in the plane's own terms (fractions of the angle and of the radius, from (a0, r0) to (a1, r1)) it is cut into pieces
+   * to follow the plane: fractions of the move, ascending, the last 1.
+   */
+  protected abstract diagonalCuts(a0: number, r0: number, a1: number, r1: number): readonly number[];
+
+  /**
+   * Every move is exact: a radius move is a line (a spoke), an angle move the arc (or chords through the spokes) its `alignedPath` draws, and a move
+   * that changes both is cut into pieces by `diagonalCuts`: short chords on a polar plane, which is as close as straight pieces can be to a spiral;
+   * on a radar a vertex wherever the move crosses a spoke.
+   */
+  override exactPath(coords: ArrayLike<number>, count: number, first: Axis, second: Axis, closed = false): string {
+    const angleIsFirst = first.orientation === 'angle';
+    if ((first.orientation !== 'angle' && first.orientation !== 'radius') || (second.orientation === 'angle') === angleIsFirst) fail(175);
+    const R = this.#radius,
+      inner = this.innerRadius,
+      xy = this.#xy;
+    const radiusOf = (v: number) => R * (inner + (1 - inner) * Math.max(0, v));
+    const point = (a: number, r: number): string => {
+      this.locate(a, radiusOf(r), xy);
+      return `${f2(xy[0]!)} ${f2(xy[1]!)}`;
+    };
+    let d = '';
+    let pa = NaN,
+      pr = NaN,
+      sa = NaN,
+      sr = NaN,
+      run = 0;
+    const move = (a: number, r: number) => {
+      if (a === pa && r === pr) return;
+      if (a === pa) d += 'L' + point(a, r);
+      else if (r === pr) d += this.angleRun(pa, a, radiusOf(r));
+      else
+        for (const t of this.diagonalCuts(pa, pr, a, r)) d += 'L' + point(t === 1 ? a : pa + t * (a - pa), t === 1 ? r : pr + t * (r - pr));
+      pa = a;
+      pr = r;
+    };
+    for (let i = 0; i <= count; i++) {
+      const u = i < count ? coords[2 * i]! : NaN,
+        v = i < count ? coords[2 * i + 1]! : NaN;
+      if (Number.isFinite(u) && Number.isFinite(v)) {
+        const a = angleIsFirst ? u : v,
+          r = angleIsFirst ? v : u;
+        if (run === 0) {
+          d += 'M' + point(a, r);
+          pa = sa = a;
+          pr = sr = r;
+        } else move(a, r);
+        run++;
+      } else {
+        if (run > 0 && closed) {
+          move(sa, sr);
+          d += 'Z';
+        }
+        run = 0;
+      }
+    }
     return d;
   }
 
@@ -401,6 +465,14 @@ export class PolarPlane extends RadialPlane<PolarPlaneAttributes> {
   protected angleRun(from: number, to: number, r: number): string {
     return arcRun(this.cx, this.cy, r, this.startAngle + from * this.sweep, (to - from) * this.sweep);
   }
+  /** Chords about `CHORD` pixels long along the way, which is as close to the spiral as a few pixels' error allows. */
+  protected diagonalCuts(a0: number, r0: number, a1: number, r1: number): readonly number[] {
+    const R = this.radius,
+      mid = R * (this.innerRadius + (1 - this.innerRadius) * Math.max(0, (r0 + r1) / 2));
+    const pixels = Math.hypot(Math.abs(a1 - a0) * Math.abs(this.sweep) * mid, Math.abs(r1 - r0) * R * (1 - this.innerRadius));
+    const span = sampleSpan({ min: 0, max: 1 }, { min: 0, max: 1 }, pixels, undefined, 1 / CHORD);
+    return Array.from({ length: span.n - 1 }, (_, i) => sampleAt(span, i + 1));
+  }
   protected ring(r: number, reverse = false): string {
     return reverse
       ? arc(this.cx, this.cy, r, this.startAngle + this.sweep, -this.sweep)
@@ -489,6 +561,17 @@ export class RadarPlane extends RadialPlane<RadarPlaneAttributes> {
       sy = -R * this.#cos[k + 1]! - ay;
     const t = ((px - ax) * sx + (py - ay) * sy) / (sx * sx + sy * sy);
     return at[k]! + Math.min(1, Math.max(0, t)) * (at[k + 1]! - at[k]!);
+  }
+
+  /** A vertex at each spoke the move crosses: between two spokes a move is a chord. */
+  protected diagonalCuts(a0: number, _r0: number, a1: number): readonly number[] {
+    const out: number[] = [];
+    const lo = Math.min(a0, a1),
+      hi = Math.max(a0, a1);
+    for (const s of this.#at) if (s > lo && s < hi) out.push((s - a0) / (a1 - a0));
+    out.sort((p, q) => p - q);
+    out.push(1);
+    return out;
   }
 
   /** A chord to each spoke the move passes, then to where it ends. */

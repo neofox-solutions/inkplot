@@ -173,6 +173,11 @@ export const STRUCTURE: Record<string, { parent: string; children: string; about
   PlusMarker: { parent: 'a series', children: 'none', about: '+ at each point.' },
   LinearCurve: { parent: 'LinePath or AreaPath', children: 'none', about: 'Straight lines.' },
   StepCurve: { parent: 'LinePath or AreaPath', children: 'none', about: 'Levels and jumps.' },
+  PlaneCurve: {
+    parent: 'LinePath or AreaPath',
+    children: 'none',
+    about: "Straight lines in the plane's own terms: exact on a polar or radar plane.",
+  },
   MonotoneCurve: { parent: 'LinePath or AreaPath', children: 'none', about: 'A smooth curve that never overshoots.' },
   NaturalCurve: { parent: 'LinePath or AreaPath', children: 'none', about: 'A natural cubic spline.' },
   CardinalCurve: { parent: 'LinePath or AreaPath', children: 'none', about: 'A cardinal spline.' },

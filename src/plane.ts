@@ -18,7 +18,7 @@
  * a normal. Straight edges, floating axes and radial spokes are all just different rulers, so Axis has no per-shape code.
  */
 /* oxlint-disable typescript/no-non-null-assertion -- stride-addressed rows of the placed-point buffers: every index is bounded by the row count */
-import { type AlignedSink, walkAligned } from './aligned.ts';
+import { type AlignedSink, chordPath, walkAligned } from './aligned.ts';
 import { Axis, type AxisOrientation, type CartesianOrientation, type Ruler, type TitleSpot, cartesianSide, isHorizontal } from './axis.ts';
 import type { Chart } from './chart.ts';
 import type { PointBuffer } from './data.ts';
@@ -144,6 +144,18 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
       finish: (shut) => (d += shut ? 'Z' : ''),
     } satisfies AlignedSink);
     return d;
+  }
+  /**
+   * The path data for a run of vertices joined by lines that are straight in the plane's own terms: `coords` is `count` vertices, `[first, second]`
+   * each, as fractions of the two axes, in any positions at all. Where the plane is straight everywhere (a rectangle) that is a straight line in
+   * plot pixels from vertex to vertex. A polar plane follows the plane instead (an arc is an arc, a diagonal is a spiral of short chords) and a radar
+   * bends a line at each spoke it crosses. A vertex that is not a number lifts the pen; `closed` shuts each run with a `Z` (an exact line back to
+   * where it began). Costs more than `alignedPath` where the plane is not straight, for the exactness.
+   */
+  exactPath(coords: ArrayLike<number>, count: number, first: Axis, second: Axis, closed = false): string {
+    const xy = Float64Array.from({ length: 2 * count }, (_, i) => coords[i]!);
+    this.place({ data: xy, stride: 2, count }, first, second);
+    return chordPath(xy, count, closed);
   }
   /**
    * The inverse of `place` for one position: what a spot in plot pixels is in data terms, as the values `first` and

@@ -149,7 +149,7 @@ export {
   type SeriesRendererAttributes,
   type StyleBindable,
 } from './renderer.ts';
-export { Curve, type CurveAttributes, LinearCurve, areaOutline, polyline } from './curve.ts';
+export { Curve, type CurveAttributes, LinearCurve, PlaneCurve, areaOutline, polyline } from './curve.ts';
 export {
   ArcCurve,
   type ArcCurveAttributes,

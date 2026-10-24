@@ -12,7 +12,7 @@ import { BoxStats } from './stats.ts';
 import { Chart } from './chart.ts';
 import { ChartGroup, ChartGroupItem, SharedAxis, SharedRange } from './chartgroup.ts';
 import { ErrorBand, ErrorBars } from './errors.ts';
-import { LinearCurve } from './curve.ts';
+import { LinearCurve, PlaneCurve } from './curve.ts';
 import { ArcCurve, BasisCurve, BumpCurve, CardinalCurve, CatmullRomCurve, MonotoneCurve, NaturalCurve, QuadraticCurve } from './curves.ts';
 import { CompositeDataSource, FlatDataSource, ObjectDataSource, SyntheticDataSource } from './sources.ts';
 import { LinkedData } from './linkeddata.ts';
@@ -98,6 +98,7 @@ export const registry: ElementRegistry = {
   LinePath,
   AreaPath,
   LinearCurve,
+  PlaneCurve,
   MonotoneCurve,
   NaturalCurve,
   CardinalCurve,

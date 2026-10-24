@@ -48,6 +48,7 @@ export const TOPICS: Record<string, Topic> = {
       'QuadraticCurve',
       'ArcCurve',
       'StepCurve',
+      'PlaneCurve',
       'BarPath',
       'StemPath',
     ],

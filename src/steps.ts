@@ -20,6 +20,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import type { PointBuffer } from './data.ts';
 import type { Series } from './series.ts';
+import { areaRuns } from './aligned.ts';
 import { Curve, type CurveAttributes } from './curve.ts';
 import type { Trace } from './renderer.ts';
 
@@ -181,34 +182,6 @@ export function stepLines(series: Series, mode: StepMode, baseline: number | nul
   };
   const placedTop = out(top);
   return { top: placedTop, line: placedTop, base: foot ? out(foot) : null, owner: owner.subarray(0, k), aligned, alignedBase };
-}
-
-/**
- * The outlines of a step area as vertices for `Plane.alignedPath`: for each run of the line, the line forward and the baseline back, each run
- * ended by a NaN vertex. The foot of a vertex is at the same place along the first axis, so the move between the two is along the second.
- */
-function areaRuns(top: Float64Array, foot: Float64Array): Float64Array {
-  const rows = top.length / 2,
-    out = new Float64Array(top.length * 2 + 2);
-  let m = 0,
-    start = 0;
-  for (let i = 0; i <= rows; i++) {
-    if (i < rows && Number.isFinite(top[2 * i]!)) continue;
-    if (i > start) {
-      for (let j = start; j < i; j++) {
-        out[m++] = top[2 * j]!;
-        out[m++] = top[2 * j + 1]!;
-      }
-      for (let j = i - 1; j >= start; j--) {
-        out[m++] = foot[2 * j]!;
-        out[m++] = foot[2 * j + 1]!;
-      }
-      out[m++] = NaN;
-      out[m++] = NaN;
-    }
-    start = i + 1;
-  }
-  return out.subarray(0, m);
 }
 
 export interface StepCurveAttributes extends CurveAttributes {
