@@ -17,6 +17,7 @@ import {
 } from './data.ts';
 import { fail } from './element.ts';
 import type { Extent } from './geometry.ts';
+import { DEFAULT_SAMPLES, type SampleSpan, sampleAt, sampleSpan } from './sampling.ts';
 
 /* oxlint-disable typescript/consistent-type-assertions -- rows are user data of unknown shape (`Row = any`), read by a field or channel name that the attribute types vouch for */
 
@@ -215,9 +216,6 @@ export class FlatDataSource<Channel extends string = string> extends DataSource<
 
 // ─── Generated and column-wise sources ───
 
-/** Samples when nothing says how many: the plot's width is not known when a source is only asked for its extent. */
-const DEFAULT_SAMPLES = 512;
-
 export interface SyntheticDataSourceAttributes extends DataSourceAttributes {
   /** Value at a domain position. NaN is a gap. */
   fn: (x: number) => number;
@@ -252,25 +250,20 @@ export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttribute
     return d.min <= d.max ? d : null;
   }
 
-  /** How many samples, over which part of the domain, for this plot. */
-  private span(context: PlanContext): { lo: number; hi: number; n: number } {
-    const d = this.attrs.domain,
-      lo = Math.max(d.min, context.domainRange.min),
-      hi = Math.min(d.max, context.domainRange.max);
-    if (!(lo <= hi)) return { lo, hi, n: 0 };
-    return { lo, hi, n: this.attrs.count ?? (context.width > 0 ? Math.max(2, Math.ceil(context.width)) : DEFAULT_SAMPLES) };
+  /** How many samples, over which part of the domain, for this plot: with a fixed count the whole domain whatever is in view. */
+  private span(context: PlanContext): SampleSpan {
+    return sampleSpan(this.attrs.domain, context.domainRange, context.width, this.attrs.count);
   }
 
   protected fill(out: Float64Array, context: PlanContext, from?: number, to?: number): FillResult {
     const names = context.columns,
       k = names.length;
     const wants = names.map((n) => (isDomainName(n) ? 0 : isValueName(n) ? 1 : fail(121, n)));
-    // With a fixed count the span is the whole domain whatever is in view; otherwise only the part in view is sampled.
-    const { fn, domain, count } = this.attrs;
-    const { lo, hi, n } = count === undefined ? this.span(context) : { lo: domain.min, hi: domain.max, n: count };
-    const [first, last] = rowRange(n, from, to);
+    const { fn } = this.attrs;
+    const span = this.span(context);
+    const [first, last] = rowRange(span.n, from, to);
     if (last === first) return { count: 0, extents: names.map(() => NO_POINTS) };
-    const at = (i: number) => (n === 1 ? lo : i === n - 1 ? hi : lo + ((hi - lo) * i) / (n - 1));
+    const at = (i: number) => sampleAt(span, i);
     let yMin = Infinity,
       yMax = -Infinity;
     for (let i = first; i < last; i++) {
@@ -289,7 +282,7 @@ export class SyntheticDataSource extends DataSource<SyntheticDataSourceAttribute
   /** Room for the samples this plot asks for, which depends on its width; the points are made up, so there is no `rowOf`. */
   override plan(context: PlanContext): FillPlan {
     if (this.attrs.wrap !== undefined) return super.plan(context);
-    const n = this.attrs.count ?? this.span(context).n;
+    const n = this.span(context).n;
     return { capacity: n, rows: n, fill: (out, from, to) => this.fill(out, context, from, to) };
   }
 }

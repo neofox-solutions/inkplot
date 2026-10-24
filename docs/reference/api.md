@@ -1109,10 +1109,8 @@ A reference line in data terms.
 
 | Attribute | Type | |
 |---|---|---|
-| `value` | `number` | A horizontal line at this value (give one of `value`, `domain`, or `from` and `to`). |
-| `domain` | `number` | A vertical line at this domain (give one of `value`, `domain`, or `from` and `to`). |
-| `from` | `readonly [domain: number, value: number]` | One end of a diagonal line, as `[domain, value]` (with `to`). |
-| `to` | `readonly [domain: number, value: number]` | The other end of a diagonal line, as `[domain, value]` (with `from`). |
+| `value` | `number` | A horizontal line at this value (give one of `value` or `domain`). |
+| `domain` | `number` | A vertical line at this domain (give one of `value` or `domain`). |
 | `domainAxis` | `ElementRef<Axis>` | Default: the plane's first axis, as for a series. |
 | `valueAxis` | `ElementRef<Axis>` | Default: the plane's second axis. |
 | `label` | `string` | Text beside the line. |

@@ -12,7 +12,6 @@ import {
   LineAnnotation,
   LinePath,
   LinearScale,
-  LogScale,
   PolarPlane,
   RadarPlane,
   StringPlatform,
@@ -114,41 +113,25 @@ test('annotation', () => {
     assert(!(chart.platform as StringPlatform).toString().includes('>two</text>'));
   }
 
-  // ── LineAnnotation on a rectangle: constant value, constant domain, and diagonal; two points when straight.
+  // ── LineAnnotation on a rectangle: constant value, constant domain; each a single move.
   {
     const h = cartesian(() => [new LineAnnotation({ value: 2.5 })]);
     const w = h.plane.rect.width,
       ph = h.plane.rect.height;
-    const line = pathPoints(h.svg, 0, /<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g);
-    assert.equal(line.length, 2, 'two points');
-    near(line[0]![0], 0);
-    near(line[1]![0], w);
-    near(line[0]![1], ph * 0.75);
-    near(line[1]![1], ph * 0.75);
+    const dashed = (svg: string) => [...svg.matchAll(/<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g)].map((m) => m[1]!)[0] ?? '';
+    const line = /^M([\d.-]+) ([\d.-]+)H([\d.-]+)$/.exec(dashed(h.svg));
+    assert(line, 'a horizontal line is a move and an H');
+    near(+line[1]!, 0);
+    near(+line[3]!, w);
+    near(+line[2]!, ph * 0.75);
     assert.match(h.svg, /clip-path="url\(#clip\d+\)"/);
 
     const v = cartesian(() => [new LineAnnotation({ domain: 4 })]);
-    const vl = pathPoints(v.svg, 0, /<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g);
-    assert.equal(vl.length, 2);
-    near(vl[0]![0], v.plane.rect.width * 0.4);
-    near(vl[1]![0], v.plane.rect.width * 0.4);
-    near(vl[0]![1], v.plane.rect.height);
-    near(vl[1]![1], 0);
-
-    const d = cartesian(() => [new LineAnnotation({ from: [0, 0], to: [10, 10] })]);
-    const dl = pathPoints(d.svg, 0, /<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g);
-    assert.equal(dl.length, 2, 'a diagonal between linear scales is two points');
-    near(dl[0]![0], 0);
-    near(dl[0]![1], d.plane.rect.height);
-    near(dl[1]![0], d.plane.rect.width);
-    near(dl[1]![1], 0);
-
-    // On a log value axis the same diagonal is a curve, so it is traced.
-    const logY = new Axis({ orientation: 'left', min: 1, max: 1000 }, new LogScale());
-    const x = new Axis({ orientation: 'bottom', min: 0, max: 10 }, lin());
-    const plane = new CartesianPlane({}, x, logY, new LineAnnotation({ from: [0, 1], to: [10, 1000] }));
-    const curved = show(new Chart({ theme: lightTheme, width: W, height: H }, plane));
-    assert(pathPoints(curved, 0, /<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g).length > 20, 'a diagonal on a log axis is traced');
+    const vl = /^M([\d.-]+) ([\d.-]+)V([\d.-]+)$/.exec(dashed(v.svg));
+    assert(vl, 'a vertical line is a move and a V');
+    near(+vl[1]!, v.plane.rect.width * 0.4);
+    near(+vl[2]!, v.plane.rect.height);
+    near(+vl[3]!, 0);
 
     // Line style: stroke attributes and style blocks.
     const styled = cartesian(() => [
@@ -190,12 +173,16 @@ test('annotation', () => {
 
     const polar = new PolarPlane({}, angle(), radiusAxis(), new LineAnnotation({ value: 5 }));
     const p = polarOf(polar);
-    const ring = pathPoints(p.svg, 0, /<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g);
+    const ringPath = [...p.svg.matchAll(/<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g)].map((m) => m[1]!)[0] ?? '';
     const cx = polar.rect.width / 2,
       cy = polar.rect.height / 2,
       R = Math.min(cx, cy);
-    assert(ring.length > 90);
-    for (const [x, y] of ring) near(Math.hypot(x - cx, y - cy), R * 0.5, 0.05);
+    const arcs = [...ringPath.matchAll(/A([\d.-]+) ([\d.-]+) 0 [01] [01] /g)];
+    assert(arcs.length >= 2, 'a full turn is arcs, never one that would collapse');
+    for (const m of arcs) {
+      near(+m[1]!, R * 0.5, 0.05);
+      near(+m[2]!, R * 0.5, 0.05);
+    }
 
     const radar = new RadarPlane({}, angle(), radiusAxis(), new LineAnnotation({ value: 5 }));
     const r = polarOf(radar);
@@ -218,7 +205,7 @@ test('annotation', () => {
 
     // Constant domain: a spoke, straight on both.
     const spoke = new PolarPlane({}, angle(), radiusAxis(), new LineAnnotation({ domain: 3 }));
-    const s = pathPoints(polarOf(spoke).svg, 0, /<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g);
+    const s = pathPoints(polarOf(spoke).svg, 0, /<path d="(M[^"]*)"[^>]*stroke-dasharray="5 3"/g).slice(0, 2);
     assert.equal(s.length, 2);
     near(s[0]![0], spoke.rect.width / 2);
     near(s[0]![1], spoke.rect.height / 2);

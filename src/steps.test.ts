@@ -103,7 +103,7 @@ test('steps', () => {
       });
       assert(!real(got[got.length - 1]!), 'a run ends with a gap point');
       assert.equal(s.base, null, 'a line needs no foot');
-      assert.match(svg, /<path[^>]*d="M[\d. -]+L[\d. -]+"[^>]*stroke-linejoin/, `${mode}: drawn as a path`);
+      assert.match(svg, /<path[^>]*d="M[\d. -]+[HVL][\d. HVL-]+"[^>]*stroke-linejoin/, `${mode}: drawn as a path`);
     }
     // The default is `after`.
     const drawn = (m: StepMode | undefined) => rect(ys, new LinePath(new StepCurve(m ? { mode: m } : {}))).svg.replace(/clip\d+/g, 'clip');
@@ -147,7 +147,7 @@ test('steps', () => {
     });
     const d = [...svg.matchAll(/<path[^>]*? d="([^"]*Z)"/g)].map((m) => m[1]!)[0]!;
     assert.equal(d.split('M').length - 1, 1, 'one closed shape');
-    assert.equal(d.split(/[MLZ ]/).filter(Boolean).length, 2 * 2 * 7, 'seven corners forward and seven back');
+    assert.match(d, /^M[\d. -]+(?:[HV][\d. -]+){6}V[\d. -]+H[\d. -]+Z$/, "the steps forward, then straight back along the baseline");
     // A baseline value shifts the foot.
     const high = stepLines(rect([1, 3], new AreaPath({ baseline: 2 }, new StepCurve())).series, 'after', 2)!;
     near(high.base!.data[1]!, rect([1, 3], new AreaPath(new StepCurve({}))).at(0, 2)[1]);

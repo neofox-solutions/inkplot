@@ -2393,7 +2393,10 @@ demos.push({
     const y = new L.Axis({ orientation: 'left', title: 'Signups', nice: true, min: 0 }, new L.LinearScale());
     const source = new L.ObjectDataSource({ source: rows, domain: 't', value: 'v' });
     const target = new L.LineAnnotation({ value: 70, label: 'Target: 70' });
-    const trend = new L.LineAnnotation({ from: [0, 40], to: [12, 70], label: 'Plan', style: { annotationLabel: { align: 'middle' } } });
+    const plan = new L.DomainSeries(
+      new L.SyntheticDataSource({ fn: (t: number) => 40 + (30 * t) / 12, domain: { min: 0, max: 12 }, count: 2 }),
+      new L.LinePath({ stroke: '#888', strokeWidth: 1.5 }, new L.LinearCurve()),
+    );
     const launch = new L.LineAnnotation({ domain: 6, label: 'Launch' });
     const note = new L.CalloutAnnotation({ domain: peak.t, value: peak.v, text: `Best week\n${peak.v.toFixed(0)} signups` });
     const plane = new L.CartesianPlane(
@@ -2402,7 +2405,7 @@ demos.push({
       y,
       new L.DomainSeries(source, new L.LinePath(new L.LinearCurve())),
       target,
-      trend,
+      plan,
       launch,
       note,
       new L.PanZoom({}),
@@ -2424,7 +2427,7 @@ demos.push({
       }),
       ui.toggle({ label: 'subtitle', value: true, onChange: (v) => subtitle.setAttribute('visible', v) }),
       ui.toggle({ label: 'target line (constant value)', value: true, onChange: (v) => target.setAttribute('visible', v) }),
-      ui.toggle({ label: 'plan line (diagonal)', value: true, onChange: (v) => trend.setAttribute('visible', v) }),
+      ui.toggle({ label: 'plan line (a two-point series)', value: true, onChange: (v) => plan.setAttribute('visible', v) }),
       ui.toggle({ label: 'launch line (constant domain)', value: true, onChange: (v) => launch.setAttribute('visible', v) }),
       ui.seg({
         label: 'line label sits at',

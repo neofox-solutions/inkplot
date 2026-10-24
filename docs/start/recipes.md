@@ -390,7 +390,7 @@ Series without `valueAxis` use the plane's second axis, the first one you added 
 
 ## Add a target line or a note
 
-A `LineAnnotation` is a reference line at a value (`value`), at a position along the domain (`domain`), or between two points (`from` and `to`). A `CalloutAnnotation` is a note on a data point, placed where it covers least.
+A `LineAnnotation` is a reference line at a value (`value`), at a position along the domain (`domain`), (a circle on a polar plane, a spoke for a position). For a line between two points, see [the next recipe](#draw-a-line-between-two-points). A `CalloutAnnotation` is a note on a data point, placed where it covers least.
 
 ```tsx live title="A target line and a callout" height=260
 import { Axis, CalloutAnnotation, CartesianPlane, Chart, DomainSeries, FlatDataSource, LineAnnotation, LinePath, LinearCurve, LinearScale, lightTheme } from 'inkplot';
@@ -406,6 +406,31 @@ export default () => (
       </DomainSeries>
       <LineAnnotation value={70} label="Target" stroke="#2a8f4a" />
       <CalloutAnnotation domain={6} value={74} text={'Launch\nweek'} />
+    </CartesianPlane>
+  </Chart>
+);
+```
+
+## Draw a line between two points
+
+An annotation is for things that stay put: a threshold, a note. A line from one point in data space to another (a plan, a trend you worked out yourself) is a series with two points, so it follows the axes, the scales and the plane like any other data. A `SyntheticDataSource` with `count={2}` is the shortest way to make one; leave `count` out and it samples as finely as the plot is wide, which is what a line needs to stay straight on a log axis or round on a polar plane.
+
+```tsx live title="A plan line between two points" height=260
+import { Axis, CartesianPlane, Chart, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, SyntheticDataSource, lightTheme } from 'inkplot';
+
+export default () => (
+  <Chart theme={lightTheme}>
+    <CartesianPlane>
+      <Axis orientation="bottom"><LinearScale /></Axis>
+      <Axis orientation="left"><LinearScale /></Axis>
+      <DomainSeries name="Score">
+        <FlatDataSource data={[52, 58, 61, 57, 66, 74, 71, 78]} regularDomain-start={1} regularDomain-step={1} />
+        <LinePath><LinearCurve /></LinePath>
+      </DomainSeries>
+      <DomainSeries name="Plan">
+        <SyntheticDataSource fn={(x: number) => 50 + (x - 1) * 4} domain={{ min: 1, max: 8 }} count={2} />
+        <LinePath stroke="#888" strokeWidth={1.5}><LinearCurve /></LinePath>
+      </DomainSeries>
     </CartesianPlane>
   </Chart>
 );

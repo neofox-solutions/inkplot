@@ -79,17 +79,16 @@ Annotations live in a plane and are placed in *data* terms, so they stay on the 
 
 ### `LineAnnotation`: a reference line
 
-Give exactly one of:
+Give exactly one of the following. A line between two points in data space (a trend, a diagonal) is not an annotation: it is a series with two points, which interpolates however its curve says ([the recipe](../start/recipes.md#draw-a-line-between-two-points)). Annotations are for thresholds, text and other static objects.
 
 | Attributes | The line |
 |---|---|
 | `value` | A constant value across the whole domain: horizontal on a rectangle. |
 | `domain` | A constant position along the domain, across the whole value range: vertical on a rectangle, a spoke on a radial plane. |
-| `from` and `to` | Straight between two `[domain, value]` points in data space: a diagonal. |
 
 Plus `label` (text beside the line), `stroke`, `strokeWidth` (or the `annotationLine` style), and `domainAxis`/`valueAxis` (default: the plane's first axes, as for a series). Where the label sits along the line is the style property `align` of `annotationLabel`.
 
-The line is **traced** through the plane with as few points as it allows: two when it stays straight (anything axis-aligned on a rectangle, a diagonal between linear scales), enough to follow the curve otherwise (a circle on a polar plane; a diagonal on a log axis is a curve), and for a radar just the corners, at its spokes. It is clipped to the plot; its label is not.
+The plane **draws** the line in its own terms, so it is exact everywhere with no sampling: straight on a rectangle, a circle (for `value`) or a spoke (for `domain`) on a polar plane, and a polygon through its spokes on a radar. It is clipped to the plot; its label is not.
 
 ### `CalloutAnnotation`: a note on a point
 
@@ -120,7 +119,7 @@ export default () => (
         <LinePath><LinearCurve /></LinePath>
         <CircleMarker size={3} />
       </DomainSeries>
-      <LineAnnotation from={[0, 10]} to={[9, 28]} label="Trend" stroke="#888" style-annotationLabel-align="end" />
+      <LineAnnotation value={20} label="Target" stroke="#888" style-annotationLabel-align="end" />
       <CalloutAnnotation domain={8} value={30} text={'Record\nquarter'} />
       <CalloutAnnotation domain={4} value={15} text="Outage" dx={0} dy={50} />
     </CartesianPlane>

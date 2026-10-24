@@ -34,6 +34,7 @@ import { type DataNode, DataSource, DataTransform, type FillPlan, type PlanConte
 import { KeyedTransform } from './partition.ts';
 import { type BaseAttributes, fail } from './element.ts';
 import type { Extent } from './geometry.ts';
+import { DEFAULT_SAMPLES, sampleAt, sampleSpan } from './sampling.ts';
 
 /** How well a trendline fits its points, and what it found. */
 export interface TrendFit {
@@ -69,7 +70,6 @@ export interface TrendlineAttributes extends BaseAttributes {
   count?: number;
 }
 
-const DEFAULT_SAMPLES = 512;
 const NONE: Extent = { min: Infinity, max: -Infinity };
 
 /** The base of trendlines: reads the points, fits them once for each change, and samples the curve. */
@@ -197,12 +197,8 @@ export abstract class Trendline<A extends TrendlineAttributes = TrendlineAttribu
   #samples(context: PlanContext): Float64Array {
     const span = this.#span();
     if (!span) return new Float64Array(0);
-    const count = this.attrs.count;
-    const lo = count === undefined ? Math.max(span.min, context.domainRange.min) : span.min;
-    const hi = count === undefined ? Math.min(span.max, context.domainRange.max) : span.max;
-    if (!(lo <= hi)) return new Float64Array(0);
-    const n = count ?? (context.width > 0 ? Math.max(2, Math.ceil(context.width)) : DEFAULT_SAMPLES);
-    return Float64Array.from({ length: n }, (_, i) => (n === 1 ? lo : i === n - 1 ? hi : lo + ((hi - lo) * i) / (n - 1)));
+    const samples = sampleSpan(span, context.domainRange, context.width, this.attrs.count);
+    return Float64Array.from({ length: samples.n }, (_, i) => sampleAt(samples, i));
   }
 
   domain(): Extent | null {

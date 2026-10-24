@@ -19,8 +19,6 @@ import type { Plane } from './plane.ts';
 import { type CalloutLook, DIRECTIONS, boxTrouble, calloutSize, clearCallout, paintCallout } from './callout.ts';
 import { applyText } from './text.ts';
 
-/** Points used to trace a line that has to bend with the plane (a circle, a diagonal on a log axis), per sweep. */
-const CURVE_STEPS = 96;
 /** Space between a line and its label, in pixels. */
 const LABEL_GAP = 4;
 
@@ -50,37 +48,26 @@ export interface LineAnnotationCommon extends BaseAttributes {
   stroke?: string;
   /** Line width in pixels: the same as `style: { annotationLine: { width } }`, set directly. */
   strokeWidth?: number;
-  /** A horizontal line at this value (give one of `value`, `domain`, or `from` and `to`). */
+  /** A horizontal line at this value (give one of `value` or `domain`). */
   value?: number;
-  /** A vertical line at this domain (give one of `value`, `domain`, or `from` and `to`). */
+  /** A vertical line at this domain (give one of `value` or `domain`). */
   domain?: number;
-  /** One end of a diagonal line, as `[domain, value]` (with `to`). */
-  from?: readonly [domain: number, value: number];
-  /** The other end of a diagonal line, as `[domain, value]` (with `from`). */
-  to?: readonly [domain: number, value: number];
 }
 /**
  * Which line: give one of
- *  - `value`: constant value across the whole domain (horizontal on a rectangle);
- *  - `domain`: constant domain across the whole value range (vertical on a rectangle, a spoke on a radial plane);
- *  - `from` and `to`: straight between two `[domain, value]` points in data space (diagonal).
+ *  - `value`: constant value across the whole domain (horizontal on a rectangle, a circle on a polar plane);
+ *  - `domain`: constant domain across the whole value range (vertical on a rectangle, a spoke on a radial plane).
+ *
+ * A line between two points in data space (a trend, a diagonal) is a series with two points, which interpolates as its curve says:
+ * see the recipe "A straight line between two points".
  */
 export type LineAnnotationAttributes = LineAnnotationCommon &
-  (
-    | { value: number; domain?: undefined; from?: undefined; to?: undefined }
-    | { domain: number; value?: undefined; from?: undefined; to?: undefined }
-    | {
-        from: readonly [domain: number, value: number];
-        to: readonly [domain: number, value: number];
-        value?: undefined;
-        domain?: undefined;
-      }
-  );
+  ({ value: number; domain?: undefined } | { domain: number; value?: undefined });
 
 /**
- * A reference line in data space: a target, a threshold, a trend. It is traced as a polyline through the plane, with as
- * few points as the plane allows: two when the line stays straight (anything axis-aligned on a rectangle, a diagonal
- * between linear scales), enough to follow the curve otherwise, and for a radar just the corners, at its spokes. The line is clipped to the plot; its label is not.
+ * A reference line in data space: a target or a threshold. It runs along one axis at a fixed place on the other, so the plane
+ * draws it in its own terms (`alignedPath`): straight on a rectangle, a circle or a spoke on a polar plane, a polygon on a
+ * radar. The line is clipped to the plot; its label is not.
  */
 export class LineAnnotation extends ChartElement<Plane, [], LineAnnotationAttributes> {
   static override attrTypes = {
@@ -93,42 +80,42 @@ export class LineAnnotation extends ChartElement<Plane, [], LineAnnotationAttrib
   } satisfies AttrTypesFor<LineAnnotationAttributes>;
   #label = false;
 
-  /** The line as placed points in plot pixels, `[x, y]` per row, in order along the line; NaN where there is none. */
-  private trace(plane: Plane, first: Axis, second: Axis): Float64Array | null {
+  /** The line in the plane's terms: its fraction along the other axis, and whether it runs along the first axis. Null where it has none. */
+  private locate(first: Axis, second: Axis): { fixed: number; alongFirst: boolean } | null {
     const a = this.attrs;
-    let fractions: number[], buf: Float64Array;
     if (a.value !== undefined) {
-      // Constant value: run along the first axis. Where the plane bends, sample it, and put a point on every corner.
       const f = second.fractionOf(a.value);
-      if (!Number.isFinite(f)) return null;
-      fractions = plane.curved ? along(first, plane) : [0, 1];
-      buf = new Float64Array(fractions.length * 2);
-      fractions.forEach((t, i) => {
-        buf[2 * i] = t;
-        buf[2 * i + 1] = f;
-      });
-    } else if (a.domain !== undefined) {
-      const f = first.fractionOf(a.domain);
-      if (!Number.isFinite(f)) return null;
-      buf = new Float64Array([f, 0, f, 1]);
-    } else if (a.from && a.to) {
-      // Straight in data space, so interpolate there; it only stays straight on the page if nothing bends it.
-      const [d0, v0] = a.from,
-        [d1, v1] = a.to;
-      const n = plane.curved || !first.scale.isLinear || !second.scale.isLinear ? CURVE_STEPS + 1 : 2;
-      buf = new Float64Array(n * 2);
-      for (let i = 0; i < n; i++) {
-        const t = i / (n - 1);
-        buf[2 * i] = d0 + t * (d1 - d0);
-        buf[2 * i + 1] = v0 + t * (v1 - v0);
-      }
-      first.normalize(buf, n, 2, 0);
-      second.normalize(buf, n, 2, 1);
-    } else {
-      return null; // the attribute type allows nothing else; a hand-built JSON spec with none of them draws nothing
+      return Number.isFinite(f) ? { fixed: f, alongFirst: true } : null;
     }
-    plane.place({ data: buf, stride: 2, count: buf.length / 2 }, first, second);
-    return buf;
+    if (a.domain !== undefined) {
+      const f = first.fractionOf(a.domain);
+      return Number.isFinite(f) ? { fixed: f, alongFirst: false } : null;
+    }
+    return null; // the attribute type allows nothing else; a hand-built JSON spec with none of them draws nothing
+  }
+
+  /** The point a fraction of the way along the line (in the plane's terms) in plot pixels, and the direction it is heading there. */
+  private labelSpot(
+    plane: Plane,
+    first: Axis,
+    second: Axis,
+    at: { fixed: number; alongFirst: boolean },
+    fraction: number,
+  ): { x: number; y: number; tx: number; ty: number } | null {
+    const E = 0.01;
+    const lo = Math.max(0, fraction - E),
+      hi = Math.min(1, fraction + E);
+    const buf = new Float64Array(6);
+    [lo, fraction, hi].forEach((t, i) => {
+      buf[2 * i] = at.alongFirst ? t : at.fixed;
+      buf[2 * i + 1] = at.alongFirst ? at.fixed : t;
+    });
+    plane.place({ data: buf, stride: 2, count: 3 }, first, second);
+    const dx = buf[4]! - buf[0]!,
+      dy = buf[5]! - buf[1]!,
+      len = Math.hypot(dx, dy);
+    if (!(len > 0) || !Number.isFinite(buf[2]!) || !Number.isFinite(buf[3]!)) return null;
+    return { x: buf[2]!, y: buf[3]!, tx: dx / len, ty: dy / len };
   }
 
   override onEvent(ev: ChartEvent): void {
@@ -137,21 +124,16 @@ export class LineAnnotation extends ChartElement<Plane, [], LineAnnotationAttrib
       s = this.surface,
       a = this.attrs;
     const [first, second] = axesOf(this, plane, a.domainAxis, a.valueAxis);
-    const pts = this.trace(plane, first, second);
+    const at = this.locate(first, second);
     const look = this.styleFor(['annotationLine', 'line'], { color: a.stroke, width: a.strokeWidth });
-    let d = '',
-      pen = false;
-    if (pts)
-      for (let i = 0; i < pts.length; i += 2) {
-        const x = pts[i]!,
-          y = pts[i + 1]!;
-        if (!(Number.isFinite(x) && Number.isFinite(y))) {
-          pen = false;
-          continue;
-        }
-        d += (pen ? 'L' : 'M') + f2(x) + ' ' + f2(y);
-        pen = true;
-      }
+    const d = at
+      ? plane.alignedPath(
+          new Float64Array(at.alongFirst ? [0, at.fixed, 1, at.fixed] : [at.fixed, 0, at.fixed, 1]),
+          2,
+          first,
+          second,
+        )
+      : '';
     const line = s.node('line', 'path');
     s.set(line, 'd', d);
     s.set(line, 'fill', 'none');
@@ -161,7 +143,7 @@ export class LineAnnotation extends ChartElement<Plane, [], LineAnnotationAttrib
     s.set(line, 'opacity', look.opacity);
     s.set(line, 'clip-path', plane.clipUrl ?? 'none');
 
-    if (!a.label || !pts) {
+    if (!a.label || !at) {
       if (this.#label) {
         s.remove('label');
         this.#label = false;
@@ -169,11 +151,11 @@ export class LineAnnotation extends ChartElement<Plane, [], LineAnnotationAttrib
       return;
     }
     const text = this.styleFor(['annotationLabel', 'annotationLine', 'text'], { color: a.stroke });
-    const at = pointAlong(pts, text.align === 'start' ? 0 : text.align === 'middle' ? 0.5 : 1);
-    if (!at) return;
+    const spot = this.labelSpot(plane, first, second, at, text.align === 'start' ? 0 : text.align === 'middle' ? 0.5 : 1);
+    if (!spot) return;
     // The label sits on the side of the line that faces up (or, for a vertical line, right), which on a circle is outwards.
-    let nx = at.ty,
-      ny = -at.tx;
+    let nx = spot.ty,
+      ny = -spot.tx;
     if (ny > 1e-6 || (Math.abs(ny) <= 1e-6 && nx < 0)) {
       nx = -nx;
       ny = -ny;
@@ -181,50 +163,10 @@ export class LineAnnotation extends ChartElement<Plane, [], LineAnnotationAttrib
     const n = s.node('label', 'text');
     this.#label = true;
     applyText(s, n, text, Math.abs(nx) > 0.5 ? (nx > 0 ? 'start' : 'end') : text.align);
-    s.set(n, 'x', f2(at.x + nx * LABEL_GAP));
-    s.set(n, 'y', f2(at.y + ny * LABEL_GAP + (ny > 0.3 ? text.size * 0.8 : ny < -0.3 ? 0 : text.size * 0.35)));
+    s.set(n, 'x', f2(spot.x + nx * LABEL_GAP));
+    s.set(n, 'y', f2(spot.y + ny * LABEL_GAP + (ny > 0.3 ? text.size * 0.8 : ny < -0.3 ? 0 : text.size * 0.35)));
     s.text(n, a.label);
   }
-}
-
-/**
- * Fractions along an axis to trace a line that runs along it at. A plane that says where it bends (a radar) is straight
- * between those places, so they are all that is needed and the line is exact; any other curved plane is sampled evenly.
- */
-function along(axis: Axis, plane: Plane): number[] {
-  const out = new Set<number>([0, 1]);
-  const corners = plane.breaks(axis);
-  if (corners.length > 0)
-    for (const b of corners) {
-      if (b >= 0 && b <= 1) out.add(Math.round(b * 1e9) / 1e9);
-    }
-  else for (let i = 1; i < CURVE_STEPS; i++) out.add(i / CURVE_STEPS);
-  return [...out].sort((p, q) => p - q);
-}
-
-/** The point a fraction of the way along a polyline's length, and the direction it is heading there. Null without two real points. */
-function pointAlong(pts: Float64Array, fraction: number): { x: number; y: number; tx: number; ty: number } | null {
-  const n = pts.length / 2,
-    real = (i: number) => Number.isFinite(pts[2 * i]!) && Number.isFinite(pts[2 * i + 1]!);
-  let total = 0;
-  for (let i = 1; i < n; i++)
-    if (real(i) && real(i - 1)) total += Math.hypot(pts[2 * i]! - pts[2 * i - 2]!, pts[2 * i + 1]! - pts[2 * i - 1]!);
-  if (!(total > 0)) return null;
-  let target = fraction * total;
-  for (let i = 1; i < n; i++) {
-    if (!real(i) || !real(i - 1)) continue;
-    const x0 = pts[2 * i - 2]!,
-      y0 = pts[2 * i - 1]!,
-      dx = pts[2 * i]! - x0,
-      dy = pts[2 * i + 1]! - y0,
-      len = Math.hypot(dx, dy);
-    if (target <= len || i === n - 1) {
-      const t = len > 0 ? Math.min(1, target / len) : 0;
-      return { x: x0 + t * dx, y: y0 + t * dy, tx: len > 0 ? dx / len : 1, ty: len > 0 ? dy / len : 0 };
-    }
-    target -= len;
-  }
-  return null;
 }
 
 // ─── Callouts ───

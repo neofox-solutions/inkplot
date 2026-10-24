@@ -14,6 +14,7 @@ import { writeAria } from './aria.ts';
 import { fail } from './element.ts';
 import { type ChartEvent, EVENT_ARRANGE, EVENT_ATTACH, EVENT_PAINT } from './events.ts';
 import { type Insets, type Rect, type Size, f2 } from './geometry.ts';
+import { walkAligned } from './aligned.ts';
 import { MIN_INSET, Plane, type PlaneAttributes, nextClipId } from './plane.ts';
 
 export interface RadialPlaneAttributes extends PlaneAttributes {
@@ -32,14 +33,20 @@ export interface RadialPlaneAttributes extends PlaneAttributes {
 const SIDES: PolarOrientation[] = ['angle', 'radius'];
 const TAU = 2 * Math.PI;
 
-/** An arc of a circle as path data, in pieces of at most half a turn so that any sweep is drawn the right way round. */
-function arc(cx: number, cy: number, r: number, start: number, sweep: number): string {
+/** The `A` commands that carry a pen at the start of an arc of a circle round it, in pieces of at most half a turn so that any sweep is drawn the right way round. */
+function arcRun(cx: number, cy: number, r: number, start: number, sweep: number): string {
   const pieces = Math.max(1, Math.ceil(Math.abs(sweep) / Math.PI - 1e-9)),
     step = sweep / pieces;
-  const at = (a: number) => `${f2(cx + r * Math.sin(a))} ${f2(cy - r * Math.cos(a))}`;
-  let d = `M${at(start)}`;
-  for (let k = 1; k <= pieces; k++) d += `A${f2(r)} ${f2(r)} 0 0 ${sweep > 0 ? 1 : 0} ${at(start + k * step)}`;
+  let d = '';
+  for (let k = 1; k <= pieces; k++) {
+    const a = start + k * step;
+    d += `A${f2(r)} ${f2(r)} 0 0 ${sweep > 0 ? 1 : 0} ${f2(cx + r * Math.sin(a))} ${f2(cy - r * Math.cos(a))}`;
+  }
   return d;
+}
+/** An arc of a circle as path data. */
+function arc(cx: number, cy: number, r: number, start: number, sweep: number): string {
+  return `M${f2(cx + r * Math.sin(start))} ${f2(cy - r * Math.cos(start))}` + arcRun(cx, cy, r, start, sweep);
 }
 
 /**
@@ -91,6 +98,32 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
   protected abstract angleFraction(dx: number, dy: number): number;
   /** Called when the circle is settled, before any series is projected. */
   protected prepare(): void {}
+  /** The path data that carries the pen from where `from` is on the angle axis to where `to` is, round the circle of pixel radius `r`. */
+  protected abstract angleRun(from: number, to: number, r: number): string;
+
+  /** Moves along the angle are arcs (or chords through the spokes, on a radar), along the radius lines, and a diagonal a chord. */
+  override alignedPath(coords: ArrayLike<number>, count: number, first: Axis, second: Axis, closed = false): string {
+    const angleIsFirst = first.orientation === 'angle';
+    if ((first.orientation !== 'angle' && first.orientation !== 'radius') || (second.orientation === 'angle') === angleIsFirst) fail(175);
+    const R = this.#radius,
+      inner = this.innerRadius,
+      xy = this.#xy;
+    const radiusOf = (v: number) => R * (inner + (1 - inner) * Math.max(0, v));
+    const point = (a: number, b: number): string => {
+      this.locate(angleIsFirst ? a : b, radiusOf(angleIsFirst ? b : a), xy);
+      return `${f2(xy[0]!)} ${f2(xy[1]!)}`;
+    };
+    let d = '';
+    walkAligned(coords, count, closed, {
+      begin: (a, b) => (d += 'M' + point(a, b)),
+      to: (pa, pb, a, b, along) => {
+        if (along === 2 || (along === 0) !== angleIsFirst) d += 'L' + point(a, b);
+        else d += this.angleRun(angleIsFirst ? pa : pb, angleIsFirst ? a : b, radiusOf(angleIsFirst ? b : a));
+      },
+      finish: (shut) => (d += shut ? 'Z' : ''),
+    });
+    return d;
+  }
 
   override cyclic(axis: Axis): boolean {
     return axis.orientation === 'angle' && Math.abs(this.sweep) >= TAU - 1e-9;
@@ -365,6 +398,9 @@ export class PolarPlane extends RadialPlane<PolarPlaneAttributes> {
     const f = (Math.atan2(dx, -dy) - this.startAngle) / this.sweep;
     return Math.abs(this.sweep) >= TAU - 1e-9 ? f - Math.floor(f) : f;
   }
+  protected angleRun(from: number, to: number, r: number): string {
+    return arcRun(this.cx, this.cy, r, this.startAngle + from * this.sweep, (to - from) * this.sweep);
+  }
   protected ring(r: number, reverse = false): string {
     return reverse
       ? arc(this.cx, this.cy, r, this.startAngle + this.sweep, -this.sweep)
@@ -453,6 +489,24 @@ export class RadarPlane extends RadialPlane<RadarPlaneAttributes> {
       sy = -R * this.#cos[k + 1]! - ay;
     const t = ((px - ax) * sx + (py - ay) * sy) / (sx * sx + sy * sy);
     return at[k]! + Math.min(1, Math.max(0, t)) * (at[k + 1]! - at[k]!);
+  }
+
+  /** A chord to each spoke the move passes, then to where it ends. */
+  protected angleRun(from: number, to: number, r: number): string {
+    const xy = new Float64Array(2);
+    let d = '';
+    const line = (f: number) => {
+      this.locate(f, r, xy);
+      d += `L${f2(xy[0]!)} ${f2(xy[1]!)}`;
+    };
+    const at = this.#at;
+    if (to > from) {
+      for (const s of at) if (s > from && s < to) line(s);
+    } else {
+      for (let j = at.length - 1; j >= 0; j--) if (at[j]! < from && at[j]! > to) line(at[j]!);
+    }
+    line(to);
+    return d;
   }
 
   protected ring(r: number, reverse = false): string {

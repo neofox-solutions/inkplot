@@ -18,6 +18,7 @@
  * a normal. Straight edges, floating axes and radial spokes are all just different rulers, so Axis has no per-shape code.
  */
 /* oxlint-disable typescript/no-non-null-assertion -- stride-addressed rows of the placed-point buffers: every index is bounded by the row count */
+import { type AlignedSink, walkAligned } from './aligned.ts';
 import { Axis, type AxisOrientation, type CartesianOrientation, type Ruler, type TitleSpot, cartesianSide, isHorizontal } from './axis.ts';
 import type { Chart } from './chart.ts';
 import type { PointBuffer } from './data.ts';
@@ -120,6 +121,30 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
    */
   abstract fitSteps(available: Rect): Generator<void>;
   abstract place(points: PointBuffer, first: Axis, second: Axis): void;
+  /**
+   * The path data for a run of axis-aligned moves: `coords` is `count` vertices, `[first, second]` each, as fractions of the two axes, and each
+   * vertex is reached from the one before by changing one coordinate only (a bar's outline, a step line). The plane draws every move in its
+   * own terms, so the result is exact there: lines along an axis on a Cartesian plane (with `H` and `V`), an arc along the angle of a polar one,
+   * and a chord with a vertex at each spoke along the angle of a radar one. A vertex that is not a number lifts the pen; `closed` joins each run
+   * back to where it began with a move of its own (an arc, where that is what the edge is). A move that changes both coordinates is drawn as a straight
+   * chord in plot pixels, whatever the plane. This default is that chord for every move, which is right for a plane that is straight everywhere.
+   */
+  alignedPath(coords: ArrayLike<number>, count: number, first: Axis, second: Axis, closed = false): string {
+    const xy = new Float64Array(2);
+    const at = (a: number, b: number): string => {
+      xy[0] = a;
+      xy[1] = b;
+      this.place({ data: xy, stride: 2, count: 1 }, first, second);
+      return `${f2(xy[0]!)} ${f2(xy[1]!)}`;
+    };
+    let d = '';
+    walkAligned(coords, count, closed, {
+      begin: (a, b) => (d += 'M' + at(a, b)),
+      to: (_pa, _pb, a, b) => (d += 'L' + at(a, b)),
+      finish: (shut) => (d += shut ? 'Z' : ''),
+    } satisfies AlignedSink);
+    return d;
+  }
   /**
    * The inverse of `place` for one position: what a spot in plot pixels is in data terms, as the values `first` and
    * `second` read there. It is what turns a dragged pointer into an edit. A position outside the plot gives values
@@ -344,6 +369,28 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
       case 'radius':
         cartesianSide(first.orientation);
     }
+  }
+
+  override alignedPath(coords: ArrayLike<number>, count: number, first: Axis, second: Axis, closed = false): string {
+    if (isHorizontal(first.orientation) === isHorizontal(second.orientation)) fail(165);
+    if (first.orientation === 'angle' || first.orientation === 'radius') cartesianSide(first.orientation);
+    const w = this.rect.width,
+      h = this.rect.height,
+      across = isHorizontal(first.orientation);
+    // Where a vertex is: a fraction of the horizontal axis across, a fraction of the vertical one up.
+    const x = (a: number, b: number) => f2((across ? a : b) * w),
+      y = (a: number, b: number) => f2((1 - (across ? b : a)) * h);
+    let d = '';
+    walkAligned(coords, count, closed, {
+      begin: (a, b) => (d += 'M' + x(a, b) + ' ' + y(a, b)),
+      // The move back to the start of a closed shape is what `Z` draws.
+      to: (_pa, _pb, a, b, along, closing) => {
+        if (closing) return;
+        d += along === 2 ? 'L' + x(a, b) + ' ' + y(a, b) : (along === 0) === across ? 'H' + x(a, b) : 'V' + y(a, b);
+      },
+      finish: (shut) => (d += shut ? 'Z' : ''),
+    });
+    return d;
   }
 
   unplace(x: number, y: number, first: Axis, second: Axis): readonly [number, number] {

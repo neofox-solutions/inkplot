@@ -7,10 +7,10 @@
  *  - `center`: it changes halfway between the two.
  *
  * The step is worked out in the plane's own terms, never in pixels: the level part runs along the first axis at one value
- * and the jump along the second, and both are placed like any other point. So on a rectangle the levels are horizontal and
- * the jumps vertical (or the other way round when the domain is on the vertical axis), and on a polar plane a level is an
- * arc round the middle and a jump a spoke. A level on a curved plane is cut into pieces to follow it (at the corners of
- * a radar's polygon, exactly), which a straight chord between the two ends would cut across.
+ * and the jump along the second. The plane draws it (`alignedPath`), so on a rectangle the levels are horizontal and
+ * the jumps vertical (or the other way round when the domain is on the vertical axis), on a polar plane a level is an
+ * arc round the middle and a jump a spoke, and on a radar a level is a chord through the spokes it passes. What is drawn is
+ * exact; the points of the trace, which hits are measured to, cut a level on a curved plane into pieces to follow it.
  *
  * The line passes through every point of the data, and a marker on the series sits on a corner. A gap in the data
  * breaks the steps in two, unless the series says its `missing` is 'connect'. The curve `trace`s what it draws, so a
@@ -20,7 +20,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import type { PointBuffer } from './data.ts';
 import type { Series } from './series.ts';
-import { Curve, type CurveAttributes, areaOutline, polyline } from './curve.ts';
+import { Curve, type CurveAttributes } from './curve.ts';
 import type { Trace } from './renderer.ts';
 
 export type StepMode = 'after' | 'before' | 'center';
@@ -38,6 +38,12 @@ const MOST = 64;
 export interface Stepped extends Trace {
   readonly top: PointBuffer;
   readonly base: PointBuffer | null;
+  /**
+   * The same steps as fractions of the two axes, `[first, second]` a vertex and each run ended by a NaN vertex, before the plane placed
+   * them: what `Plane.alignedPath` draws from. `alignedBase` is the baseline's, vertex for vertex.
+   */
+  readonly aligned: Float64Array;
+  readonly alignedBase: Float64Array | null;
 }
 
 /**
@@ -166,13 +172,43 @@ export function stepLines(series: Series, mode: StepMode, baseline: number | nul
   }
   flush();
 
+  const aligned = top.slice(0, 2 * k),
+    alignedBase = foot ? foot.slice(0, 2 * k) : null;
   const out = (data: Float64Array): PointBuffer => {
     const buffer = { data: data.subarray(0, 2 * k), stride: 2, count: k };
     plane.place(buffer, first, second);
     return buffer;
   };
   const placedTop = out(top);
-  return { top: placedTop, line: placedTop, base: foot ? out(foot) : null, owner: owner.subarray(0, k) };
+  return { top: placedTop, line: placedTop, base: foot ? out(foot) : null, owner: owner.subarray(0, k), aligned, alignedBase };
+}
+
+/**
+ * The outlines of a step area as vertices for `Plane.alignedPath`: for each run of the line, the line forward and the baseline back, each run
+ * ended by a NaN vertex. The foot of a vertex is at the same place along the first axis, so the move between the two is along the second.
+ */
+function areaRuns(top: Float64Array, foot: Float64Array): Float64Array {
+  const rows = top.length / 2,
+    out = new Float64Array(top.length * 2 + 2);
+  let m = 0,
+    start = 0;
+  for (let i = 0; i <= rows; i++) {
+    if (i < rows && Number.isFinite(top[2 * i]!)) continue;
+    if (i > start) {
+      for (let j = start; j < i; j++) {
+        out[m++] = top[2 * j]!;
+        out[m++] = top[2 * j + 1]!;
+      }
+      for (let j = i - 1; j >= start; j--) {
+        out[m++] = foot[2 * j]!;
+        out[m++] = foot[2 * j + 1]!;
+      }
+      out[m++] = NaN;
+      out[m++] = NaN;
+    }
+    start = i + 1;
+  }
+  return out.subarray(0, m);
 }
 
 export interface StepCurveAttributes extends CurveAttributes {
@@ -184,6 +220,9 @@ export interface StepCurveAttributes extends CurveAttributes {
 export class StepCurve extends Curve<StepCurveAttributes> {
   #key = '';
   #value: Stepped | null = null;
+  // The path data of the steps above, once asked for: they are the same until the key changes.
+  #line: string | null = null;
+  #area: string | null = null;
   /** The steps of a series, kept until it is projected again or they are asked for differently. */
   #steps(series: Series, baseline: number | null): Stepped | null {
     const mode = this.attrs.mode ?? 'after',
@@ -191,16 +230,20 @@ export class StepCurve extends Curve<StepCurveAttributes> {
     if (key !== this.#key) {
       this.#value = stepLines(series, mode, baseline);
       this.#key = key;
+      this.#line = this.#area = null;
     }
     return this.#value;
   }
   line(series: Series): string {
     const steps = this.#steps(series, null);
-    return steps ? polyline(steps.top, false) : '';
+    if (!steps) return '';
+    return (this.#line ??= series.plane.alignedPath(steps.aligned, steps.aligned.length / 2, series.firstAxis, series.secondAxis));
   }
   area(series: Series, baseline: number): string {
     const steps = this.#steps(series, baseline);
-    return steps?.base ? areaOutline(steps.top, steps.base, false) : '';
+    if (!steps?.alignedBase) return '';
+    const runs = areaRuns(steps.aligned, steps.alignedBase);
+    return (this.#area ??= series.plane.alignedPath(runs, runs.length / 2, series.firstAxis, series.secondAxis, true));
   }
   override trace(series: Series, baseline: number | null): Trace | null {
     return this.#steps(series, baseline);

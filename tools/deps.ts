@@ -51,6 +51,8 @@ export const FOUNDATION = [
   'attrs',
   'quantile',
   'bucket',
+  'sampling',
+  'aligned',
 ];
 export const CORE = ['chart', 'container', 'plane', 'axis', 'dimension', 'series', 'renderer', 'curve', 'scale', 'data'];
 /** The only places one feature may use another: the rest of the features are independent. Add here on purpose. */

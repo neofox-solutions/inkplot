@@ -484,20 +484,34 @@ export class BarPath extends BarRenderer<BarPathAttributes> {
     const counters = this.counters;
     const look = this.look();
     const t0 = performance.now();
-    const shapes = this.outline();
+    // Each bar is a rectangle in the plane's terms, drawn by the plane: straight edges on a rectangle, arcs and spokes on a polar plane.
+    // (The outline the hits measure to, `barShapes`, is only worked out if something asks for it.)
+    const series = this.requireParent(),
+      lay = layoutBars(series, this.attrs),
+      plane = series.drawn?.plane;
+    const corners = new Float64Array(8);
     const path = (i: number): string => {
-      if (!shapes) return '';
-      const { data, perShape } = shapes,
-        k = i * perShape * 2;
-      const x = data[k]!,
-        y = data[k + 1]!;
-      if (!Number.isFinite(x) || !Number.isFinite(y)) return '';
-      let d = 'M' + f2(x) + ' ' + f2(y) + 'L';
-      for (let j = 1; j < perShape; j++) d += (j > 1 ? ' ' : '') + f2(data[k + 2 * j]!) + ' ' + f2(data[k + 2 * j + 1]!);
-      return d + 'Z';
+      if (!lay || !plane) return '';
+      const x = lay.norm[3 * i]! + lay.shift,
+        from = lay.norm[3 * i + 1]!,
+        to = lay.norm[3 * i + 2]!;
+      if (!Number.isFinite(x) || !Number.isFinite(from) || !Number.isFinite(to)) return '';
+      const x0 = x - lay.slot / 2,
+        x1 = x0 + lay.slot,
+        b = clamp(from),
+        t = clamp(to);
+      corners[0] = x0;
+      corners[1] = b;
+      corners[2] = x1;
+      corners[3] = b;
+      corners[4] = x1;
+      corners[5] = t;
+      corners[6] = x0;
+      corners[7] = t;
+      return plane.alignedPath(corners, 4, series.firstAxis, series.secondAxis, true);
     };
     const bytes = this.paint(
-      shapes?.count ?? 0,
+      lay?.n ?? 0,
       path,
       { fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth, opacity: look.opacity },
       (n, v) => {
@@ -509,7 +523,7 @@ export class BarPath extends BarRenderer<BarPathAttributes> {
         s.set(n, 'opacity', Number(v.opacity));
       },
       'bars',
-      shapes,
+      lay,
     );
     counters.stages.path += performance.now() - t0;
     counters.pathBytes += bytes;
