@@ -135,7 +135,7 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
       xy[0] = a;
       xy[1] = b;
       this.place({ data: xy, stride: 2, count: 1 }, first, second);
-      return `${f2(xy[0]!)} ${f2(xy[1]!)}`;
+      return `${f2(xy[0])} ${f2(xy[1])}`;
     };
     let d = '';
     walkAligned(coords, count, closed, {

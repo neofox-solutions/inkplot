@@ -477,8 +477,6 @@ test('playground', async () => {
     ['arc', 'A'],
     ['bump', 'C'],
     ['basis', 'C'],
-    ['step centred', 'L'],
-    ['step before', 'L'],
     ['Catmull-Rom', 'C'],
     ['cardinal', 'C'],
   ]) {
@@ -490,6 +488,19 @@ test('playground', async () => {
       `${label} draws with ${letter}`,
     );
   }
+  // Steps are drawn by the plane, as horizontal and vertical moves on a rectangle.
+  for (const label of ['step centred', 'step before']) {
+    await page.getByRole('button', { name: label, exact: true }).click();
+    await settle();
+    const lines = await page.evaluate(() =>
+      [...document.querySelectorAll('#host svg path[stroke-linejoin="round"]')].map((p) => p.getAttribute('d') ?? ''),
+    );
+    assert(
+      lines.some((d) => /^M[\d. -]+[HV]/.test(d) && !/NaN/.test(d)),
+      `${label} draws with H and V`,
+    );
+  }
+  await page.getByRole('button', { name: 'natural', exact: true }).click();
   for (const plane of ['polar', 'radar', 'domain up the side', 'upright']) {
     await page.getByRole('button', { name: plane, exact: true }).click();
     await settle();
@@ -695,7 +706,7 @@ test('playground', async () => {
       [...document.querySelectorAll('#host svg path')]
         .map((p) => p.getAttribute('d') ?? '')
         .filter((d) => d.includes('Z'))
-        .flatMap((d) => d.split('Z').map((b) => /L[\d.]+ ([\d.]+) [\d.]+ ([\d.]+)/.exec(b)?.[2] ?? ''))
+        .flatMap((d) => d.split('Z').map((b) => /V([\d.]+)/.exec(b)?.[1] ?? ''))
         .join(','),
     );
   const unweighted = await bars();

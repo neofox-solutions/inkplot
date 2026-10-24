@@ -147,7 +147,7 @@ test('steps', () => {
     });
     const d = [...svg.matchAll(/<path[^>]*? d="([^"]*Z)"/g)].map((m) => m[1]!)[0]!;
     assert.equal(d.split('M').length - 1, 1, 'one closed shape');
-    assert.match(d, /^M[\d. -]+(?:[HV][\d. -]+){6}V[\d. -]+H[\d. -]+Z$/, "the steps forward, then straight back along the baseline");
+    assert.match(d, /^M[\d. -]+(?:[HV][\d. -]+){6}V[\d. -]+H[\d. -]+Z$/, 'the steps forward, then straight back along the baseline');
     // A baseline value shifts the foot.
     const high = stepLines(rect([1, 3], new AreaPath({ baseline: 2 }, new StepCurve())).series, 'after', 2)!;
     near(high.base!.data[1]!, rect([1, 3], new AreaPath(new StepCurve({}))).at(0, 2)[1]);

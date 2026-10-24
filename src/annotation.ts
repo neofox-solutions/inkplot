@@ -127,12 +127,7 @@ export class LineAnnotation extends ChartElement<Plane, [], LineAnnotationAttrib
     const at = this.locate(first, second);
     const look = this.styleFor(['annotationLine', 'line'], { color: a.stroke, width: a.strokeWidth });
     const d = at
-      ? plane.alignedPath(
-          new Float64Array(at.alongFirst ? [0, at.fixed, 1, at.fixed] : [at.fixed, 0, at.fixed, 1]),
-          2,
-          first,
-          second,
-        )
+      ? plane.alignedPath(new Float64Array(at.alongFirst ? [0, at.fixed, 1, at.fixed] : [at.fixed, 0, at.fixed, 1]), 2, first, second)
       : '';
     const line = s.node('line', 'path');
     s.set(line, 'd', d);
