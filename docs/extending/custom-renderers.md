@@ -94,7 +94,7 @@ export default () => (
 Notes:
 
 - **A gap** in the data arrives as a `NaN` placed point. Lift the pen at it; `series.attrs.missing === 'connect'` asks you to cross it instead. `polyline(points, connect)` and `areaOutline(top, base, connect)` are the library's straight-line helpers to start from.
-- **Hit testing.** A curve whose path is not straight lines through the points should also implement `trace(series, baseline)`, returning the path it draws as vertices, with the series point each belongs to (`Trace`). Pointer hits and tooltip readings are then measured against what is on screen. The right-angle curve above would do this to be exact; without it, hits follow the straight lines through the points.
+- **Hit testing.** A curve whose path is not straight lines through the points should also say what it draws. If it is something the plane could draw exactly (levels and jumps), implement `hitShapes(series, baseline)`: the pieces of the line as rectangles in the plane's own terms (`HitShapes`), which a pointer is measured to through the plane, exact on every plane. If it is a path of your own in pixels (a spline), implement `trace(series, baseline)`, returning the path as vertices with the series point each belongs to (`Trace`). Either way, pointer hits and tooltip readings are measured against what is on screen; without them, hits follow the straight lines through the points.
 - **Many curves share the work**: `curves.ts` has `StrokeCurve`, where you say only what pieces a run of points is made of, by calling `pen.lineTo`, `pen.cubicTo`, `pen.hermiteTo`, `pen.quadTo`, `pen.smoothTo` and `pen.arcTo` from `pieces(p, pen)`, and gets the lines, areas, gaps and traces. Nothing is allocated for a piece, so a curve costs the same few allocations however long it is.
 - Area under a curve needs `area`, which must produce a shape that closes back along the baseline: `series.baseline(value)` gives the baseline points placed like the data.
 
@@ -173,7 +173,7 @@ What a renderer can tell the series, by overriding a getter (all optional):
 | `includes` | Values the value axis must reach whatever the data says (bars: their baseline). |
 | `reach` | Pixels it draws beyond its points, so axes leave room for them. |
 | `spans` | Half its width along the domain, as a fraction of the gap between points (bars). |
-| `hitMode`, `shapes()`, `trace()` | How a pointer should measure against it: `'shape'` and the shapes it drew, or the line it traced. |
+| `hitMode`, `shapes()`, `trace()` | How a pointer should measure against it: `'shape'` and the shapes it drew (`shapes()`: rectangles in the plane's own terms, `ShapeSet`), or the line it traced or gave as exact pieces (`trace()`, `hitShapes()`). |
 | `bindings`, `stepsPerBinding` | Bound dimensions; see the markers' source for the quantizing machinery. |
 
 For anything that varies per point by a bound dimension, extending a marker is much easier than writing this by hand: it does the culling and grouping.
