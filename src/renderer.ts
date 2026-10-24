@@ -91,6 +91,18 @@ export interface ResolvedBinding {
 export interface ShapeSet {
   readonly data: Float64Array;
   readonly count: number;
+  /** For each shape, the index of the series' own point it belongs to, which is what a hit on it reports. Absent: the shape's own index. */
+  readonly owner?: Int32Array;
+}
+
+/**
+ * What a line or area is hit against when it is drawn other than as straight lines through the points (steps), in the plane's own terms: `segments`, a
+ * `ShapeSet` of the pieces of its line (each a rectangle with no width or no height), whose nearest one a pointer is measured to; and for an area, `cells`,
+ * the rectangles between the line and its baseline, inside any of which a pointer is inside the area.
+ */
+export interface HitShapes {
+  readonly segments: ShapeSet;
+  readonly cells: ShapeSet | null;
 }
 
 /**
@@ -190,6 +202,8 @@ export abstract class SeriesRenderer<
   enterFrom?(): { kind: 'grow-y' | 'grow-x'; x: number; y: number } | null;
   /** The path this draws as a line (or the top of a shape), if it is not the straight one through the points. Hits and readings follow it. Default none. */
   trace?(): Trace | null;
+  /** The line (or area) this draws, as pieces in the plane's own terms, when it is exact and not sampled (steps). Hits and readings follow it, ahead of `trace`. Default none. */
+  hitShapes?(): HitShapes | null;
   /**
    * Channels of the data this needs as plain numbers beside each point (error bars: how far each value may be out), with no mapped
    * axis to turn them into anything. The series requests them with the bound ones; in `points` they follow the two coordinates,
@@ -275,6 +289,9 @@ export class LinePath extends SeriesRenderer<LinePathAttributes, [curve: Curve]>
   override trace(): Trace | null {
     return this.curve.trace(this.requireParent(), null);
   }
+  override hitShapes(): HitShapes | null {
+    return this.curve.hitShapes(this.requireParent(), null);
+  }
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
     const look = this.look(),
       n = s.node(key, 'path', { parent });
@@ -340,6 +357,9 @@ export class AreaPath extends SeriesRenderer<AreaPathAttributes, [curve: Curve]>
   }
   override trace(): Trace | null {
     return this.curve.trace(this.requireParent(), this.attrs.baseline ?? 0);
+  }
+  override hitShapes(): HitShapes | null {
+    return this.curve.hitShapes(this.requireParent(), this.attrs.baseline ?? 0);
   }
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
     paintBox(s, parent, key, width, height, this.look());

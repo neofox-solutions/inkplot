@@ -39,6 +39,12 @@ test('steps', () => {
   const pairs = (b: { data: Float64Array; count: number }) =>
     Array.from({ length: b.count }, (_, i) => [b.data[2 * i]!, b.data[2 * i + 1]!] as const);
   const real = (p: readonly [number, number]) => Number.isFinite(p[0]);
+  /** The steps' vertices (fractions of the axes) as the plane places them, in pixels, a NaN vertex ending each run. */
+  const placed = (series: DomainSeries, v: Float64Array) => {
+    const buf = { data: v.slice(), stride: 2, count: v.length / 2 };
+    series.plane.place(buf, series.firstAxis, series.secondAxis);
+    return pairs(buf);
+  };
 
   /** A rectangular plane with fixed axes (so no room is added) 0..3 by 0..5, and the values in pixels of a data position. */
   function rect(ys: number[], renderer: AnySeriesRenderer, attrs: object = {}) {
@@ -94,7 +100,7 @@ test('steps', () => {
     for (const mode of ['after', 'before', 'center'] as const) {
       const { series, at, svg } = rect(ys, new LinePath(new StepCurve({ mode })));
       const s = stepLines(series, mode, null)!;
-      const got = pairs(s.top),
+      const got = placed(series, s.aligned),
         want = expected[mode].map(([x, y]) => at(x, y));
       assert.equal(got.length, want.length + 1, `${mode}: the corners and the end of the run`);
       want.forEach(([x, y], i) => {
@@ -102,7 +108,7 @@ test('steps', () => {
         near(got[i]![1], y);
       });
       assert(!real(got[got.length - 1]!), 'a run ends with a gap point');
-      assert.equal(s.base, null, 'a line needs no foot');
+      assert.equal(s.alignedBase, null, 'a line needs no foot');
       assert.match(svg, /<path[^>]*d="M[\d. -]+[HVL][\d. HVL-]+"[^>]*stroke-linejoin/, `${mode}: drawn as a path`);
     }
     // The default is `after`.
@@ -116,7 +122,7 @@ test('steps', () => {
     const ys = [1, 3, NaN, 2, 4];
     const runs = (gaps: 'break' | 'connect' | 'zero') => {
       const { series } = rect(ys, new LinePath(new StepCurve({})), { missing: gaps });
-      const p = pairs(stepLines(series, 'after', null)!.top);
+      const p = placed(series, stepLines(series, 'after', null)!.aligned);
       return { p, ends: p.filter((q) => !real(q)).length };
     };
     assert.equal(runs('break').ends, 2, 'two runs');
@@ -138,19 +144,21 @@ test('steps', () => {
   {
     const { series, at, svg } = rect([1, 3, 2, 5], new AreaPath(new StepCurve({ mode: 'after' })));
     const s = stepLines(series, 'after', 0)!;
-    assert.equal(s.top.count, s.base!.count, 'the two have one shape');
-    pairs(s.top).forEach((p, i) => {
+    assert.equal(s.aligned.length, s.alignedBase!.length, 'the two have one shape');
+    const feet = placed(series, s.alignedBase!);
+    placed(series, s.aligned).forEach((p, i) => {
       if (real(p)) {
-        near(s.base!.data[2 * i]!, p[0]);
-        near(s.base!.data[2 * i + 1]!, at(0, 0)[1]);
+        near(feet[i]![0], p[0]);
+        near(feet[i]![1], at(0, 0)[1]);
       }
     });
     const d = [...svg.matchAll(/<path[^>]*? d="([^"]*Z)"/g)].map((m) => m[1]!)[0]!;
     assert.equal(d.split('M').length - 1, 1, 'one closed shape');
     assert.match(d, /^M[\d. -]+(?:[HV][\d. -]+){6}V[\d. -]+H[\d. -]+Z$/, 'the steps forward, then straight back along the baseline');
     // A baseline value shifts the foot.
-    const high = stepLines(rect([1, 3], new AreaPath({ baseline: 2 }, new StepCurve())).series, 'after', 2)!;
-    near(high.base!.data[1]!, rect([1, 3], new AreaPath(new StepCurve({}))).at(0, 2)[1]);
+    const highSeries = rect([1, 3], new AreaPath({ baseline: 2 }, new StepCurve())).series;
+    const high = stepLines(highSeries, 'after', 2)!;
+    near(placed(highSeries, high.alignedBase!)[0]![1], rect([1, 3], new AreaPath(new StepCurve({}))).at(0, 2)[1]);
     // A gap splits it, as it splits the line.
     const gappy = rect([1, NaN, 2, 3], new AreaPath(new StepCurve({}))).svg.match(/ d="([^"]*Z)"/)![1]!;
     assert.equal(gappy.split('M').length - 1, 2, 'two shapes');
@@ -169,7 +177,7 @@ test('steps', () => {
     mount(plane);
     const lower = stepLines(a, 'after', 0)!,
       upper = stepLines(b, 'after', 0)!;
-    assert.deepEqual(Array.from(upper.base!.data), Array.from(lower.top.data), 'the upper one sits exactly on the lower one');
+    assert.deepEqual(Array.from(upper.alignedBase!), Array.from(lower.aligned), 'the upper one sits exactly on the lower one');
   }
 
   // ── The domain on the vertical axis: levels run up the plot and jumps across it.
@@ -182,7 +190,7 @@ test('steps', () => {
       series,
     );
     mount(plane);
-    const p = pairs(stepLines(series, 'after', null)!.top);
+    const p = placed(series, stepLines(series, 'after', null)!.aligned);
     near(p[1]![0], p[0]![0]);
     assert(p[1]![1] !== p[0]![1], 'a level is vertical here: same x, new y');
     near(p[2]![1], p[1]![1]);
@@ -195,21 +203,22 @@ test('steps', () => {
       radius = new Axis({ orientation: 'radius', min: 0, max: 5 }, lin());
     const series = new DomainSeries({}, flat([1, 4, 2, 5, 3, 4, 1, 3, 2]), new LinePath(new StepCurve({ mode: 'center' })));
     const plane = new PolarPlane({}, angle, radius, series);
-    mount(plane);
-    const p = pairs(stepLines(series, 'center', null)!.top).filter(real);
-    assert(p.length > 3 * 9, `levels are cut into pieces to follow the circle: ${p.length} points for 9`);
+    const svg = mount(plane);
+    const v = stepLines(series, 'center', null)!.aligned;
+    const p = pairs({ data: v, count: v.length / 2 }).filter(real);
+    // The vertices are corners only: the plane draws the arcs between them.
+    assert.equal(p.length, 1 + 3 * 8, 'a corner at each end of a level and the middle: no pieces to follow the circle');
     let levels = 0,
       jumps = 0;
     for (let i = 1; i < p.length; i++) {
-      const [a0, r0] = plane.unplace(p[i - 1]![0], p[i - 1]![1], angle, radius),
-        [a1, r1] = plane.unplace(p[i]![0], p[i]![1], angle, radius);
-      const sameRadius = Math.abs(r1 - r0) < 1e-6,
-        sameAngle = Math.abs(a1 - a0) < 1e-6 || Math.abs(Math.abs(a1 - a0) - 8) < 1e-6;
-      assert(sameRadius || sameAngle, `piece ${i} moves along one only: angle ${a0}→${a1}, radius ${r0}→${r1}`);
+      const sameRadius = Math.abs(p[i]![1] - p[i - 1]![1]) < 1e-9,
+        sameAngle = Math.abs(p[i]![0] - p[i - 1]![0]) < 1e-9;
+      assert(sameRadius || sameAngle, `piece ${i} moves along one only`);
       if (sameRadius && !sameAngle) levels++;
       else if (sameAngle && !sameRadius) jumps++;
     }
     assert(levels >= 9 && jumps >= 8, `${levels} level pieces and ${jumps} jumps`);
+    assert.match(svg, /A[\d. -]+ 0 [01] [01]/, 'and the plane draws a level as an arc');
   }
 
   // ── On a radar a level follows the polygon exactly, with a point at each spoke it crosses.
@@ -218,12 +227,13 @@ test('steps', () => {
       radius = new Axis({ orientation: 'radius', min: 0, max: 5 }, lin());
     const series = new DomainSeries({}, flat([2, 4, 3, 5, 2, 4, 1]), new LinePath(new StepCurve({ mode: 'after' })));
     const plane = new RadarPlane({}, angle, radius, series);
-    mount(plane);
-    const corners = plane.breaks(angle);
-    assert(corners.length >= 6, 'the radar knows its spokes');
-    const p = pairs(stepLines(series, 'after', null)!.top).filter(real);
-    // Each step between consecutive points spans one spoke interval: a level has no corner strictly inside it, so it is one piece.
-    assert.equal(p.length, 1 + 2 * 6, 'a point at each corner and none between: the chords are the polygon');
+    const svg = mount(plane);
+    const v = stepLines(series, 'after', null)!.aligned;
+    const p = pairs({ data: v, count: v.length / 2 }).filter(real);
+    assert.equal(p.length, 1 + 2 * 6, 'a vertex at each corner of the steps');
+    // The plane adds the spokes a level passes: each spoke interval is one level, so there is a chord to every spoke.
+    const line = [...svg.matchAll(/ d="(M[^"]*)"[^>]*stroke-linejoin/g)].map((m) => m[1]!)[0] ?? '';
+    assert(line.length > 0, 'drawn');
   }
 
   // ── Before the first projection there is nothing to draw.

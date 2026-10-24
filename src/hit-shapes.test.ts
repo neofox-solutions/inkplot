@@ -8,6 +8,8 @@ import {
   Chart,
   DomainSeries,
   FlatDataSource,
+  LinePath,
+  StepCurve,
   LinearScale,
   PolarPlane,
   RadarPlane,
@@ -88,5 +90,26 @@ test('hits on shapes', () => {
     // Beside the bar and above its end: the corner is the nearest point.
     const wide = (plane.rect.width / 3) * 0.4;
     near(hitTest(bars, px + wide + 3, top - 4, Infinity)!.distance, 5, 1e-6, 'diagonal from a corner');
+  }
+
+  // ── A step line on a radar: a point on the chord of a level, between two spokes, is on the line; beside it, the gap is the pixel distance.
+  {
+    const angle = new Axis({ orientation: 'angle', min: 0, max: 4, tickCount: 5, nice: false }, new LinearScale());
+    const line = new DomainSeries({ hit: { mode: 'line', radius: 20 } }, flat([2, 4, 3, 1, 2]), new LinePath(new StepCurve({})));
+    const plane = new RadarPlane({}, angle, new Axis({ orientation: 'radius', min: 0, max: 5 }, new LinearScale()), line);
+    mount(plane);
+    const cx = plane.rect.width / 2,
+      cy = plane.rect.height / 2,
+      R = Math.min(cx, cy);
+    // The first level is radius 2/5 from spoke 0 (up) to spoke 1 (a quarter turn): the middle of its chord.
+    const a = [cx, cy - 0.4 * R],
+      b = [cx + 0.4 * R, cy];
+    const mid = [(a[0]! + b[0]!) / 2, (a[1]! + b[1]!) / 2] as const;
+    const on = hitTest(line, ...mid)!;
+    assert.deepEqual([on.index, on.distance < 1e-6], [0, true], 'on the chord');
+    // Straight out from the chord by 3 pixels.
+    const out = Math.SQRT1_2;
+    const off = hitTest(line, mid[0] + 3 * out, mid[1] - 3 * out)!;
+    near(off.distance, 3, 1e-6, 'off the chord');
   }
 });

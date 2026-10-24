@@ -504,11 +504,6 @@ export class RadarPlane extends RadialPlane<RadarPlaneAttributes> {
     this.#cos = this.#at.map((f) => Math.cos(this.startAngle + f * this.sweep));
   }
 
-  /** The spokes: a line along the angle axis bends at each. */
-  override breaks(axis: Axis): readonly number[] {
-    return axis.orientation === 'angle' ? this.#at : [];
-  }
-
   protected locate(fraction: number, r: number, out: Float64Array): void {
     const at = this.#at;
     let k = 0;

@@ -97,13 +97,6 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
    */
   abstract get rectilinear(): boolean;
   /**
-   * Fractions of `axis` at which a line running along it changes direction, ascending, for planes that are not smooth
-   * (a radar's spokes). A line traced through these is exact where sampling evenly would cut the corners. Default none.
-   */
-  breaks(_axis: Axis): readonly number[] {
-    return [];
-  }
-  /**
    * About how long `axis` will be drawn, in pixels, given the room estimated for the plot, so that a series' reach in
    * pixels can be turned into room in the axis' range. 0 where that has no meaning (the default, and any axis round a circle).
    */

@@ -178,7 +178,6 @@ A plane child is positioned in data terms, as the band is. The tools a `Plane` g
 | `plane.rectilinear` | Whether a line that is straight in the plane's terms is straight on the page (true for a rectangle). |
 | `plane.alignedPath(coords, count, first, second, closed?)` | Path data for moves that each change one coordinate (a bar's outline, a step line), drawn in the plane's own terms: `H`/`V` on a rectangle, arcs and spokes on a polar plane, chords through the spokes on a radar. |
 | `plane.exactPath(coords, count, first, second, closed?)` | Path data for lines that are straight in the plane's terms between any vertices: chords on a rectangle, a spiral of short pieces for a diagonal on a polar plane, a bend at each spoke on a radar. |
-| `plane.breaks(axis)` | Where a line along the axis bends (a radar's spokes). |
 | `plane.guide(role, value)` | A path of constant value along an axis: a gridline in the plane's shape. |
 
 An element that works only on one kind of plane can say so by typing its parent (`ChartElement<CartesianPlane, …>`); one that uses only these methods works on all of them.

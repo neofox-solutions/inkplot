@@ -32,7 +32,7 @@ import type { Extent, Size } from './geometry.ts';
 import type { Plane } from './plane.ts';
 import type { PlatformNode } from './platform.ts';
 import type { Surface } from './surface.ts';
-import { type AnySeriesRenderer, type ShapeSet, SeriesRenderer, type SpreadView, type Trace } from './renderer.ts';
+import { type AnySeriesRenderer, type HitShapes, type ShapeSet, SeriesRenderer, type SpreadView, type Trace } from './renderer.ts';
 import type { HitOptions, HitMode } from './hit.ts';
 
 export interface SeriesAttributes extends BaseAttributes {
@@ -266,6 +266,15 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
       if (r instanceof SeriesRenderer) {
         const g = r.shapes?.();
         if (g) return g;
+      }
+    return null;
+  }
+  /** The line (or area) the series' renderer draws as exact pieces in the plane's own terms, if it has them (steps): what a line or area hit is measured to. */
+  hitShapes(): HitShapes | null {
+    for (let r = this.firstChild; r; r = r.nextSibling)
+      if (r instanceof SeriesRenderer) {
+        const t = r.hitShapes?.();
+        if (t) return t;
       }
     return null;
   }

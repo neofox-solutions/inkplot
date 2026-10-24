@@ -25,7 +25,7 @@ import type { PointBuffer } from './data.ts';
 import type { Hit } from './events.ts';
 import type { Plane } from './plane.ts';
 import type { Axis } from './axis.ts';
-import type { ShapeSet, Trace } from './renderer.ts';
+import type { HitShapes, ShapeSet, Trace } from './renderer.ts';
 import type { Series } from './series.ts';
 
 export type HitMode = 'point' | 'line' | 'area' | 'shape';
@@ -175,6 +175,7 @@ export function nearestShape(
   points: PointBuffer,
   x: number,
   y: number,
+  insideOnly = false,
 ): Nearest | null {
   if (x !== x || y !== y) return nearestPoint(points, x, y);
   const { data, count } = shapes;
@@ -206,7 +207,9 @@ export function nearestShape(
     near[2 * k] = cu;
     near[2 * k + 1] = cv;
   }
-  if (best >= 0) return { index: best, distance: 0 };
+  const own = (k: number) => (shapes.owner ? shapes.owner[k]! : k);
+  if (best >= 0) return { index: own(best), distance: 0 };
+  if (insideOnly) return null;
   plane.place({ data: near, stride: 2, count }, first, second);
   let bestD = Infinity;
   for (let k = 0; k < count; k++) {
@@ -219,7 +222,19 @@ export function nearestShape(
       best = k;
     }
   }
-  return best < 0 ? null : { index: best, distance: bestD };
+  return best < 0 ? null : { index: own(best), distance: bestD };
+}
+
+/** The nearest point under `mode` ('line' or 'area') to a line that is exact pieces in the plane's terms: inside the area is distance 0, else the nearest piece of the line. */
+function nearestExact(series: Series, exact: HitShapes, mode: HitMode, points: PointBuffer, x: number, y: number): Nearest | null {
+  const plane = series.plane,
+    a = series.firstAxis,
+    b = series.secondAxis;
+  if (mode === 'area' && exact.cells) {
+    const inside = nearestShape(exact.cells, plane, a, b, points, x, y, true);
+    if (inside) return inside;
+  }
+  return nearestShape(exact.segments, plane, a, b, points, x, y);
 }
 
 /** Where the runs of a path are: each stretch between NaN points, as the index of its first vertex and one past its last. */
@@ -355,17 +370,21 @@ export function hitTest(series: Series, x: number, y: number, maxDistance?: numb
   const o: HitOptions = typeof h === 'string' ? { mode: h } : (h ?? {});
   const mode = o.mode ?? series.hitHint ?? 'point';
   const tracedMode = mode === 'line' || mode === 'area' ? mode : null;
+  // A line the renderer draws as exact pieces in the plane's terms (steps) is measured to those; a pointer with a coordinate left out measures to points.
+  const exact = tracedMode && x === x && y === y ? series.hitShapes() : null;
   // A path a renderer traces (steps, curves) is what is measured, but a pointer with a coordinate left out measures to points.
-  const traced = tracedMode && x === x && y === y ? series.trace() : null;
+  const traced = tracedMode && !exact && x === x && y === y ? series.trace() : null;
   const found =
-    mode === 'shape'
-      ? (() => {
-          const g = series.shapes();
-          return g ? nearestShape(g, d.plane, series.firstAxis, series.secondAxis, d.points, x, y) : nearestPoint(d.points, x, y);
-        })()
-      : traced && tracedMode
-        ? nearestTraced(traced, tracedMode, x, y)
-        : nearest(d.points, mode, mode === 'area' ? () => series.baseline(o.baseline ?? 0) : null, x, y);
+    exact && tracedMode
+      ? nearestExact(series, exact, tracedMode, d.points, x, y)
+      : mode === 'shape'
+        ? (() => {
+            const g = series.shapes();
+            return g ? nearestShape(g, d.plane, series.firstAxis, series.secondAxis, d.points, x, y) : nearestPoint(d.points, x, y);
+          })()
+        : traced && tracedMode
+          ? nearestTraced(traced, tracedMode, x, y)
+          : nearest(d.points, mode, mode === 'area' ? () => series.baseline(o.baseline ?? 0) : null, x, y);
   const radius =
     maxDistance ?? (series.chart?.input?.coarse ? Math.max(o.radius ?? DEFAULT_RADIUS, COARSE_RADIUS) : (o.radius ?? DEFAULT_RADIUS));
   if (!found || !(found.distance <= radius)) return null;
@@ -477,6 +496,8 @@ export function interpolate(series: Series, first: number): Hit | null {
   // On a point exactly, that point is the answer, even at the end of a run with a gap after it.
   const onPoint = first === d0 && v0 === v0;
   if (!onPoint && (v0 !== v0 || v1 !== v1)) return null;
+  const exact = onPoint ? null : series.hitShapes();
+  if (exact) return interpolateExact(series, first, exact.segments);
   const traced = onPoint ? null : series.trace();
   if (traced) return interpolateTraced(series, first, traced);
   const t = onPoint || !(d1 > d0) ? 0 : (first - d0) / (d1 - d0),
@@ -490,6 +511,38 @@ export function interpolate(series: Series, first: number): Hit | null {
   plane.place({ data: buf, stride: 2, count: 1 }, a, b);
   const near = hitAt(series, t < 0.5 ? lo : hi, 0);
   return near && { ...near, first, second: value, px: buf[0]!, py: buf[1]!, interpolated: true };
+}
+
+/**
+ * A reading between two points of a series whose renderer draws exact pieces in the plane's terms (steps): the level that runs across `first`, read back
+ * into data. The value is the level's own, less what a stack lays under it, so a step reads as its level.
+ */
+function interpolateExact(series: Series, first: number, segments: ShapeSet): Hit | null {
+  const d = series.drawn;
+  if (!d) return null;
+  const { plane, raw, stride: rs } = d,
+    a = series.firstAxis,
+    b = series.secondAxis;
+  const f = a.fractionOf(first),
+    eps = 1e-9,
+    { data, owner } = segments;
+  for (let k = 0; k < segments.count; k++) {
+    const a0 = data[4 * k]!,
+      a1 = data[4 * k + 1]!;
+    // Only a level crosses the line across the plot at `first`; a jump runs along it and its ends are met by the levels either side.
+    if (a0 === a1 || f < Math.min(a0, a1) - eps || f > Math.max(a0, a1) + eps) continue;
+    const level = data[4 * k + 2]!,
+      o = owner ? owner[k]! : k;
+    const buf = { data: Float64Array.from([f, level]), stride: 2, count: 1 };
+    plane.place(buf, a, b);
+    const plotted = b.denormalize(level);
+    const own = raw[o * rs + d.secondColumn]!;
+    // In a stack the path is drawn at the stacked value, which reads as the series' own: take off what is under it.
+    const value = d.top ? (d.additive ? plotted - (d.top[o]! - own) : own) : plotted;
+    const near = hitAt(series, o, 0);
+    return near && { ...near, first, second: value, px: buf.data[0]!, py: buf.data[1]!, interpolated: true };
+  }
+  return null;
 }
 
 /**

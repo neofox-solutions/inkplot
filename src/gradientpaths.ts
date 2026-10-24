@@ -23,7 +23,7 @@ import type { PointBuffer } from './data.ts';
 import { fail } from './element.ts';
 import type { BoundDimension } from './mapped.ts';
 import type { PlatformNode } from './platform.ts';
-import { paintBox, type ResolvedBinding, SeriesRenderer, type SeriesRendererAttributes, type Trace } from './renderer.ts';
+import { paintBox, type ResolvedBinding, SeriesRenderer, type HitShapes, type SeriesRendererAttributes, type Trace } from './renderer.ts';
 import type { Series } from './series.ts';
 import type { Surface } from './surface.ts';
 
@@ -237,6 +237,9 @@ export class GradientLinePath extends SeriesRenderer<GradientLinePathAttributes,
   override trace(): Trace | null {
     return this.curve.trace(this.requireParent(), null);
   }
+  override hitShapes(): HitShapes | null {
+    return this.curve.hitShapes(this.requireParent(), null);
+  }
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
     const look = this.look(),
       binding = this.bindings[0],
@@ -325,6 +328,9 @@ export class GradientAreaPath extends SeriesRenderer<GradientAreaPathAttributes,
   }
   override trace(): Trace | null {
     return this.curve.trace(this.requireParent(), this.attrs.baseline ?? 0);
+  }
+  override hitShapes(): HitShapes | null {
+    return this.curve.hitShapes(this.requireParent(), this.attrs.baseline ?? 0);
   }
   override sample(s: Surface, parent: PlatformNode, key: string, width: number, height: number): void {
     const look = this.look(),

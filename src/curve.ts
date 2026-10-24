@@ -19,7 +19,7 @@ import type { PointBuffer } from './data.ts';
 import { type BaseAttributes, ChartElement } from './element.ts';
 import { areaRuns } from './aligned.ts';
 import { f2 } from './geometry.ts';
-import type { AnySeriesRenderer, Trace } from './renderer.ts';
+import type { AnySeriesRenderer, HitShapes, Trace } from './renderer.ts';
 import type { Series } from './series.ts';
 
 export interface CurveAttributes extends BaseAttributes {}
@@ -80,6 +80,14 @@ export abstract class Curve<A extends CurveAttributes = CurveAttributes> extends
    * belongs to, or null when it is straight lines through the points, which hits measure by themselves. Default null.
    */
   trace(_series: Series, _baseline: number | null): Trace | null {
+    return null;
+  }
+  /**
+   * What `line` (with a null `baseline`) or `area` draws, as pieces in the plane's own terms (see `HitShapes`), for a curve that draws exactly what the
+   * plane would (steps) and so has no sampled path to give. Hits are measured to them, and a reading between points follows their levels.
+   * Default null: the `trace`, else straight lines through the points.
+   */
+  hitShapes(_series: Series, _baseline: number | null): HitShapes | null {
     return null;
   }
 }
