@@ -1,4 +1,6 @@
 /** Test support only (not exported from the package). */
+import type { Series } from './series.ts';
+import type { ShapeSet } from './renderer.ts';
 import { type PlatformNode, type RawFocus, type RawKey, type RawPointer, type Size, StringPlatform, type Unsubscribe } from './index.ts';
 
 /** A StringPlatform that can be resized and poked, and that flushes on demand through `runScheduled`. */
@@ -86,4 +88,20 @@ export class FakePlatform extends StringPlatform {
     this.pending = null;
     cb?.();
   }
+}
+
+/**
+ * The corners of shape `i` of a `ShapeSet` in plot pixels, as the plane places them: `[first0, second0]`, `[first1, second0]`, `[first1, second1]`,
+ * `[first0, second1]`, in x and y arrays. For tests that check where a bar is on the page.
+ */
+export function shapeCorners(series: Series, shapes: ShapeSet, i: number): { x: number[]; y: number[] } {
+  const d = shapes.data,
+    k = 4 * i;
+  const p = {
+    data: Float64Array.from([d[k]!, d[k + 2]!, d[k + 1]!, d[k + 2]!, d[k + 1]!, d[k + 3]!, d[k]!, d[k + 3]!]),
+    stride: 2,
+    count: 4,
+  };
+  series.plane.place(p, series.firstAxis, series.secondAxis);
+  return { x: [0, 1, 2, 3].map((j) => p.data[2 * j]!), y: [0, 1, 2, 3].map((j) => p.data[2 * j + 1]!) };
 }

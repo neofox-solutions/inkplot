@@ -30,6 +30,7 @@ import {
   type RawPointer,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { shapeCorners } from './fake-platform.ts';
 import { test } from 'vite-plus/test';
 
 test('stack', () => {
@@ -220,9 +221,8 @@ test('stack', () => {
     );
     mount(plane);
     const sa = barShapes(a)!,
-      sb = barShapes(b)!,
-      per = sa.perShape * 2;
-    const ysOf = (s: typeof sa, i: number) => Array.from({ length: sa.perShape }, (_, j) => s.data[i * per + 2 * j + 1]!);
+      sb = barShapes(b)!;
+    const ysOf = (s: typeof sa, i: number) => shapeCorners(s === sa ? a : b, s, i).y;
     near(Math.max(...ysOf(sb, 0)), Math.min(...ysOf(sa, 0)), 1e-6); // b's foot is a's top (row 0)
     near(Math.max(...ysOf(sb, 2)), Math.min(...ysOf(sa, 2)), 1e-6); // row 2
     const zero = a.baseline(0).data[3]!;
@@ -250,8 +250,8 @@ test('stack', () => {
     );
     mount(plane);
     const xs = (s: DomainSeries, i: number) => {
-      const d = barShapes(s)!;
-      return [d.data[i * d.perShape * 2]!, d.data[i * d.perShape * 2 + 2]!].sort((u, v) => u - v);
+      const { x } = shapeCorners(s, barShapes(s)!, i);
+      return [x[0]!, x[1]!].sort((u, v) => u - v);
     };
     const band = a.points.data[2]! - a.points.data[0]!; // one category, in pixels
     const [a0, b0, c0] = [xs(a, 0), xs(b, 0), xs(c, 0)];
@@ -302,10 +302,12 @@ test('stack', () => {
     );
     mount(plane);
     const c = { x: plane.rect.width / 2, y: plane.rect.height / 2 };
-    const [sa, sb] = [barShapes(a)!, barShapes(b)!],
-      radius = (s: typeof sa, k: number) => Math.hypot(s.data[k]! - c.x, s.data[k + 1]! - c.y);
-    const half = sa.perShape / 2;
-    near(radius(sb, 0), radius(sa, 2 * half), 1e-6); // b's foot (first point) is a's top edge (a's point `half`)
+    const [sa, sb] = [barShapes(a)!, barShapes(b)!];
+    const radius = (s: typeof sa, series: DomainSeries, corner: number) => {
+      const k = shapeCorners(series, s, 0);
+      return Math.hypot(k.x[corner]! - c.x, k.y[corner]! - c.y);
+    };
+    near(radius(sb, b, 0), radius(sa, a, 3), 1e-6); // b's foot (corner 0) is a's top edge (corner 3)
   }
 
   // ── Changing a member's data or the mode re-lays the stack out, and a drag edits the layer's own value.

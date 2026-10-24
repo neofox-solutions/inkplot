@@ -22,7 +22,7 @@ import { fractionsOf, lookKey, lookValues, resolveBindings, stepsFor } from './b
 import { f2 } from './geometry.ts';
 import type { HitMode } from './hit.ts';
 import {
-  type PolygonSet,
+  type ShapeSet,
   type ResolvedBinding,
   SeriesRenderer,
   type SeriesRendererAttributes,
@@ -58,6 +58,8 @@ interface Geometry {
   projection: number;
   n: number;
   data: Float64Array;
+  /** The cells as rectangles in the plane's own terms, for hits (see `ShapeSet`). */
+  rects: Float64Array;
 }
 
 /** A grid of rectangles, one path for each colour step. */
@@ -186,7 +188,8 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
     }
     series.firstAxis.normalize(xs, n * 2, 1, 0);
     series.secondAxis.normalize(ys, n * 2, 1, 0);
-    const out = new Float64Array(n * 8);
+    const out = new Float64Array(n * 8),
+      rects = new Float64Array(n * 4);
     for (let i = 0; i < n; i++) {
       const x0 = xs[2 * i]!,
         x1 = xs[2 * i + 1]!,
@@ -194,6 +197,10 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
         y1 = ys[2 * i + 1]!;
       const bad = !Number.isFinite(x0) || !Number.isFinite(x1) || !Number.isFinite(y0) || !Number.isFinite(y1);
       const k = i * 8;
+      rects[4 * i] = bad ? NaN : clamp(x0);
+      rects[4 * i + 1] = bad ? NaN : clamp(x1);
+      rects[4 * i + 2] = bad ? NaN : clamp(y0);
+      rects[4 * i + 3] = bad ? NaN : clamp(y1);
       const put = (j: number, x: number, y: number) => {
         out[k + 2 * j] = bad ? NaN : clamp(x);
         out[k + 2 * j + 1] = bad ? NaN : clamp(y);
@@ -204,12 +211,12 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
       put(3, x0, y1);
     }
     plane.place({ data: out, stride: 2, count: n * 4 }, series.firstAxis, series.secondAxis);
-    return (this.#geometry = { projection: series.projection, n, data: out });
+    return (this.#geometry = { projection: series.projection, n, data: out, rects });
   }
 
-  override shapes(): PolygonSet | null {
+  override shapes(): ShapeSet | null {
     const g = this.geometry();
-    return g ? { data: g.data, perShape: 4, count: g.n } : null;
+    return g ? { data: g.rects, count: g.n } : null;
   }
 
   protected draw(): void {

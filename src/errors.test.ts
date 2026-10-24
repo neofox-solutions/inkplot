@@ -23,6 +23,7 @@ import {
   barShapes,
 } from './index.ts';
 import { FakePlatform } from './fake-platform.ts';
+import { shapeCorners } from './fake-platform.ts';
 import { test } from 'vite-plus/test';
 
 test('errors', async () => {
@@ -163,14 +164,8 @@ test('errors', async () => {
       Number(/M([\d.-]+) /.exec(m[1]!)![1]),
     );
     const centre = (s: DomainSeries) => {
-      const g = barShapes(s, { width: 0.5 })!;
-      let lo = Infinity,
-        hi = -Infinity;
-      for (let j = 0; j < g.perShape; j++) {
-        lo = Math.min(lo, g.data[2 * j]!);
-        hi = Math.max(hi, g.data[2 * j]!);
-      }
-      return (lo + hi) / 2;
+      const { x } = shapeCorners(s, barShapes(s, { width: 0.5 })!, 0);
+      return (Math.min(...x) + Math.max(...x)) / 2;
     };
     assert.equal(whisker.length, 2);
     assert(Math.abs(whisker[1]! - whisker[0]! - (centre(two) - centre(one))) < 0.02, 'each whisker is at the middle of its own bar');

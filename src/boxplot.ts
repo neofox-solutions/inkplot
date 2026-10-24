@@ -22,7 +22,7 @@ import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
 import { type BarLayout, type BarOptions, layoutBars } from './bars.ts';
 import type { HitMode } from './hit.ts';
 import type { PlatformNode } from './platform.ts';
-import { type PolygonSet, SeriesRenderer, type SeriesRendererAttributes, type Spread, type SpreadView, paintBox } from './renderer.ts';
+import { type ShapeSet, SeriesRenderer, type SeriesRendererAttributes, type Spread, type SpreadView, paintBox } from './renderer.ts';
 import type { Series } from './series.ts';
 import type { Surface } from './surface.ts';
 
@@ -42,18 +42,7 @@ export interface BoxPathAttributes extends Omit<SeriesRendererAttributes, 'bind'
 }
 
 const REACH = 2;
-const MAX_ARC = 16;
 const clamp = (v: number) => (v < -REACH ? -REACH : v > 1 + REACH ? 1 + REACH : v);
-
-/** What a draw and a hit both need: boxes as outlines, and the other marks, all in plot pixels. */
-interface Geometry {
-  readonly projection: number;
-  readonly n: number;
-  readonly per: number;
-  readonly steps: number;
-  /** Box outlines (`per` points each), then median lines (`steps + 1` points each), whiskers (4: two lines) and caps (4: two lines). */
-  readonly data: Float64Array;
-}
 
 export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
   static override attrTypes = {
@@ -66,8 +55,6 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
     capFraction: NUMBER,
     width: NUMBER,
   } satisfies AttrTypesFor<BoxPathAttributes>;
-  #geometry: Geometry | null = null;
-
   private get names() {
     const a = this.attrs;
     return { low: a.low ?? 'min', q1: a.q1 ?? 'q1', median: a.median, q3: a.q3 ?? 'q3', high: a.high ?? 'max' };
@@ -150,71 +137,28 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
     return (this.#fractions = { projection: series.projection, lay, v });
   }
 
-  /** Where everything goes, in plot pixels, as the outlines a hit is measured against; made only when something asks, and again only when the series has been projected again. */
-  private geometry(): Geometry | null {
+  #shapes: { projection: number; set: ShapeSet } | null = null;
+  /** The boxes as rectangles in the plane's own terms (a hit is inside the box, or its distance is to it); made again only when the series has been projected again. */
+  override shapes(): ShapeSet | null {
     const series = this.requireParent(),
-      plane = series.drawn?.plane;
-    if (!plane) return null;
-    if (this.#geometry && this.#geometry.projection === series.projection) return this.#geometry;
-    const f = this.fractions();
+      f = this.fractions();
     if (!f) return null;
+    if (this.#shapes && this.#shapes.projection === series.projection) return this.#shapes.set;
     const { lay, v } = f,
-      n = lay.n;
-    const steps = !plane.rectilinear ? Math.min(MAX_ARC, Math.max(2, Math.ceil(lay.slot * 64))) : 1,
-      per = 2 * (steps + 1),
-      median = steps + 1;
-    const cap = Math.max(0, this.attrs.capFraction ?? 0.5);
-    const total = n * (per + median + 8),
-      out = new Float64Array(total * 2);
-    const boxAt = 0,
-      medianAt = n * per,
-      whiskerAt = medianAt + n * median,
-      capAt = whiskerAt + n * 4;
-    for (let i = 0; i < n; i++) {
+      out = new Float64Array(lay.n * 4);
+    for (let i = 0; i < lay.n; i++) {
       const x = lay.norm[3 * i]! + lay.shift,
-        x0 = x - lay.slot / 2;
-      const lo = v[i * 5]!,
         q1 = v[i * 5 + 1]!,
-        med = v[i * 5 + 2]!,
-        q3 = v[i * 5 + 3]!,
-        hi = v[i * 5 + 4]!;
-      const bad =
-        !Number.isFinite(x) ||
-        !Number.isFinite(lo) ||
-        !Number.isFinite(q1) ||
-        !Number.isFinite(med) ||
-        !Number.isFinite(q3) ||
-        !Number.isFinite(hi);
-      const put = (at: number, f: number, s: number) => {
-        out[2 * at] = f;
-        out[2 * at + 1] = bad ? NaN : Number.isFinite(f) ? clamp(s) : NaN;
-      };
-      let k = boxAt + i * per;
-      for (let j = 0; j <= steps; j++) put(k++, x0 + (lay.slot * j) / steps, q1);
-      for (let j = steps; j >= 0; j--) put(k++, x0 + (lay.slot * j) / steps, q3);
-      k = medianAt + i * median;
-      for (let j = 0; j <= steps; j++) put(k++, x0 + (lay.slot * j) / steps, med);
-      k = whiskerAt + i * 4;
-      put(k++, x, q3);
-      put(k++, x, hi);
-      put(k++, x, q1);
-      put(k, x, lo);
-      k = capAt + i * 4;
-      const c = (lay.slot * cap) / 2;
-      put(k++, x - c, hi);
-      put(k++, x + c, hi);
-      put(k++, x - c, lo);
-      put(k, x + c, lo);
+        q3 = v[i * 5 + 3]!;
+      const bad = ![x, v[i * 5]!, q1, v[i * 5 + 2]!, q3, v[i * 5 + 4]!].every(Number.isFinite);
+      out[4 * i] = bad ? NaN : x - lay.slot / 2;
+      out[4 * i + 1] = bad ? NaN : x + lay.slot / 2;
+      out[4 * i + 2] = bad ? NaN : clamp(q1);
+      out[4 * i + 3] = bad ? NaN : clamp(q3);
     }
-    // `put` clamps the value but the domain half of an outline is exact; NaN is already in the second coordinate of a bad row, so mirror it.
-    for (let i = 0; i < total; i++) if (!Number.isFinite(out[2 * i + 1]!)) out[2 * i] = NaN;
-    plane.place({ data: out, stride: 2, count: total }, series.firstAxis, series.secondAxis);
-    return (this.#geometry = { projection: series.projection, n, per, steps, data: out });
-  }
-
-  override shapes(): PolygonSet | null {
-    const g = this.geometry();
-    return g ? { data: g.data.subarray(0, g.n * g.per * 2), perShape: g.per, count: g.n } : null;
+    const set = { data: out, count: lay.n };
+    this.#shapes = { projection: series.projection, set };
+    return set;
   }
 
   protected draw(): void {

@@ -233,15 +233,13 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
     return out;
   }
 
-  unplace(x: number, y: number, first: Axis, second: Axis): readonly [number, number] {
+  fractionsAt(x: number, y: number, first: Axis): readonly [number, number] {
     const dx = x - this.#cx,
       dy = y - this.#cy,
       inner = this.innerRadius;
     const around = this.angleFraction(dx, dy);
     const out = (Math.hypot(dx, dy) / this.outerRadius(dx, dy) - inner) / (1 - inner);
-    return first.orientation === 'angle'
-      ? [first.denormalize(around), second.denormalize(out)]
-      : [first.denormalize(out), second.denormalize(around)];
+    return first.orientation === 'angle' ? [around, out] : [out, around];
   }
 
   place(points: PointBuffer, first: Axis, second: Axis): void {

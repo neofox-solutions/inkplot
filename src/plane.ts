@@ -163,7 +163,15 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
    * `second` read there. It is what turns a dragged pointer into an edit. A position outside the plot gives values
    * outside the axes' ranges; an angle that wraps comes back inside the range.
    */
-  abstract unplace(x: number, y: number, first: Axis, second: Axis): readonly [first: number, second: number];
+  unplace(x: number, y: number, first: Axis, second: Axis): readonly [first: number, second: number] {
+    const [a, b] = this.fractionsAt(x, y, first, second);
+    return [first.denormalize(a), second.denormalize(b)];
+  }
+  /**
+   * The inverse of `place` in the plane's own terms: the fractions of `first` and of `second` that a position in plot pixels is at. What a
+   * hit is measured in; `unplace` is these read through the axes' scales. Outside the plot they run beyond 0..1 (or, round a full turn, wrap).
+   */
+  abstract fractionsAt(x: number, y: number, first: Axis, second: Axis): readonly [first: number, second: number];
 
   /** Put every axis of the plane back to the range its data asks for, undoing pan, zoom and box zoom. */
   resetViews(): void {
@@ -406,12 +414,10 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
     return d;
   }
 
-  unplace(x: number, y: number, first: Axis, second: Axis): readonly [number, number] {
+  fractionsAt(x: number, y: number, first: Axis): readonly [number, number] {
     const across = x / this.rect.width,
       up = 1 - y / this.rect.height;
-    return isHorizontal(first.orientation)
-      ? [first.denormalize(across), second.denormalize(up)]
-      : [first.denormalize(up), second.denormalize(across)];
+    return isHorizontal(first.orientation) ? [across, up] : [up, across];
   }
 
   override axisAt(x: number, y: number): Axis | null {

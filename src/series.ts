@@ -32,7 +32,7 @@ import type { Extent, Size } from './geometry.ts';
 import type { Plane } from './plane.ts';
 import type { PlatformNode } from './platform.ts';
 import type { Surface } from './surface.ts';
-import { type AnySeriesRenderer, type PolygonSet, SeriesRenderer, type SpreadView, type Trace } from './renderer.ts';
+import { type AnySeriesRenderer, type ShapeSet, SeriesRenderer, type SpreadView, type Trace } from './renderer.ts';
 import type { HitOptions, HitMode } from './hit.ts';
 
 export interface SeriesAttributes extends BaseAttributes {
@@ -261,7 +261,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     return undefined;
   }
   /** The shapes the series draws, as polygons in plot pixels, if a renderer draws any (bars): what a 'shape' hit is inside. */
-  shapes(): PolygonSet | null {
+  shapes(): ShapeSet | null {
     for (let r = this.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
         const g = r.shapes?.();

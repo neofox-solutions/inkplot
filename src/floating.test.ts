@@ -1,5 +1,6 @@
 // Floating bars: `from` names the channel that holds where each bar starts (waterfall steps, candlestick bodies and wicks).
 import assert from 'node:assert/strict';
+import { shapeCorners } from './fake-platform.ts';
 import { test } from 'vite-plus/test';
 import {
   Axis,
@@ -43,10 +44,9 @@ function build(from: string | undefined) {
 test('floating bars start at their channel', () => {
   const { series, value } = build('start');
   const s = barShapes(series, { from: 'start' })!;
-  const y = (i: number, corner: number) => s.data[(i * s.perShape + corner) * 2 + 1]!;
-  // A bar's outline runs along its foot (its start) and back along its far end (its value).
-  const top = (i: number) => y(i, s.perShape - 1),
-    foot = (i: number) => y(i, 0);
+  // Corner 0 of a bar is on its foot (its start) and corner 3 on its far end (its value).
+  const top = (i: number) => shapeCorners(series, s, i).y[3]!,
+    foot = (i: number) => shapeCorners(series, s, i).y[0]!;
   assert(foot(0) > top(0), 'the first bar rises from below zero (pixel y falls as the value rises)');
   assert(foot(1) < top(1), 'the second runs down from 8 to 2');
   assert(Number.isNaN(foot(2)), 'a gap has no bar');

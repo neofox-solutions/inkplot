@@ -83,10 +83,13 @@ export interface ResolvedBinding {
   readonly stylistic: boolean;
 }
 
-/** Closed outlines in plot pixels, `perShape` points each (a `NaN` shape is left out): what a renderer that draws shapes can say it drew. */
-export interface PolygonSet {
+/**
+ * The shapes a renderer drew, as rectangles in the plane's own terms: four numbers `[first0, first1, second0, second1]` for each, fractions of the
+ * first and second axis (a bar's width along the domain, then its foot and its end; a stem has the same first0 and first1; a `NaN` shape is a
+ * gap). A pointer is tested against them through the plane, so a bar on a polar plane is the wedge it looks like, however finely or coarsely it is drawn.
+ */
+export interface ShapeSet {
   readonly data: Float64Array;
-  readonly perShape: number;
   readonly count: number;
 }
 
@@ -177,7 +180,7 @@ export abstract class SeriesRenderer<
     return undefined;
   }
   /** The shapes this draws, one for each point of the series in the same order, for a 'shape' hit. Default none. */
-  shapes?(): PolygonSet | null;
+  shapes?(): ShapeSet | null;
   /** Where a label for each point should sit, if this knows better than the point itself (a bar: the middle of its far end). Default none. */
   anchors?(): AnchorSet | null;
   /**

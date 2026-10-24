@@ -684,7 +684,7 @@ test('playground', async () => {
     const plane = L.firstDescendantOfType(window.playground.current.chart, L.CartesianPlane);
     const svg = document.querySelector('#host svg');
     const stems = [...svg.querySelectorAll('path')].flatMap((p) =>
-      [...(p.getAttribute('d') ?? '').matchAll(/M([\d.]+) [\d.-]+L\1 /g)].map((m) => +m[1]),
+      [...(p.getAttribute('d') ?? '').matchAll(/M([\d.]+) [\d.-]+V/g)].map((m) => +m[1]),
     );
     const dots = [...svg.querySelectorAll('path')].flatMap((p) =>
       [...(p.getAttribute('d') ?? '').matchAll(/M([\d.]+) [\d.]+a5 5 /g)].map((m) => +m[1] + 5),

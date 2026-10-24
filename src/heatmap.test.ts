@@ -15,6 +15,7 @@ import {
   XYSeries,
 } from './index.ts';
 import { hitTest } from './hit.ts';
+import { shapeCorners } from './fake-platform.ts';
 import { test } from 'vite-plus/test';
 
 test('heatmap', () => {
@@ -85,10 +86,9 @@ test('heatmap', () => {
     const pts = new ObjectDataSource({ source: [{ x: 1, y: 1 }], domain: 'x', value: 'y', channels: { x: 'x' } });
     const { series, plane, map } = build(new HeatMap({ cellWidth: 2 }), pts, 'x');
     const shapes = map.shapes()!;
-    assert.equal(shapes.perShape, 4);
-    const d = shapes.data;
-    const w = Math.abs(d[2]! - d[0]!),
-      h = Math.abs(d[5]! - d[3]!);
+    const { x: cx, y: cy } = shapeCorners(series, shapes, 0);
+    const w = Math.abs(cx[1]! - cx[0]!),
+      h = Math.abs(cy[2]! - cy[1]!);
     const xr = series.firstAxis.range,
       yr = series.secondAxis.range;
     assert(Math.abs(w / plane.rect.width - 2 / (xr.max - xr.min)) < 1e-6, 'two data units wide');
@@ -129,8 +129,9 @@ test('heatmap', () => {
     // Hit as a shape: a pointer inside a cell finds it.
     const { map, series } = build(new HeatMap({}));
     const shapes = map.shapes()!;
-    const cx = (shapes.data[0]! + shapes.data[4]!) / 2,
-      cy = (shapes.data[1]! + shapes.data[5]!) / 2;
+    const corner = shapeCorners(series, shapes, 0);
+    const cx = (corner.x[0]! + corner.x[2]!) / 2,
+      cy = (corner.y[0]! + corner.y[2]!) / 2;
     const hit = hitTest(series, cx, cy, 5);
     assert(hit, 'a hit inside the first cell');
   }

@@ -24,7 +24,8 @@
 import type { PointBuffer } from './data.ts';
 import type { Hit } from './events.ts';
 import type { Plane } from './plane.ts';
-import type { PolygonSet, Trace } from './renderer.ts';
+import type { Axis } from './axis.ts';
+import type { ShapeSet, Trace } from './renderer.ts';
 import type { Series } from './series.ts';
 
 export type HitMode = 'point' | 'line' | 'area' | 'shape';
@@ -160,49 +161,59 @@ export function insideArea(points: PointBuffer, base: PointBuffer, x: number, y:
 }
 
 /**
- * The shape the pointer is inside (distance 0), else the one whose outline is nearest, by the shape's index. Shapes
- * made of NaN are left out. A NaN coordinate of the pointer means "ignore this direction", and the shapes' own points
- * then stand for them, as for any other mode.
+ * The shape the pointer is inside (distance 0), else the one nearest, by the shape's index. A shape is a rectangle in the plane's own terms
+ * (`ShapeSet`), so inside is a test on the pointer's fractions of the two axes, and the distance to one outside is the pixel distance to the nearest
+ * point of it, found by clamping the pointer into the rectangle and placing that point: exact on every plane. Shapes made of NaN are left
+ * out. A NaN coordinate of the pointer means "ignore this direction", and the shapes' own points then stand for them, as for any other mode.
  * @internal
  */
-export function nearestShape(shapes: PolygonSet, points: PointBuffer, x: number, y: number): Nearest | null {
+export function nearestShape(
+  shapes: ShapeSet,
+  plane: Plane,
+  first: Axis,
+  second: Axis,
+  points: PointBuffer,
+  x: number,
+  y: number,
+): Nearest | null {
   if (x !== x || y !== y) return nearestPoint(points, x, y);
-  const { data, perShape: m, count } = shapes;
-  let best = -1,
-    bestD = Infinity;
+  const { data, count } = shapes;
+  const [pa, pb] = plane.fractionsAt(x, y, first, second);
+  // Round a full turn the pointer's fraction is also one turn either side, so a shape across the seam is found from both.
+  const turn = plane.cyclic(first) ? 1 : 0;
+  const near = new Float64Array(2 * count);
+  let best = -1;
   for (let k = 0; k < count; k++) {
-    const at = k * m * 2;
-    if (data[at]! !== data[at]! || data[at + 1]! !== data[at + 1]!) continue;
-    // Quick out: a shape whose bounding box is farther than the best so far cannot be nearer.
-    let x0 = Infinity,
-      x1 = -Infinity,
-      y0 = Infinity,
-      y1 = -Infinity;
-    for (let j = 0; j < m; j++) {
-      const px = data[at + 2 * j]!,
-        py = data[at + 2 * j + 1]!;
-      if (px < x0) x0 = px;
-      if (px > x1) x1 = px;
-      if (py < y0) y0 = py;
-      if (py > y1) y1 = py;
+    const a0 = data[4 * k]!,
+      a1 = data[4 * k + 1]!,
+      b0 = data[4 * k + 2]!,
+      b1 = data[4 * k + 3]!;
+    if (!(a0 === a0 && a1 === a1 && b0 === b0 && b1 === b1)) {
+      near[2 * k] = near[2 * k + 1] = NaN;
+      continue;
     }
-    if (Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(y0 - y, 0, y - y1)) >= bestD) continue;
-    let inside = false,
-      edge = Infinity;
-    for (let j = 0, prev = m - 1; j < m; prev = j++) {
-      const ax = data[at + 2 * prev]!,
-        ay = data[at + 2 * prev + 1]!,
-        bx = data[at + 2 * j]!,
-        by = data[at + 2 * j + 1]!;
-      if (by > y !== ay > y && x < ((ax - bx) * (y - by)) / (ay - by) + bx) inside = !inside;
-      const sx = bx - ax,
-        sy = by - ay,
-        len2 = sx * sx + sy * sy;
-      const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * sx + (y - ay) * sy) / len2)) : 0;
-      const d = Math.hypot(ax + t * sx - x, ay + t * sy - y);
-      if (d < edge) edge = d;
+    const lo = Math.min(b0, b1),
+      hi = Math.max(b0, b1);
+    // The pointer's fraction along the first axis, or the copy of it a turn away that is nearest the shape.
+    let u = pa;
+    if (turn) for (const w of [pa - 1, pa + 1]) if (Math.abs(w - (a0 + a1) / 2) < Math.abs(u - (a0 + a1) / 2)) u = w;
+    const cu = Math.min(Math.max(u, Math.min(a0, a1)), Math.max(a0, a1)),
+      cv = Math.min(Math.max(pb, lo), hi);
+    if (cu === u && cv === pb) {
+      // Several shapes can hold the pointer (bars overlap in a stack's layers): the first is kept, as with polygons.
+      if (best < 0) best = k;
     }
-    const d = inside ? 0 : edge;
+    near[2 * k] = cu;
+    near[2 * k + 1] = cv;
+  }
+  if (best >= 0) return { index: best, distance: 0 };
+  plane.place({ data: near, stride: 2, count }, first, second);
+  let bestD = Infinity;
+  for (let k = 0; k < count; k++) {
+    const nx = near[2 * k]!,
+      ny = near[2 * k + 1]!;
+    if (nx !== nx || ny !== ny) continue;
+    const d = Math.hypot(nx - x, ny - y);
     if (d < bestD) {
       bestD = d;
       best = k;
@@ -350,7 +361,7 @@ export function hitTest(series: Series, x: number, y: number, maxDistance?: numb
     mode === 'shape'
       ? (() => {
           const g = series.shapes();
-          return g ? nearestShape(g, d.points, x, y) : nearestPoint(d.points, x, y);
+          return g ? nearestShape(g, d.plane, series.firstAxis, series.secondAxis, d.points, x, y) : nearestPoint(d.points, x, y);
         })()
       : traced && tracedMode
         ? nearestTraced(traced, tracedMode, x, y)

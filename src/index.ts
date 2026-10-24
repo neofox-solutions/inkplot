@@ -142,7 +142,7 @@ export {
   LinePath,
   type LinePathAttributes,
   type AnchorSet,
-  type PolygonSet,
+  type ShapeSet,
   type ResolvedBinding,
   type Trace,
   SeriesRenderer,

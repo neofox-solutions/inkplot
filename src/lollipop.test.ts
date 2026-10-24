@@ -44,7 +44,7 @@ test('lollipop', () => {
   assert.equal(value.range.min, 0, 'the value axis starts at the baseline');
   assert(value.range.max > 5, 'and leaves room above the highest marker');
   // Each marker's x is where its stem is: every stem x appears as a marker x.
-  const stems = [...svg.matchAll(/M([\d.-]+) [\d.-]+L([\d.-]+) /g)].map((m) => Number(m[1]));
+  const stems = [...svg.matchAll(/M([\d.-]+) [\d.-]+V([\d.-]+)/g)].map((m) => Number(m[1]));
   assert(stems.length >= 6, `stems found: ${stems.length}`);
   const dots = centres(svg);
   assert(dots.length >= 6, `markers found: ${dots.length}`);

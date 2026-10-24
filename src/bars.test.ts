@@ -22,6 +22,7 @@ import {
   hitAll,
   type Plane,
 } from './index.ts';
+import { shapeCorners } from './fake-platform.ts';
 import { test } from 'vite-plus/test';
 
 test('bars', () => {
@@ -34,8 +35,6 @@ test('bars', () => {
     return { chart, svg: platform.toString() };
   }
   const flat = (ys: number[]) => new FlatDataSource({ data: Float64Array.from(ys), regularDomain: { start: 0, step: 1 } });
-  const xs = (shape: Float64Array, from: number, count: number) => Array.from({ length: count }, (_, j) => shape[from + 2 * j]!);
-  const ys = (shape: Float64Array, from: number, count: number) => Array.from({ length: count }, (_, j) => shape[from + 2 * j + 1]!);
 
   // ── Upright bars on a linear domain: 0.8 of the spacing, from the baseline to the value.
   {
@@ -45,12 +44,9 @@ test('bars', () => {
     const { svg } = mount(new CartesianPlane({}, x, y, bars));
     const s = barShapes(bars)!;
     assert.equal(s.count, 4);
-    assert.equal(s.perShape, 4, 'a rectangle on a rectangle');
     const pitch = bars.points.data[2]! - bars.points.data[0]!; // pixels between neighbouring bars
     for (let i = 0; i < 4; i++) {
-      const at = i * 8,
-        px = xs(s.data, at, 4),
-        py = ys(s.data, at, 4);
+      const { x: px, y: py } = shapeCorners(bars, s, i);
       near(Math.max(...px) - Math.min(...px), 0.8 * pitch, 1e-6);
       near((Math.max(...px) + Math.min(...px)) / 2, bars.points.data[i * 2]!, 1e-6);
       near(Math.min(...py), bars.points.data[i * 2 + 1]!, 1e-6); // the top is the point
@@ -70,7 +66,8 @@ test('bars', () => {
     );
     const ws = barShapes(wide, { width: 0.5 })!,
       p2 = wide.points.data[2]! - wide.points.data[0]!;
-    near(Math.max(...xs(ws.data, 0, 4)) - Math.min(...xs(ws.data, 0, 4)), 0.5 * p2, 1e-6);
+    const wx = shapeCorners(wide, ws, 0).x;
+    near(Math.max(...wx) - Math.min(...wx), 0.5 * p2, 1e-6);
   }
 
   // ── A band axis sets the width itself, from the scale's gap; a stated width is a fraction of the band.
@@ -91,10 +88,12 @@ test('bars', () => {
     const a = make(new BarPath({})),
       sa = barShapes(a)!,
       bandPx = a.points.data[2]! - a.points.data[0]!;
-    near(Math.max(...xs(sa.data, 0, 4)) - Math.min(...xs(sa.data, 0, 4)), 0.6 * bandPx, 1e-6);
+    const ax = shapeCorners(a, sa, 0).x;
+    near(Math.max(...ax) - Math.min(...ax), 0.6 * bandPx, 1e-6);
     const b = make(new BarPath({ width: 0.5 })),
       sb = barShapes(b, { width: 0.5 })!;
-    near(Math.max(...xs(sb.data, 0, 4)) - Math.min(...xs(sb.data, 0, 4)), 0.5 * (b.points.data[2]! - b.points.data[0]!), 1e-6);
+    const bx = shapeCorners(b, sb, 0).x;
+    near(Math.max(...bx) - Math.min(...bx), 0.5 * (b.points.data[2]! - b.points.data[0]!), 1e-6);
   }
 
   // ── The baseline reaches the axis even when the data does not: bars of 50..60 still grow from zero.
@@ -115,10 +114,10 @@ test('bars', () => {
     const y = new Axis({ orientation: 'left', min: -5, max: 5 }, new LinearScale());
     const { svg } = mount(new CartesianPlane({}, new Axis({ orientation: 'bottom' }, new LinearScale()), y, s));
     const shapes = barShapes(s)!;
-    assert(Number.isNaN(shapes.data[9]!), 'the gap is a shape of NaN');
+    assert(Number.isNaN(shapes.data[4 * 1]!), 'the gap is a shape of NaN');
     const d = /<path[^>]*d="([^"]*Z)"/.exec(svg)![1]!;
     assert.equal((d.match(/M/g) ?? []).length, 2, 'two bars drawn');
-    const third = ys(shapes.data, 16, 4),
+    const third = shapeCorners(s, shapes, 2).y,
       zero = s.baseline(0).data[1]!;
     near(Math.min(...third), zero, 1e-6);
     assert(Math.max(...third) > zero, 'below the baseline is further down the page');
@@ -133,8 +132,7 @@ test('bars', () => {
     const shape = barShapes(s)!,
       foot = s.baseline(0).data[0]!;
     for (let i = 0; i < 3; i++) {
-      const px = xs(shape.data, i * 8, 4),
-        py = ys(shape.data, i * 8, 4);
+      const { x: px, y: py } = shapeCorners(s, shape, i);
       near(Math.min(...px), foot, 1e-6);
       near(Math.max(...px), s.points.data[i * 2]!, 1e-6);
       near((Math.max(...py) + Math.min(...py)) / 2, s.points.data[i * 2 + 1]!, 1e-6);
@@ -152,16 +150,14 @@ test('bars', () => {
     );
     const { svg } = mount(plane);
     const shape = barShapes(s)!;
-    assert(shape.perShape > 4, 'edges are cut into arcs');
-    const steps = shape.perShape / 2,
-      c = { x: plane.rect.width / 2, y: plane.rect.height / 2 };
-    const radius = (k: number, j: number) => Math.hypot(shape.data[k + 2 * j]! - c.x, shape.data[k + 2 * j + 1]! - c.y);
-    const outer = radius(0, steps),
-      outerEnd = radius(0, shape.perShape - 1);
-    near(outer, outerEnd, 1e-6);
-    for (let j = steps; j < shape.perShape; j++) near(radius(0, j), outer, 1e-6); // the top edge is one circle
-    for (let j = 0; j < steps; j++) near(radius(0, j), radius(0, 0), 1e-6); // and so is the foot
-    assert(/<path[^>]*d="M[^"]*Z/.test(svg));
+    const c = { x: plane.rect.width / 2, y: plane.rect.height / 2 };
+    const { x: cx, y: cy } = shapeCorners(s, shape, 0);
+    const radius = (j: number) => Math.hypot(cx[j]! - c.x, cy[j]! - c.y);
+    near(radius(0), radius(1), 1e-6); // the foot is one circle
+    near(radius(2), radius(3), 1e-6); // and so is the top edge
+    assert(radius(2) > radius(0));
+    // The plane draws the edges along the angle as arcs.
+    assert(/<path[^>]*d="M[^"]*A[^"]*Z/.test(svg), 'the edges are arcs');
   }
 
   // ── A ring: with the value on the angle axis, the edges along the value are the arcs (a segment of a ring), the domain ones spokes.
@@ -175,14 +171,12 @@ test('bars', () => {
     );
     mount(plane);
     const shape = barShapes(s)!,
-      per = shape.perShape,
-      half = per / 2,
       c = { x: plane.rect.width / 2, y: plane.rect.height / 2 };
-    assert(half > 3, 'the value edges are cut into arcs');
-    const radius = (j: number) => Math.hypot(shape.data[2 * j]! - c.x, shape.data[2 * j + 1]! - c.y);
-    for (let j = 1; j < half; j++) near(radius(j), radius(0), 1e-6); // the inner edge is one circle
-    for (let j = half + 1; j < per; j++) near(radius(j), radius(half), 1e-6); // so is the outer one
-    assert(radius(half) > radius(0));
+    const { x: cx, y: cy } = shapeCorners(s, shape, 0);
+    const radius = (j: number) => Math.hypot(cx[j]! - c.x, cy[j]! - c.y);
+    near(radius(0), radius(3), 1e-6); // the inner edge is one circle (its two ends, either side of the segment)
+    near(radius(1), radius(2), 1e-6); // so is the outer one
+    assert(radius(1) > radius(0));
   }
 
   // ── Hits: inside a bar is a hit at distance 0, whatever the height of the pointer; the shared lookup finds the bar by x.
@@ -212,17 +206,17 @@ test('bars', () => {
     const plane = new CartesianPlane({}, x, y, stems);
     const { svg } = mount(plane);
     const g = stemLines(stems)!;
-    assert.deepEqual([g.perShape, g.count], [2, 5]);
+    assert.equal(g.count, 5);
     for (let i = 0; i < 3; i++) {
-      const k = i * 4;
-      near(g.data[k]!, g.data[k + 2]!, 1e-9); // straight up and down
-      near(g.data[k]!, stems.points.data[2 * i]!, 1e-9);
-      near(g.data[k + 1]!, stems.baseline(0).data[2 * i + 1]!, 1e-9); // from the foot
-      near(g.data[k + 3]!, stems.points.data[2 * i + 1]!, 1e-9); // to the value
+      const { x, y } = shapeCorners(stems, g, i); // corners 0 and 3 are the foot and the value of a stem with no width
+      near(x[0]!, x[3]!, 1e-9); // straight up and down
+      near(x[0]!, stems.points.data[2 * i]!, 1e-9);
+      near(y[0]!, stems.baseline(0).data[2 * i + 1]!, 1e-9); // from the foot
+      near(y[3]!, stems.points.data[2 * i + 1]!, 1e-9); // to the value
     }
     assert(Number.isNaN(g.data[12]!), 'a gap has no stem');
     const d =
-      /<path[^>]*d="(M[^"]*L[^"]*)"[^>]*stroke-linecap="butt"/.exec(svg) ?? /<path[^>]*stroke-linecap="butt"[^>]*d="(M[^"]*)"/.exec(svg);
+      /<path[^>]*d="(M[^"]*V[^"]*)"[^>]*stroke-linecap="butt"/.exec(svg) ?? /<path[^>]*stroke-linecap="butt"[^>]*d="(M[^"]*)"/.exec(svg);
     assert(d, 'one stroked path, butt caps by default');
     assert.equal((d[1]!.match(/M/g) ?? []).length, 4, 'a stem for every value that is there');
     // A stem has to be hit by nearness to its line: along it or at its end, within the radius, and by its x alone with a crosshair.
@@ -263,8 +257,9 @@ test('bars', () => {
     );
     const sa = stemLines(a)!,
       sb = stemLines(b)!;
-    near(sb.data[1]!, sa.data[3]!, 1e-9); // b's foot is a's top
-    near(sb.data[0]!, sa.data[0]!, 1e-9); // same x: stacked
+    // A stem has no width: corner 0 is its foot and corner 3 its top.
+    near(shapeCorners(b, sb, 0).y[0]!, shapeCorners(a, sa, 0).y[3]!, 1e-9); // b's foot is a's top
+    near(shapeCorners(b, sb, 0).x[0]!, shapeCorners(a, sa, 0).x[0]!, 1e-9); // same x: stacked
     const c = new DomainSeries({}, flat([3, 5]), new StemPath({})),
       e = new DomainSeries({}, flat([4, 2]), new StemPath({}));
     mount(
@@ -278,8 +273,10 @@ test('bars', () => {
     const sc = stemLines(c)!,
       se = stemLines(e)!,
       band = c.points.data[2]! - c.points.data[0]!;
-    near(se.data[0]! - sc.data[0]!, (0.6 * band) / 2, 1e-6); // half the drawn band apart
-    near((se.data[0]! + sc.data[0]!) / 2, c.points.data[0]!, 1e-6); // centred on the category
+    const xc = shapeCorners(c, sc, 0).x[0]!,
+      xe = shapeCorners(e, se, 0).x[0]!;
+    near(xe - xc, (0.6 * band) / 2, 1e-6); // half the drawn band apart
+    near((xe + xc) / 2, c.points.data[0]!, 1e-6); // centred on the category
   }
 
   // ── Stems on a polar plane are spokes: both ends on one ray from the centre.
@@ -296,14 +293,14 @@ test('bars', () => {
       cx = plane.rect.width / 2,
       cy = plane.rect.height / 2;
     for (let i = 0; i < 3; i++) {
-      const k = i * 4,
-        fx = g.data[k]! - cx,
-        fy = g.data[k + 1]! - cy,
-        tx = g.data[k + 2]! - cx,
-        ty = g.data[k + 3]! - cy;
+      const { x, y } = shapeCorners(s, g, i),
+        fx = x[0]! - cx,
+        fy = y[0]! - cy,
+        tx = x[3]! - cx,
+        ty = y[3]! - cy;
       near(fx * ty - fy * tx, 0, 1e-6); // foot, top and centre are in line
       assert(Math.hypot(tx, ty) > Math.hypot(fx, fy));
-      near(g.data[k + 2]!, s.points.data[2 * i]!, 1e-9); // and the top is where the point is
+      near(x[3]!, s.points.data[2 * i]!, 1e-9); // and the top is where the point is
     }
   }
 
@@ -316,7 +313,7 @@ test('bars', () => {
     const s = (R === BarPath ? barShapes : stemLines)(series)!;
     assert(s.count === 3 && s.data.every(Number.isFinite), `${R.name} on a log axis are drawn`);
     assert.deepEqual([y.range.min, y.range.max], [10, 1000], 'the axis fits the data, not a 0 it cannot show');
-    const bottom = Math.max(...ys(s.data, 0, s.perShape * 3));
+    const bottom = Math.max(...[0, 1, 2].flatMap((i) => shapeCorners(series, s, i).y));
     near(bottom, series.baseline(0).data[1]!, 1e-6); // the foot is on the axis edge
   }
 });
