@@ -184,9 +184,18 @@ test('boxplot', () => {
       new ObjectDataSource({ source: rows, domain: 'g', value: 'm', isSorted: true, channels: { min: 'lo', q1: 'a', q3: 'b', max: 'hi' } });
     const flip = chartOf([make(), new BoxPath({})], { flip: true });
     const first = /<path d="(M[^Z"]*Z)/.exec(flip.svg())?.[1] ?? '';
-    const nums = [...first.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
-    const xs = nums.map((p) => p[0]!),
-      ys = nums.map((p) => p[1]!);
+    // The corners of an outline of M, H and V (or L) moves.
+    const xs: number[] = [],
+      ys: number[] = [];
+    let cx = 0,
+      cy = 0;
+    for (const m of first.matchAll(/([MLHV])(-?[\d.]+)(?: (-?[\d.]+))?/g)) {
+      if (m[1] === 'H') cx = Number(m[2]);
+      else if (m[1] === 'V') cy = Number(m[2]);
+      else [cx, cy] = [Number(m[2]), Number(m[3])];
+      xs.push(cx);
+      ys.push(cy);
+    }
     assert(
       Math.max(...xs) - Math.min(...xs) > Math.max(...ys) - Math.min(...ys),
       'with the groups on the vertical axis a box is wider than it is tall',

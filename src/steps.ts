@@ -90,7 +90,7 @@ export function stepLines(series: Series, mode: StepMode, baseline: number | nul
       b = norm[3 * i + 2]!;
     return Number.isFinite(x) && Number.isFinite(t) && (!wantBase || Number.isFinite(b));
   };
-  const corners = plane.curved ? plane.breaks(first) : [];
+  const corners = !plane.rectilinear ? plane.breaks(first) : [];
 
   let top = new Float64Array(Math.max(16, 4 * n)),
     foot = wantBase ? new Float64Array(top.length) : null,
@@ -121,7 +121,7 @@ export function stepLines(series: Series, mode: StepMode, baseline: number | nul
   };
   /** A level from `a` to `b` along the first axis at one pair of values, all belonging to point `by`: the pieces between, then the end. */
   const level = (a: number, b: number, t: number, bs: number, by: number) => {
-    if (plane.curved && a !== b) {
+    if (!plane.rectilinear && a !== b) {
       const lo = Math.min(a, b),
         hi = Math.max(a, b),
         cuts: number[] = [];

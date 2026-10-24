@@ -139,7 +139,7 @@ class GradientPaint {
 
   /** Writes the gradient and returns what to paint with: `url(#id)`, a plain colour, or null when nothing can be placed. */
   paint(s: Surface, binding: ResolvedBinding, series: Series, points: Readonly<PointBuffer>, maxStops: number): string | null {
-    if (series.plane.curved) fail(149);
+    if (!series.plane.rectilinear) fail(149);
     const g = stopsFor(binding, series, points, Math.max(2, Math.floor(maxStops)));
     if (g === null || typeof g === 'string') {
       this.#trim(s, 0);

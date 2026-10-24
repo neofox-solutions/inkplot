@@ -176,8 +176,8 @@ function computeShapes(series: Series, lay: BarLayout | null): PolygonSet | null
   const { n, norm, slot, shift } = lay;
   // On a curved plane the edges that run along the angle become arcs: the ones along the domain normally, the ones along
   // the value when the value is the angle (a ring or pie: each bar is a segment of a ring).
-  const roundValue = plane.curved && series.secondAxis.orientation === 'angle';
-  const steps = roundValue ? MAX_VALUE_ARC : plane.curved ? Math.min(MAX_ARC, Math.max(2, Math.ceil(slot * 64))) : 1,
+  const roundValue = !plane.rectilinear && series.secondAxis.orientation === 'angle';
+  const steps = roundValue ? MAX_VALUE_ARC : !plane.rectilinear ? Math.min(MAX_ARC, Math.max(2, Math.ceil(slot * 64))) : 1,
     per = 2 * (steps + 1);
   const out = new Float64Array(n * per * 2);
   for (let i = 0; i < n; i++) {

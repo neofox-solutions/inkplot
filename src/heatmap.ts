@@ -282,7 +282,7 @@ export class HeatMap extends SeriesRenderer<HeatMapAttributes> {
       s.set(node, 'fill-opacity', Math.round(v.opacity * 1000) / 1000);
       s.set(node, 'stroke', look.stroke);
       s.set(node, 'stroke-width', look.strokeWidth);
-      if (!plane.curved) s.set(node, 'shape-rendering', 'crispEdges');
+      if (plane.rectilinear) s.set(node, 'shape-rendering', 'crispEdges');
     }
   }
 }

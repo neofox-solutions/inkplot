@@ -19,8 +19,7 @@
  */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
-import { type BarOptions, layoutBars } from './bars.ts';
-import { f2 } from './geometry.ts';
+import { type BarLayout, type BarOptions, layoutBars } from './bars.ts';
 import type { HitMode } from './hit.ts';
 import type { PlatformNode } from './platform.ts';
 import { type PolygonSet, SeriesRenderer, type SeriesRendererAttributes, type Spread, type SpreadView, paintBox } from './renderer.ts';
@@ -131,13 +130,13 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
     s.set(m, 'stroke-width', look.width * 1.5);
   }
 
-  /** Where everything goes, in plot pixels; made again only when the series has been projected again. */
-  private geometry(): Geometry | null {
+  #fractions: { projection: number; lay: BarLayout; v: Float64Array } | null = null;
+  /** The bars' layout and the five values of each row (low, q1, median, q3, high) on the value axis, as fractions; made again only when the series has been projected again. */
+  private fractions(): { projection: number; lay: BarLayout; v: Float64Array } | null {
     const series = this.requireParent(),
-      d = series.drawn,
-      plane = d?.plane;
-    if (!d || !plane) return null;
-    if (this.#geometry && this.#geometry.projection === series.projection) return this.#geometry;
+      d = series.drawn;
+    if (!d) return null;
+    if (this.#fractions && this.#fractions.projection === series.projection) return this.#fractions;
     const lay = layoutBars(series, this.attrs);
     if (!lay) return null;
     const names = this.names,
@@ -145,11 +144,23 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
       rs = d.stride;
     const col = (name: string) => d.columnOf(name);
     const cols = [col(names.low), col(names.q1), names.median ? col(names.median) : d.secondColumn, col(names.q3), col(names.high)];
-    // The five values of each row on the value axis, as fractions.
     const v = new Float64Array(n * 5);
     for (let i = 0; i < n; i++) for (let k = 0; k < 5; k++) v[i * 5 + k] = d.raw[i * rs + cols[k]!]!;
     series.secondAxis.normalize(v, n * 5, 1, 0);
-    const steps = plane.curved ? Math.min(MAX_ARC, Math.max(2, Math.ceil(lay.slot * 64))) : 1,
+    return (this.#fractions = { projection: series.projection, lay, v });
+  }
+
+  /** Where everything goes, in plot pixels, as the outlines a hit is measured against; made only when something asks, and again only when the series has been projected again. */
+  private geometry(): Geometry | null {
+    const series = this.requireParent(),
+      plane = series.drawn?.plane;
+    if (!plane) return null;
+    if (this.#geometry && this.#geometry.projection === series.projection) return this.#geometry;
+    const f = this.fractions();
+    if (!f) return null;
+    const { lay, v } = f,
+      n = lay.n;
+    const steps = !plane.rectilinear ? Math.min(MAX_ARC, Math.max(2, Math.ceil(lay.slot * 64))) : 1,
       per = 2 * (steps + 1),
       median = steps + 1;
     const cap = Math.max(0, this.attrs.capFraction ?? 0.5);
@@ -208,36 +219,52 @@ export class BoxPath extends SeriesRenderer<BoxPathAttributes> {
 
   protected draw(): void {
     const s = this.surface,
-      g = this.geometry(),
       box = this.box(),
       line = this.line();
     let boxes = '',
       medians = '',
       whiskers = '';
-    if (g) {
-      const path = (from: number, count: number, close: boolean) => {
-        let d = '';
-        for (let j = 0; j < count; j++) {
-          const x = g.data[2 * (from + j)]!,
-            y = g.data[2 * (from + j) + 1]!;
-          if (!(Number.isFinite(x) && Number.isFinite(y))) return '';
-          d += `${j === 0 ? 'M' : 'L'}${f2(x)} ${f2(y)}`;
+    const f = this.fractions(),
+      series = this.requireParent(),
+      plane = series.drawn?.plane;
+    if (f && plane) {
+      // Every part is a run of moves along one axis, so the plane draws them: straight edges on a rectangle, arcs and spokes on a polar plane.
+      const { lay, v } = f,
+        cap = Math.max(0, this.attrs.capFraction ?? 0.5);
+      const box: number[] = [],
+        med: number[] = [],
+        whisk: number[] = [];
+      const gap = (a: number[]) => a.push(NaN, NaN);
+      for (let i = 0; i < lay.n; i++) {
+        const x = lay.norm[3 * i]! + lay.shift,
+          x0 = x - lay.slot / 2,
+          x1 = x0 + lay.slot;
+        const lo = v[i * 5]!,
+          q1 = v[i * 5 + 1]!,
+          md = v[i * 5 + 2]!,
+          q3 = v[i * 5 + 3]!,
+          hi = v[i * 5 + 4]!;
+        if (![x, lo, q1, md, q3, hi].every(Number.isFinite)) continue;
+        box.push(x0, clamp(q1), x1, clamp(q1), x1, clamp(q3), x0, clamp(q3));
+        gap(box);
+        med.push(x0, clamp(md), x1, clamp(md));
+        gap(med);
+        whisk.push(x, clamp(q3), x, clamp(hi));
+        gap(whisk);
+        whisk.push(x, clamp(q1), x, clamp(lo));
+        gap(whisk);
+        if (cap > 0) {
+          const c = (lay.slot * cap) / 2;
+          whisk.push(x - c, clamp(hi), x + c, clamp(hi));
+          gap(whisk);
+          whisk.push(x - c, clamp(lo), x + c, clamp(lo));
+          gap(whisk);
         }
-        return d + (close ? 'Z' : '');
-      };
-      const { n, per, steps } = g,
-        median = steps + 1,
-        medianAt = n * per,
-        whiskerAt = medianAt + n * median,
-        capAt = whiskerAt + n * 4;
-      for (let i = 0; i < n; i++) {
-        const b = path(i * per, per, true);
-        if (!b) continue;
-        boxes += b;
-        medians += path(medianAt + i * median, median, false);
-        whiskers += path(whiskerAt + i * 4, 2, false) + path(whiskerAt + i * 4 + 2, 2, false);
-        if ((this.attrs.capFraction ?? 0.5) > 0) whiskers += path(capAt + i * 4, 2, false) + path(capAt + i * 4 + 2, 2, false);
       }
+      const draw = (a: number[], closed: boolean) => plane.alignedPath(a, a.length / 2, series.firstAxis, series.secondAxis, closed);
+      boxes = draw(box, true);
+      medians = draw(med, false);
+      whiskers = draw(whisk, false);
     }
     const whisker = s.node('whiskers', 'path');
     s.set(whisker, 'd', whiskers);

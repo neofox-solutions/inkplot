@@ -69,8 +69,8 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
   get clipUrl(): string | null {
     return this.attrs.clip === false ? null : `url(#${this.clipId})`;
   }
-  get curved(): boolean {
-    return true;
+  get rectilinear(): boolean {
+    return false;
   }
   get startAngle(): number {
     return this.attrs.startAngle ?? 0;

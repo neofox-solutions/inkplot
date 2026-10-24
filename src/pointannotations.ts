@@ -117,7 +117,7 @@ export class PointAnnotations extends ChartElement<Plane, [], PointAnnotationsAt
     if (found && found.count === points.count) return found;
     const out = new Float64Array(points.count * 4);
     // A point has no foot to lead away from, so away is up the page: or, where the value runs along the radius, out from the middle.
-    const radial = plane.curved && series.secondAxis.orientation === 'radius',
+    const radial = series.secondAxis.orientation === 'radius',
       cx = plane.rect.width / 2,
       cy = plane.rect.height / 2;
     for (let i = 0; i < points.count; i++) {

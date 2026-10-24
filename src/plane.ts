@@ -91,10 +91,11 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
    */
   abstract defaultAxis(role: 'first' | 'second'): Axis | undefined;
   /**
-   * Whether a line that is straight in the plane's own terms (constant value, say) comes out curved. False for a
-   * rectangle, true for anything with an angle. Annotations use it to decide how many points to trace a line with.
+   * Whether a line that is straight in the plane's own terms (constant value, say) is a straight line on the page: true for a rectangle,
+   * false for anything with an angle. Where it is true a path can be drawn without asking the plane (a heatmap's cells are crisp
+   * rectangles, a gradient follows a straight axis).
    */
-  abstract get curved(): boolean;
+  abstract get rectilinear(): boolean;
   /**
    * Fractions of `axis` at which a line running along it changes direction, ascending, for planes that are not smooth
    * (a radar's spokes). A line traced through these is exact where sampling evenly would cut the corners. Default none.
@@ -338,8 +339,8 @@ export class CartesianPlane extends Plane<CartesianPlaneAttributes> {
   get clipUrl(): string | null {
     return this.attrs.clip === false ? null : `url(#${this.clipId})`;
   }
-  get curved(): boolean {
-    return false;
+  get rectilinear(): boolean {
+    return true;
   }
   protected override axisLength(axis: Axis, estimate: Size): number {
     return isHorizontal(axis.orientation) ? estimate.width : estimate.height;
