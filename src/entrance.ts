@@ -64,7 +64,7 @@ export class Entrance extends ChartElement<Container, [], EntranceAttributes> {
     let grow: ReturnType<NonNullable<SeriesRenderer['enterFrom']>> = null;
     for (let r = series.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
-        const from = r.enterFrom?.() ?? null;
+        const from = r.enterFrom();
         if (!from) {
           grow = null;
           break;

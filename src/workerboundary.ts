@@ -261,8 +261,7 @@ export class WorkerBoundary extends DataTransform<WorkerBoundaryAttributes, [sou
   // ─── Groups: the worker splits the rows by a channel, and the group asks for each key's points ───
 
   override partitionable(): boolean {
-    const s = this.source;
-    return s instanceof DataSource || s.partitionable?.() === true;
+    return this.source.partitionable();
   }
   override partitionBy(channel: string, order: 'first' | 'sorted', max: number): Partition | null {
     const held = this.#spec;

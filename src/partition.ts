@@ -266,8 +266,7 @@ export function leafOf(node: DataNode): DataSource {
 
 /** Whether `node` can serve a partition: a source that can be read in place, or a stage above one that says it can. */
 export function canPartition(node: DataNode): boolean {
-  if (node instanceof DataSource) return true;
-  return node.partitionable?.() === true;
+  return node.partitionable();
 }
 
 /** The plan of one key of a partition for any stage that can serve one. */
@@ -402,8 +401,8 @@ export class KeySource extends DataSource {
   /** What answers for the key's extents and channels: the stage that stands for the template on it, or null for the rows as they are. */
   #stage(): DataNode | null {
     const top = this.#top?.();
-    if (!top || top instanceof DataSource || !this.#partition) return null;
-    return top.keyStage?.(this.#partition, this.#slot) ?? null;
+    if (!top || !this.#partition) return null;
+    return top.keyStage(this.#partition, this.#slot);
   }
   get pointCount(): number {
     return this.#stage()?.pointCount ?? this.#partition?.counts[this.#slot] ?? 0;

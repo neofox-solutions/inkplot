@@ -23,7 +23,6 @@
  */
 /* oxlint-disable typescript/no-non-null-assertion -- numeric kernels over flat typed-array buffers (stride-addressed rows): every index is bounded by the row count, which `noUncheckedIndexedAccess` cannot see */
 import { type AttrTypesFor, NUMBER, STRING } from './attrs.ts';
-import { BarRenderer, barShift } from './bars.ts';
 import type { Extent } from './geometry.ts';
 import { f2 } from './geometry.ts';
 import { SeriesRenderer, type SeriesRendererAttributes, type Spread, type SpreadView } from './renderer.ts';
@@ -116,10 +115,7 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
     const d = series.drawn;
     if (!d) return null;
     // Kept while the series is as projected and nothing that sets the bars has changed: a repaint for a pointer moving costs nothing.
-    let siblingBars: BarRenderer | null = null;
-    for (let r = series.firstChild; r && !siblingBars; r = r.nextSibling) if (r instanceof BarRenderer) siblingBars = r;
-    const wide = siblingBars?.attrs;
-    const key = `${series.projection}|${this.attrs.error}|${this.negative}|${this.attrs.mode}|${this.attrs.along}|${wide?.width}|${wide?.baseline}|${wide?.from}`;
+    const key = `${series.projection}|${this.attrs.error}|${this.negative}|${this.attrs.mode}|${this.attrs.along}|${series.slotKey()}`;
     if (this.#endsFor === series && this.#endsKey === key) return this.#ends;
     this.#endsFor = series;
     this.#endsKey = key;
@@ -186,10 +182,8 @@ abstract class ErrorRenderer<A extends ErrorAttributes> extends SeriesRenderer<A
     }
     first.normalize(pts, n * 4, 2, 0);
     second.normalize(pts, n * 4, 2, 1);
-    // The bars' own width decides how wide their slot is, so the first sibling bar renderer says where in the band the bars are.
-    let bars: BarRenderer | null = null;
-    for (let r = series.firstChild; r && !bars; r = r.nextSibling) if (r instanceof BarRenderer) bars = r;
-    const shift = domain ? 0 : barShift(series, bars?.attrs ?? {});
+    // The bars' own width decides how wide their slot is, so the series asks its bars where in the band they are.
+    const shift = domain ? 0 : series.slotShift();
     const clamp = (v: number) => (v < -REACH ? -REACH : v > 1 + REACH ? 1 + REACH : v);
     for (let i = 0; i < n; i++) {
       for (const slot of [0, 2]) {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vite-plus/test';
 import {
   AreaPath,
+  BandScale,
   Axis,
   CartesianPlane,
   Chart,
@@ -159,4 +160,24 @@ test('exact paths', () => {
     assert(d, 'the area is drawn');
     assert.equal(d.split('Z').filter(Boolean).length, 2, 'two shapes');
   }
+});
+
+test('plane: nearestAlong and gapAlong wrap only round a full turn', () => {
+  const axis = (o: 'angle' | 'radius') => new Axis({ orientation: o }, new LinearScale());
+  const lay = (plane: Plane) =>
+    new Chart({ theme: lightTheme, width: 200, height: 200 }, plane).attach(new StringPlatform({ width: 200, height: 200 })).flush();
+  const polar = new PolarPlane({}, axis('angle'), axis('radius'));
+  lay(polar);
+  const angle = polar.axes[0]!;
+  assert.ok(polar.cyclic(angle));
+  assert.ok(Math.abs(polar.nearestAlong(angle, 0.95, 0.05) + 0.05) < 1e-12, 'across the seam');
+  assert.ok(Math.abs(polar.gapAlong(angle, 0.95, 0.05) - 0.1) < 1e-12);
+  assert.ok(Math.abs(polar.gapAlong(angle, 2.3, 0.1) - 0.2) < 1e-12, 'a pointer several turns out still finds the short way');
+  const flat = new CartesianPlane({}, new Axis({}, new LinearScale()), new Axis({ orientation: 'left' }, new LinearScale()));
+  lay(flat);
+  assert.equal(flat.nearestAlong(flat.axes[0]!, 0.95, 0.05), 0.95);
+  assert.ok(Math.abs(flat.gapAlong(flat.axes[0]!, 0.95, 0.05) - 0.9) < 1e-12);
+  assert.equal(new BandScale({ categories: ['a', 'b', 'c', 'd'], bandGap: 0.2 }).slots?.pitch, 0.25);
+  assert.ok(Math.abs((new BandScale({ categories: ['a', 'b', 'c', 'd'], bandGap: 0.2 }).slots?.width ?? 0) - 0.2) < 1e-12);
+  assert.equal(new LinearScale().slots, null);
 });

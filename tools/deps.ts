@@ -78,7 +78,6 @@ export const FEATURE_USES: Record<string, string[]> = {
   pointer: ['hit', 'input'],
   simple: ['decimation', 'shortcut', 'axis', 'chart', 'plane', 'curve', 'renderer', 'scales', 'series'],
   barchart: ['shortcut', 'axis', 'bars', 'chart', 'plane', 'scales', 'series', 'stack'],
-  errors: ['bars'],
   boxplot: ['bars'],
   time: ['scales'],
   'time-intl': ['time'],

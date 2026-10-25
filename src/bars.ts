@@ -118,11 +118,10 @@ function computeLayout(series: Series, options: BarOptions): BarLayout | null {
     for (let i = 0; i < n; i++) if (!Number.isFinite(norm[3 * i + 1]!) && Number.isFinite(norm[3 * i + 2]!)) norm[3 * i + 1] = 0;
 
   // The room one bar (or one group of them) has along the domain.
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- a scale is read for the optional `bandwidth` and `gap` that only a band scale has
-  const scale = first.scale as unknown as { bandwidth?: number; attrs?: { bandGap?: number } };
+  const slots = first.scale.slots;
   let room = 0;
-  if (typeof scale.bandwidth === 'number' && options.width === undefined) {
-    room = scale.bandwidth;
+  if (slots && options.width === undefined) {
+    room = slots.width;
   } else {
     let pitch = Infinity,
       prev = NaN;
@@ -132,7 +131,7 @@ function computeLayout(series: Series, options: BarOptions): BarLayout | null {
       if (prev === prev && x > prev && x - prev < pitch) pitch = x - prev;
       prev = x;
     }
-    if (typeof scale.bandwidth === 'number') pitch = scale.bandwidth / (1 - (scale.attrs?.bandGap ?? 0.2));
+    if (slots) pitch = slots.pitch;
     room = (options.width ?? 0.8) * (pitch < Infinity ? pitch : 0.25);
   }
   const { index, count } = d.slot,
@@ -208,6 +207,12 @@ export abstract class BarRenderer<A extends BarRendererAttributes<object> = BarR
     width: NUMBER,
   } satisfies Partial<AttrTypesFor<Omit<BarRendererAttributes, 'bind'>>>;
   protected abstract outline(): ShapeSet | null;
+  override slotShift(): number {
+    return barShift(this.requireParent(), this.attrs);
+  }
+  override slotKey(): string {
+    return `${this.attrs.width}|${this.attrs.baseline}|${this.attrs.from}`;
+  }
   override get includes(): readonly number[] {
     if (this.attrs.from !== undefined) return [];
     const baseline = this.attrs.baseline ?? 0;

@@ -271,6 +271,14 @@ export abstract class DataSource<A extends DataSourceAttributes = DataSourceAttr
   declare readonly offers?: Offers<Channel>;
   #version = 0;
   readonly #watchers = new Watchers();
+  /** A source is where rows are read in place, so it can always serve a partition. */
+  partitionable(): boolean {
+    return true;
+  }
+  /** The rows of a key as they are answer for it: no stage stands in. */
+  keyStage(_partition: Partition, _slot: number): DataNode | null {
+    return null;
+  }
   private domainCache: { version: number; extent: Extent | null } | null = null;
   private valueCache: { version: number; extent: Extent | null } | null = null;
   private channelCache: { version: number; byName: Map<string, Extent | null> } | null = null;
@@ -573,15 +581,19 @@ export abstract class DataTransform<
   abstract valueExtent(): Extent | null;
   abstract channelExtent(name: string): Extent | null;
   abstract plan(context: PlanContext): FillPlan;
-  /** True when this stage can serve the rows of one key of a partition (see partition.ts), which is how a group avoids copying them out by key. */
-  partitionable?(): boolean;
+  /** True when this stage can serve the rows of one key of a partition (see partition.ts), which is how a group avoids copying them out by key. Default no. */
+  partitionable(): boolean {
+    return false;
+  }
   /** Like `plan`, for the rows of each key of a partition of its source: the points of a key are asked for by its slot. */
   planPartitioned?(context: PlanContext, partition: Partition): PartitionedPlan;
   /**
    * The stage that stands for this one on the rows of one key, when it is not the rows themselves: what answers for the key's
    * point count, extents and channels. Null where the key's rows, as they are, answer.
    */
-  keyStage?(partition: Partition, slot: number): DataNode | null;
+  keyStage(_partition: Partition, _slot: number): DataNode | null {
+    return null;
+  }
   /**
    * For a stage that holds its rows somewhere else (a `WorkerBoundary`): the partition of them by a channel, as it knows it. A
    * group asks for it in place of splitting the rows itself. It may have no keys yet, and has more when the rows have been counted.

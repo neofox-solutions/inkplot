@@ -180,8 +180,6 @@ export function nearestShape(
   if (x !== x || y !== y) return nearestPoint(points, x, y);
   const { data, count } = shapes;
   const [pa, pb] = plane.fractionsAt(x, y, first, second);
-  // Round a full turn the pointer's fraction is also one turn either side, so a shape across the seam is found from both.
-  const turn = plane.cyclic(first) ? 1 : 0;
   const near = new Float64Array(2 * count);
   let best = -1;
   for (let k = 0; k < count; k++) {
@@ -195,9 +193,8 @@ export function nearestShape(
     }
     const lo = Math.min(b0, b1),
       hi = Math.max(b0, b1);
-    // The pointer's fraction along the first axis, or the copy of it a turn away that is nearest the shape.
-    let u = pa;
-    if (turn) for (const w of [pa - 1, pa + 1]) if (Math.abs(w - (a0 + a1) / 2) < Math.abs(u - (a0 + a1) / 2)) u = w;
+    // The pointer's fraction along the first axis, or (round a full turn) the copy of it that is nearest the shape.
+    const u = plane.nearestAlong(first, pa, (a0 + a1) / 2);
     const cu = Math.min(Math.max(u, Math.min(a0, a1)), Math.max(a0, a1)),
       cv = Math.min(Math.max(pb, lo), hi);
     if (cu === u && cv === pb) {
@@ -437,19 +434,14 @@ export function hitAcross(plane: Plane, x: number, y: number): Hit[] {
       b = s.secondAxis,
       target = a.fractionOf(plane.unplace(x, y, a, b)[0]);
     if (target !== target) continue;
-    const wraps = plane.cyclic(a),
-      { raw, stride, firstColumn, secondColumn } = d;
+    const { raw, stride, firstColumn, secondColumn } = d;
     let best = -1,
       bestD = Infinity;
     for (let k = 0, at = 0; k < d.points.count; k++, at += stride) {
       const v = raw[at + firstColumn]!,
         w = raw[at + secondColumn]!;
       if (v !== v || w !== w) continue;
-      let gap = Math.abs(a.fractionOf(v) - target);
-      if (wraps) {
-        gap -= Math.floor(gap);
-        if (gap > 0.5) gap = 1 - gap;
-      }
+      const gap = plane.gapAlong(a, a.fractionOf(v), target);
       if (gap < bestD) {
         bestD = gap;
         best = k;

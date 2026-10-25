@@ -42,6 +42,13 @@ export abstract class Scale<A extends ScaleAttributes = ScaleAttributes> extends
   get isLinear(): boolean {
     return false;
   }
+  /**
+   * When the scale divides its range into equal slots for the values (a band scale), the room one slot gives: the `width` of its drawn part and
+   * the `pitch` from one slot to the next, both as fractions of the range. Bars fill it. Null when values are just points on a continuum (default).
+   */
+  get slots(): { readonly width: number; readonly pitch: number } | null {
+    return null;
+  }
   /** The text for a tick, when the scale knows better than a number does (a category name). Default: the axis formats the number. */
   label?(value: number): string | undefined;
   /**

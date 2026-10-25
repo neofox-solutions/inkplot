@@ -885,8 +885,7 @@ export class Decimator extends KeyedTransform<DecimatorAttributes, [kernel: Deci
 
   /** A `Decimator` leaves the extents and channels of a key as its source has them. */
   override keyStage(partition: Partition, slot: number): DataNode | null {
-    const source = this.source;
-    return source instanceof DataSource ? null : (source.keyStage?.(partition, slot) ?? null);
+    return this.source.keyStage(partition, slot);
   }
   /**
    * `plan` for one key of a partition: a key with few rows is passed on as it is. The others are reduced together in one pass over

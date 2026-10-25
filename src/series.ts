@@ -260,11 +260,22 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.hitMode) return r.hitMode;
     return undefined;
   }
+  /** How far along the domain its own bars sit from the point's place when it shares a band with others: what the first renderer that sits in one says. 0 for a series alone. */
+  slotShift(): number {
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.slotShift() !== 0) return r.slotShift();
+    return 0;
+  }
+  /** Text that changes when anything `slotShift` depends on does. */
+  slotKey(): string {
+    let key = '';
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer) key += r.slotKey();
+    return key;
+  }
   /** The shapes the series draws, as polygons in plot pixels, if a renderer draws any (bars): what a 'shape' hit is inside. */
   shapes(): ShapeSet | null {
     for (let r = this.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
-        const g = r.shapes?.();
+        const g = r.shapes();
         if (g) return g;
       }
     return null;
@@ -273,7 +284,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   hitShapes(): HitShapes | null {
     for (let r = this.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
-        const t = r.hitShapes?.();
+        const t = r.hitShapes();
         if (t) return t;
       }
     return null;
@@ -282,7 +293,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   trace(): Trace | null {
     for (let r = this.firstChild; r; r = r.nextSibling)
       if (r instanceof SeriesRenderer) {
-        const t = r.trace?.();
+        const t = r.trace();
         if (t) return t;
       }
     return null;
@@ -443,7 +454,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
   }
   /** Whether bars (anything with a baseline to grow from) are drawn here, which markers then stand on the ends of. */
   protected get onBars(): boolean {
-    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.includes.length > 0) return true;
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.baseline !== null) return true;
     return false;
   }
   /** The largest `spans` of the renderers: how far they draw beyond a point along the domain, as a fraction of the gap between points. */
@@ -473,7 +484,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     // What renderers draw beyond the values (error bars) is part of what the axes must show.
     const view = this.spreadView();
     for (let r = this.firstChild; r; r = r.nextSibling) {
-      if (!(r instanceof SeriesRenderer) || !r.spread) continue;
+      if (!(r instanceof SeriesRenderer)) continue;
       const s = r.spread(view);
       if (s?.first) this.firstAxis.contribute(s.first.min, s.first.max);
       if (s?.second) this.secondAxis.contribute(s.second.min, s.second.max);
@@ -511,7 +522,7 @@ export abstract class Series<A extends SeriesAttributes = SeriesAttributes, Chan
     let e = base;
     if (this.#layer) return e;
     for (let r = this.firstChild; r; r = r.nextSibling) {
-      if (!(r instanceof SeriesRenderer) || !r.limit) continue;
+      if (!(r instanceof SeriesRenderer)) continue;
       const s = r.limit(this),
         w = axis === this.firstAxis ? s?.first : axis === this.secondAxis ? s?.second : undefined;
       if (w) e = e ? { min: Math.min(e.min, w.min), max: Math.max(e.max, w.max) } : w;
@@ -725,7 +736,7 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
       spans = this.spans;
     if (d) {
       // Bars centred on the first and last points reach half a bar past them: the mean gap is what is known before reading.
-      const room = spans > 0 && n > 1 && !('bandwidth' in this.domainAxis.scale) ? (spans * (d.max - d.min)) / (n - 1) : 0;
+      const room = spans > 0 && n > 1 && !this.domainAxis.scale.slots ? (spans * (d.max - d.min)) / (n - 1) : 0;
       this.domainAxis.contribute(d.min - room, d.max + room);
     }
     this.contributeReach();
@@ -747,7 +758,7 @@ export class DomainSeries extends Series<DomainSeriesAttributes> {
   private reachBeyondBars(ext: Extent): void {
     if (!this.onBars || this.reachPx <= 0) return;
     let base = 0;
-    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.includes.length > 0) base = r.includes[0] ?? 0;
+    for (let r = this.firstChild; r; r = r.nextSibling) if (r instanceof SeriesRenderer && r.baseline !== null) base = r.baseline;
     if (ext.max > base) this.valueAxis.reach(this.reachPx, 'hi');
     if (ext.min < base) this.valueAxis.reach(this.reachPx, 'lo');
   }

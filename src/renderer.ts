@@ -176,6 +176,21 @@ export abstract class SeriesRenderer<
   get includes(): readonly number[] {
     return [];
   }
+  /** The value on the value axis that what this draws grows from and markers on it stand on (a bar's baseline), or null if it has none. Default: the first of `includes`. */
+  get baseline(): number | null {
+    return this.includes[0] ?? null;
+  }
+  /**
+   * How far along the domain (as a fraction of the axis) what this draws sits from the point's place when its series shares a band with
+   * others (`Stack` in 'group' mode), so that what goes on it (error bars) stays on it. Default 0.
+   */
+  slotShift(): number {
+    return 0;
+  }
+  /** Text that changes when anything `slotShift` depends on does, for a cache to be keyed by. Default none. */
+  slotKey(): string {
+    return '';
+  }
   /**
    * Pixels this draws beyond the places of its points (a marker's radius), which the axes leave room for so that a mark
    * on the end of the data is not cut by the edge of the plot. Default 0.
@@ -192,18 +207,28 @@ export abstract class SeriesRenderer<
     return undefined;
   }
   /** The shapes this draws, one for each point of the series in the same order, for a 'shape' hit. Default none. */
-  shapes?(): ShapeSet | null;
+  shapes(): ShapeSet | null {
+    return null;
+  }
   /** Where a label for each point should sit, if this knows better than the point itself (a bar: the middle of its far end). Default none. */
-  anchors?(): AnchorSet | null;
+  anchors(): AnchorSet | null {
+    return null;
+  }
   /**
    * For a renderer whose marks grow from a line when the chart first appears (bars): which way they grow (`grow-y` upwards or downwards,
    * `grow-x` sideways) and a point on the line they stand on, in plot pixels. Null: nothing to grow from, so the series is drawn on instead.
    */
-  enterFrom?(): { kind: 'grow-y' | 'grow-x'; x: number; y: number } | null;
+  enterFrom(): { kind: 'grow-y' | 'grow-x'; x: number; y: number } | null {
+    return null;
+  }
   /** The path this draws as a line (or the top of a shape), if it is not the straight one through the points. Hits and readings follow it. Default none. */
-  trace?(): Trace | null;
+  trace(): Trace | null {
+    return null;
+  }
   /** The line (or area) this draws, as pieces in the plane's own terms, when it is exact and not sampled (steps). Hits and readings follow it, ahead of `trace`. Default none. */
-  hitShapes?(): HitShapes | null;
+  hitShapes(): HitShapes | null {
+    return null;
+  }
   /**
    * Channels of the data this needs as plain numbers beside each point (error bars: how far each value may be out), with no mapped
    * axis to turn them into anything. The series requests them with the bound ones; in `points` they follow the two coordinates,
@@ -216,9 +241,13 @@ export abstract class SeriesRenderer<
    * What this draws beyond the values on each axis, over the rows now in view (a stack's rows are at their stacked places):
    * the extents the series adds to its axes, so that error bars are not cut off by the plot. Default none.
    */
-  spread?(view: SpreadView): Spread | null;
+  spread(_view: SpreadView): Spread | null {
+    return null;
+  }
   /** The same over all the data, for the range zooming is held to. It may be generous. Default none. */
-  limit?(series: Series): Spread | null;
+  limit(_series: Series): Spread | null {
+    return null;
+  }
   /** Nothing is bound until bindings are written; a renderer that has some will report them here. */
   get bindings(): readonly ResolvedBinding[] {
     return [];

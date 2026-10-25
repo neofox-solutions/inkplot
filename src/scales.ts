@@ -160,6 +160,10 @@ export class BandScale extends Scale<BandScaleAttributes> {
     return Math.max(1, this.attrs.categories.length);
   }
 
+  override get slots(): { readonly width: number; readonly pitch: number } {
+    return { width: this.bandwidth, pitch: 1 / this.n };
+  }
+
   /** Width of the drawn part of one band as a fraction of the range, for a renderer that draws bars. */
   get bandwidth(): number {
     return (1 - (this.attrs.bandGap ?? 0.2)) / this.n;

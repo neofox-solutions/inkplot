@@ -113,7 +113,7 @@ export class PointAnnotations extends ChartElement<Plane, [], PointAnnotationsAt
 
   /** Every point of the series with a place for its note: x, y and the direction away, from the renderer or else the point. */
   private placeAnchors(renderer: AnySeriesRenderer | undefined, points: Readonly<PointBuffer>, plane: Plane, series: Series): AnchorSet {
-    const found = renderer?.anchors?.();
+    const found = renderer?.anchors();
     if (found && found.count === points.count) return found;
     const out = new Float64Array(points.count * 4);
     // A point has no foot to lead away from, so away is up the page: or, where the value runs along the radius, out from the middle.

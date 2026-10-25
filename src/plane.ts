@@ -176,6 +176,17 @@ export abstract class Plane<A extends PlaneAttributes = PlaneAttributes> extends
     return false;
   }
   /**
+   * The fraction along `axis` that is the same place as `fraction` and nearest `to`. On most planes that is `fraction` itself; round a full
+   * turn it may be a turn or more either side, so that a pointer just before the start of the sweep is near shapes at its end.
+   */
+  nearestAlong(_axis: Axis, fraction: number, _to: number): number {
+    return fraction;
+  }
+  /** How far apart two fractions along `axis` are, the short way round if it comes back to where it started. */
+  gapAlong(axis: Axis, a: number, b: number): number {
+    return Math.abs(this.nearestAlong(axis, a, b) - b);
+  }
+  /**
    * The axis whose strip beside the plot a position (in plot pixels) is on, or null: the strip is where its line, ticks and labels
    * are. This is what lets a wheel turn or a drag over an axis act on that axis alone. Default: none, so only the plot itself takes input.
    */

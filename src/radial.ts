@@ -193,6 +193,10 @@ export abstract class RadialPlane<A extends RadialPlaneAttributes = RadialPlaneA
     return axis.orientation === 'angle' && Math.abs(this.sweep) >= TAU - 1e-9;
   }
 
+  override nearestAlong(axis: Axis, fraction: number, to: number): number {
+    return this.cyclic(axis) ? fraction - Math.round(fraction - to) : fraction;
+  }
+
   /** On the plot when inside the rim in that direction, outside the hole, and (for a part of a turn) within the sweep. */
   override covers(x: number, y: number): boolean {
     const dx = x - this.#cx,
