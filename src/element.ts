@@ -121,6 +121,12 @@ export type VariadicChild<C extends readonly unknown[]> = C extends readonly [un
   : C extends readonly (infer E)[]
     ? E
     : never;
+/** Carries an element's declared child types in its type, for the children to know what can stand beside them. Never present at run time. */
+declare const childTypes: unique symbol;
+/** The elements that can stand next to a child of `P`: whatever its parent can have added to it. */
+export type Sibling<P> = P extends { readonly [childTypes]?: infer C extends readonly unknown[] } ? VariadicChild<C> : never;
+/** The elements that can take a child's place: its siblings' kind, and the kinds of the parent's fixed children. */
+export type Slot<P> = P extends { readonly [childTypes]?: infer C extends readonly unknown[] } ? VariadicChild<C> | C[number] : never;
 /** The positions of a parent's fixed children, which are always present and can only be replaced. */
 export type FixedIndex<C extends readonly unknown[], Seen extends unknown[] = []> = C extends readonly [unknown, ...infer Rest]
   ? Seen['length'] | FixedIndex<Rest, [...Seen, unknown]>
@@ -144,6 +150,9 @@ export abstract class ChartElement<
    * order, cannot be checked, because TypeScript gives every JSX tag the same type; the class' documentation says.
    */
   declare readonly $props: Attrs & { children?: [Children[number]] extends [never] ? JsxChild<never> : JsxChild<AnyElement> };
+
+  /** Types only: the declared child types, which `Sibling` and `Slot` read from the parent. */
+  declare readonly [childTypes]?: Children;
 
   #attrs: Attrs;
   #parent: AnyElement | null = null;
@@ -241,15 +250,22 @@ export abstract class ChartElement<
    * included). The classes must be ones the declared child type allows, so a wrong one is a compile error; a wrong or missing child
    * is a run-time error that says what was expected and what was found, wherever the tree was built (`new`, JSX, React, markup).
    */
-  child<I extends FixedIndex<Children> & keyof Children>(
+  child<I extends FixedIndex<Children> & keyof Children, K extends [ClassFor<Children[I]>, ...ClassFor<Children[I]>[]]>(
     index: I,
-    ...classes: [ClassFor<Children[I]>, ...ClassFor<Children[I]>[]]
-  ): Children[I] {
+    ...classes: K
+  ): InstanceType<K[number]>;
+  /**
+   * A fixed child, typed as the parent declares it, without a check. For code outside the library that knows what it built: it gets the declared type
+   * (or name a more specific class by passing it above, which is checked). Inside the library, pass the classes, so a tree built wrongly fails with
+   * a message that says what was expected, rather than somewhere later with a missing method.
+   */
+  child<I extends FixedIndex<Children> & keyof Children>(index: I): Children[I];
+  child(index: number, ...classes: ElementClass[]): AnyElement {
     const found = this.nth(index);
-    const names = classes.map((k) => k.name || 'a different class').join(' or ');
-    if (!found) fail(147, this.constructor.name, index as number, names);
-    if (!classes.some((k) => found instanceof k)) fail(146, this.constructor.name, index as number, names, found.constructor.name);
-    return found as Children[I];
+    const names = classes.length ? classes.map((k) => k.name || 'a different class').join(' or ') : 'a child';
+    if (!found) fail(147, this.constructor.name, index, names);
+    if (classes.length && !classes.some((k) => found instanceof k)) fail(146, this.constructor.name, index, names, found.constructor.name);
+    return found;
   }
   private nth(index: number): AnyElement | null {
     let c = this.#first;
@@ -347,28 +363,60 @@ export abstract class ChartElement<
     child.#next = child.#prev = child.#parent = null;
   }
 
+  /** Put `child` in front of `before` (null: at the end), and mount it if this element is on a platform. */
+  #insert(child: AnyElement, before: AnyElement | null): void {
+    this.link(child, before);
+    if (this.#ctx) child.mount(this.#ctx);
+    this.invalidate();
+  }
   /**
-   * Add children that can come and go. Fixed children (an axis' scale, a series' data) are given to the
-   * constructor and replaced with `setChild`; the types do not allow adding or removing them.
+   * The tree is edited like the DOM: `append` and `prepend` on a parent, `before`, `after`, `remove` and `replaceWith` on a child, each taking
+   * any number of elements (one, or a spread of several), in the order they should end up. An element can be in one place only, so one that
+   * already has a parent has to be removed first. Fixed children (an axis' scale, a series' data) are given to the constructor and are
+   * replaced with `replaceWith` (or `setChild`); the types do not allow adding or removing them.
    */
-  append(...children: VariadicChild<Children>[]): this {
-    for (const c of children) this.insertBefore(c, null);
+  append(...nodes: VariadicChild<Children>[]): this {
+    for (const c of nodes) this.#insert(c as AnyElement, null);
     return this;
   }
-  /** Exactly `Node.insertBefore`: `before` is one of this element's children, or null to add at the end. */
-  insertBefore(child: VariadicChild<Children>, before: Children[number] | null): this {
-    this.link(child as AnyElement, before);
-    if (this.#ctx) (child as AnyElement).mount(this.#ctx);
-    this.invalidate();
+  /** Add at the start, keeping the order given. */
+  prepend(...nodes: VariadicChild<Children>[]): this {
+    const first = this.#first;
+    for (const c of nodes) this.#insert(c as AnyElement, first);
     return this;
   }
-  remove(child: VariadicChild<Children>): this {
+  /** Add `nodes` just before this element, among its parent's children. */
+  before(...nodes: Sibling<Parent>[]): this {
+    const parent = this.#parent ?? fail(141);
+    for (const c of nodes) parent.#insert(c as AnyElement, this);
+    return this;
+  }
+  /** Add `nodes` just after this element, among its parent's children. */
+  after(...nodes: Sibling<Parent>[]): this {
+    const parent = this.#parent ?? fail(141);
+    const next = this.#next;
+    for (const c of nodes) parent.#insert(c as AnyElement, next);
+    return this;
+  }
+  /** Take this element out of its parent (it can be put in another place, or the same one, afterwards). Nothing happens if it has no parent. */
+  remove(): this {
+    const parent = this.#parent;
+    if (parent) parent.#detach(this);
+    return this;
+  }
+  /** Put `nodes` in this element's place (none: remove it). A fixed child is replaced by one element of a kind the parent allows. */
+  replaceWith(...nodes: Slot<Parent>[]): this {
+    const parent = this.#parent ?? fail(141);
+    for (const c of nodes) parent.#insert(c as AnyElement, this);
+    parent.#detach(this);
+    return this;
+  }
+  #detach(child: AnyElement): void {
     // Check before unmounting: a child of another element would be left unmounted inside its real parent.
-    if ((child as AnyElement).#parent !== this) fail(141);
-    (child as AnyElement).unmount(true);
-    this.unlink(child as AnyElement);
+    if (child.#parent !== this) fail(141);
+    child.unmount(true);
+    this.unlink(child);
     this.invalidate();
-    return this;
   }
   /** Swap one of the fixed children for another of the same kind. */
   setChild<I extends FixedIndex<Children> & keyof Children>(index: I, child: Children[I]): this {
@@ -395,12 +443,6 @@ export abstract class ChartElement<
     child.unmount(true);
     this.unlink(child);
   }
-  /** Convenience for `parent.remove(this)` when the caller holds only the child. */
-  detachFromParent(): this {
-    this.#parent?.remove(this);
-    return this;
-  }
-
   /**
    * Something about this element is stale. The request travels to the root, where a chart on a
    * scheduling platform arranges a flush. Each flush re-runs layout; fills are cached and unchanged

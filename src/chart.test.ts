@@ -104,7 +104,7 @@ test('chart', () => {
   chart.flush();
   const lines = (svg: string) => [...svg.matchAll(/stroke="(#2a6fdb|crimson|seagreen)"/g)].map((m) => m[1]);
   assert.deepEqual(lines(platform.toString()), ['crimson', 'seagreen'], 'appended series draws after the first');
-  plane.remove(second);
+  second.remove();
   chart.flush();
   assert.deepEqual(lines(platform.toString()), ['crimson'], 'removed series leaves no nodes');
 
@@ -118,12 +118,12 @@ test('chart', () => {
     new ObjectDataSource({ source: rows(50, 0.3), domain: 't', value: 'v' }),
     new LinePath({ stroke: 'seagreen' }, new LinearCurve()),
   );
-  plane.insertBefore(front, [...plane][0]!); // before the axes in the tree
+  [...plane][0]!.before(front); // before the axes in the tree
   chart.flush();
   const svgFront = platform.toString();
   assert(svgFront.indexOf('seagreen') < svgFront.indexOf('text-anchor="middle"'), 'inserted first, drawn first');
   assert(svgFront.lastIndexOf('stroke="#bbb"') > svgFront.lastIndexOf('crimson'), 'frame still above every series');
-  plane.remove(front); // and out again, from the front
+  front.remove(); // and out again, from the front
   source.setAttribute('source', rows(200, 5)); // the value range changes, so axis labels come and go
   chart.flush();
   assert(inOrder(order(platform.toString())), 'order survives a removal at the front and relabelling');

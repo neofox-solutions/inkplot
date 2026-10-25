@@ -191,7 +191,7 @@ test('worker boundary: detach on removal, and an envelope shares the worker with
   const traffic: unknown[] = [];
   s.worker.subscribe((m) => traffic.push(m));
   const boundary = new WorkerBoundary({ worker: s.worker, registry, envelope: 'ink' }, stages(wave(10_000)));
-  const { chart, plane, series } = chartOf(boundary);
+  const { chart, series } = chartOf(boundary);
   await worker.idle();
   chart.flush();
   assert.ok(series.points.count > 0);
@@ -199,7 +199,7 @@ test('worker boundary: detach on removal, and an envelope shares the worker with
   // Traffic that is not ours is ignored, both ways.
   worker.post({ hello: 'world' });
   await worker.idle();
-  plane.remove(series);
+  series.remove();
   chart.flush();
   assert.equal(s.kinds().length, s.posted.length);
   assert.ok(traffic.length >= 2);

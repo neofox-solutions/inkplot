@@ -62,7 +62,7 @@ source.setAttribute('data', [2, 7, 1, 8, 2]); // new data
 
 ## 3. Children: fixed and variadic
 
-Some children are **fixed**: an axis' scale, a series' data. There is always exactly one, so you give it when you make the parent, and replace it with `setChild`. The others are **variadic**: a plane's axes and series, a series' renderers. They come and go.
+Some children are **fixed**: an axis' scale, a series' data. There is always exactly one, so you give it when you make the parent, and replace it with `setChild`. The others are **variadic**: a plane's axes and series, a series' renderers. They come and go, and the methods are the DOM's: `append`, `prepend`, `before`, `after`, `remove` (the element itself) and `replaceWith`. All but `remove` take any number of elements. An element that already has a parent is an error, not a move: `remove()` it first.
 
 ```ts check title="Adding, removing and replacing children"
 import { Axis, CartesianPlane, DomainSeries, FlatDataSource, LinePath, LinearCurve, LinearScale, LogScale } from 'inkplot';
@@ -74,8 +74,9 @@ const plane = new CartesianPlane({}, axis);
 const series = new DomainSeries({ name: 'a' }, new FlatDataSource({ data: [1, 2, 3] }), new LinePath({}, new LinearCurve()));
 plane.append(series);                              // add at the end
 const other = new DomainSeries({ name: 'b' }, new FlatDataSource({ data: [3, 2, 1] }), new LinePath({}, new LinearCurve()));
-plane.insertBefore(other, series);                 // add before another child
-plane.remove(series);                              // take one out
+series.before(other);                              // add before another child (also: after, prepend)
+series.remove();                                   // take one out
+other.replaceWith(series);                         // or swap one for another
 console.log(axis.child(0, LogScale));              // read a fixed child, checked for its class
 ```
 

@@ -399,15 +399,15 @@ function plan(el: AnyElement, json: ElementJSON, path: string, w: Writing, ops: 
     const fresh = build(child, w.registry, w.refs, at);
     if (existing)
       ops.push(() => {
-        el.insertBefore(fresh, existing);
-        el.remove(existing);
+        existing.before(fresh);
+        existing.remove();
       });
-    else ops.push(() => el.insertBefore(fresh, null));
+    else ops.push(() => el.append(fresh));
   });
   for (let i = wanted.length; i < kids.length; i++) {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- in range: the index comes from a loop bound or a length checked in the same function
     const gone = kids[i]!;
-    ops.push(() => el.remove(gone));
+    ops.push(() => gone.remove());
   }
 }
 

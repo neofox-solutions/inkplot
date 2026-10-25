@@ -12,7 +12,7 @@ class ValueBand extends ChartElement<Plane, [], ValueBandAttributes> { … }
 ```
 
 - **`Parent`** types `this.parent` and `requireParent()`. It is also how you say where the element belongs: a plane child has `Plane`.
-- **`Children`** is a tuple type read by the constructor. `[Scale]` is exactly one scale; `[DataNode, ...SeriesRenderer[]]` is one source then any renderers; `Axis[]` is any number. Fixed positions are replaced with `setChild`; the rest come and go with `append`, `insertBefore` and `remove`.
+- **`Children`** is a tuple type read by the constructor. `[Scale]` is exactly one scale; `[DataNode, ...SeriesRenderer[]]` is one source then any renderers; `Axis[]` is any number. Fixed positions are replaced with `setChild`; the rest come and go with the DOM-style `append`, `prepend`, `before`, `after`, `remove` and `replaceWith`. `child(index, Class)` reads a fixed child checked for its class; `child(index)` skips the check and is for callers outside the element.
 - **Attributes** are a plain interface extending `BaseAttributes` (`id`, `meta`, `visible`, `style`). Every attribute is optional or has a default you apply when you read it; there is no hidden state.
 
 Construction does nothing but store the attributes and children: it never draws, subscribes or reads the parent. The chart calls `onEvent` as things happen.

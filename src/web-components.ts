@@ -335,7 +335,8 @@ function makeBase() {
             break;
           }
         }
-        host.insertBefore(element, before);
+        if (before) before.before(element);
+        else host.append(element);
       } else if (typeof (element as unknown as Partial<Chart>).attach === 'function') {
         const root = this.shadowRoot ?? this.attachShadow({ mode: 'open' });
         root.replaceChildren();
@@ -364,7 +365,7 @@ function makeBase() {
         this.#platform = null;
       }
       const host = this.#parent?.element;
-      if (host && element.parent === host) host.remove(element);
+      if (host && element.parent === host) element.remove();
       this.#parent = null;
       this.#joined = false;
     }

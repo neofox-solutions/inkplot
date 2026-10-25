@@ -283,6 +283,7 @@ Read the topic that matches the chart; each has examples and the attributes of t
 - **planes** (`topics/planes.md`): polar and radar charts. Elements: PolarPlane, RadarPlane.
 - **data** (`topics/data.md`): a million points (decimation), data as columns or from a function, updating live data, reading a chart's data back as a table. Elements: CompositeDataSource, SyntheticDataSource, Decimator, Slice, LinkedData, WorkerBoundary, MinMaxKernel, M4Kernel, LttbKernel, StrideKernel.
 - **styling-output** (`topics/styling-output.md`): dark, accessible and custom themes, pattern fills (hatching, dots), styling parts, React, a PNG, chart as JSON, your own element types. Elements: LinePattern, HatchPattern, DotPattern.
+- **editing-trees** (`topics/editing-trees.md`): changing a chart after it is built: adding, removing, moving or replacing elements, changing attributes, swapping a scale or data source.
 - **troubleshooting** (`topics/troubleshooting.md`): an error message or a chart that draws nothing or draws wrongly.
 <!-- index:end -->
 

@@ -172,7 +172,7 @@ function place(parent: Parent, element: AnyElement): void {
   let found = false;
   for (const other of parent.list) {
     if (found && other.parent === parent.element) {
-      parent.element.insertBefore(element, other);
+      other.before(element);
       return;
     }
     if (other === element) found = true;
@@ -192,8 +192,9 @@ function reorder(self: Parent): void {
       at = at.nextSibling;
       continue;
     }
-    if (child.parent === self.element) self.element.remove(child);
-    self.element.insertBefore(child, at);
+    if (child.parent === self.element) child.remove();
+    if (at) at.before(child);
+    else self.element.append(child);
   }
 }
 
@@ -279,7 +280,7 @@ export function reactWrapper<C extends ElementConstructor>(
       place(parent, s.element);
       return () => {
         parent.mounted.delete(s.element);
-        if (s.element.parent === parent.element) parent.element.remove(s.element);
+        if (s.element.parent === parent.element) s.element.remove();
       };
     }, [parent, s.element]);
     useLayoutEffect(() => reorder(s.self));

@@ -32,15 +32,15 @@ test('element', () => {
   const holder = new CartesianPlane({}, a, c);
   const ids = () => [...holder].map((e) => e.attrs.id).join('');
   assert.equal(ids(), 'ac');
-  holder.insertBefore(b, c); // in the middle
+  c.before(b); // in the middle
   assert.equal(ids(), 'abc');
   holder.append(d); // at the end
   assert.equal(ids(), 'abcd');
-  holder.insertBefore(ax('z'), a); // at the front
+  a.before(ax('z')); // at the front
   assert.equal(ids(), 'zabcd');
-  holder.remove(b); // from the middle
-  holder.remove(holder.firstChild as Axis); // from the front
-  holder.remove(d); // from the end
+  b.remove(); // from the middle
+  holder.firstChild?.remove(); // from the front
+  d.remove(); // from the end
   assert.equal(ids(), 'ac');
   assert.equal(b.parent, null);
   assert.equal(b.nextSibling, null, 'a removed element keeps no links');
@@ -48,7 +48,7 @@ test('element', () => {
   assert.equal(c.nextSibling, null);
   assert.equal(holder.firstChild, a);
   // Iterating while removing the current element is safe, because the next is read first.
-  for (const e of holder) holder.remove(e);
+  for (const e of holder) e.remove();
   assert.equal(ids(), '');
   assert.equal(holder.firstChild, null);
 
@@ -117,7 +117,7 @@ test('element lookups stay right while the tree changes', () => {
   assert.throws(() => at('late'), /no element with id "late"/);
   p.append(late);
   assert.equal(at('late'), late);
-  p.remove(late);
+  late.remove();
   assert.throws(() => at('late'), /no element with id "late"/);
   assert.equal(late.chart, null);
 
@@ -133,9 +133,9 @@ test('element lookups stay right while the tree changes', () => {
 
   // Looked up from the root, the first in tree order wins, and what is first changes with the tree.
   const twin = axis('x');
-  p.insertBefore(twin, x);
+  x.before(twin);
   assert.equal(at('x'), twin);
-  p.remove(twin);
+  twin.remove();
   assert.equal(at('x'), x);
 
   // An element moved to another chart answers for that chart.
@@ -144,7 +144,7 @@ test('element lookups stay right while the tree changes', () => {
   chart.append(moving);
   assert.equal(moving.chart, chart);
   assert.equal(at('m'), firstDescendantOfType(moving, Axis));
-  chart.remove(moving);
+  moving.remove();
   other.append(moving);
   assert.equal(moving.chart, other);
   assert.equal(firstDescendantOfType(moving, Axis)?.chart, other);
@@ -174,18 +174,18 @@ test('element lookups stay right while the tree changes', () => {
   assert.equal(findClosestOfType(nearX, CartesianPlane), near);
   assert.equal(findClosestOfType(near, Chart), chart);
   assert.equal(findClosestOfType(nearX, Axis), nearX);
-  chart.remove(near);
+  near.remove();
   // The links run both ways, so a child can come out of or go into any place.
   const row = plane(axis('1'), axis('2'), axis('3'));
   const [one, two, three] = [row.firstChild as Axis, row.firstChild!.nextSibling as Axis, row.lastChild as Axis];
   assert.equal(three.previousSibling, two);
   assert.equal(one.previousSibling, null);
-  row.remove(two);
+  two.remove();
   assert.equal(one.nextSibling, three);
   assert.equal(three.previousSibling, one);
-  row.remove(three);
+  three.remove();
   assert.equal(row.lastChild, one);
-  row.insertBefore(two, one);
+  one.before(two);
   row.append(three);
   assert.deepEqual(
     [...row].map((e) => e.attrs.id),
@@ -193,7 +193,7 @@ test('element lookups stay right while the tree changes', () => {
   );
   assert.equal(row.lastChild, three);
   assert.equal(row.firstChild?.previousSibling, null);
-  assert.throws(() => row.insertBefore(axis('z'), x), /not a child/);
+  assert.throws(() => axis('loose').before(axis('z')), /not a child/);
   const order: string[] = [];
   walk(chart, (e) => void order.push(e.constructor.name));
   assert.deepEqual(order.slice(0, 3), ['Chart', 'CartesianPlane', 'Axis']);
@@ -205,7 +205,7 @@ test('element lookups stay right while the tree changes', () => {
   walk(doomed, (e) => {
     if (e instanceof Axis) {
       seen.push(String(e.attrs.id));
-      doomed.remove(e);
+      e.remove();
     }
   });
   assert.deepEqual(seen, ['a', 'b', 'c']);
@@ -222,8 +222,37 @@ test('element: a tree cannot be made into a loop, and removing what is not a chi
   assert.throws(() => b.append(b as never), /inside itself/, 'a loose element too');
   // `b` is in no tree; removing one of a's own children from it must not unmount the child from `a`.
   const child = x;
-  assert.throws(() => b.remove(child), /not a child/);
+  assert.doesNotThrow(() => new Axis({}, new LinearScale()).remove(), 'removing what is in no tree does nothing');
   chart.attach(new StringPlatform({ width: 200, height: 100 })).flush();
   assert.equal(child.parent, a, 'still where it was');
   assert.doesNotThrow(() => chart.flush());
+});
+
+test('element: the DOM-style editing methods', () => {
+  const ax = (id: string) => new Axis({ id, orientation: 'right' }, new LinearScale());
+  const plane = new CartesianPlane({}, ax('b'));
+  const ids = () => [...plane].map((e) => e.attrs.id).join('');
+  plane.prepend(ax('a'));
+  assert.equal(ids(), 'ab');
+  plane.append(ax('c'), ax('d'));
+  assert.equal(ids(), 'abcd');
+  const [a, b, c] = [plane.firstChild as Axis, plane.firstChild!.nextSibling as Axis, plane.firstChild!.nextSibling!.nextSibling as Axis];
+  b.before(ax('x'), ax('y'));
+  c.after(ax('p'), ax('q'));
+  assert.equal(ids(), 'axybcpqd');
+  b.replaceWith(ax('1'), ax('2'));
+  assert.equal(ids(), 'axy12cpqd');
+  assert.equal(b.parent, null);
+  a.replaceWith();
+  assert.equal(ids(), 'xy12cpqd', 'replaceWith nothing removes');
+  assert.throws(() => plane.append(c), /already|parent/i, 'an element with a parent is not moved');
+  assert.equal(b.remove(), b, 'remove returns the element, and a loose one is fine');
+  // A fixed child is replaced with replaceWith, and child() narrows to the class asked for.
+  const axis = ax('s');
+  const log = new LogScale();
+  axis.child(0, LinearScale).replaceWith(log);
+  assert.equal(axis.child(0, LogScale), log);
+  assert.equal(axis.child(0), log);
+  const either: LinearScale | LogScale = axis.child(0, LinearScale, LogScale);
+  assert.equal(either, log);
 });

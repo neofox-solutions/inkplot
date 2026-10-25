@@ -125,6 +125,11 @@ export const TOPICS: Record<string, Topic> = {
     use: 'dark, accessible and custom themes, pattern fills (hatching, dots), styling parts, React, a PNG, chart as JSON, your own element types',
     elements: ['LinePattern', 'HatchPattern', 'DotPattern'],
   },
+  'editing-trees': {
+    file: 'editing-trees.md',
+    use: 'changing a chart after it is built: adding, removing, moving or replacing elements, changing attributes, swapping a scale or data source',
+    elements: [],
+  },
   troubleshooting: { file: 'troubleshooting.md', use: 'an error message or a chart that draws nothing or draws wrongly', elements: [] },
 };
 

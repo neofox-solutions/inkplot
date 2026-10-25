@@ -2526,7 +2526,7 @@ demos.push({
         value: 'radar',
         onChange: (v) => {
           const next = v === 'radar' ? radar : polar;
-          chart.remove(current.plane);
+          current.plane.remove();
           chart.append(next.plane);
           current = next;
         },
@@ -2769,7 +2769,7 @@ demos.push({
         value: 'snap',
         onChange: (m) => {
           if (m === 'off') {
-            if (tipOn) chart.remove(tip);
+            if (tipOn) tip.remove();
             tipOn = false;
             return;
           }
@@ -2791,7 +2791,7 @@ demos.push({
         value: true,
         onChange: (on) => {
           if (on) plane.append(pan);
-          else plane.remove(pan);
+          else pan.remove();
         },
       }),
       readout,
@@ -3407,9 +3407,9 @@ demos.push({
       return new L.CartesianPlane({ frame: true }, x, y, series);
     }
     function mount() {
-      if (plane) chart.remove(plane);
+      if (plane) plane.remove();
       plane = build();
-      chart.insertBefore(plane, tooltip);
+      tooltip.before(plane);
     }
     chart.append(tooltip);
     mount();
@@ -3648,11 +3648,11 @@ demos.push({
           : new L.CartesianPlane({ frame: true }, d, v, ...kids);
     }
     function mount() {
-      if (plane) chart.remove(plane);
+      if (plane) plane.remove();
       paths = [];
       plane = build();
       reading();
-      chart.insertBefore(plane, tooltip);
+      tooltip.before(plane);
     }
     chart.append(tooltip);
     mount();
@@ -3890,9 +3890,9 @@ demos.push({
       );
     }
     function mount() {
-      if (plane) chart.remove(plane);
+      if (plane) plane.remove();
       plane = build();
-      chart.insertBefore(plane, tooltip);
+      tooltip.before(plane);
     }
     chart.append(tooltip);
     mount();
@@ -4308,10 +4308,10 @@ demos.push({
       },
     });
     function mountPlane() {
-      if (plane) chart.remove(plane);
+      if (plane) plane.remove();
       plane = null;
       plane = build();
-      chart.insertBefore(plane, tooltip);
+      tooltip.before(plane);
     }
     chart.append(tooltip);
     mountPlane();
@@ -4327,7 +4327,7 @@ demos.push({
         chart.flush();
       } catch (e) {
         message.textContent = messageOf(e);
-        if (plane) chart.remove(plane);
+        if (plane) plane.remove();
         plane = null; // nothing to draw until the options make sense again
       }
     };
@@ -4552,7 +4552,7 @@ demos.push({
               type: 'button',
               title: 'click to delete',
               onclick: () => {
-                plane.remove(s);
+                s.remove();
                 refresh();
               },
             },
@@ -4576,7 +4576,7 @@ demos.push({
           'Remove last',
           () => {
             const l = series().at(-1);
-            if (l) plane.remove(l);
+            if (l) l.remove();
             refresh();
           },
         ],
@@ -4587,7 +4587,7 @@ demos.push({
           () => {
             const f = series()[0];
             if (f) {
-              plane.remove(f);
+              f.remove();
               plane.append(f);
             }
             refresh();
@@ -4598,8 +4598,10 @@ demos.push({
           () => {
             const l = series().at(-1);
             if (l) {
-              plane.remove(l);
-              plane.insertBefore(l, series()[0] ?? null);
+              l.remove();
+              const front = series()[0];
+              if (front) front.before(l);
+              else plane.append(l);
             }
             refresh();
           },
@@ -4616,7 +4618,7 @@ demos.push({
             last.setAttribute('valueAxis', 'y2');
           } else if (y2) {
             series().forEach((s) => s.setAttribute('valueAxis', undefined));
-            plane.remove(y2);
+            y2.remove();
             y2 = null;
           }
         },
@@ -4863,8 +4865,8 @@ demos.push({
             );
             plane.append(y2, second);
           } else {
-            if (second) plane.remove(second);
-            if (y2) plane.remove(y2);
+            if (second) second.remove();
+            if (y2) y2.remove();
             second = y2 = null;
           }
           axesBox.replaceChildren(...['x', 'y', ...(y2 ? ['y2'] : [])].map((id) => toggleAxis(id)));
@@ -4977,7 +4979,7 @@ demos.push({
     const swap = () => {
       const old = renderer;
       renderer = build();
-      series.remove(old);
+      old.remove();
       series.append(renderer);
     };
     ctx.add(
@@ -5794,9 +5796,9 @@ demos.push({
       new L.ColorKey({ dimension: heat, side: 'right' }),
     );
     function mount() {
-      if (plane) chart.remove(plane);
+      if (plane) plane.remove();
       plane = build();
-      chart.insertBefore(plane, heat);
+      heat.before(plane);
     }
     mount();
     const redo = () => {
@@ -5806,7 +5808,7 @@ demos.push({
     const rebind = () => {
       const old = cells;
       cells = makeCells();
-      series.remove(old);
+      old.remove();
       series.append(cells);
       heat.setAttribute('title', S.channel);
     };
@@ -6559,7 +6561,7 @@ demos.push({
     const plane = new L.CartesianPlane({}, x, y, series, new L.PanZoom({ along: 'xy' }));
     const chart = new L.Chart({ theme: chartTheme(), onFlush: ctx.onFlush }, plane);
     const swap = () => {
-      for (const r of current) series.remove(r);
+      for (const r of current) r.remove();
       current = renderers();
       series.append(...current);
     };
@@ -6883,10 +6885,10 @@ demos.push({
     // The tool in use sits before PanZoom, which is how a press reaches it first.
     let tool: InstanceType<typeof L.Brush | typeof L.BoxZoom> | null = null;
     const use = (name: string) => {
-      if (tool) plane.remove(tool);
+      if (tool) tool.remove();
       brush.clear();
       tool = name === 'brush' ? brush : name === 'zoom' ? zoom : null;
-      if (tool) plane.insertBefore(tool, pan);
+      if (tool) pan.before(tool);
       pan.setAttribute('pan', name === 'pan');
       if (name !== 'brush') report(null);
     };
@@ -7037,7 +7039,7 @@ demos.push({
         value: S.shape,
         onChange: (v) => {
           S.shape = v;
-          plane.remove(series);
+          series.remove();
           series = makeSeries();
           plane.append(series);
         },
@@ -7252,7 +7254,7 @@ demos.push({
       });
       const plane = made.firstChild;
       if (!(plane instanceof L.Plane)) throw new Error('pieChart should make a plane');
-      made.remove(plane);
+      plane.remove();
       return plane;
     };
     let shown: L.Plane = barsPlane();
@@ -7265,7 +7267,7 @@ demos.push({
           : slices.map((s) => `${s.name} ${s.value}`).join('   ');
     };
     const show = () => {
-      chart.remove(shown);
+      shown.remove();
       shown = S.view === 'bars' ? barsPlane() : piePlane();
       chart.setAttribute('padding', PADDING[S.view]);
       chart.append(shown);

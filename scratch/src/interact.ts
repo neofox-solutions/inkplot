@@ -15,9 +15,8 @@ export function makeInteractive(chart: Chart): string[] {
     if (plane instanceof CartesianPlane && !kids.some((k) => k instanceof BoxZoom)) {
       // A box takes a press, so it goes before whatever else does (PanZoom, a Brush, a PointerListener).
       const first = kids.find((k) => k.claimsPress) ?? null;
-      // `first` is one of the plane's own children, which the iteration types more loosely than `insertBefore` takes.
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- `first` is any child of the plane; `insertBefore` takes the plane's own child union, and the wildcard child cannot be narrowed to it
-      plane.insertBefore(new BoxZoom(), first as Parameters<Plane['insertBefore']>[1]);
+      if (first) first.before(new BoxZoom());
+      else plane.append(new BoxZoom());
       added.add('boxzoom');
     }
     if (!kids.some((k) => k instanceof PanZoom)) {

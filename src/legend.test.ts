@@ -215,7 +215,7 @@ test('legend', () => {
     t.rate.append(extra);
     t.chart.flush();
     assert(count() >= before + 2, 'a marker on the plot and one in the legend');
-    t.rate.remove(extra);
+    extra.remove();
     t.chart.flush();
     assert.equal(count(), before, 'and both gone');
   }
